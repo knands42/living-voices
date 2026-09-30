@@ -2,7 +2,8 @@ use std::sync::{Arc, RwLock};
 
 use thiserror::Error;
 
-use crate::backend::domain::session::Session;
+use crate::backend::domain::adventure::Adventure;
+
 
 #[derive(Error, Debug)]
 pub enum StateError {
@@ -14,18 +15,18 @@ pub enum StateError {
 
 #[derive(Debug, Default)]
 pub struct AppState {
-    pub current_session: Option<Session>,
+    pub current_adventure: Option<Adventure>,
 }
 
 impl AppState {
     pub fn new() -> Self {
         Self {
-            current_session: None
+            current_adventure: None
         }
     }
 
-    pub fn set_session(&mut self, session: Session) {
-        self.current_session = Some(session)
+    pub fn set_adventure(&mut self, session: Adventure) {
+        self.current_adventure = Some(session)
     }
 }
 

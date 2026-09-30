@@ -1,25 +1,27 @@
-use std::error;
-
-use crate::backend::application::{state::SharedState, world_manager::WorldManagerError};
+use crate::{backend::application::{adventure_manager::{AdventureManager, AdventureManagerError}, state::SharedState}, ui};
 
 pub struct App {
     state: SharedState,
+    adventure_manager: AdventureManager
 }
 
 impl App {
     pub fn new() -> Self {
+        let state = SharedState::new();
+        let adventure_manager = AdventureManager::new(state.clone());
         Self {
-            state: SharedState::new(),
+            state,
+            adventure_manager
         }
     }
 
     pub fn run(&self) -> Result<(), slint::PlatformError> {
-        todo!()
+        ui::run(self.state.clone())
     }
 }
 
 impl App {
-    pub fn seed_demo(&self) -> Result<(), WorldManagerError> {
+    pub fn seed_demo(&self) -> Result<(), AdventureManagerError> {
         todo!()
     }
 }
