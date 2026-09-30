@@ -1,14 +1,14 @@
-use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::migrate::Migrator;
 
-static MIGRATIONS: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
+use crate::backend::persistence::{db::open_pool, error::PersistenceError};
 
-pub async fn run_migrations(db_path: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let pool = SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect(db_path)
-        .await?;
+static MIGRATIONS: Migrator = sqlx::migrate!("./migrations");
+
+pub async fn run_migrations(db_path: &str) -> Result<(), PersistenceError> {
+    let pool = open_pool(db_path).await?;
 
     MIGRATIONS.run(&pool).await?;
-    pool.close();
+    pool.close().await;
+
     Ok(())
 }

@@ -1,4 +1,8 @@
-use living_voices::{app::App, backend::{run_migrations, run_seeds}, config::Config};
+use living_voices::{
+    app::App,
+    backend::{run_migrations, run_seeds, seed_titles},
+    config::Config,
+};
 
 #[tokio::main]
 async fn main() {
@@ -19,9 +23,14 @@ async fn main() {
 
     let demo = std::env::args().any(|arg| arg == "--demo");
     if demo {
-        if let Err(err) = run_seeds() {
-            eprintln!("Could not seed demo world: {err}");
-            std::process::exit(1);
+        log::info!("Seeding demo world: {}", seed_titles().join(", "));
+
+        match run_seeds(&config.db_path).await {
+            Ok(ids) => log::info!("Seeded {} adventures", ids.len()),
+            Err(err) => {
+                eprintln!("Could not seed demo world: {err}");
+                std::process::exit(1);
+            }
         }
     }
 

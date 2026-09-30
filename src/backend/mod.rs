@@ -1,6 +1,10 @@
 pub mod application;
 pub mod domain;
-mod persistence;
+pub mod persistence;
 
-pub use persistence::migrator::run_migrations;
-pub use persistence::seeder::run_seeds;
+pub use persistence::{
+    db::open_pool,
+    error::PersistenceError,
+    migrator::run_migrations,
+    seeder::{find_seed, run_seeds, seed_one, seed_titles, SeedAdventure, SeedCharacter},
+};

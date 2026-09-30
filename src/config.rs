@@ -35,16 +35,6 @@ impl Config {
         std::env::var("HOME").expect("Fail to get home directory")
     }
 
-    fn expand_home(&self) -> String {
-        let home = Config::get_home_directory();
-        let mut result = self.config_path.clone();
-        if let Some(rest) = result.strip_prefix("${HOME}") {
-            result = home.clone() + rest;
-        }
-
-        result
-    }
-
     fn create_default(path: &std::path::Path) -> Result<(), IoError> {
         std::fs::create_dir_all(path.parent().unwrap_or(path))?;
 
@@ -59,16 +49,34 @@ impl Config {
         let text = std::fs::read_to_string(path).ok()?;
         let config: Config = toml::from_str(&text).ok()?;
 
-        config.expand_home();
+        let config = config.expand_home();
 
         log::info!("Config loaded from {}", path.display());
         Some(config)
     }
 
     fn load_default_config(base_dir: &str) -> Self {
+        let config_dir = format!("{}/.config/living_voices", base_dir);
+
         Config {
-            config_path: format!("{}/.config/chronos_archive/config.toml", base_dir),
-            db_path: format!("{}/.config/chronos_archive/config.toml", base_dir),
+            config_path: config_dir.clone(),
+            db_path: format!("{}/living_voices.db", config_dir),
+        }
+    }
+
+    /// Expands the `${HOME}` placeholder the shipped config.toml uses.
+    fn expand_home(&self) -> Self {
+        Self {
+            config_path: expand_home_in(&self.config_path),
+            db_path: expand_home_in(&self.db_path),
         }
     }
 }
+
+fn expand_home_in(value: &str) -> String {
+    match value.strip_prefix("${HOME}") {
+        Some(rest) => format!("{}{}", Config::get_home_directory(), rest),
+        None => value.to_string(),
+    }
+}
+

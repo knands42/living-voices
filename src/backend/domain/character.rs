@@ -2,6 +2,10 @@ use std::collections::HashMap;
 
 use uuid::Uuid;
 
+/// Mirrors `CONSTRAINT character_status_known` in the schema.
+pub const DEFAULT_STATUS: &str = "active";
+pub const STATUSES: [&str; 3] = ["active", "inactive", "archived"];
+
 #[derive(Clone, Debug)]
 pub struct Character {
     pub id: Uuid,
@@ -21,7 +25,7 @@ impl Character {
             name,
             description,
             backstory: String::new(),
-            status: String::new(),
+            status: DEFAULT_STATUS.to_string(),
             traits: Vec::new(),
             tags: Vec::new(),
             relations: HashMap::new(),
@@ -30,6 +34,13 @@ impl Character {
 
     pub fn with_backstory(mut self, backstory: String) -> Self {
         self.backstory = backstory;
+        self
+    }
+
+    /// Sets the lifecycle status. Unknown values are kept as given; validation
+    /// belongs at the persistence boundary, which is where the schema is known.
+    pub fn with_status(mut self, status: String) -> Self {
+        self.status = status;
         self
     }
 
