@@ -1,6 +1,6 @@
 use sqlx::sqlite::SqlitePoolOptions;
 
-const MIGRATIONS: sqlx::MigrateInstance = sqlx::migrate!("./migrations");
+static MIGRATIONS: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
 pub async fn run_migrations(db_path: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let pool = SqlitePoolOptions::new()

@@ -6,7 +6,7 @@ async fn main() {
     log_panics::init();
 
     let config = Config::new().expect("Failed to initialize config");
-    log::info!("Config loaded from {}", config.config_dir);
+    log::info!("Config loaded from {}", config.config_path);
 
     // Run migrations before anything else touches the DB
     if let Err(e) = run_migrations(&config.db_path).await {
