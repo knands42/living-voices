@@ -8,10 +8,8 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
-        App {
-            state: SharedState {
-                current_session: String::new(),
-            },
+        Self {
+            state: SharedState::new(),
         }
     }
 
