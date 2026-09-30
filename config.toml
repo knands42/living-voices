@@ -1,0 +1,2 @@
+config_path = "${HOME}/.config/living_voices"
+db_path = "${HOME}/.config/living_voices/living_voices.db"
