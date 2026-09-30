@@ -19,10 +19,8 @@ pub struct SeedCharacter {
     pub description: &'static str,
     pub backstory: &'static str,
     pub status: &'static str,
-    /// Ordered; duplicates are meaningful and are kept.
     pub traits: &'static [&'static str],
     pub tags: &'static [&'static str],
-    /// `(other character's name, how this character relates to them)`
     pub relations: &'static [(&'static str, &'static str)],
 }
 
@@ -285,6 +283,9 @@ async fn seed_connection(
 
     for character in &adventure.characters {
         insert_character(&mut *tx, adventure.id, character).await?;
+    }
+
+    for character in &adventure.characters {
         insert_relations(&mut *tx, character.id, &character.relations).await?;
     }
 

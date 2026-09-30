@@ -10,10 +10,10 @@ async fn main() {
     log_panics::init();
 
     let config = Config::new().expect("Failed to initialize config");
-    log::info!("Config loaded from {}", config.config_path);
+    log::info!("Config loaded from {}", config.config_file.display());
 
     // Run migrations before anything else touches the DB
-    if let Err(e) = run_migrations(&config.db_path).await {
+    if let Err(e) = run_migrations(&config.db_path.to_string_lossy().as_ref()).await {
         eprintln!("Database migration failed: {e}");
         std::process::exit(1);
     }
@@ -25,7 +25,7 @@ async fn main() {
     if demo {
         log::info!("Seeding demo world: {}", seed_titles().join(", "));
 
-        match run_seeds(&config.db_path).await {
+        match run_seeds(&config.db_path.to_string_lossy().as_ref()).await {
             Ok(ids) => log::info!("Seeded {} adventures", ids.len()),
             Err(err) => {
                 eprintln!("Could not seed demo world: {err}");
