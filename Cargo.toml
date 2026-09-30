@@ -1,0 +1,28 @@
+[package]
+name = "living-voices"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "living_voices"
+path = "src/main.rs"
+
+[lib]
+name = "living_voices"
+path = "src/lib.rs"
+
+
+[dependencies]
+slint = { version = "1.18.1", features = ["renderer-software"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2.0.21"
+env_logger = { version = "0.11.10", features = ["auto-color", "humantime"] }
+log = "0.4"
+log-panics = "2.1"
+toml = "1.1.6"
+
+[build-dependencies]
+slint-build = "1.18.1"

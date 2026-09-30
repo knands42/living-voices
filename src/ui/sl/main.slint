@@ -1,0 +1,15 @@
+import { AppTheme } from "theme.slint";
+
+
+export component MainWindow inherits Window {
+    title: "Chronos Archive";
+    preferred-width: 1280px;
+    preferred-height: 800px;
+    min-width: 1024px;      // desktop-first (§4)
+    min-height: 640px;
+    background: AppTheme.bg-base;
+    default-font-family: AppTheme.font-body;
+    default-font-size: 14px;
+    default-font-weight: 400;
+
+}
