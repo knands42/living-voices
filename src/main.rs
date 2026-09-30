@@ -11,7 +11,7 @@ fn main() {
 
     log::info!("Starting Living Voices");
     let demo = std::env::args().any(|arg| arg == "--demo");
-    if demo && let Err(err) = app.seed_demo() {
+    if demo && let Err(err) = app.run_demo() {
         eprintln!("Could not seed demo world: {err}");
         std::process::exit(1);
     }

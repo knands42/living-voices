@@ -1,0 +1,2 @@
+DROP TRIGGER IF EXISTS tag_touch_updated_at;
+DROP TABLE IF EXISTS tag;

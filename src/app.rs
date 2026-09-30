@@ -1,8 +1,18 @@
-use crate::{backend::application::{adventure_manager::{AdventureManager, AdventureManagerError}, state::SharedState}, ui};
+use log::debug;
+
+use crate::{
+    backend::application::{
+        adventure_manager::{AdventureManager, AdventureManagerError},
+        seeder::Seeder,
+        state::SharedState,
+    },
+    ui,
+};
 
 pub struct App {
     state: SharedState,
-    adventure_manager: AdventureManager
+    adventure_manager: AdventureManager,
+    seeder: Seeder,
 }
 
 impl App {
@@ -11,7 +21,7 @@ impl App {
         let adventure_manager = AdventureManager::new(state.clone());
         Self {
             state,
-            adventure_manager
+            adventure_manager,
         }
     }
 
@@ -21,7 +31,12 @@ impl App {
 }
 
 impl App {
-    pub fn seed_demo(&self) -> Result<(), AdventureManagerError> {
-        todo!()
+    pub fn run_demo(&self) -> Result<(), slint::PlatformError> {
+        Seeder::run().or_else(|e| -> Result<(), _> {
+            debug!("Could not seed demo world: {e}");
+            Ok(())
+        });
+        
+        self.run()
     }
 }

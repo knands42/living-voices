@@ -10,7 +10,9 @@ pub struct Adventure {
     pub description: String,
     pub lore: Lore,
     pub characters: Vec<Character>,
-    pub metadata: AdventureMetadata,
+    pub genre: Option<String>,
+    pub tone: Option<String>,
+    pub tags: Vec<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -24,21 +26,14 @@ impl Adventure {
             description,
             lore: Lore::new(),
             characters: Vec::new(),
-            metadata: AdventureMetadata::default(),
+            genre: None,
+            tone: None,
+            tags: Vec::new(),
             created_at: now,
             updated_at: now,
         }
     }
-}
 
-#[derive(Debug, Default, Clone)]
-struct AdventureMetadata {
-    pub genre: Option<String>,
-    pub tone: Option<String>,
-    pub tags: Vec<String>,
-}
-
-impl AdventureMetadata {
     pub fn add_tags(&mut self, tags: Vec<String>) {
         self.tags.extend(tags);
     }

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use chrono::Utc;
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]
@@ -8,6 +7,7 @@ pub struct Character {
     pub id: Uuid,
     pub name: String,
     pub description: String,
+    pub status: String,
     pub backstory: String,
     pub traits: Vec<String>, // Speaks only in tidal registers, ...
     pub tags: Vec<String>,   // Protagonist, Brave ...
@@ -21,6 +21,7 @@ impl Character {
             name,
             description,
             backstory: String::new(),
+            status: String::new(),
             traits: Vec::new(),
             tags: Vec::new(),
             relations: HashMap::new(),
