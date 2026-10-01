@@ -20,23 +20,19 @@ async fn main() {
 
     #[cfg(debug_assertions)]
     {
-        let demo = std::env::args().any(|arg| arg == "--demo");
-        if demo {
-            use living_voices::backend::run_seeds;
+        use living_voices::backend::run_seeds;
 
-            log::info!("Seeding demo world: {}", seed_titles().join(", "));
+        log::info!("Seeding demo world: {}", seed_titles().join(", "));
 
-            match run_seeds(&config.db_path.to_string_lossy().as_ref()).await {
-                Ok(ids) => log::info!("Seeded {} adventures", ids.len()),
-                Err(err) => {
-                    eprintln!("Could not seed demo world: {err}");
-                    std::process::exit(1);
-                }
+        match run_seeds(&config.db_path.to_string_lossy().as_ref()).await {
+            Ok(ids) => log::info!("Seeded {} adventures", ids.len()),
+            Err(err) => {
+                eprintln!("Could not seed demo world: {err}");
+                std::process::exit(1);
             }
-
-            log::info!("Demo mode: debug build — exiting after seed.");
-            return;
         }
+
+        log::info!("Demo mode: debug build — exiting after seed.");
     }
 
     let app = App::new();

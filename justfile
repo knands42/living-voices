@@ -7,8 +7,12 @@ lint:
 test:
     cargo test
 
-run-demo: build
-    ./target/debug/living_voices --demo
+run-debug: build
+    ./target/debug/living_voices
+
+run-release:
+    cargo build --release
+    ./target/release/living_voices
 
 create-migration name:
     sqlx migrate add -r {{name}}

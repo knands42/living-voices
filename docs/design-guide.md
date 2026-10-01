@@ -88,9 +88,9 @@ global Theme {
 │ Card grid (scrollable, flex: 1)           │ Quick start panel│
 │  HorizontalLayout of rows, 2-3 columns,   │ 260px, top-right │
 │  ~16px gaps, 24px outer padding           │ (under filter    │
-│  Tome cards ~260x160px, slight tilts on   │  row) with preset│
-│  1-2 cards; active card glows gold        │ scenario pills   │
-│  New Adventure card ends the grid         │                  │
+│  Tome cards ~260x160px,                   │  row) with preset│
+│                                           │ scenario pills   │
+│                                           │                  │
 └───────────────────────────────────────────┴──────────────────┘
 ```
 
