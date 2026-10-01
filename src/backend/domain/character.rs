@@ -37,8 +37,6 @@ impl Character {
         self
     }
 
-    /// Sets the lifecycle status. Unknown values are kept as given; validation
-    /// belongs at the persistence boundary, which is where the schema is known.
     pub fn with_status(mut self, status: String) -> Self {
         self.status = status;
         self
