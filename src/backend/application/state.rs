@@ -4,7 +4,6 @@ use thiserror::Error;
 
 use crate::backend::domain::adventure::Adventure;
 
-
 #[derive(Error, Debug)]
 pub enum StateError {
     #[error("failed to acquire read lock: {0}")]
@@ -21,7 +20,7 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         Self {
-            current_adventure: None
+            current_adventure: None,
         }
     }
 

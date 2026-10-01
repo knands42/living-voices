@@ -1,12 +1,112 @@
 // import "../assets/fonts/*.ttf";
 
+// Bundled .ttf files are preferred (see §6). Until they land in
+// src/ui/assets/fonts, fall back to the Noto families present on the system
+// so serif/sans pairing stays intact.
 export global AppTheme {
     // --- Colors (§2) ---
-    in property <color> bg-base: #1A1512;         // app background
+
+    // Backgrounds
+    in property <color> bg-deepest: #1a120b;        // window background
+    in property <color> bg-panel: #2b1d12;          // sidebar / side panels
+    in property <color> bg-panel-alt: #33220f;      // narrator panel, cards
+    in property <color> bg-parchment: #e8d5a3;     // chat scroll backdrop
+    in property <color> bg-parchment-dark: #d4bd8a; // scroll edges / shading
+
+    // Message bubbles (on parchment)
+    in property <color> bubble-bg: rgba(30, 20, 12, 0.82);        // dark translucent
+    in property <color> bubble-narrator: rgba(45, 30, 15, 0.75);   // italic narrator
+    in property <color> bubble-user: rgba(60, 40, 18, 0.85);       // own messages
+    in property <color> bubble-border: rgba(212, 165, 69, 0.35);   // 1px bubble outline
+
+    // Accents
+    in property <color> gold: #d4a545;             // active/selected, headers
+    in property <color> gold-bright: #f0c060;      // hover, focus ring
+    in property <color> amber-glow: #ff9d3f;       // candle accents, icons
+    in property <color> bronze: #8a6a3a;           // borders, secondary buttons
+
+    // Text
+    in property <color> text-light: #f3e6c8;       // on dark panels
+    in property <color> text-ink: #2e2214;         // on parchment
+    in property <color> text-muted: #a08860;       // timestamps, hints
+    in property <color> text-narrator: #4a3520;    // italic on parchment
+
+    // Status
+    in property <color> success: #6db56d;          // "Active" badge
+    in property <color> danger: #c06050;
+
+    // Campaign cards / surfaces (§5 Home page)
+    in property <color> card-leather: #3a2412;     // leather-bound tome body
+    in property <color> card-leather-dark: #241408; // book-spine strip
+    in property <color> card-edge-shadow: rgba(0, 0, 0, 0.45);
+
+    // Composer inline segments (§5 Composer)
+    in property <color> seg-action-bg: rgba(212, 165, 69, 0.18);
+    in property <color> seg-action-text: #d4a545;
+    in property <color> seg-thought-bg: rgba(90, 70, 140, 0.25);
+    in property <color> seg-thought-text: #9a86c9;
+
+    // Warm candle-glow vignette (§5 Home page)
+    in property <color> candle-glow: rgba(255, 157, 63, 0.10);
+    in property <color> glow-soft: rgba(240, 192, 96, 0.18);
+    in property <color> scroll-rod: #4a2c14;        // wooden scroll rod bars
 
     // --- Typography (§3) ---
-    in property <string> font-body: "Inter";
+    in property <string> font-body: "Noto Sans";    // humanist sans (fallback sans-serif)
+    in property <string> font-display: "Noto Serif"; // EB Garamond / Cinzel (fallback serif)
+
+    in property <length> font-title: 22px;      // window / hero title
+    in property <length> font-card-title: 19px; // campaign card title
+    in property <length> font-heading: 15px;    // panel headers
+    in property <length> font-body-lg: 15px;    // chat body / narrator
+    in property <length> font-body-md: 14px;
+    in property <length> font-label: 12px;      // nav labels, badges
+    in property <length> font-tiny: 10px;       // small caps tags
+    in property <length> font-timestamp: 11px;
+
+    in property <int> weight-regular: 400;   // font-weight takes plain numbers
+    in property <int> weight-medium: 500;
+    in property <int> weight-bold: 700;
 
     // --- Metrics (§4) ---
+    in property <length> topbar-h: 48px;
+    in property <length> sidebar-w: 240px;
+    in property <length> panel-w: 260px;
+    in property <length> window-min-w: 1024px;
+    in property <length> window-min-h: 640px;
 
+    in property <length> pad-outer: 12px;       // 12px outer padding
+    in property <length> gap-panel: 8px;         // 8-10px between panels
+    in property <length> gap-bubble: 8px;       // 8px between bubbles
+    in property <length> gap-tight: 4px;
+
+    in property <length> control-h: 32px;        // pill button height
+    in property <length> icon-sm: 16px;
+    in property <length> icon-md: 20px;
+
+    in property <length> avatar-sm: 24px;        // card avatar row
+    in property <length> avatar-md: 40px;
+    in property <length> avatar-lg: 48px;        // sidebar character card
+    in property <length> char-card-h: 72px;      // sidebar character card
+
+    in property <length> campaign-card-min-w: 260px;
+    in property <length> campaign-card-min-h: 160px;
+    in property <length> progress-bar-h: 3px;
+    in property <length> sundial-size: 120px;    // story clock widget
+    in property <length> scroll-rod-h: 12px;
+    in property <length> scene-image-h: 146px;   // 16:9 inside 260px panel
+
+    // --- Radii (§5) ---
+    in property <length> radius-panel: 8px;      // parchment rect, cards, images
+    in property <length> radius-bubble: 10px;
+    in property <length> radius-card: 8px;
+    in property <length> radius-segment: 6px;    // inline composer segments
+    in property <length> radius-pill: 999px;
+    in property <length> radius-badge: 4px;
+    in property <length> radius-circle: 999px;
+
+    // --- Motion (§6) ---
+    in property <duration> hover-dur: 150ms;
+    in property <duration> fade-dur: 200ms;
+    in property <duration> candle-dur: 4s;
 }

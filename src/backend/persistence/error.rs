@@ -24,10 +24,7 @@ pub enum PersistenceError {
     },
 
     #[error("`{adventure}` is not valid: {reason}")]
-    InvalidAdventure {
-        adventure: String,
-        reason: String,
-    },
+    InvalidAdventure { adventure: String, reason: String },
 }
 
 impl PersistenceError {

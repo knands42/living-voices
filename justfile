@@ -1,6 +1,12 @@
 build:
     cargo build
 
+lint:
+    cargo fmt
+
+test:
+    cargo test
+
 run-demo: build
     ./target/debug/living_voices --demo
 

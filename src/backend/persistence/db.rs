@@ -2,10 +2,8 @@ use std::path::Path;
 use std::time::Duration;
 
 use chrono::{DateTime, SecondsFormat, Utc};
-use sqlx::sqlite::{
-    SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous,
-};
 use sqlx::SqlitePool;
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 
 use crate::backend::persistence::error::PersistenceError;
 

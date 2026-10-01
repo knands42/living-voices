@@ -32,9 +32,13 @@ fn statuses_contains_the_default() {
 
 #[test]
 fn with_backstory_replaces_backstory() {
-    let character = new_character().with_backstory("She kept the lamp lit for forty years.".to_string());
+    let character =
+        new_character().with_backstory("She kept the lamp lit for forty years.".to_string());
 
-    assert_eq!(character.backstory, "She kept the lamp lit for forty years.");
+    assert_eq!(
+        character.backstory,
+        "She kept the lamp lit for forty years."
+    );
 }
 
 #[test]
@@ -80,7 +84,10 @@ fn add_relation_maps_entity_to_relationship() {
 
     character.add_relation(mother, "Mother".to_string());
 
-    assert_eq!(character.relations.get(&mother), Some(&"Mother".to_string()));
+    assert_eq!(
+        character.relations.get(&mother),
+        Some(&"Mother".to_string())
+    );
 }
 
 #[test]
@@ -92,7 +99,10 @@ fn add_relation_replaces_existing_relationship_for_same_entity() {
     character.add_relation(sister, "Estranged sister".to_string());
 
     assert_eq!(character.relations.len(), 1);
-    assert_eq!(character.relations.get(&sister), Some(&"Estranged sister".to_string()));
+    assert_eq!(
+        character.relations.get(&sister),
+        Some(&"Estranged sister".to_string())
+    );
 }
 
 #[test]

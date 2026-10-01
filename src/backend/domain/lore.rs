@@ -3,14 +3,14 @@ use uuid::Uuid;
 #[derive(Clone, Debug)]
 pub struct Lore {
     pub id: Uuid,
-    pub text: String
+    pub text: String,
 }
 
 impl Lore {
     pub fn new() -> Self {
         Lore {
             id: Uuid::new_v4(),
-            text: String::new()
+            text: String::new(),
         }
     }
 

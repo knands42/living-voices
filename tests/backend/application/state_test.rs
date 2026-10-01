@@ -19,7 +19,10 @@ fn app_state_set_adventure_stores_adventure() {
 
     state.set_adventure(adventure.clone());
 
-    assert_eq!(state.current_adventure.as_ref().map(|a| a.id), Some(adventure.id));
+    assert_eq!(
+        state.current_adventure.as_ref().map(|a| a.id),
+        Some(adventure.id)
+    );
 }
 
 #[test]
@@ -31,7 +34,10 @@ fn set_adventure_replaces_previous_adventure() {
     state.set_adventure(first);
     state.set_adventure(second.clone());
 
-    assert_eq!(state.current_adventure.as_ref().map(|a| a.id), Some(second.id));
+    assert_eq!(
+        state.current_adventure.as_ref().map(|a| a.id),
+        Some(second.id)
+    );
 }
 
 #[test]
@@ -48,7 +54,15 @@ fn shared_state_exposes_written_adventure_to_later_reads() {
 
     state.write().unwrap().set_adventure(adventure.clone());
 
-    assert_eq!(state.read().unwrap().current_adventure.as_ref().map(|a| a.id), Some(adventure.id));
+    assert_eq!(
+        state
+            .read()
+            .unwrap()
+            .current_adventure
+            .as_ref()
+            .map(|a| a.id),
+        Some(adventure.id)
+    );
 }
 
 #[test]
@@ -59,7 +73,15 @@ fn shared_state_shares_one_state_across_clones() {
 
     state.write().unwrap().set_adventure(adventure.clone());
 
-    assert_eq!(clone.read().unwrap().current_adventure.as_ref().map(|a| a.id), Some(adventure.id));
+    assert_eq!(
+        clone
+            .read()
+            .unwrap()
+            .current_adventure
+            .as_ref()
+            .map(|a| a.id),
+        Some(adventure.id)
+    );
 }
 
 #[test]
