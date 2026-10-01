@@ -1,6 +1,6 @@
 use living_voices::{
     app::App,
-    backend::{run_migrations, run_seeds, seed_titles},
+    backend::{run_migrations, seed_titles},
     config::Config,
 };
 
@@ -18,21 +18,29 @@ async fn main() {
         std::process::exit(1);
     }
 
-    let app = App::new();
-    log::info!("Starting Living Voices");
+    #[cfg(debug_assertions)]
+    {
+        let demo = std::env::args().any(|arg| arg == "--demo");
+        if demo {
+            use living_voices::backend::run_seeds;
 
-    let demo = std::env::args().any(|arg| arg == "--demo");
-    if demo {
-        log::info!("Seeding demo world: {}", seed_titles().join(", "));
+            log::info!("Seeding demo world: {}", seed_titles().join(", "));
 
-        match run_seeds(&config.db_path.to_string_lossy().as_ref()).await {
-            Ok(ids) => log::info!("Seeded {} adventures", ids.len()),
-            Err(err) => {
-                eprintln!("Could not seed demo world: {err}");
-                std::process::exit(1);
+            match run_seeds(&config.db_path.to_string_lossy().as_ref()).await {
+                Ok(ids) => log::info!("Seeded {} adventures", ids.len()),
+                Err(err) => {
+                    eprintln!("Could not seed demo world: {err}");
+                    std::process::exit(1);
+                }
             }
+
+            log::info!("Demo mode: debug build — exiting after seed.");
+            return;
         }
     }
+
+    let app = App::new();
+    log::info!("Starting Living Voices");
 
     if let Err(err) = app.run() {
         eprintln!("Application error: {err}");
