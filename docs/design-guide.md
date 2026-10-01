@@ -2,12 +2,24 @@
 
 A design spec for the Slint UI of **Living Voices**, a local roleplay chat app.
 Write for another LLM: follow these tokens and rules when generating `.slint` files.
-Reference mockup: `ui-ux-mockup-of-a-fantasy-themed-rolepla-e3eb65.png` (see /rool-drive).
+Reference mockups (see /rool-drive):
+
+- Chat screen: `keep-the-same-fantasy-desktop-app-ui-moc-a14631.png`
+- Home / Adventures screen: `keep-the-same-fantasy-desktop-app-home-s-1afc1a.png`
+- Characters screen (showcase gallery):
+  `redesign-this-fantasy-desktop-app-charac-6d0597.png`
+
+## Terminology
+
+Use **adventure** everywhere (UI copy, identifiers, Rust types) - never
+"campaign": `Adventure`, `adventure_id`, nav tab "Adventures", button
+"New Adventure". A group of characters is the party/cast; a player persona
+is a character. Story time-of-day/progress state is the Story Clock.
 
 ## 1. Theme & Mood
 
 Dark warm fantasy: candlelit library at night. Parchment and aged wood textures
-as *backdrops only* — interactive elements (bubbles, buttons, inputs) stay clean
+as _backdrops only_ — interactive elements (bubbles, buttons, inputs) stay clean
 and modern for readability. No heavy ornamentation on controls.
 
 - Backdrop: aged parchment, wooden scroll rods, warm candlelight.
@@ -56,12 +68,56 @@ global Theme {
   for nav items. Gold color for brand and active nav.
 - **Chat message body:** humanist sans (e.g. `Noto Sans`, `Source Sans`,
   fallback `sans-serif`), 14–15px, `text-ink` on parchment bubbles.
-- **Narrator text:** same sans, *italic*, slightly larger line spacing.
+- **Narrator text:** same sans, _italic_, slightly larger line spacing.
 - **Name labels in bubbles:** serif, small caps, gold or bronze.
 - **Timestamps:** 11px, `text-muted`, right-aligned inside bubble header.
 - **Input placeholders:** 14px italic, `text-muted`.
 
 ## 4. Layout
+
+### Adventures page (home)
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Top bar (48px): brand left, nav tabs center, profile right   │
+├──────────────────────────────────────────────────────────────┤
+│ Hero (90px): parchment banner, serif welcome title           │
+│ ── Filter row (36px): [All][Fantasy][Mystery][Horror]...     │
+│    chips left/center · NSFW toggle right-aligned             │
+├───────────────────────────────────────────┬──────────────────┤
+│ Card grid (scrollable, flex: 1)           │ Quick start panel│
+│  HorizontalLayout of rows, 2-3 columns,   │ 260px, top-right │
+│  ~16px gaps, 24px outer padding           │ (under filter    │
+│  Tome cards ~260x160px, slight tilts on   │  row) with preset│
+│  1-2 cards; active card glows gold        │ scenario pills   │
+│  New Adventure card ends the grid         │                  │
+└───────────────────────────────────────────┴──────────────────┘
+```
+
+- Cards flow in a wrapping grid; on narrow windows the Quick start panel
+  collapses below the grid or into the hero row.
+- Background: `bg-deepest` with a very subtle parchment/wood texture at
+  low opacity plus floating dust-mote particles.
+
+### Characters page (home)
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Top bar (48px): brand left, nav tabs center, profile right   │
+├──────────────────────────────────────────────────────────────┤
+│ Filter row (44px): search field left, chips center,          │
+│  NSFW toggle right                                           │
+├──────────────────────────────────────────────────────────────┤
+│ Portrait card grid (scrollable, flex: 1)                     │
+│  3-5 columns, ~240x320px cards, 16px gaps, 24px padding      │
+│  Full-art portraits; New Character card ends the grid        │
+└──────────────────────────────────────────────────────────────┘
+```
+
+- Background: `bg-deepest` with subtle texture plus dust-mote particles,
+  matching the Adventures page.
+
+### Chat page
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -85,34 +141,109 @@ global Theme {
 
 ## 5. Components
 
-### Home page (Campaigns)
-The home screen is the campaign list, shown under the same top bar as the
-chat (nav tabs: Campaigns, Character, Lore, Settings, Notifications,
-Profile; Campaigns active).
+### Adventure page components
+
+The home screen is the adventure list, shown under the same top bar as the
+chat (nav tabs: Adventures, Character, Lore, Settings, Notifications,
+Profile; Adventures active).
 
 - Hero: parchment banner with serif title "Welcome back, <CharacterName>"
-  in `text-ink` on parchment; candle-glow vignette around window edges.
-- Campaign cards in a responsive grid (2-3 per row, min card ~260x160px).
-  Each card is styled like a leather-bound tome:
-  - Dark brown leather background `#3a2412`, rounded 8px, thin embossed
-    gold border; book-spine strip on the left edge in a darker shade.
-  - Title: serif, gold, 18-20px.
+  in `text-ink` on parchment; candle-glow vignette around window edges; a
+  red ribbon on the last-visited card reads "Last visited: <Adventure> -
+  Chapter N".
+- Filter bar (row under the hero, right-aligned next to it):
+  - Category chips: `All` `Fantasy` `Mystery` `Horror` `Romance`
+    `Intrigue` - small bronze circular/pill sigil chips with a tiny icon.
+    Active chip: gold fill border + warm glow (like `All` in the mockup).
+    Selecting one filters the card grid (All shows everything; single
+    select is fine).
+  - NSFW toggle: far right, a small purple-rose flame icon plus a label
+    "NSFW" and a pill toggle. OFF (default): bronze track, shows "OFF",
+    rose-purple tint. ON: rose-purple fill, shows "ON". When OFF, NSFW
+    adventures are hidden from the grid (and their covers blurred or
+    replaced in search results). Store the preference in app settings.
+- Alive feel: subtle floating dust-motes/sparkle particles in the dark
+  background, candle flicker on the vignette, cards get a gentle hover
+  lift (2-4px up + stronger gold border) and the active card emits a soft
+  candlelight glow behind it. Vary card tilt/height slightly (1-2 degrees
+  on one or two cards) so the shelf reads hand-placed, not grid-stamped.
+- Adventure cards in a responsive grid (2-3 per row, min card ~260x160px).
+  Each card is framed like a leather-bound tome, but its cover is a
+  full-card background illustration evoking the adventure's main plot or
+  its key character (misty forest, burning fortress, hooded figure in a
+  moonlit alley, candlelit tavern...), stored per adventure.
+  - Frame: rounded 8px, thin embossed gold border; book-spine strip on the
+    left edge in a darker leather shade.
+  - Text sits over the art on a dark gradient scrim (bottom ~55% of the
+    card fading to `rgba(20,12,6,0.85)`) for legibility.
+  - Title: serif, gold-bright, 18-20px, over the scrim.
   - Genre tag pill top-right (Fantasy, Mystery, Horror): bronze border,
-    10px small caps.
-  - Progress line: 12px `text-light`, e.g. "Chapter 4 - Evening" (mirrors
-    the campaign's Story Clock state), above a thin 3px progress bar
-    (bronze track, gold fill).
-  - Row of small (24px) circular character avatars.
+    dark translucent fill, 10px small caps.
+  - Progress line: 12px cream `text-light`, e.g. "Chapter 4 - Evening"
+    (mirrors the adventure's Story Clock state), above a thin 3px progress
+    bar (bronze track, gold fill).
+  - Row of small (24px) circular avatars of the adventure's cast.
   - Gold `Continue` pill button bottom-right.
-- Active campaign card: glowing gold border (2px `gold-bright` + soft
-  outer glow) - corresponds to the last-opened campaign.
-- New Campaign card: same tome shape but dashed bronze border, large gold
-  plus sigil centered, label "New Campaign".
+- Active adventure card: glowing gold border (2px `gold-bright` + soft
+  outer glow) - corresponds to the last-opened adventure.
+- New Adventure card: plain leather tome shape, dashed bronze border,
+  large gold plus sigil centered, label "New Adventure".
 - Quick start panel: small side card, header "Quick start" (serif gold),
   hint text, and a vertical list of preset scenario pills (Tavern Meeting,
   Dungeon Crawl, Court Intrigue) - bronze pills, hover gold.
 
+### Characters page (showcase gallery)
+
+Character discovery mirrors the Adventures page: art-first portrait
+showcase, not a text list. Two views:
+
+**Gallery view (default):**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Top bar (48px): brand left, nav tabs center, profile right   │
+├──────────────────────────────────────────────────────────────┤
+│ Filter row (44px): search input left · category chips        │
+│  [All][Fantasy][Mystery][Horror][Romance][Intrigue] ·        │
+│  NSFW toggle right-aligned                                   │
+├──────────────────────────────────────────────────────────────┤
+│ Portrait card grid (scrollable, flex: 1)                     │
+│  3-5 columns responsive, ~240x320px cards, ~16px gaps        │
+│  Full-art character portraits; New Character card last       │
+└──────────────────────────────────────────────────────────────┘
+```
+
+- Search input: bronze-bordered rounded field, italic muted placeholder
+  "Search characters...", magnifier sigil, ~280px wide.
+- Same category chips and NSFW toggle as the Adventures page (identical
+  styling and states; NSFW OFF hides NSFW characters).
+
+**Character card (~240x320px, 2:3 portrait):**
+
+- Full-card character illustration as background (bust or full-body,
+  evoking the character's look and vibe).
+- Bottom gradient scrim (`bg-deepest` -> transparent, like adventure
+  covers) holding, top to bottom: name in gold serif (~20px); one-line
+  greeting/bio in small cream italic (truncated to 2 lines); tag pill row
+  (race · role, bronze-bordered small caps); bottom row with the green
+  `Active` badge when in a live adventure, a gold `Chat` pill button
+  (right), and a small heart/like icon (bronze; gold when liked).
+- Thin gold frame + subtle candle glow on hover; active/selected card
+  glows like the adventure cover. Slight 1-2 degree tilts on a few cards.
+- `New Character` card: dashed bronze border, centered gold compass-rose
+  sigil, gold serif label.
+
+**Detail view (on card click):** opens as an overlay panel or replaces the
+grid with the full character sheet - ornate gold-ring portrait, name,
+tag pills, `Active` badge, then two-column sections: Appearance,
+Personality (trait chips), Backstory, Voice & Speech (italic sample
+line), Relationships (avatar + relation rows), Memory (italic notes with
+timestamps). Side column: "Appears in" adventure tome list and stats
+panel (Sessions, Scenes, First seen). Gold `Chat` pill top right, `Edit
+Character` gold pill bottom right. Back gesture returns to the gallery.
+
 ### Message bubble
+
 - Dark translucent bubble (`bubble-bg`), corner radius 10px, 1px border
   `rgba(212,165,69,0.35)`.
 - Header row: `[Name]` in serif small-caps + timestamp right (11px, muted).
@@ -121,6 +252,7 @@ Profile; Campaigns active).
 - Own messages: slightly warmer tint (`bubble-user`), right-aligned optional.
 
 ### Composer (single rich input with inline segments)
+
 ONE unified multi-line text editor, not separate fields. The user composes a
 single flowing message mixing action types as inline styled segments:
 
@@ -142,12 +274,14 @@ single flowing message mixing action types as inline styled segments:
   event log keeps the flow intact (speech, action, speech read naturally).
 
 ### Rendered message bubbles
+
 A sent message renders its inline segments in one bubble, preserving order:
 plain speech text, amber-italic action text `*like this*`, purple-dim
 thought text, and whispered text prefixed with `-> <Name>:`. Timestamps and
 the `[Name]` header stay as before.
 
 ### Action bar
+
 - Row of buttons: `Say` `Do` `Think` `Whisper` plus a settings gear on the right.
 - Buttons: dark brown pill (`#3a2412`), 1px bronze border, serif label.
 - Buttons are one-shot formatting switches, not multi-select checkboxes. The
@@ -157,22 +291,26 @@ the `[Name]` header stay as before.
 - Default mode: `Say`.
 
 ### Narrator panel (right)
+
 - Header "Narrator" (serif, gold) with a small quill/scroll icon.
 - Event card: parchment-dark background, italic serif text of the interrupt,
   plus an `EVENT: <name>` tag line in small caps bronze.
 - Below: scene snapshot image (16:9, rounded 8px, thin gold border).
 
 ### Story clock
+
 - Brass sundial-style circular widget, ~120px, gold ring, needle.
 - Digital time centered (e.g. 19:48) and phase word below in small caps
   (EVENING, NIGHT, MORNING…). Update on story-clock tick events.
 
 ### Sidebar character card
+
 - Avatar (circular, 48px, thin gold ring), name (serif gold), class/role
   line, optional status badge ("Active" — green pill, 10px).
 - Selected card: gold left border or soft outer glow.
 
 ### Top bar
+
 - Brand left: serif, gold, with a small pentacle/scroll emblem.
 - Nav: small-cap serif labels with icons; active tab underlined gold.
 - Right: notifications bell + profile avatar.
