@@ -1,6 +1,3 @@
-// Bundled so the app renders identically on any machine (§6).
-// EB Garamond + Cinzel + Noto Sans, all SIL Open Font License 1.1
-// (license texts sit next to the files in src/ui/assets/fonts).
 import "../assets/fonts/NotoSans.ttf";
 import "../assets/fonts/NotoSans-Italic.ttf";
 import "../assets/fonts/EBGaramond.ttf";
@@ -8,7 +5,7 @@ import "../assets/fonts/EBGaramond-Italic.ttf";
 import "../assets/fonts/Cinzel.ttf";
 
 export global AppTheme {
-    // --- Colors (§2) ---
+    // --- Colors ---
 
     // Backgrounds
     in property <color> bg-deepest: #1a120b;        // window background
@@ -39,7 +36,7 @@ export global AppTheme {
     in property <color> success: #6db56d;          // "Active" badge
     in property <color> danger: #c06050;
 
-    // Adventure cards / surfaces (§5 Home page)
+    // Adventure cards / surfaces
     in property <color> card-leather: #3a2412;     // leather-bound tome body
     in property <color> card-leather-dark: #241408; // book-spine strip
     in property <color> card-edge-shadow: rgba(0, 0, 0, 0.45);
@@ -51,27 +48,27 @@ export global AppTheme {
     in property <color> field-bg: #241a10;          // inputs, search field
     in property <color> field-border: #5a4224;      // bronze input border
 
-    // Composer inline segments (§5 Composer)
+    // Composer inline segments
     in property <color> seg-action-bg: rgba(212, 165, 69, 0.18);
     in property <color> seg-action-text: #d4a545;
     in property <color> seg-thought-bg: rgba(90, 70, 140, 0.25);
     in property <color> seg-thought-text: #9a86c9;
     in property <color> seg-whisper-text: #b0a2d8;
 
-    // Warm candle-glow vignette (§5 Home page)
+    // Warm candle-glow vignette
     in property <color> candle-glow: rgba(255, 157, 63, 0.10);
     in property <color> glow-soft: rgba(240, 192, 96, 0.18);
     in property <color> glow-active: rgba(240, 192, 96, 0.32); // active card outer glow
     in property <color> scroll-rod: #4a2c14;        // wooden scroll rod bars
 
-    // Accents specific to home page chips / NSFW toggle (§5)
+    // Accents specific to home page chips / NSFW toggle
     in property <color> rose: #b06a9c;              // NSFW flame icon, ON fill
     in property <color> rose-soft: rgba(176, 106, 156, 0.28);
     in property <color> ribbon: #8c2f2a;            // "Last visited" ribbon
     in property <color> ribbon-edge: #5e1d1a;
     in property <color> dust: rgba(255, 205, 140, 0.35); // floating dust motes
 
-    // --- Typography (§3) ---
+    // --- Typography ---
     in property <string> font-body: "Noto Sans";      // humanist sans, chat body + labels
     in property <string> font-display: "EB Garamond"; // serif, headers / card titles
     in property <string> font-brand: "Cinzel";        // small-caps serif, brand + nav + tags
@@ -79,63 +76,33 @@ export global AppTheme {
     in property <length> font-title: 22px;      // window / hero title
     in property <length> font-card-title: 19px; // adventure card title
     in property <length> font-heading: 15px;    // panel headers
-    in property <length> font-body-lg: 15px;    // chat body / narrator
-    in property <length> font-body-md: 14px;
     in property <length> font-label: 12px;      // nav labels, badges
     in property <length> font-tiny: 10px;       // small caps tags
-    in property <length> font-timestamp: 11px;
 
-    in property <int> weight-regular: 400;   // font-weight takes plain numbers
-    in property <int> weight-medium: 500;
-    in property <int> weight-bold: 700;
-
-    // --- Metrics (§4) ---
-    in property <length> topbar-h: 48px;
-    in property <length> sidebar-w: 240px;
-    in property <length> panel-w: 260px;
-    in property <length> window-min-w: 1024px;
-    in property <length> window-min-h: 640px;
-
-    in property <length> pad-outer: 12px;       // 12px outer padding
-    in property <length> pad-card: 24px;        // 24px grid padding
+    // --- Metrics ---
+    in property <length> pad-outer: 12px;       // 12px outer padding (top bar internals)
+    in property <length> pad-page: 32px;        // generous margin around the main area
+    in property <length> pad-card: 24px;        // 24px grid padding (card internals)
     in property <length> pad-grid: 16px;        // ~16px grid gaps
     in property <length> gap-panel: 8px;         // 8-10px between panels
-    in property <length> gap-bubble: 8px;       // 8px between bubbles
-    in property <length> gap-tight: 4px;
 
     in property <length> control-h: 32px;        // pill button height
     in property <length> chip-h: 24px;           // category sigil chip
-    in property <length> icon-sm: 16px;
-    in property <length> icon-md: 20px;
 
     in property <length> avatar-sm: 24px;        // card avatar row
     in property <length> avatar-md: 40px;
-    in property <length> avatar-lg: 48px;        // sidebar character card
-    in property <length> char-card-h: 72px;      // sidebar character card
 
-    in property <length> hero-h: 90px;           // hero banner (§4 home)
-    in property <length> filter-row-h: 36px;     // filter row, home
-    in property <length> filter-row-h-tall: 44px; // filter row, characters page
-    in property <length> search-field-w: 280px;
+    in property <length> hero-h: 90px;           // hero banner (home)
 
     in property <length> adventure-card-min-w: 260px;
     in property <length> adventure-card-min-h: 160px;
-    in property <length> progress-bar-h: 3px;
-    in property <length> sundial-size: 120px;    // story clock widget
-    in property <length> scroll-rod-h: 12px;
-    in property <length> scene-image-h: 146px;   // 16:9 inside 260px panel
 
-    // --- Radii (§5) ---
-    in property <length> radius-panel: 8px;      // parchment rect, cards, images
-    in property <length> radius-bubble: 10px;
+    // --- Radii ---
     in property <length> radius-card: 8px;
-    in property <length> radius-segment: 6px;    // inline composer segments
     in property <length> radius-pill: 999px;
-    in property <length> radius-badge: 4px;
     in property <length> radius-circle: 999px;
 
-    // --- Motion (§6) ---
+    // --- Motion ---
     in property <duration> hover-dur: 150ms;
-    in property <duration> fade-dur: 200ms;
     in property <duration> candle-dur: 4s;
 }

@@ -1,7 +1,7 @@
 import { AppTheme } from "theme.slint";
 
 // ---------------------------------------------------------------------------
-// Data shapes (§5 Adventures page / home)
+// Data shapes (Adventures page / home)
 // ---------------------------------------------------------------------------
 
 export struct CardCast {
@@ -13,12 +13,12 @@ export struct CardCast {
 export struct AdventureCardData {
     title: string,
     genre: string,
-    chapter-line: string,      // "Chapter 4 - Evening" (mirrors Story Clock state)
-    progress: float,           // 0..1 -> 3px progress bar
-    active: bool,              // last-opened adventure -> gold glow
-    ribbon: string,            // "Last visited: ..." — empty when unset
-    art: color,                // stand-in for the cover illustration
-    nsfw: bool,                // hidden from the grid while the NSFW toggle is OFF
+    chapter-line: string,
+    progress: float,
+    active: bool,
+    ribbon: string,
+    art: color,
+    nsfw: bool,
     cast: [CardCast],
 }
 
@@ -38,14 +38,6 @@ export struct PresetData {
 // Atoms
 // ---------------------------------------------------------------------------
 
-component SigilDot inherits Rectangle {
-    in property <color> fill: AppTheme.bronze;
-    width: 6px;
-    height: 6px;
-    border-radius: AppTheme.radius-circle;
-    background: root.fill;
-}
-
 component Chip inherits Rectangle {
     in property <string> label;
     in property <bool> active;
@@ -64,10 +56,6 @@ component Chip inherits Rectangle {
         spacing: 6px;
         alignment: center;
 
-        SigilDot {
-            fill: root.active ? AppTheme.gold-bright : AppTheme.bronze;
-            animate fill { duration: AppTheme.hover-dur; easing: ease-out; }
-        }
         Text {
             text: root.label;
             font-family: AppTheme.font-brand;
@@ -92,8 +80,6 @@ component NsfwToggle inherits Rectangle {
 
     height: AppTheme.chip-h;
     border-radius: AppTheme.radius-pill;
-    border-width: 1px;
-    border-color: AppTheme.bronze;
     background: AppTheme.field-bg;
 
     HorizontalLayout {
@@ -115,22 +101,28 @@ component NsfwToggle inherits Rectangle {
             color: AppTheme.text-muted;
             vertical-alignment: center;
         }
-        Rectangle {   // pill track
+        Rectangle {
             width: 40px;
-            height: 18px;
-            border-radius: AppTheme.radius-pill;
-            border-width: 1px;
-            border-color: root.nsfw-enabled ? AppTheme.rose : AppTheme.bronze;
-            background: root.nsfw-enabled ? AppTheme.rose-soft : transparent;
-            animate background, border-color { duration: AppTheme.hover-dur; easing: ease-out; }
 
-            Rectangle {   // knob: OFF = bronze left, ON = rose right
-                width: 14px;
-                height: 14px;
-                x: root.nsfw-enabled ? parent.width - self.width - 2px : 2px;
-                border-radius: AppTheme.radius-circle;
-                background: root.nsfw-enabled ? AppTheme.rose : AppTheme.bronze;
-                animate x, background { duration: AppTheme.hover-dur; easing: ease-out; }
+            Rectangle {   // knob track
+                width: parent.width;
+                height: 18px;
+                y: (parent.height - self.height) / 2;
+                border-radius: AppTheme.radius-pill;
+                border-width: 1px;
+                border-color: root.nsfw-enabled ? AppTheme.rose : AppTheme.bronze;
+                background: root.nsfw-enabled ? AppTheme.rose-soft : transparent;
+                animate background, border-color { duration: AppTheme.hover-dur; easing: ease-out; }
+
+                Rectangle {   // knob: OFF = bronze left, ON = rose right
+                    width: 14px;
+                    height: 14px;
+                    x: root.nsfw-enabled ? parent.width - self.width - 2px : 2px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: AppTheme.radius-circle;
+                    background: root.nsfw-enabled ? AppTheme.rose : AppTheme.bronze;
+                    animate x, background { duration: AppTheme.hover-dur; easing: ease-out; }
+                }
             }
         }
     }
@@ -200,7 +192,7 @@ component AvatarDot inherits Rectangle {
 }
 
 // ---------------------------------------------------------------------------
-// Adventure tome card (§5)
+// Adventure tome card
 // ---------------------------------------------------------------------------
 
 component AdventureCard inherits Rectangle {
@@ -300,8 +292,8 @@ component AdventureCard inherits Rectangle {
             vertical-alignment: center;
         }
 
-        Rectangle {   // 3px progress bar: bronze track, gold fill
-            height: AppTheme.progress-bar-h;
+        Rectangle {
+            height: 3px;
             min-width: 120px;
             border-radius: AppTheme.radius-pill;
             background: AppTheme.bronze;
@@ -441,7 +433,7 @@ component TopBar inherits Rectangle {
     in property <[NavTab]> tabs;
     in property <int> active-index;
 
-    height: AppTheme.topbar-h;
+    height: 48px;
     background: AppTheme.bg-panel;
 
     Rectangle {   // hairline bronze underline
@@ -514,13 +506,24 @@ component TopBar inherits Rectangle {
     }
 }
 
-component Hero inherits Rectangle {
+component HeroBand inherits Rectangle {
     in property <string> welcome;
 
     height: AppTheme.hero-h;
-    border-radius: AppTheme.radius-panel;
-    background: AppTheme.bg-parchment;
-    clip: true;
+
+    Rectangle {   // parchment card with rounded corners
+        width: parent.width;
+        height: parent.height;
+        border-radius: 8px;
+        background: AppTheme.bg-parchment;
+    }
+
+    Rectangle {   // squared bottom so the tail gradient meets flush
+        y: parent.height - 8px;
+        width: parent.width;
+        height: 8px;
+        background: AppTheme.bg-parchment;
+    }
 
     Text {
         text: root.welcome;
@@ -528,112 +531,109 @@ component Hero inherits Rectangle {
         font-size: AppTheme.font-title;
         color: AppTheme.text-ink;
         vertical-alignment: center;
-        x: AppTheme.pad-outer;
-    }
-
-    Rectangle {   // parchment shading toward the trailing edge
-        x: parent.width * 0.62;
-        width: parent.width * 0.38;
+        x: AppTheme.pad-card;
+        y: 0;
+        width: parent.width - 2 * AppTheme.pad-card;
         height: parent.height;
-        background: AppTheme.bg-parchment-dark;
+        wrap: no-wrap;
+        overflow: elide;
     }
 }
 
-component FilterRow inherits HorizontalLayout {
+component HeroTail inherits Rectangle {
+    height: AppTheme.gap-panel;
+    background: @linear-gradient(180deg,
+        AppTheme.bg-parchment 0%,
+        AppTheme.bg-parchment.transparentize(1.0) 100%);
+}
+
+component FilterIcon inherits Rectangle {
+    in property <color> fill: AppTheme.gold;
+
+    width: 14px;
+    height: 10px;
+
+    Rectangle { x: 0; y: 0; width: 14px; height: 2px; background: root.fill; }
+    Rectangle { x: 3px; y: 4px; width: 8px; height: 2px; background: root.fill; }
+    Rectangle { x: 5px; y: 8px; width: 4px; height: 2px; background: root.fill; }
+}
+
+component FilterPanel inherits Rectangle {
     in property <[ChipData]> chips;
     in property <int> active-index: 0;
     in-out property <bool> nsfw-enabled: false;
+    in-out property <bool> expanded: false;
 
     callback chip-selected(int);
     callback nsfw-toggled(bool);
 
-    height: AppTheme.filter-row-h;
-    spacing: AppTheme.gap-panel;
-    alignment: start;
+    width: AppTheme.control-h;
+    height: AppTheme.control-h;
+    clip: false;
 
-    for chip[i] in root.chips: Chip {
-        label: chip.label;
-        active: i == root.active-index;
-        clicked => {
-            root.chip-selected(i);
-        }
-    }
+    Rectangle {   // funnel toggle button
+        width: AppTheme.control-h;
+        height: AppTheme.control-h;
+        border-radius: AppTheme.radius-circle;
+        border-width: 1px;
+        border-color: root.expanded ? AppTheme.gold : AppTheme.bronze;
+        background: root.expanded ? AppTheme.glow-soft : AppTheme.card-leather;
+        animate background, border-color { duration: AppTheme.hover-dur; easing: ease-out; }
 
-    Rectangle { width: 0px; }   // spacer pushes the NSFW toggle far right
-
-    NsfwToggle {
-        nsfw-enabled: root.nsfw-enabled;
-        toggled(on) => {
-            root.nsfw-toggled(on);
-        }
-    }
-}
-
-component QuickStartPanel inherits Rectangle {
-    in property <[PresetData]> presets;
-
-    width: AppTheme.panel-w;
-    border-radius: AppTheme.radius-panel;
-    background: AppTheme.bg-panel-alt;
-    border-width: 1px;
-    border-color: AppTheme.bronze;
-
-    VerticalLayout {
-        padding: AppTheme.pad-outer;
-        spacing: AppTheme.gap-panel;
-
-        Text {
-            text: "Quick start";
-            font-family: AppTheme.font-display;
-            font-size: AppTheme.font-heading;
-            color: AppTheme.gold;
-            vertical-alignment: center;
+        FilterIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            fill: root.expanded ? AppTheme.gold-bright : AppTheme.gold;
         }
 
-        Text {
-            text: "Drop straight into a prepared scene.";
-            font-family: AppTheme.font-body;
-            font-size: AppTheme.font-tiny;
-            color: AppTheme.text-muted;
-            wrap: word-wrap;
-            max-lines: 2;
-            overflow: elide;
-        }
-
-        for preset[i] in root.presets: Rectangle {
-            height: AppTheme.control-h;
-            border-radius: AppTheme.radius-pill;
-            border-width: 1px;
-            border-color: AppTheme.bronze;
-            background: AppTheme.card-leather;
-            animate border-color { duration: AppTheme.hover-dur; easing: ease-out; }
-
-            Text {
-                text: preset.label;
-                font-family: AppTheme.font-brand;
-                font-size: AppTheme.font-label;
-                color: AppTheme.text-light;
-                horizontal-alignment: center;
-                vertical-alignment: center;
+        TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                root.expanded = !root.expanded;
             }
+        }
+    }
 
-            states [
-                hovered when ta.has-hover: {
-                    border-color: AppTheme.gold;
+    // Dropdown panel, right-aligned under the icon. Draws over the grid.
+    dropdown := Rectangle {
+        visible: root.expanded;
+        y: AppTheme.control-h + 4px;
+        x: parent.width - self.width;
+        width: dropdown-row.preferred-width + 2 * AppTheme.pad-outer;
+        height: AppTheme.control-h + 2 * 6px;
+        border-radius: AppTheme.radius-pill;
+        border-width: 1px;
+        border-color: AppTheme.bronze;
+        background: AppTheme.bg-panel;
+
+        dropdown-row := HorizontalLayout {
+            padding-left: AppTheme.pad-outer;
+            padding-right: AppTheme.pad-outer;
+            padding-top: 6px;
+            padding-bottom: 6px;
+            spacing: AppTheme.gap-panel;
+            alignment: center;
+
+            for chip[i] in root.chips: Chip {
+                label: chip.label;
+                active: i == root.active-index;
+                clicked => {
+                    root.chip-selected(i);
                 }
-            ]
+            }
 
-            ta := TouchArea {
-                mouse-cursor: pointer;
+            NsfwToggle {
+                nsfw-enabled: root.nsfw-enabled;
+                toggled(on) => {
+                    root.nsfw-toggled(on);
+                }
             }
         }
-
-        Rectangle { height: 0px; }
     }
 }
 
 // ---------------------------------------------------------------------------
-// Alive feel: dust motes + candle vignette (§5)
+// Alive feel: dust motes + candle vignette
 // ---------------------------------------------------------------------------
 
 component DustMotes inherits Rectangle {
@@ -708,7 +708,7 @@ component DustMotes inherits Rectangle {
 component CandleVignette inherits Rectangle {
     background: transparent;
 
-    Rectangle {   // warm edge glow along the top, slow candle flicker
+    Rectangle {
         width: parent.width;
         height: 10px;
         background: AppTheme.candle-glow;
@@ -737,14 +737,14 @@ component CandleVignette inherits Rectangle {
 }
 
 // ---------------------------------------------------------------------------
-// Root: Adventures page (home) — §4
+// Root: Adventures page (home)
 // ---------------------------------------------------------------------------
 
 export component MainWindow inherits Window {
     title: "Living Voices";
     preferred-width: 1280px;
     preferred-height: 800px;
-    min-width: 1024px;      // desktop-first (§4)
+    min-width: 1024px;
     min-height: 640px;
     background: AppTheme.bg-deepest;
     default-font-family: AppTheme.font-body;
@@ -825,8 +825,8 @@ export component MainWindow inherits Window {
     callback adventure-selected(string);
     callback new-adventure();
     callback preset-selected(string);
-    callback category-selected(int);   // Rust persists the choice
-    callback nsfw-toggled(bool);      // Rust stores the NSFW preference in settings
+    callback category-selected(int);
+    callback nsfw-toggled(bool);
 
     // ---- background stack: deepest -> dust motes -> candle vignette ----
     DustMotes {}
@@ -838,25 +838,82 @@ export component MainWindow inherits Window {
 
         TopBar {
             tabs: root.nav-tabs;
-            active-index: 0;   // Adventures is the active nav tab
+            active-index: 0;
         }
 
-        VerticalLayout {
-            padding-left: AppTheme.pad-card;
-            padding-right: AppTheme.pad-card;
-            padding-top: AppTheme.pad-outer;
-            padding-bottom: AppTheme.pad-card;
-            spacing: AppTheme.gap-panel;
+        body := Rectangle {
+            property <length> parchment-w: 2 * AppTheme.adventure-card-min-w + AppTheme.pad-grid;
 
-            HorizontalLayout {
+            // Layer 1 — gradient tail on the background
+            HeroTail {
+                x: AppTheme.pad-page;
+                y: AppTheme.pad-page + AppTheme.hero-h;
+                width: body.parchment-w;
+            }
+
+            // Layer 2 — grid, inset below the hero band
+            Rectangle {
+                x: AppTheme.pad-page;
+                y: AppTheme.pad-page + AppTheme.hero-h + AppTheme.gap-panel;
+                width: parent.width - 2 * AppTheme.pad-page;
+                height: parent.height - self.y - AppTheme.pad-page;
+
+                Flickable {
+                    width: parent.width;
+                    height: parent.height;
+                    content-width: self.width;
+                    content-height: self.height;
+
+                    VerticalLayout {
+                        spacing: AppTheme.pad-grid;
+
+                        for row[r] in root.adventure-rows: HorizontalLayout {
+                            height: AppTheme.adventure-card-min-h;
+                            spacing: AppTheme.pad-grid;
+
+                            for card[c] in row: AdventureCard {
+                                data: card;
+                                min-width: AppTheme.adventure-card-min-w;
+                                hidden: (card.nsfw && !root.show-nsfw-adventures)
+                                    || (root.active-category > 0
+                                        && card.genre != root.category-chips[root.active-category].label);
+                                activated => {
+                                    root.adventure-selected(card.title);
+                                }
+                            }
+
+                            // New Adventure card ends the grid
+                            if r == root.adventure-rows.length - 1: NewAdventureCard {
+                                min-width: AppTheme.adventure-card-min-w;
+                                activated => {
+                                    root.new-adventure();
+                                }
+                            }
+                        }
+
+                        Rectangle { height: 0px; }
+                    }
+                }
+            }
+
+            // Layer 3 — hero parchment band + filter toggle (foreground)
+            Rectangle {
+                x: AppTheme.pad-page;
+                y: AppTheme.pad-page;
+                width: parent.width - 2 * AppTheme.pad-page;
                 height: AppTheme.hero-h;
-                spacing: AppTheme.gap-panel;
+                clip: false;
 
-                Hero {
+                HeroBand {
+                    x: 0;
+                    y: 0;
+                    width: body.parchment-w;
                     welcome: "Welcome back, " + root.player-name;
                 }
 
-                FilterRow {
+                FilterPanel {
+                    x: parent.width - self.width;
+                    y: (parent.height - self.height) / 2;
                     chips: root.category-chips;
                     active-index: root.active-category;
                     nsfw-enabled: root.nsfw-enabled;
@@ -867,56 +924,6 @@ export component MainWindow inherits Window {
                     nsfw-toggled(on) => {
                         root.nsfw-enabled = on;
                         root.nsfw-toggled(on);
-                    }
-                }
-            }
-
-            Rectangle {   // card grid + quick start panel row
-                HorizontalLayout {
-                    spacing: AppTheme.pad-grid;
-
-                    Flickable {
-                        // flexes: only the quick start panel has a fixed width
-                        horizontal-stretch: 1;
-                        min-width: 320px;
-                        content-width: self.width;
-                        content-height: self.height;
-
-                        VerticalLayout {
-                            spacing: AppTheme.pad-grid;
-
-                            for row[r] in root.adventure-rows: HorizontalLayout {
-                                height: AppTheme.adventure-card-min-h;
-                                spacing: AppTheme.pad-grid;
-
-                                // NSFW OFF hides NSFW adventures; a chip other than
-                                // "All" hides every other genre.
-                                for card[c] in row: AdventureCard {
-                                    data: card;
-                                    min-width: AppTheme.adventure-card-min-w;
-                                    hidden: (card.nsfw && !root.show-nsfw-adventures)
-                                        || (root.active-category > 0
-                                            && card.genre != root.category-chips[root.active-category].label);
-                                    activated => {
-                                        root.adventure-selected(card.title);
-                                    }
-                                }
-
-                                // New Adventure card ends the grid
-                                if r == root.adventure-rows.length - 1: NewAdventureCard {
-                                    min-width: AppTheme.adventure-card-min-w;
-                                    activated => {
-                                        root.new-adventure();
-                                    }
-                                }
-                            }
-
-                            Rectangle { height: 0px; }   // Flickable scroll tail
-                        }
-                    }
-
-                    QuickStartPanel {
-                        presets: root.presets;
                     }
                 }
             }
