@@ -1,0 +1,956 @@
+import { AppTheme } from "theme.slint";
+import { NavTab } from "shared.slint";
+
+// ---------------------------------------------------------------------------
+// Data shapes (Chat page)
+// ---------------------------------------------------------------------------
+
+export struct ChatCharacter {
+    name: string,
+    role: string,          // "Elf Ranger", "Wizard", "Rogue"
+    glyph: string,         // single letter for the avatar
+    hue: color,            // avatar tint
+    active: bool,          // highlighted on the right-hand side
+    location: string,      // "Alley"  (shown under active character)
+    level: string,         // "Level 1"
+    status: string,        // "Status" badge text
+}
+
+export struct ChatMessage {
+    speaker: string,       // "Kaelen", "Narrator", "Morwyn"
+    text: string,
+    time: string,          // "14:32"
+    narrator: bool,        // italic sepia style
+    own: bool,             // right-aligned, slightly brighter
+}
+
+export struct ComposerSegment {
+    kind: string,          // "whisper" | "action" | "thought" | "speech"
+    prefix: string,        // "I whisper to Morwyn:" or "*draws a dagger slowly*"
+    body: string,          // trailing speech / content
+    target-glyph: string,  // small avatar inside the whisper pill
+    target-hue: color,
+}
+
+export struct NarratorEvent {
+    body: string,          // "A guard rounds the corner, halting your progress!"
+    event-label: string,   // "EVENT: A Guard Appears"
+}
+
+export struct StoryClockData {
+    phase: string,         // "EVENING"
+    time: string,          // "19:48"
+}
+
+export struct ActionMode {
+    label: string,         // "Say", "Do", "Think", "Whisper"
+}
+
+// ---------------------------------------------------------------------------
+// Atoms
+// ---------------------------------------------------------------------------
+
+component Avatar inherits Rectangle {
+    in property <string> glyph;
+    in property <color> hue;
+    in property <length> size: AppTheme.avatar-md;
+    in property <bool> ringed: false;
+
+    width: root.size;
+    height: root.size;
+    border-radius: AppTheme.radius-circle;
+    border-width: root.ringed ? 2px : 1px;
+    border-color: root.ringed ? AppTheme.gold-bright : AppTheme.bronze;
+    background: root.hue;
+
+    Text {
+        text: root.glyph;
+        font-family: AppTheme.font-display;
+        font-size: AppTheme.font-heading;
+        color: AppTheme.text-light;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+component CharacterRow inherits Rectangle {
+    in property <ChatCharacter> data;
+    callback clicked;
+
+    height: 72px;
+    border-radius: AppTheme.radius-card;
+    border-width: 1px;
+    border-color: root.data.active ? AppTheme.gold : AppTheme.bronze;
+    background: root.data.active ? AppTheme.glow-soft : AppTheme.card-leather;
+    animate background, border-color { duration: AppTheme.hover-dur; easing: ease-out; }
+
+    HorizontalLayout {
+        padding: 10px;
+        spacing: 12px;
+        alignment: start;
+
+        Avatar {
+            glyph: root.data.glyph;
+            hue: root.data.hue;
+            size: 48px;
+            ringed: root.data.active;
+        }
+
+        VerticalLayout {
+            spacing: 2px;
+            alignment: center;
+
+            Text {
+                text: root.data.name;
+                font-family: AppTheme.font-display;
+                font-size: AppTheme.font-heading;
+                color: AppTheme.gold-bright;
+                overflow: elide;
+            }
+            Text {
+                text: root.data.role;
+                font-family: AppTheme.font-body;
+                font-size: AppTheme.font-label;
+                color: AppTheme.text-muted;
+                overflow: elide;
+            }
+            // Secondary line, only on the active row
+            if root.data.active && root.data.location != "": Text {
+                text: root.data.location + "  " + root.data.level;
+                font-family: AppTheme.font-body;
+                font-size: AppTheme.font-tiny;
+                color: AppTheme.text-light;
+                overflow: elide;
+            }
+        }
+    }
+
+    // "Active" badge, top-right corner of the active row
+    if root.data.active: Rectangle {
+        x: parent.width - self.width - 8px;
+        y: 6px;
+        width: 48px;
+        height: 16px;
+        border-radius: AppTheme.radius-pill;
+        background: AppTheme.success;
+
+        Text {
+            text: "Active";
+            font-family: AppTheme.font-brand;
+            font-size: AppTheme.font-tiny;
+            color: AppTheme.text-ink;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    // "Status" chip under the active-badge area
+    if root.data.active && root.data.status != "": Rectangle {
+        x: parent.width - self.width - 8px;
+        y: parent.height - self.height - 6px;
+        width: 52px;
+        height: 16px;
+        border-radius: AppTheme.radius-pill;
+        border-width: 1px;
+        border-color: AppTheme.bronze;
+        background: AppTheme.bg-panel-alt;
+
+        Text {
+            text: root.data.status;
+            font-family: AppTheme.font-brand;
+            font-size: AppTheme.font-tiny;
+            color: AppTheme.text-muted;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component MessageBubble inherits Rectangle {
+    in property <ChatMessage> data;
+
+    border-radius: AppTheme.radius-card;
+    border-width: 1px;
+    border-color: AppTheme.bubble-border;
+    background: root.data.narrator
+        ? AppTheme.bubble-narrator
+        : (root.data.own ? AppTheme.bubble-user : AppTheme.bubble-bg);
+
+    VerticalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        spacing: 4px;
+
+        HorizontalLayout {
+            spacing: 8px;
+
+            Text {
+                text: "[" + root.data.speaker + "]";
+                font-family: AppTheme.font-display;
+                font-size: AppTheme.font-label;
+                color: AppTheme.gold-bright;
+                font-italic: root.data.narrator;
+                vertical-alignment: center;
+            }
+            Rectangle { horizontal-stretch: 1; }
+            Text {
+                text: root.data.time;
+                font-family: AppTheme.font-body;
+                font-size: AppTheme.font-tiny;
+                color: AppTheme.text-muted;
+                font-italic: root.data.narrator;
+                vertical-alignment: center;
+            }
+        }
+
+        Text {
+            text: root.data.text;
+            font-family: AppTheme.font-body;
+            font-size: 14px;
+            color: AppTheme.text-light;
+            font-italic: root.data.narrator;
+            wrap: word-wrap;
+        }
+    }
+}
+
+component ScrollRod inherits Rectangle {   // decorative wooden rod at top/bottom of parchment
+    background: AppTheme.scroll-rod;
+    height: 14px;
+    border-radius: 7px;
+
+    // Round end caps, slightly larger
+    Rectangle {
+        x: -6px;
+        y: (parent.height - self.height) / 2;
+        width: 14px;
+        height: 18px;
+        border-radius: 9px;
+        background: AppTheme.scroll-rod;
+    }
+    Rectangle {
+        x: parent.width - self.width + 6px;
+        y: (parent.height - self.height) / 2;
+        width: 14px;
+        height: 18px;
+        border-radius: 9px;
+        background: AppTheme.scroll-rod;
+    }
+}
+
+component ParchmentScroll inherits Rectangle {   // scroll backdrop + inner frame for the chat log
+    background: transparent;
+
+    VerticalLayout {
+        spacing: 0px;
+
+        ScrollRod {}
+
+        Rectangle {   // parchment body
+            background: AppTheme.bg-parchment;
+            vertical-stretch: 1;
+
+            Rectangle {   // subtle inner shadow at the sides
+                x: 0;
+                width: 10px;
+                height: parent.height;
+                background: @linear-gradient(90deg,
+                    AppTheme.bg-parchment-dark 0%,
+                    AppTheme.bg-parchment.transparentize(1.0) 100%);
+            }
+            Rectangle {
+                x: parent.width - self.width;
+                width: 10px;
+                height: parent.height;
+                background: @linear-gradient(270deg,
+                    AppTheme.bg-parchment-dark 0%,
+                    AppTheme.bg-parchment.transparentize(1.0) 100%);
+            }
+
+            @children
+        }
+
+        ScrollRod {}
+    }
+}
+
+component ComposerPill inherits Rectangle {
+    in property <ComposerSegment> seg;
+
+    height: 28px;
+    border-radius: AppTheme.radius-pill;
+    border-width: 1px;
+    border-color: AppTheme.bronze;
+    background: root.seg.kind == "action"
+        ? AppTheme.seg-action-bg
+        : (root.seg.kind == "thought"
+            ? AppTheme.seg-thought-bg
+            : AppTheme.bg-panel-alt);
+
+    HorizontalLayout {
+        padding-left: 6px;
+        padding-right: 10px;
+        spacing: 6px;
+        alignment: center;
+
+        if root.seg.kind == "whisper": Avatar {
+            glyph: root.seg.target-glyph;
+            hue: root.seg.target-hue;
+            size: 20px;
+        }
+
+        Text {
+            text: root.seg.prefix;
+            font-family: AppTheme.font-body;
+            font-italic: root.seg.kind == "action" || root.seg.kind == "thought";
+            font-size: AppTheme.font-label;
+            color: root.seg.kind == "action"
+                ? AppTheme.seg-action-text
+                : (root.seg.kind == "thought"
+                    ? AppTheme.seg-thought-text
+                    : (root.seg.kind == "whisper"
+                        ? AppTheme.seg-whisper-text
+                        : AppTheme.text-light));
+            vertical-alignment: center;
+        }
+
+        if root.seg.body != "": Text {
+            text: root.seg.body;
+            font-family: AppTheme.font-body;
+            font-size: AppTheme.font-label;
+            color: AppTheme.text-light;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component ActionButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> active: false;
+    callback clicked;
+
+    height: AppTheme.control-h;
+    min-width: 76px;
+    border-radius: AppTheme.radius-pill;
+    border-width: root.active ? 2px : 1px;
+    border-color: root.active ? AppTheme.gold-bright : AppTheme.bronze;
+    background: root.active ? AppTheme.glow-soft : AppTheme.card-leather;
+    animate background, border-color, border-width { duration: AppTheme.hover-dur; easing: ease-out; }
+
+    Text {
+        text: root.label;
+        font-family: AppTheme.font-brand;
+        font-size: AppTheme.font-label;
+        color: root.active ? AppTheme.gold-bright : AppTheme.text-light;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    states [
+        hovered when ta.has-hover: {
+            root.border-color: AppTheme.gold;
+        }
+    ]
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Panels: Top bar, Sidebar, Chat center, Right panel
+// ---------------------------------------------------------------------------
+
+component NavTabs inherits HorizontalLayout {
+    in property <[NavTab]> tabs;
+    in property <int> active-index;
+
+    spacing: 20px;
+    alignment: center;
+
+    for tab[i] in root.tabs: Rectangle {
+        background: transparent;
+
+        VerticalLayout {
+            padding-top: 12px;
+            spacing: 5px;
+
+            Text {
+                text: tab.label;
+                font-family: AppTheme.font-brand;
+                font-size: AppTheme.font-label;
+                color: i == root.active-index ? AppTheme.gold : AppTheme.text-muted;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                height: 2px;
+                background: i == root.active-index ? AppTheme.gold : transparent;
+            }
+        }
+
+        TouchArea {
+            mouse-cursor: pointer;
+        }
+    }
+}
+
+component TopBar inherits Rectangle {
+    in property <[NavTab]> tabs;
+    in property <int> active-index;
+
+    height: 48px;
+    background: AppTheme.bg-panel;
+
+    Rectangle {
+        y: parent.height - 1px;
+        width: parent.width;
+        height: 1px;
+        background: AppTheme.bronze;
+    }
+
+    HorizontalLayout {
+        padding-left: AppTheme.pad-outer;
+        padding-right: AppTheme.pad-outer;
+        spacing: AppTheme.pad-outer;
+
+        HorizontalLayout {   // brand
+            spacing: 8px;
+            alignment: center;
+
+            Text {
+                text: "✶";
+                font-size: AppTheme.font-title;
+                color: AppTheme.gold;
+                vertical-alignment: center;
+            }
+            Text {
+                text: "Living Voices";
+                font-family: AppTheme.font-brand;
+                font-size: AppTheme.font-title;
+                color: AppTheme.gold;
+                vertical-alignment: center;
+            }
+        }
+
+        Rectangle { width: 0px; }
+
+        NavTabs {
+            tabs: root.tabs;
+            active-index: root.active-index;
+        }
+
+        Rectangle { width: 0px; }
+
+        HorizontalLayout {   // profile cluster
+            spacing: AppTheme.pad-outer;
+            alignment: center;
+
+            Text {
+                text: "🔔";
+                font-size: AppTheme.font-heading;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                width: AppTheme.avatar-md;
+                height: AppTheme.avatar-md;
+                border-radius: AppTheme.radius-circle;
+                border-width: 1px;
+                border-color: AppTheme.gold;
+                background: AppTheme.bg-panel-alt;
+
+                Text {
+                    text: "K";
+                    font-family: AppTheme.font-display;
+                    font-size: AppTheme.font-label;
+                    color: AppTheme.gold;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}
+
+component Sidebar inherits Rectangle {
+    in property <[ChatCharacter]> characters;
+    callback character-selected(string);
+
+    width: 240px;
+    background: AppTheme.bg-panel;
+
+    Rectangle {   // right hairline divider
+        x: parent.width - 1px;
+        width: 1px;
+        height: parent.height;
+        background: AppTheme.bronze;
+    }
+
+    Flickable {
+        width: parent.width;
+        height: parent.height;
+        content-width: self.width;
+
+        VerticalLayout {
+            padding: AppTheme.pad-outer;
+            spacing: AppTheme.gap-panel;
+
+            for ch[i] in root.characters: CharacterRow {
+                data: ch;
+                clicked => {
+                    root.character-selected(ch.name);
+                }
+            }
+
+            Rectangle { height: 0px; }
+        }
+    }
+}
+
+component ChatCenter inherits Rectangle {
+    in property <[ChatMessage]> messages;
+    in property <[ComposerSegment]> composer-segments;
+    in property <[ActionMode]> action-modes;
+    in property <int> active-mode;
+    in property <ChatCharacter> whisper-target;
+
+    callback mode-selected(int);
+    callback send-clicked;
+
+    background: transparent;
+
+    VerticalLayout {
+        padding: AppTheme.pad-grid;
+        spacing: AppTheme.pad-grid;
+
+        // ---- parchment scroll with message bubbles ----
+        ParchmentScroll {
+            vertical-stretch: 1;
+
+            Flickable {
+                width: parent.width;
+                height: parent.height;
+                content-width: self.width;
+
+                VerticalLayout {
+                    padding-left: AppTheme.pad-card;
+                    padding-right: AppTheme.pad-card;
+                    padding-top: 16px;
+                    padding-bottom: 16px;
+                    spacing: 10px;
+
+                    for msg[i] in root.messages: Rectangle {
+                        height: bubble.preferred-height;
+
+                        bubble := MessageBubble {
+                            data: msg;
+                            x: msg.own ? parent.width - self.width : 0px;
+                            width: Math.min(parent.width - 40px, 560px);
+                        }
+                    }
+
+                    Rectangle { height: 0px; }
+                }
+            }
+        }
+
+        // ---- composer field with pill segments and send icon ----
+        Rectangle {
+            height: 56px;
+            border-radius: AppTheme.radius-card;
+            border-width: 1px;
+            border-color: AppTheme.gold;
+            background: AppTheme.field-bg;
+
+            HorizontalLayout {
+                padding-left: 10px;
+                padding-right: 10px;
+                spacing: 8px;
+                alignment: center;
+
+                for seg[i] in root.composer-segments: ComposerPill {
+                    seg: seg;
+                }
+
+                Rectangle { horizontal-stretch: 1; }
+
+                Rectangle {   // send button
+                    width: 36px;
+                    height: 36px;
+                    border-radius: AppTheme.radius-circle;
+                    background: transparent;
+
+                    Text {
+                        text: "➤";
+                        font-size: AppTheme.font-title;
+                        color: AppTheme.gold-bright;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.send-clicked();
+                        }
+                    }
+                }
+            }
+        }
+
+        // ---- action-mode bar: Say / Do / Think / Whisper + whisper target + settings ----
+        HorizontalLayout {
+            spacing: 10px;
+            alignment: center;
+            height: AppTheme.control-h;
+
+            for mode[i] in root.action-modes: ActionButton {
+                label: mode.label;
+                active: i == root.active-mode;
+                clicked => {
+                    root.mode-selected(i);
+                }
+            }
+
+            Avatar {
+                glyph: root.whisper-target.glyph;
+                hue: root.whisper-target.hue;
+                size: 28px;
+            }
+
+            Text {
+                text: "⚙";
+                font-size: AppTheme.font-title;
+                color: AppTheme.text-muted;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+component NarratorCard inherits Rectangle {
+    in property <NarratorEvent> event;
+
+    border-radius: AppTheme.radius-card;
+    border-width: 1px;
+    border-color: AppTheme.bronze;
+    background: AppTheme.bg-panel-alt;
+
+    VerticalLayout {
+        padding: 14px;
+        spacing: 10px;
+
+        HorizontalLayout {
+            spacing: 8px;
+
+            Text {
+                text: "Narrator";
+                font-family: AppTheme.font-display;
+                font-size: AppTheme.font-title;
+                color: AppTheme.gold-bright;
+                vertical-alignment: center;
+            }
+            Rectangle { horizontal-stretch: 1; }
+            Text {
+                text: "✎";   // edit sigil
+                font-size: AppTheme.font-heading;
+                color: AppTheme.text-muted;
+                vertical-alignment: center;
+            }
+        }
+
+        Text {
+            text: root.event.body;
+            font-family: AppTheme.font-display;
+            font-size: 14px;
+            font-italic: true;
+            color: AppTheme.text-light;
+            wrap: word-wrap;
+        }
+
+        Rectangle {   // bronze hairline divider
+            height: 1px;
+            background: AppTheme.bronze;
+        }
+
+        Text {
+            text: root.event.event-label;
+            font-family: AppTheme.font-brand;
+            font-size: AppTheme.font-label;
+            color: AppTheme.gold;
+        }
+    }
+}
+
+component SceneImage inherits Rectangle {
+    in property <color> tint: #2a1f14;    // placeholder until an image is wired
+
+    height: 170px;
+    border-radius: AppTheme.radius-card;
+    border-width: 1px;
+    border-color: AppTheme.bronze;
+    background: root.tint;
+    clip: true;
+
+    // Faint vignette so the placeholder reads as "scene", not a flat block
+    Rectangle {
+        width: parent.width;
+        height: parent.height;
+        background: @linear-gradient(180deg,
+            AppTheme.scrim.transparentize(0.6) 0%,
+            AppTheme.scrim.transparentize(1.0) 50%,
+            AppTheme.scrim.transparentize(0.5) 100%);
+    }
+
+    Text {
+        text: "Scene";
+        font-family: AppTheme.font-brand;
+        font-size: AppTheme.font-tiny;
+        color: AppTheme.text-muted;
+        x: 10px;
+        y: parent.height - self.height - 8px;
+    }
+}
+
+component StoryClock inherits Rectangle {
+    in property <StoryClockData> clock;
+
+    border-radius: AppTheme.radius-card;
+    border-width: 1px;
+    border-color: AppTheme.bronze;
+    background: AppTheme.bg-panel-alt;
+
+    VerticalLayout {
+        padding: 14px;
+        spacing: 8px;
+        alignment: center;
+
+        Text {
+            text: "Story Clock";
+            font-family: AppTheme.font-display;
+            font-size: AppTheme.font-heading;
+            color: AppTheme.text-light;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: root.clock.phase;
+            font-family: AppTheme.font-brand;
+            font-size: AppTheme.font-title;
+            color: AppTheme.gold-bright;
+            horizontal-alignment: center;
+        }
+
+        // Simple sundial medallion
+        Rectangle {
+            height: 120px;
+            width: 120px;
+            x: (parent.width - self.width) / 2;
+            border-radius: AppTheme.radius-circle;
+            border-width: 2px;
+            border-color: AppTheme.bronze;
+            background: AppTheme.card-leather;
+
+            Rectangle {   // gnomon tick
+                x: parent.width / 2 - 1px;
+                y: 10px;
+                width: 2px;
+                height: parent.height / 2 - 8px;
+                background: AppTheme.gold;
+            }
+
+            Text {
+                text: root.clock.time;
+                font-family: AppTheme.font-display;
+                font-size: AppTheme.font-title;
+                color: AppTheme.gold-bright;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                y: parent.height / 2 + 4px;
+                width: parent.width;
+            }
+        }
+    }
+}
+
+component RightPanel inherits Rectangle {
+    in property <NarratorEvent> event;
+    in property <StoryClockData> clock;
+
+    width: 260px;
+    background: AppTheme.bg-panel;
+
+    Rectangle {   // left hairline divider
+        width: 1px;
+        height: parent.height;
+        background: AppTheme.bronze;
+    }
+
+    VerticalLayout {
+        padding: AppTheme.pad-outer;
+        spacing: AppTheme.gap-panel;
+
+        NarratorCard {
+            event: root.event;
+        }
+        SceneImage {}
+        StoryClock {
+            clock: root.clock;
+        }
+
+        Rectangle { vertical-stretch: 1; }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Root: Chat page
+// ---------------------------------------------------------------------------
+
+export component ChatWindow inherits Window {
+    title: "Living Voices — Chat";
+    preferred-width: 1280px;
+    preferred-height: 800px;
+    min-width: 1024px;
+    min-height: 640px;
+    background: AppTheme.bg-deepest;
+    default-font-family: AppTheme.font-body;
+    default-font-size: 14px;
+
+    in property <[NavTab]> nav-tabs: [
+        { label: "Campaigns" },
+        { label: "Character" },
+        { label: "Lore" },
+        { label: "Settings" },
+        { label: "Notifications" },
+        { label: "Profile" }
+    ];
+    in-out property <int> active-tab: 0;
+
+    in property <[ChatCharacter]> characters: [
+        {
+            name: "Kaelen", role: "Elf Ranger", glyph: "K", hue: #2f4a2a,
+            active: false, location: "", level: "", status: ""
+        },
+        {
+            name: "Zora", role: "Wizard", glyph: "Z", hue: #3a2f52,
+            active: false, location: "", level: "", status: ""
+        },
+        {
+            name: "Morwyn", role: "Rogue", glyph: "M", hue: #3a2a1f,
+            active: true, location: "Alley", level: "Level 1", status: "Status"
+        }
+    ];
+
+    in property <[ChatMessage]> messages: [
+        {
+            speaker: "Kaelen", time: "14:32", narrator: false, own: false,
+            text: "The forest feels unusually quiet tonight..."
+        },
+        {
+            speaker: "Zora", time: "14:32", narrator: false, own: false,
+            text: "Indeed, the magical aura has shifted."
+        },
+        {
+            speaker: "Narrator", time: "scroll bg.", narrator: true, own: false,
+            text: "You hear rustling in the bushes nearby..."
+        },
+        {
+            speaker: "Morwyn", time: "14:34", narrator: false, own: true,
+            text: "I'll scout ahead carefully..."
+        }
+    ];
+
+    in property <[ComposerSegment]> composer-segments: [
+        {
+            kind: "whisper",
+            prefix: "I whisper to Morwyn:",
+            body: "don't move...",
+            target-glyph: "M", target-hue: #3a2a1f
+        },
+        {
+            kind: "action",
+            prefix: "*draws a dagger slowly*",
+            body: "Did you hear that?",
+            target-glyph: "", target-hue: #000000
+        }
+    ];
+
+    in property <[ActionMode]> action-modes: [
+        { label: "Say" }, { label: "Do" }, { label: "Think" }, { label: "Whisper" }
+    ];
+    in-out property <int> active-mode: 1;
+
+    in property <ChatCharacter> whisper-target: {
+        name: "Morwyn", role: "Rogue", glyph: "M", hue: #3a2a1f,
+        active: false, location: "", level: "", status: ""
+    };
+
+    in property <NarratorEvent> narrator-event: {
+        body: "A guard rounds the corner, halting your progress!",
+        event-label: "EVENT: A Guard Appears"
+    };
+
+    in property <StoryClockData> story-clock: {
+        phase: "EVENING", time: "19:48"
+    };
+
+    // ---- callbacks ----
+    callback nav-tab-selected(int);
+    callback character-selected(string);
+    callback mode-selected(int);
+    callback send-message();
+
+    VerticalLayout {
+        padding: 0px;
+        spacing: 0px;
+
+        TopBar {
+            tabs: root.nav-tabs;
+            active-index: root.active-tab;
+        }
+
+        HorizontalLayout {
+            padding: 0px;
+            spacing: 0px;
+
+            Sidebar {
+                characters: root.characters;
+                character-selected(name) => {
+                    root.character-selected(name);
+                }
+            }
+
+            ChatCenter {
+                horizontal-stretch: 1;
+                messages: root.messages;
+                composer-segments: root.composer-segments;
+                action-modes: root.action-modes;
+                active-mode: root.active-mode;
+                whisper-target: root.whisper-target;
+                mode-selected(i) => {
+                    root.active-mode = i;
+                    root.mode-selected(i);
+                }
+                send-clicked => {
+                    root.send-message();
+                }
+            }
+
+            RightPanel {
+                event: root.narrator-event;
+                clock: root.story-clock;
+            }
+        }
+    }
+}

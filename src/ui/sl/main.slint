@@ -1,4 +1,7 @@
 import { AppTheme } from "theme.slint";
+import { NavTab } from "shared.slint";
+
+export { NavTab }
 
 // ---------------------------------------------------------------------------
 // Data shapes (Adventures page / home)
@@ -20,10 +23,6 @@ export struct AdventureCardData {
     art: color,
     nsfw: bool,
     cast: [CardCast],
-}
-
-export struct NavTab {
-    label: string,
 }
 
 export struct ChipData {
