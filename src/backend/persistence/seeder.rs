@@ -4,7 +4,11 @@ use sqlx::{Sqlite, SqlitePool};
 use uuid::Uuid;
 
 use crate::backend::{
-    domain::{adventure::Adventure, character::Character, lore::Lore},
+    domain::{
+        adventure::Adventure,
+        character::{Character, CharacterStatus},
+        lore::Lore,
+    },
     persistence::{
         adventure::insert_adventure,
         characters::{insert_character, insert_relations},
@@ -243,7 +247,7 @@ async fn seed_connection(
             seed_character.description.to_string(),
         )
         .with_backstory(seed_character.backstory.to_string())
-        .with_status(seed_character.status.to_string());
+        .with_status(CharacterStatus::Present);
 
         for trait_ in seed_character.traits {
             character.add_trait((*trait_).to_string());

@@ -1,17 +1,50 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use uuid::Uuid;
 
-/// Mirrors `CONSTRAINT character_status_known` in the schema.
-pub const DEFAULT_STATUS: &str = "active";
-pub const STATUSES: [&str; 3] = ["active", "inactive", "archived"];
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CharacterStatus {
+    Present,
+    Away,
+    Unavailable,
+}
+
+impl CharacterStatus {
+    pub const ALL: [CharacterStatus; 3] = [
+        CharacterStatus::Present,
+        CharacterStatus::Away,
+        CharacterStatus::Unavailable,
+    ];
+
+    pub const DEFAULT: CharacterStatus = CharacterStatus::Present;
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            CharacterStatus::Away => "away",
+            CharacterStatus::Present => "present",
+            CharacterStatus::Unavailable => "unavailable",
+        }
+    }
+}
+
+impl Display for CharacterStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl Default for CharacterStatus {
+    fn default() -> Self {
+        CharacterStatus::Present
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Character {
     pub id: Uuid,
     pub name: String,
     pub description: String,
-    pub status: String,
+    pub status: CharacterStatus,
     pub backstory: String,
     pub traits: Vec<String>, // Speaks only in tidal registers, ...
     pub tags: Vec<String>,   // Protagonist, Brave ...
@@ -25,7 +58,7 @@ impl Character {
             name,
             description,
             backstory: String::new(),
-            status: DEFAULT_STATUS.to_string(),
+            status: CharacterStatus::default(),
             traits: Vec::new(),
             tags: Vec::new(),
             relations: HashMap::new(),
@@ -37,7 +70,7 @@ impl Character {
         self
     }
 
-    pub fn with_status(mut self, status: String) -> Self {
+    pub fn with_status(mut self, status: CharacterStatus) -> Self {
         self.status = status;
         self
     }

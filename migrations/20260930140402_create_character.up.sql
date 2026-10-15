@@ -6,14 +6,14 @@ CREATE TABLE character
     name          TEXT    NOT NULL,
     description   TEXT    NOT NULL DEFAULT '',
     backstory     TEXT    NOT NULL DEFAULT '',
-    status        TEXT    NOT NULL DEFAULT 'active',
+    status        TEXT    NOT NULL DEFAULT 'present',
     portrait_path TEXT,
     created_at    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     updated_at    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
     CONSTRAINT character_id_is_uuid CHECK (length(id) = 36),
     CONSTRAINT character_name_not_blank CHECK (length(trim(name)) > 0),
-    CONSTRAINT character_status_known CHECK (status IN ('active', 'inactive', 'archived'))
+    CONSTRAINT character_status_known CHECK (status IN ('present', 'away', 'unavailable'))
 );
 
 CREATE INDEX character_adventure_name_idx ON character (adventure_id, name);

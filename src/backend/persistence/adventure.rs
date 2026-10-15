@@ -10,7 +10,6 @@ use crate::backend::{
     },
 };
 
-/// Writes an adventure row and attaches its tags.
 pub async fn insert_adventure(
     conn: &mut SqliteConnection,
     adventure: &Adventure,

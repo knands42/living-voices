@@ -4,7 +4,7 @@ use sqlx::SqliteConnection;
 use uuid::Uuid;
 
 use crate::backend::{
-    domain::character::{Character, DEFAULT_STATUS, STATUSES},
+    domain::character::Character,
     persistence::{
         error::PersistenceError,
         tags::{ensure_tag, normalize},
@@ -25,7 +25,7 @@ pub async fn insert_character(
     .bind(&character.name)
     .bind(&character.description)
     .bind(&character.backstory)
-    .bind(status_or_default(&character.status))
+    .bind(&character.status.as_str())
     .execute(&mut *conn)
     .await?;
 
@@ -101,12 +101,4 @@ pub async fn insert_relations(
     }
 
     Ok(())
-}
-
-fn status_or_default(status: &str) -> &str {
-    if STATUSES.contains(&status) {
-        status
-    } else {
-        DEFAULT_STATUS
-    }
 }

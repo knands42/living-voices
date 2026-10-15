@@ -1,11 +1,15 @@
 use crate::{
-    backend::application::{adventure_manager::AdventureManager, state::SharedState},
+    backend::application::{
+        adventure_manager::AdventureManager, character_manager::CharacterManager,
+        state::SharedState,
+    },
     ui,
 };
 
 #[derive(Clone)]
 pub struct UiContext {
-    pub adventures: AdventureManager
+    pub adventures: AdventureManager,
+    pub characters: CharacterManager,
 }
 
 pub struct App {
@@ -15,9 +19,13 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let state = SharedState::new();
-        let adventures = AdventureManager::new(state);
+        let adventures = AdventureManager::new(state.clone());
+        let characters = CharacterManager::new(state);
         Self {
-            ctx: UiContext { adventures },
+            ctx: UiContext {
+                adventures,
+                characters,
+            },
         }
     }
 

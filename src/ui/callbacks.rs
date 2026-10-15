@@ -36,8 +36,7 @@ fn register_main_callbacks(ui: &RootWindow, _ctx: &UiContext) {
 // Chat page
 // ---------------------------------------------------------------------------
 
-fn register_chat_callbacks(_ui: &RootWindow, _ctx: &UiContext) {
-}
+fn register_chat_callbacks(_ui: &RootWindow, _ctx: &UiContext) {}
 
 // ---------------------------------------------------------------------------
 // Shared chrome (top bar nav)

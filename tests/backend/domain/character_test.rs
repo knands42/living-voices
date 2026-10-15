@@ -1,4 +1,6 @@
-use living_voices::backend::domain::character::{Character, DEFAULT_STATUS, STATUSES};
+use living_voices::backend::domain::character::{
+    Character, CharacterStatus, DEFAULT_STATUS, STATUSES,
+};
 use uuid::Uuid;
 
 fn new_character() -> Character {
@@ -43,9 +45,9 @@ fn with_backstory_replaces_backstory() {
 
 #[test]
 fn with_status_replaces_status() {
-    let character = new_character().with_status("archived".to_string());
+    let character = new_character().with_status(CharacterStatus::Present);
 
-    assert_eq!(character.status, "archived");
+    assert_eq!(character.status, CharacterStatus::Present);
 }
 
 #[test]
