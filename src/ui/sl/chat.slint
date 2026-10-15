@@ -1,5 +1,4 @@
 import { AppTheme } from "theme.slint";
-import { NavTab } from "shared.slint";
 
 // ---------------------------------------------------------------------------
 // Data shapes (Chat page)
@@ -370,119 +369,9 @@ component ActionButton inherits Rectangle {
 }
 
 // ---------------------------------------------------------------------------
-// Panels: Top bar, Sidebar, Chat center, Right panel
+// Panels: Sidebar, Chat center, Right panel
+// (Top bar is shared chrome owned by RootWindow — see shared.slint)
 // ---------------------------------------------------------------------------
-
-component NavTabs inherits HorizontalLayout {
-    in property <[NavTab]> tabs;
-    in property <int> active-index;
-
-    spacing: 20px;
-    alignment: center;
-
-    for tab[i] in root.tabs: Rectangle {
-        background: transparent;
-
-        VerticalLayout {
-            padding-top: 12px;
-            spacing: 5px;
-
-            Text {
-                text: tab.label;
-                font-family: AppTheme.font-brand;
-                font-size: AppTheme.font-label;
-                color: i == root.active-index ? AppTheme.gold : AppTheme.text-muted;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-            Rectangle {
-                height: 2px;
-                background: i == root.active-index ? AppTheme.gold : transparent;
-            }
-        }
-
-        TouchArea {
-            mouse-cursor: pointer;
-        }
-    }
-}
-
-component TopBar inherits Rectangle {
-    in property <[NavTab]> tabs;
-    in property <int> active-index;
-
-    height: 48px;
-    background: AppTheme.bg-panel;
-
-    Rectangle {
-        y: parent.height - 1px;
-        width: parent.width;
-        height: 1px;
-        background: AppTheme.bronze;
-    }
-
-    HorizontalLayout {
-        padding-left: AppTheme.pad-outer;
-        padding-right: AppTheme.pad-outer;
-        spacing: AppTheme.pad-outer;
-
-        HorizontalLayout {   // brand
-            spacing: 8px;
-            alignment: center;
-
-            Text {
-                text: "✶";
-                font-size: AppTheme.font-title;
-                color: AppTheme.gold;
-                vertical-alignment: center;
-            }
-            Text {
-                text: "Living Voices";
-                font-family: AppTheme.font-brand;
-                font-size: AppTheme.font-title;
-                color: AppTheme.gold;
-                vertical-alignment: center;
-            }
-        }
-
-        Rectangle { width: 0px; }
-
-        NavTabs {
-            tabs: root.tabs;
-            active-index: root.active-index;
-        }
-
-        Rectangle { width: 0px; }
-
-        HorizontalLayout {   // profile cluster
-            spacing: AppTheme.pad-outer;
-            alignment: center;
-
-            Text {
-                text: "🔔";
-                font-size: AppTheme.font-heading;
-                vertical-alignment: center;
-            }
-            Rectangle {
-                width: AppTheme.avatar-md;
-                height: AppTheme.avatar-md;
-                border-radius: AppTheme.radius-circle;
-                border-width: 1px;
-                border-color: AppTheme.gold;
-                background: AppTheme.bg-panel-alt;
-
-                Text {
-                    text: "K";
-                    font-family: AppTheme.font-display;
-                    font-size: AppTheme.font-label;
-                    color: AppTheme.gold;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                }
-            }
-        }
-    }
-}
 
 component Sidebar inherits Rectangle {
     in property <[ChatCharacter]> characters;
@@ -814,143 +703,56 @@ component RightPanel inherits Rectangle {
 }
 
 // ---------------------------------------------------------------------------
-// Root: Chat page
+// Chat page — hosted by RootWindow in app.slint
 // ---------------------------------------------------------------------------
 
-export component ChatWindow inherits Window {
-    title: "Living Voices — Chat";
-    preferred-width: 1280px;
-    preferred-height: 800px;
-    min-width: 1024px;
-    min-height: 640px;
-    background: AppTheme.bg-deepest;
-    default-font-family: AppTheme.font-body;
-    default-font-size: 14px;
+export component ChatPage inherits Rectangle {
+    background: transparent;
 
-    in property <[NavTab]> nav-tabs: [
-        { label: "Campaigns" },
-        { label: "Character" },
-        { label: "Lore" },
-        { label: "Settings" },
-        { label: "Notifications" },
-        { label: "Profile" }
-    ];
-    in-out property <int> active-tab: 0;
-
-    in property <[ChatCharacter]> characters: [
-        {
-            name: "Kaelen", role: "Elf Ranger", glyph: "K", hue: #2f4a2a,
-            active: false, location: "", level: "", status: ""
-        },
-        {
-            name: "Zora", role: "Wizard", glyph: "Z", hue: #3a2f52,
-            active: false, location: "", level: "", status: ""
-        },
-        {
-            name: "Morwyn", role: "Rogue", glyph: "M", hue: #3a2a1f,
-            active: true, location: "Alley", level: "Level 1", status: "Status"
-        }
-    ];
-
-    in property <[ChatMessage]> messages: [
-        {
-            speaker: "Kaelen", time: "14:32", narrator: false, own: false,
-            text: "The forest feels unusually quiet tonight..."
-        },
-        {
-            speaker: "Zora", time: "14:32", narrator: false, own: false,
-            text: "Indeed, the magical aura has shifted."
-        },
-        {
-            speaker: "Narrator", time: "scroll bg.", narrator: true, own: false,
-            text: "You hear rustling in the bushes nearby..."
-        },
-        {
-            speaker: "Morwyn", time: "14:34", narrator: false, own: true,
-            text: "I'll scout ahead carefully..."
-        }
-    ];
-
-    in property <[ComposerSegment]> composer-segments: [
-        {
-            kind: "whisper",
-            prefix: "I whisper to Morwyn:",
-            body: "don't move...",
-            target-glyph: "M", target-hue: #3a2a1f
-        },
-        {
-            kind: "action",
-            prefix: "*draws a dagger slowly*",
-            body: "Did you hear that?",
-            target-glyph: "", target-hue: #000000
-        }
-    ];
-
-    in property <[ActionMode]> action-modes: [
-        { label: "Say" }, { label: "Do" }, { label: "Think" }, { label: "Whisper" }
-    ];
+    in property <[ChatCharacter]> characters;
+    in property <[ChatMessage]> messages;
+    in property <[ComposerSegment]> composer-segments;
+    in property <[ActionMode]> action-modes;
     in-out property <int> active-mode: 1;
-
-    in property <ChatCharacter> whisper-target: {
-        name: "Morwyn", role: "Rogue", glyph: "M", hue: #3a2a1f,
-        active: false, location: "", level: "", status: ""
-    };
-
-    in property <NarratorEvent> narrator-event: {
-        body: "A guard rounds the corner, halting your progress!",
-        event-label: "EVENT: A Guard Appears"
-    };
-
-    in property <StoryClockData> story-clock: {
-        phase: "EVENING", time: "19:48"
-    };
+    in property <ChatCharacter> whisper-target;
+    in property <NarratorEvent> narrator-event;
+    in property <StoryClockData> story-clock;
 
     // ---- callbacks ----
-    callback nav-tab-selected(int);
     callback character-selected(string);
     callback mode-selected(int);
     callback send-message();
 
-    VerticalLayout {
+    HorizontalLayout {
         padding: 0px;
         spacing: 0px;
 
-        TopBar {
-            tabs: root.nav-tabs;
-            active-index: root.active-tab;
+        Sidebar {
+            characters: root.characters;
+            character-selected(name) => {
+                root.character-selected(name);
+            }
         }
 
-        HorizontalLayout {
-            padding: 0px;
-            spacing: 0px;
-
-            Sidebar {
-                characters: root.characters;
-                character-selected(name) => {
-                    root.character-selected(name);
-                }
+        ChatCenter {
+            horizontal-stretch: 1;
+            messages: root.messages;
+            composer-segments: root.composer-segments;
+            action-modes: root.action-modes;
+            active-mode: root.active-mode;
+            whisper-target: root.whisper-target;
+            mode-selected(i) => {
+                root.active-mode = i;
+                root.mode-selected(i);
             }
-
-            ChatCenter {
-                horizontal-stretch: 1;
-                messages: root.messages;
-                composer-segments: root.composer-segments;
-                action-modes: root.action-modes;
-                active-mode: root.active-mode;
-                whisper-target: root.whisper-target;
-                mode-selected(i) => {
-                    root.active-mode = i;
-                    root.mode-selected(i);
-                }
-                send-clicked => {
-                    root.send-message();
-                }
+            send-clicked => {
+                root.send-message();
             }
+        }
 
-            RightPanel {
-                event: root.narrator-event;
-                clock: root.story-clock;
-            }
+        RightPanel {
+            event: root.narrator-event;
+            clock: root.story-clock;
         }
     }
 }

@@ -7,13 +7,13 @@ mod window;
 slint::include_modules!();
 
 pub fn run(state: SharedState) -> Result<(), slint::PlatformError> {
-    let ui = MainWindow::new()?;
+    let ui = RootWindow::new()?;
 
     let session = state
         .read()
         .ok()
         .and_then(|guard| guard.current_adventure.clone());
-    window::fill_main_window_inputs(&ui, session.as_ref());
+    window::fill_root_window_inputs(&ui, session.as_ref());
     callbacks::register_callbacks(&ui, state);
 
     ui.run()

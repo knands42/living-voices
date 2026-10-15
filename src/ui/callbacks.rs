@@ -2,26 +2,34 @@ use slint::ComponentHandle;
 
 use crate::backend::application::state::SharedState;
 use crate::backend::domain::adventure::Adventure;
-use crate::ui::{ChatWindow, MainWindow, window};
+use crate::ui::RootWindow;
+
+const PAGE_HOME: i32 = 0;
+const PAGE_CHAT: i32 = 1;
+const TAB_CAMPAIGNS: i32 = 0;
 
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
-pub fn register_callbacks(ui: &MainWindow, state: SharedState) {
-    register_main_callbacks(ui, state);
+pub fn register_callbacks(ui: &RootWindow, state: SharedState) {
+    register_main_callbacks(ui, state.clone());
+    register_chat_callbacks(ui, state);
+    register_shared_callbacks(ui);
 }
 
 // ---------------------------------------------------------------------------
 // Home / Adventures page
 // ---------------------------------------------------------------------------
 
-fn register_main_callbacks(ui: &MainWindow, state: SharedState) {
-    let home_weak = ui.as_weak();
+fn register_main_callbacks(ui: &RootWindow, _state: SharedState) {
+    let ui_weak = ui.as_weak();
 
     ui.on_adventure_selected(move |title| {
-        if let Err(err) = open_chat_from_home(&home_weak, &state, title.as_str()) {
-            log::error!("failed to open chat window: {err}");
+        log::info!("adventure selected: {title}");
+        if let Some(ui) = ui_weak.upgrade() {
+            ui.set_page(PAGE_CHAT);
+            ui.set_active_tab(TAB_CAMPAIGNS);
         }
     });
 }
@@ -30,48 +38,23 @@ fn register_main_callbacks(ui: &MainWindow, state: SharedState) {
 // Chat page
 // ---------------------------------------------------------------------------
 
-fn register_chat_callbacks(chat: &ChatWindow, home_weak: slint::Weak<MainWindow>) {
-    let chat_weak = chat.as_weak();
-
-    chat.on_nav_tab_selected(move |index| {
-        if index != 0 {
-            return;
-        }
-        if let Some(chat) = chat_weak.upgrade() {
-            let _ = chat.hide();
-        }
-        if let Some(home) = home_weak.upgrade() {
-            let _ = home.show();
-        }
-    });
+fn register_chat_callbacks(ui: &RootWindow, state: SharedState) {
+    
 }
 
 // ---------------------------------------------------------------------------
-// Transitions
+// Shared chrome (top bar nav)
 // ---------------------------------------------------------------------------
 
-fn open_chat_from_home(
-    home_weak: &slint::Weak<MainWindow>,
-    state: &SharedState,
-    _adventure_title: &str,
-) -> Result<(), slint::PlatformError> {
-    let Some(home) = home_weak.upgrade() else {
-        return Ok(());
-    };
+fn register_shared_callbacks(ui: &RootWindow) {
+    let ui_weak = ui.as_weak();
 
-    let adventure = current_adventure(state);
-    if adventure.is_none() {
-        // TODO: Inform error with a tooltip
-        log::warn!("no current adventure in state when opening chat");
-    }
-
-    let chat = ChatWindow::new()?;
-    window::fill_chat_window_inputs(&chat, adventure.as_ref());
-    register_chat_callbacks(&chat, home_weak.clone());
-
-    home.hide()?;
-    chat.show()?;
-    Ok(())
+    ui.on_nav_tab_selected(move |index| {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        if index == TAB_CAMPAIGNS {
+            ui.set_page(PAGE_HOME);
+        }
+    });
 }
 
 fn current_adventure(state: &SharedState) -> Option<Adventure> {
