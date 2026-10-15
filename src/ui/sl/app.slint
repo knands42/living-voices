@@ -46,8 +46,6 @@ export component RootWindow inherits Window {
     default-font-weight: 400;
 
     // ---- Page state ----
-    // Which page the body shows. Rust flips this on adventure-selected and
-    // on nav-tab-selected == Campaigns.
     in-out property <int> page: 0;
     in-out property <int> active-tab: 0;
 

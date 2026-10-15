@@ -11,6 +11,7 @@ pub enum AdventureManagerError {
     State(#[from] StateError),
 }
 
+#[derive(Clone, Debug)]
 pub struct AdventureManager {
     state: SharedState,
 }
@@ -21,7 +22,7 @@ impl AdventureManager {
     }
 
     pub fn create_adventure(
-        &mut self,
+        &self,
         title: String,
         description: String,
     ) -> Result<Adventure, AdventureManagerError> {
@@ -33,7 +34,7 @@ impl AdventureManager {
         Ok(adventure)
     }
 
-    pub fn state(&self) -> &SharedState {
-        &self.state
+    pub fn current_adventure(&self) -> Option<Adventure> {
+        self.state.read().ok()?.current_adventure.clone()
     }
 }

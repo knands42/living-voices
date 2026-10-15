@@ -3,22 +3,25 @@ use crate::{
     ui,
 };
 
+#[derive(Clone)]
+pub struct UiContext {
+    pub adventures: AdventureManager
+}
+
 pub struct App {
-    state: SharedState,
-    adventure_manager: AdventureManager,
+    ctx: UiContext,
 }
 
 impl App {
     pub fn new() -> Self {
         let state = SharedState::new();
-        let adventure_manager = AdventureManager::new(state.clone());
+        let adventures = AdventureManager::new(state);
         Self {
-            state,
-            adventure_manager,
+            ctx: UiContext { adventures },
         }
     }
 
     pub fn run(&self) -> Result<(), slint::PlatformError> {
-        ui::run(self.state.clone())
+        ui::run(self.ctx.clone())
     }
 }

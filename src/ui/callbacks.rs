@@ -1,8 +1,6 @@
 use slint::ComponentHandle;
 
-use crate::backend::application::state::SharedState;
-use crate::backend::domain::adventure::Adventure;
-use crate::ui::RootWindow;
+use crate::{app::UiContext, ui::RootWindow};
 
 const PAGE_HOME: i32 = 0;
 const PAGE_CHAT: i32 = 1;
@@ -12,9 +10,9 @@ const TAB_CAMPAIGNS: i32 = 0;
 // Entry point
 // ---------------------------------------------------------------------------
 
-pub fn register_callbacks(ui: &RootWindow, state: SharedState) {
-    register_main_callbacks(ui, state.clone());
-    register_chat_callbacks(ui, state);
+pub fn register_callbacks(ui: &RootWindow, ctx: &UiContext) {
+    register_main_callbacks(ui, ctx);
+    register_chat_callbacks(ui, ctx);
     register_shared_callbacks(ui);
 }
 
@@ -22,7 +20,7 @@ pub fn register_callbacks(ui: &RootWindow, state: SharedState) {
 // Home / Adventures page
 // ---------------------------------------------------------------------------
 
-fn register_main_callbacks(ui: &RootWindow, _state: SharedState) {
+fn register_main_callbacks(ui: &RootWindow, _ctx: &UiContext) {
     let ui_weak = ui.as_weak();
 
     ui.on_adventure_selected(move |title| {
@@ -38,8 +36,7 @@ fn register_main_callbacks(ui: &RootWindow, _state: SharedState) {
 // Chat page
 // ---------------------------------------------------------------------------
 
-fn register_chat_callbacks(ui: &RootWindow, state: SharedState) {
-    
+fn register_chat_callbacks(_ui: &RootWindow, _ctx: &UiContext) {
 }
 
 // ---------------------------------------------------------------------------
@@ -55,11 +52,4 @@ fn register_shared_callbacks(ui: &RootWindow) {
             ui.set_page(PAGE_HOME);
         }
     });
-}
-
-fn current_adventure(state: &SharedState) -> Option<Adventure> {
-    state
-        .read()
-        .ok()
-        .and_then(|guard| guard.current_adventure.clone())
 }

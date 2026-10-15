@@ -24,8 +24,8 @@ impl AppState {
         }
     }
 
-    pub fn set_adventure(&mut self, session: Adventure) {
-        self.current_adventure = Some(session)
+    pub fn set_adventure(&mut self, adventure: Adventure) {
+        self.current_adventure = Some(adventure)
     }
 }
 
