@@ -1,6 +1,3 @@
-setup:
-    ./scripts/pre-commit.sh
-
 build:
     cargo build
 

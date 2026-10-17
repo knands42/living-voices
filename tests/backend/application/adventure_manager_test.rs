@@ -1,9 +1,9 @@
+use crate::backend::application::helper::TempDb;
 use living_voices::backend::application::{
     adventure_manager::AdventureManager, state::SharedState,
 };
 use living_voices::backend::{open_pool, run_migrations};
 use uuid::Uuid;
-use crate::backend::application::helper::TempDb;
 
 async fn new_manager_with(state: SharedState) -> (AdventureManager, TempDb) {
     let path = std::env::temp_dir().join(format!("living_voices_test_{}.db", Uuid::new_v4()));

@@ -1,14 +1,8 @@
-use living_voices::backend::domain::character::{
-    Character, CharacterStatus,
-};
+use living_voices::backend::domain::character::{Character, CharacterStatus};
 use uuid::Uuid;
 
 fn new_character() -> Character {
-    Character::new(
-        "Maren".to_string(),
-        None,
-        "A lighthouse keeper".to_string()
-    )
+    Character::new("Maren".to_string(), None, "A lighthouse keeper".to_string())
 }
 
 #[test]
