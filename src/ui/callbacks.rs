@@ -1,10 +1,26 @@
-use slint::ComponentHandle;
+use std::rc::Rc;
 
-use crate::{app::UiContext, ui::RootWindow};
+use chrono::Local;
+use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
+use crate::{
+    app::UiContext,
+    ui::{ChatMessage, RootWindow},
+};
+
+// TODO: Make this enum
+// Page codes
 const PAGE_HOME: i32 = 0;
 const PAGE_CHAT: i32 = 1;
+
+// Tab codes
 const TAB_CAMPAIGNS: i32 = 0;
+
+// Chat action modes
+const MODE_SAY: i32 = 0;
+const MODE_DO: i32 = 1;
+const MODE_THINK: i32 = 2;
+const MODE_WHISPER: i32 = 3;
 
 // ---------------------------------------------------------------------------
 // Entry point
@@ -36,7 +52,63 @@ fn register_main_callbacks(ui: &RootWindow, _ctx: &UiContext) {
 // Chat page
 // ---------------------------------------------------------------------------
 
-fn register_chat_callbacks(_ui: &RootWindow, _ctx: &UiContext) {}
+fn register_chat_callbacks(ui: &RootWindow, _ctx: &UiContext) {
+    let seed: Vec<ChatMessage> = ui.get_messages().iter().collect();
+    let messages: Rc<VecModel<ChatMessage>> = Rc::new(VecModel::from(seed));
+    ui.set_messages(ModelRc::from(messages.clone()));
+
+    let ui_weak = ui.as_weak();
+    let msgs = messages.clone();
+    ui.on_send_message(move || {
+        let Some(ui) = ui_weak.upgrade() else { return };
+
+        let draft = ui.get_draft().to_string();
+        let draft_trim = draft.trim();
+        if draft_trim.is_empty() {
+            return;
+        }
+
+        let kind = mode_kind(ui.get_active_mode());
+        let needs_target = matches!(kind, "say" | "whisper");
+
+        let target = ui.get_whisper_target();
+        let target_name = target.name.to_string();
+        if needs_target && target_name.trim().is_empty() {
+            log::debug!("send ignored: {kind} requires a target");
+            return;
+        }
+
+        let speaker = ui.get_player_name();
+        let time: SharedString = Local::now().format("%H:%M").to_string().into();
+
+        msgs.push(ChatMessage {
+            speaker,
+            text: draft_trim.into(),
+            time,
+            narrator: false,
+            own: true,
+            kind: kind.into(),
+            target: if needs_target {
+                target_name.into()
+            } else {
+                SharedString::new()
+            },
+        });
+
+        // Clear the composer so the next message can be typed immediately.
+        ui.set_draft(SharedString::new());
+    });
+}
+
+fn mode_kind(mode: i32) -> &'static str {
+    match mode {
+        MODE_SAY => "say",
+        MODE_DO => "do",
+        MODE_THINK => "think",
+        MODE_WHISPER => "whisper",
+        _ => "say",
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Shared chrome (top bar nav)

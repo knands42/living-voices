@@ -21,14 +21,8 @@ export struct ChatMessage {
     time: string,          // "14:32"
     narrator: bool,        // italic sepia style
     own: bool,             // right-aligned, slightly brighter
-}
-
-export struct ComposerSegment {
-    kind: string,          // "whisper" | "action" | "thought" | "speech"
-    prefix: string,        // "I whisper to Morwyn:" or "*draws a dagger slowly*"
-    body: string,          // trailing speech / content
-    target-glyph: string,  // small avatar inside the whisper pill
-    target-hue: color,
+    kind: string,          // "" | "say" | "do" | "think" | "whisper"
+    target: string,        // target character name for "say" / "whisper"
 }
 
 export struct NarratorEvent {
@@ -211,13 +205,100 @@ component MessageBubble inherits Rectangle {
             }
         }
 
+        // Mode caption: tells you how this line was spoken (say to X, do, think, whisper to X)
+        if root.data.kind != "": Text {
+            text: root.data.kind == "say"
+                ? "— says to " + root.data.target
+                : (root.data.kind == "whisper"
+                    ? "— whispers to " + root.data.target
+                    : (root.data.kind == "do"
+                        ? "— performs an action"
+                        : (root.data.kind == "think"
+                            ? "— inner thought"
+                            : "")));
+            font-family: AppTheme.font-brand;
+            font-size: AppTheme.font-tiny;
+            color: root.data.kind == "do"
+                ? AppTheme.seg-action-text
+                : (root.data.kind == "think"
+                    ? AppTheme.seg-thought-text
+                    : (root.data.kind == "whisper"
+                        ? AppTheme.seg-whisper-text
+                        : AppTheme.gold));
+        }
+
         Text {
             text: root.data.text;
             font-family: AppTheme.font-body;
             font-size: 14px;
             color: AppTheme.text-light;
-            font-italic: root.data.narrator;
+            font-italic: root.data.narrator
+                || root.data.kind == "do"
+                || root.data.kind == "think";
             wrap: word-wrap;
+        }
+    }
+}
+
+component NarratorNotice inherits Rectangle {
+    in property <string> body;
+    in property <string> label: "";
+
+    border-radius: 3px;
+    background: AppTheme.notice-bg;
+
+    VerticalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        padding-top: 7px;
+        padding-bottom: 7px;
+        spacing: 3px;
+
+        if root.label != "": Text {
+            text: root.label;
+            font-family: AppTheme.font-brand;
+            font-size: AppTheme.font-tiny;
+            color: AppTheme.text-narrator;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: root.body;
+            font-family: AppTheme.font-display;
+            font-size: 14px;
+            font-italic: true;
+            color: AppTheme.text-narrator;
+            horizontal-alignment: center;
+            wrap: word-wrap;
+        }
+    }
+}
+
+component ChatEntry inherits Rectangle {
+    in property <ChatMessage> data;
+
+    VerticalLayout {
+        spacing: 0px;
+
+        if root.data.narrator: Rectangle {
+            height: notice.preferred-height;
+
+            notice := NarratorNotice {
+                label: root.data.speaker;
+                body: root.data.text;
+                width: Math.min(parent.width - 48px, 460px);
+                x: (parent.width - self.width) / 2;
+            }
+        }
+
+        if !root.data.narrator: Rectangle {
+            height: bubble.preferred-height;
+
+            bubble := MessageBubble {
+                data: root.data;
+                width: Math.min(parent.width - 40px, 560px);
+                x: root.data.own ? parent.width - self.width : 0px;
+            }
         }
     }
 }
@@ -282,56 +363,6 @@ component ParchmentScroll inherits Rectangle {   // scroll backdrop + inner fram
     }
 }
 
-component ComposerPill inherits Rectangle {
-    in property <ComposerSegment> seg;
-
-    height: 28px;
-    border-radius: AppTheme.radius-pill;
-    border-width: 1px;
-    border-color: AppTheme.bronze;
-    background: root.seg.kind == "action"
-        ? AppTheme.seg-action-bg
-        : (root.seg.kind == "thought"
-            ? AppTheme.seg-thought-bg
-            : AppTheme.bg-panel-alt);
-
-    HorizontalLayout {
-        padding-left: 6px;
-        padding-right: 10px;
-        spacing: 6px;
-        alignment: center;
-
-        if root.seg.kind == "whisper": Avatar {
-            glyph: root.seg.target-glyph;
-            hue: root.seg.target-hue;
-            size: 20px;
-        }
-
-        Text {
-            text: root.seg.prefix;
-            font-family: AppTheme.font-body;
-            font-italic: root.seg.kind == "action" || root.seg.kind == "thought";
-            font-size: AppTheme.font-label;
-            color: root.seg.kind == "action"
-                ? AppTheme.seg-action-text
-                : (root.seg.kind == "thought"
-                    ? AppTheme.seg-thought-text
-                    : (root.seg.kind == "whisper"
-                        ? AppTheme.seg-whisper-text
-                        : AppTheme.text-light));
-            vertical-alignment: center;
-        }
-
-        if root.seg.body != "": Text {
-            text: root.seg.body;
-            font-family: AppTheme.font-body;
-            font-size: AppTheme.font-label;
-            color: AppTheme.text-light;
-            vertical-alignment: center;
-        }
-    }
-}
-
 component ActionButton inherits Rectangle {
     in property <string> label;
     in property <bool> active: false;
@@ -368,9 +399,104 @@ component ActionButton inherits Rectangle {
     }
 }
 
+// A chip inside the composer field that advertises what the current action mode
+// will do: "Say to Morwyn", "Do", "Think", "Whisper to Morwyn". For modes that
+// require a target (say / whisper) the target avatar is shown next to the text,
+// and the text falls back to "…" when no target is picked yet.
+component ModePill inherits Rectangle {
+    in property <int> mode;              // 0=say, 1=do, 2=think, 3=whisper
+    in property <ChatCharacter> target;
+
+    height: 32px;
+    border-radius: AppTheme.radius-pill;
+    border-width: 1px;
+    border-color: AppTheme.bronze;
+    background: root.mode == 1
+        ? AppTheme.seg-action-bg
+        : (root.mode == 2
+            ? AppTheme.seg-thought-bg
+            : (root.mode == 3
+                ? AppTheme.bg-panel-alt
+                : AppTheme.card-leather));
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 12px;
+        spacing: 6px;
+        alignment: center;
+
+        if root.mode == 0 || root.mode == 3: Avatar {
+            glyph: root.target.glyph;
+            hue: root.target.hue;
+            size: 20px;
+        }
+
+        Text {
+            text: root.mode == 0
+                ? "Say to " + (root.target.name != "" ? root.target.name : "…")
+                : (root.mode == 1
+                    ? "Do"
+                    : (root.mode == 2
+                        ? "Think"
+                        : "Whisper to " + (root.target.name != "" ? root.target.name : "…")));
+            font-family: AppTheme.font-brand;
+            font-italic: root.mode == 1 || root.mode == 2;
+            font-size: AppTheme.font-label;
+            color: root.mode == 1
+                ? AppTheme.seg-action-text
+                : (root.mode == 2
+                    ? AppTheme.seg-thought-text
+                    : (root.mode == 3
+                        ? AppTheme.seg-whisper-text
+                        : AppTheme.gold-bright));
+            vertical-alignment: center;
+        }
+    }
+}
+
+// Editable one-line text field with a muted italic placeholder shown while
+// empty. Enter fires `submitted` so the composer can send without touching the
+// mouse.
+component ComposerInput inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder;
+    callback submitted;
+
+    background: transparent;
+    forward-focus: input;
+
+    input := TextInput {
+        width: parent.width;
+        height: parent.height;
+        text <=> root.text;
+        color: AppTheme.text-light;
+        font-family: AppTheme.font-body;
+        font-size: 14px;
+        vertical-alignment: center;
+        selection-background-color: AppTheme.gold;
+        selection-foreground-color: AppTheme.text-ink;
+        accepted => {
+            root.submitted();
+        }
+    }
+
+    if root.text == "": Text {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+        text: root.placeholder;
+        color: AppTheme.text-muted;
+        font-family: AppTheme.font-body;
+        font-italic: true;
+        font-size: 14px;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Panels: Sidebar, Chat center, Right panel
-// (Top bar is shared chrome owned by RootWindow — see shared.slint)
 // ---------------------------------------------------------------------------
 
 component Sidebar inherits Rectangle {
@@ -410,10 +536,16 @@ component Sidebar inherits Rectangle {
 
 component ChatCenter inherits Rectangle {
     in property <[ChatMessage]> messages;
-    in property <[ComposerSegment]> composer-segments;
     in property <[ActionMode]> action-modes;
-    in property <int> active-mode;
-    in property <ChatCharacter> whisper-target;
+    in-out property <int> active-mode;
+    in property <[ChatCharacter]> characters;
+    in-out property <ChatCharacter> whisper-target;
+    in-out property <string> draft;
+    in property <NarratorEvent> narrator-event;
+
+    property <bool> needs-target: root.active-mode == 0 || root.active-mode == 3;
+    property <bool> can-send: root.draft != ""
+        && (!root.needs-target || root.whisper-target.name != "");
 
     callback mode-selected(int);
     callback send-clicked;
@@ -441,12 +573,23 @@ component ChatCenter inherits Rectangle {
                     spacing: 10px;
 
                     for msg[i] in root.messages: Rectangle {
-                        height: bubble.preferred-height;
+                        height: entry.preferred-height;
 
-                        bubble := MessageBubble {
+                        entry := ChatEntry {
                             data: msg;
-                            x: msg.own ? parent.width - self.width : 0px;
-                            width: Math.min(parent.width - 40px, 560px);
+                            width: parent.width;
+                        }
+                    }
+
+                    // Current narrator event, shown as the newest info in the flow
+                    if root.narrator-event.event-label != "" || root.narrator-event.body != "": Rectangle {
+                        height: event-notice.preferred-height;
+
+                        event-notice := NarratorNotice {
+                            label: root.narrator-event.event-label;
+                            body: root.narrator-event.body;
+                            width: Math.min(parent.width - 48px, 460px);
+                            x: (parent.width - self.width) / 2;
                         }
                     }
 
@@ -455,43 +598,75 @@ component ChatCenter inherits Rectangle {
             }
         }
 
-        // ---- composer field with pill segments and send icon ----
+        // ---- composer field: mode pill + editable input + send ----
         Rectangle {
             height: 56px;
             border-radius: AppTheme.radius-card;
             border-width: 1px;
-            border-color: AppTheme.gold;
+            border-color: root.can-send ? AppTheme.gold-bright : AppTheme.gold;
             background: AppTheme.field-bg;
+            animate border-color { duration: AppTheme.hover-dur; easing: ease-out; }
 
             HorizontalLayout {
                 padding-left: 10px;
-                padding-right: 10px;
-                spacing: 8px;
-                alignment: center;
+                padding-right: 6px;
+                spacing: 10px;
+                alignment: stretch;
 
-                for seg[i] in root.composer-segments: ComposerPill {
-                    seg: seg;
+                // Vertical-centering wrapper so the pill doesn't stretch to 56px
+                VerticalLayout {
+                    alignment: center;
+                    ModePill {
+                        mode: root.active-mode;
+                        target: root.whisper-target;
+                    }
                 }
 
-                Rectangle { horizontal-stretch: 1; }
+                ComposerInput {
+                    horizontal-stretch: 1;
+                    text <=> root.draft;
+                    placeholder: root.active-mode == 0
+                        ? (root.whisper-target.name != ""
+                            ? "Speak to " + root.whisper-target.name + "…"
+                            : "Pick someone to speak to below…")
+                        : (root.active-mode == 1
+                            ? "Describe what your character does…"
+                            : (root.active-mode == 2
+                                ? "What is on your character's mind?"
+                                : (root.whisper-target.name != ""
+                                    ? "Whisper privately to " + root.whisper-target.name + "…"
+                                    : "Pick someone to whisper to below…")));
+                    submitted => {
+                        if (root.can-send) {
+                            root.send-clicked();
+                        }
+                    }
+                }
 
-                Rectangle {   // send button
-                    width: 36px;
-                    height: 36px;
-                    border-radius: AppTheme.radius-circle;
-                    background: transparent;
+                send-area := TouchArea {
+                    width: 44px;
+                    mouse-cursor: root.can-send ? pointer : default;
 
-                    Text {
-                        text: "➤";
-                        font-size: AppTheme.font-title;
-                        color: AppTheme.gold-bright;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
+                    Rectangle {
+                        width: 36px;
+                        height: 36px;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        border-radius: AppTheme.radius-circle;
+                        background: root.can-send ? AppTheme.glow-soft : transparent;
+                        animate background { duration: AppTheme.hover-dur; easing: ease-out; }
+
+                        Text {
+                            text: "➤";
+                            font-size: AppTheme.font-title;
+                            color: root.can-send ? AppTheme.gold-bright : AppTheme.text-muted;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
                     }
 
-                    TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
+                    clicked => {
+                        if (root.can-send) {
                             root.send-clicked();
                         }
                     }
@@ -499,7 +674,7 @@ component ChatCenter inherits Rectangle {
             }
         }
 
-        // ---- action-mode bar: Say / Do / Think / Whisper + whisper target + settings ----
+        // ---- action-mode bar: Say / Do / Think / Whisper ----
         HorizontalLayout {
             spacing: 10px;
             alignment: center;
@@ -509,21 +684,70 @@ component ChatCenter inherits Rectangle {
                 label: mode.label;
                 active: i == root.active-mode;
                 clicked => {
+                    root.active-mode = i;
                     root.mode-selected(i);
                 }
             }
 
-            Avatar {
-                glyph: root.whisper-target.glyph;
-                hue: root.whisper-target.hue;
-                size: 28px;
-            }
+            Rectangle { horizontal-stretch: 1; }
 
             Text {
                 text: "⚙";
                 font-size: AppTheme.font-title;
                 color: AppTheme.text-muted;
                 vertical-alignment: center;
+            }
+        }
+
+        // ---- helper row: target picker when the mode needs one, else a hint ----
+        Rectangle {
+            height: 48px;
+
+            if root.needs-target: HorizontalLayout {
+                spacing: 10px;
+                alignment: center;
+
+                Text {
+                    text: root.active-mode == 0 ? "Speak to:" : "Whisper to:";
+                    font-family: AppTheme.font-body;
+                    font-size: AppTheme.font-label;
+                    color: AppTheme.text-muted;
+                    vertical-alignment: center;
+                }
+
+                for ch[i] in root.characters: TouchArea {
+                    width: 44px;
+                    height: 44px;
+                    mouse-cursor: pointer;
+
+                    Avatar {
+                        glyph: ch.glyph;
+                        hue: ch.hue;
+                        size: 36px;
+                        ringed: ch.name == root.whisper-target.name;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    clicked => {
+                        root.whisper-target = ch;
+                    }
+                }
+            }
+
+            if !root.needs-target: HorizontalLayout {
+                alignment: center;
+
+                Text {
+                    text: root.active-mode == 1
+                        ? "Do — describe an action your character performs. No target needed."
+                        : "Think — your character's silent inner thoughts. Only you hear them.";
+                    font-family: AppTheme.font-body;
+                    font-italic: true;
+                    font-size: AppTheme.font-label;
+                    color: AppTheme.text-muted;
+                    vertical-alignment: center;
+                }
             }
         }
     }
@@ -711,10 +935,10 @@ export component ChatPage inherits Rectangle {
 
     in property <[ChatCharacter]> characters;
     in property <[ChatMessage]> messages;
-    in property <[ComposerSegment]> composer-segments;
     in property <[ActionMode]> action-modes;
-    in-out property <int> active-mode: 1;
-    in property <ChatCharacter> whisper-target;
+    in-out property <int> active-mode;
+    in-out property <ChatCharacter> whisper-target;
+    in-out property <string> draft;
     in property <NarratorEvent> narrator-event;
     in property <StoryClockData> story-clock;
 
@@ -737,12 +961,13 @@ export component ChatPage inherits Rectangle {
         ChatCenter {
             horizontal-stretch: 1;
             messages: root.messages;
-            composer-segments: root.composer-segments;
             action-modes: root.action-modes;
-            active-mode: root.active-mode;
-            whisper-target: root.whisper-target;
+            active-mode <=> root.active-mode;
+            characters: root.characters;
+            whisper-target <=> root.whisper-target;
+            draft <=> root.draft;
+            narrator-event: root.narrator-event;
             mode-selected(i) => {
-                root.active-mode = i;
                 root.mode-selected(i);
             }
             send-clicked => {

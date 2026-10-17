@@ -197,7 +197,7 @@ component AdventureCard inherits Rectangle {
     callback activated;
 
     visible: !root.hidden;
-    height: AppTheme.adventure-card-min-h;
+    min-height: AppTheme.adventure-card-min-h;   // grows if a wrapped title needs room
     border-radius: AppTheme.radius-card;
     border-width: root.data.active ? 2px : 1px;
     border-color: root.data.active ? AppTheme.gold-bright : AppTheme.gold;
@@ -206,16 +206,10 @@ component AdventureCard inherits Rectangle {
     transform-origin: { x: self.width / 2, y: self.height / 2 };
     animate border-width, border-color { duration: AppTheme.hover-dur; easing: ease-out; }
 
-    Rectangle {   // cover illustration (placeholder tint; Image lands with art assets)
+    Rectangle {   // cover illustration
         width: parent.width;
         height: parent.height;
         background: root.data.art;
-    }
-
-    Rectangle {   // book spine strip, darker leather on the left edge
-        width: 8px;
-        height: parent.height;
-        background: AppTheme.card-leather-dark;
     }
 
     Rectangle {   // bottom scrim, ~55% of the card, for legibility
@@ -225,10 +219,11 @@ component AdventureCard inherits Rectangle {
         background: AppTheme.scrim;
     }
 
-    Rectangle {   // genre tag pill, top-right
+    Rectangle {   // genre - top-right
         x: parent.width - self.width - 10px;
         y: 10px;
         height: 18px;
+        width: 100px;
         border-radius: AppTheme.radius-pill;
         border-width: 1px;
         border-color: AppTheme.bronze;
@@ -245,7 +240,8 @@ component AdventureCard inherits Rectangle {
 
     Rectangle {   // "Last visited" ribbon on the last-opened card
         visible: root.data.ribbon != "";
-        y: 30px;
+        x: 0;
+        y: parent.height - self.height - AppTheme.control-h - 20px;   // just above the action row
         width: 190px;
         height: 20px;
         background: AppTheme.ribbon;
@@ -262,59 +258,63 @@ component AdventureCard inherits Rectangle {
         }
     }
 
+    // Card body
     VerticalLayout {
         padding-left: 18px;
-        padding-right: 90px;
-        padding-bottom: 10px;
-        padding-top: 56px;
-        spacing: 4px;
+        padding-right: 12px;
+        padding-top: 12px;   // title + chapter hug the top-left corner
+        padding-bottom: 12px;
+        spacing: 8px;
+        alignment: space-between;
 
-        Text {
-            text: root.data.title;
-            font-family: AppTheme.font-display;
-            font-size: AppTheme.font-card-title;
-            color: AppTheme.gold-bright;
-            wrap: word-wrap;
-            max-lines: 2;
-            overflow: elide;
-            vertical-alignment: center;
-        }
+        VerticalLayout {   // title + chapter line, top-left
+            padding-right: 108px;   // clears the genre pill now that they share the top row
+            spacing: 4px;
+            alignment: start;
 
-        Text {
-            text: root.data.chapter-line;
-            font-family: AppTheme.font-body;
-            font-size: AppTheme.font-label;
-            color: AppTheme.text-light;
-            vertical-alignment: center;
-        }
+            Text {
+                text: root.data.title;
+                font-family: AppTheme.font-display;
+                font-size: AppTheme.font-card-title;
+                color: AppTheme.gold-bright;
+                wrap: word-wrap;
+                max-lines: 2;
+                overflow: elide;
+                vertical-alignment: center;
+            }
 
-        Rectangle {
-            height: 3px;
-            min-width: 120px;
-            border-radius: AppTheme.radius-pill;
-            background: AppTheme.bronze;
-
-            Rectangle {
-                width: parent.width * root.data.progress;
-                height: parent.height;
-                border-radius: AppTheme.radius-pill;
-                background: AppTheme.gold;
+            Text {
+                text: root.data.chapter-line;
+                font-family: AppTheme.font-body;
+                font-size: AppTheme.font-label;
+                color: AppTheme.text-light;
+                vertical-alignment: center;
             }
         }
-    }
 
-    // cast avatars, overlapping row above the bottom edge
-    for cast[i] in root.data.cast: AvatarDot {
-        x: 18px + i * (AppTheme.avatar-sm - 6px);
-        y: parent.height - self.height - 12px;
-        glyph: cast.glyph;
-        hue: cast.hue;
-    }
+        // Bottom action row: avatars on the left, Continue on the right.
+        HorizontalLayout {
+            height: AppTheme.control-h;
+            alignment: space-between;
 
-    PillButton {   // gold Continue, bottom-right
-        x: parent.width - self.width - 12px;
-        y: parent.height - self.height - 10px;
-        label: "Continue";
+            Rectangle {   // cast avatars, overlapping each other
+                height: AppTheme.control-h;
+                width: root.data.cast.length == 0
+                    ? 0px
+                    : AppTheme.avatar-sm + (root.data.cast.length - 1) * (AppTheme.avatar-sm - 4px);
+
+                for cast[i] in root.data.cast: AvatarDot {
+                    x: i * (AppTheme.avatar-sm - 4px);
+                    y: (parent.height - self.height) / 2;
+                    glyph: cast.glyph;
+                    hue: cast.hue;
+                }
+            }
+
+            PillButton {
+                label: "Continue";
+            }
+        }
     }
 
     Rectangle {   // soft candlelight glow behind the active card
@@ -345,7 +345,7 @@ component AdventureCard inherits Rectangle {
 component NewAdventureCard inherits Rectangle {
     callback activated;
 
-    height: AppTheme.adventure-card-min-h;
+    min-height: AppTheme.adventure-card-min-h;
     border-radius: AppTheme.radius-card;
     border-width: 1px;
     border-color: AppTheme.bronze;
@@ -668,9 +668,10 @@ export component HomePage inherits Rectangle {
 
                     VerticalLayout {
                         spacing: AppTheme.pad-grid;
+                        alignment: start;
 
                         for row[r] in root.adventure-rows: HorizontalLayout {
-                            height: AppTheme.adventure-card-min-h;
+                            min-height: AppTheme.adventure-card-min-h;
                             spacing: AppTheme.pad-grid;
 
                             for card[c] in row: AdventureCard {
@@ -731,4 +732,3 @@ export component HomePage inherits Rectangle {
             }
         }
     }
-

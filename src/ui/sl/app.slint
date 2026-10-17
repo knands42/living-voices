@@ -13,7 +13,6 @@ import {
     ChatPage,
     ChatCharacter,
     ChatMessage,
-    ComposerSegment,
     ActionMode,
     NarratorEvent,
     StoryClockData,
@@ -23,7 +22,7 @@ import {
 export {
     NavTab,
     ChipData, PresetData, AdventureCardData, CardCast,
-    ChatCharacter, ChatMessage, ComposerSegment, ActionMode,
+    ChatCharacter, ChatMessage, ActionMode,
     NarratorEvent, StoryClockData,
 }
 
@@ -128,18 +127,16 @@ export component RootWindow inherits Window {
         { speaker: "Narrator", time: "scroll bg.", narrator: true,  own: false, text: "You hear rustling in the bushes nearby..." },
         { speaker: "Morwyn",   time: "14:34",      narrator: false, own: true,  text: "I'll scout ahead carefully..." }
     ];
-    in property <[ComposerSegment]> composer-segments: [
-        { kind: "whisper", prefix: "I whisper to Morwyn:", body: "don't move...", target-glyph: "M", target-hue: #3a2a1f },
-        { kind: "action",  prefix: "*draws a dagger slowly*", body: "Did you hear that?", target-glyph: "", target-hue: #000000 }
-    ];
     in property <[ActionMode]> action-modes: [
         { label: "Say" }, { label: "Do" }, { label: "Think" }, { label: "Whisper" }
     ];
-    in-out property <int> active-mode: 1;
-    in property <ChatCharacter> whisper-target: {
+    in-out property <int> active-mode: 0;
+    in-out property <ChatCharacter> whisper-target: {
         name: "Morwyn", role: "Rogue", glyph: "M", hue: #3a2a1f,
         active: false, location: "", level: "", status: ""
     };
+    // Live draft text in the composer. Rust reads it on send and clears it after.
+    in-out property <string> draft: "";
     in property <NarratorEvent> narrator-event: {
         body: "A guard rounds the corner, halting your progress!",
         event-label: "EVENT: A Guard Appears"
@@ -197,17 +194,14 @@ export component RootWindow inherits Window {
         if root.page == 1: ChatPage {
             characters: root.characters;
             messages: root.messages;
-            composer-segments: root.composer-segments;
             action-modes: root.action-modes;
-            active-mode: root.active-mode;
-            whisper-target: root.whisper-target;
+            active-mode <=> root.active-mode;
+            whisper-target <=> root.whisper-target;
+            draft <=> root.draft;
             narrator-event: root.narrator-event;
             story-clock: root.story-clock;
             character-selected(name) => { root.character-selected(name); }
-            mode-selected(i) => {
-                root.active-mode = i;
-                root.mode-selected(i);
-            }
+            mode-selected(i) => { root.mode-selected(i); }
             send-message => { root.send-message(); }
         }
     }
