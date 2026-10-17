@@ -1,4 +1,4 @@
-use crate::app::UiContext;
+use crate::app::AppContext;
 
 mod callbacks;
 pub mod viewmodels;
@@ -6,7 +6,7 @@ mod window;
 
 slint::include_modules!();
 
-pub fn run(ctx: UiContext) -> Result<(), slint::PlatformError> {
+pub fn run(ctx: AppContext) -> Result<(), slint::PlatformError> {
     let ui = RootWindow::new()?;
 
     let session = ctx.adventures.current_adventure();

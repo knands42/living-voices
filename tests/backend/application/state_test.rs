@@ -2,7 +2,11 @@ use living_voices::backend::application::state::{AppState, SharedState, StateErr
 use living_voices::backend::domain::adventure::Adventure;
 
 fn new_adventure() -> Adventure {
-    Adventure::new("Tides of Glass".to_string(), "A drowned city".to_string(), String::from("NARRATOR"))
+    Adventure::new(
+        "Tides of Glass".to_string(),
+        "A drowned city".to_string(),
+        String::from("NARRATOR"),
+    )
 }
 
 #[test]

@@ -59,7 +59,13 @@ pub struct Message {
 
 impl Message {
     pub const NARRATOR_SPEAKER_NAME: &'static str = "NARRATOR";
-    pub fn new(adventure_id: Uuid, character_id: Uuid, speaker_name: String, kind: MessageKind, text: String) -> Self {
+    pub fn new(
+        adventure_id: Uuid,
+        character_id: Uuid,
+        speaker_name: String,
+        kind: MessageKind,
+        text: String,
+    ) -> Self {
         Self {
             seq: None,
             id: Uuid::new_v4(),

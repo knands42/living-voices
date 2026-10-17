@@ -14,12 +14,13 @@ pub enum TextManagerError {
     DatabaseError(#[from] PersistenceError),
 }
 
-pub struct TextManager {
+#[derive(Clone, Debug)]
+pub struct MessageManager {
     state: SharedState,
     pool: SqlitePool,
 }
 
-impl TextManager {
+impl MessageManager {
     pub fn new(state: SharedState, pool: SqlitePool) -> Self {
         Self { state, pool }
     }

@@ -1,4 +1,5 @@
 pub mod adventure_manager;
 pub mod character_manager;
 pub mod state;
-pub mod text_manager;
+pub mod message_manager;
+pub mod memory_manager;
