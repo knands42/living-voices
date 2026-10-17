@@ -26,7 +26,7 @@ async fn create_adventure_returns_adventure_with_given_fields() {
     let (manager, _db) = new_manager().await;
 
     let adventure = manager
-        .create_adventure("Tides of Glass".to_string(), "A drowned city".to_string())
+        .create_adventure("Tides of Glass".to_string(), "A drowned city".to_string(), String::from("NARRATOR"))
         .await
         .unwrap();
 
@@ -39,7 +39,7 @@ async fn create_adventure_stores_adventure_in_state() {
     let (manager, _db) = new_manager().await;
 
     let adventure = manager
-        .create_adventure("Tides of Glass".to_string(), "A drowned city".to_string())
+        .create_adventure("Tides of Glass".to_string(), "A drowned city".to_string(), String::from("NARRATOR"))
         .await
         .unwrap();
 
@@ -52,11 +52,11 @@ async fn create_adventure_replaces_previous_adventure_in_state() {
     let (manager, _db) = new_manager().await;
 
     let first = manager
-        .create_adventure("First".to_string(), "One".to_string())
+        .create_adventure("First".to_string(), "One".to_string(), String::from("NARRATOR"))
         .await
         .unwrap();
     let second = manager
-        .create_adventure("Second".to_string(), "Two".to_string())
+        .create_adventure("Second".to_string(), "Two".to_string(), String::from("NARRATOR"))
         .await
         .unwrap();
 
@@ -70,11 +70,11 @@ async fn create_adventure_generates_unique_ids_across_calls() {
     let (manager, _db) = new_manager().await;
 
     let first = manager
-        .create_adventure("First".to_string(), "One".to_string())
+        .create_adventure("First".to_string(), "One".to_string(), String::from("NARRATOR"))
         .await
         .unwrap();
     let second = manager
-        .create_adventure("Second".to_string(), "Two".to_string())
+        .create_adventure("Second".to_string(), "Two".to_string(), String::from("NARRATOR"))
         .await
         .unwrap();
 
@@ -87,7 +87,7 @@ async fn state_is_shared_with_the_state_passed_to_new() {
     let (manager, _db) = new_manager_with(state.clone()).await;
 
     let adventure = manager
-        .create_adventure("Tides of Glass".to_string(), "Drowned".to_string())
+        .create_adventure("Tides of Glass".to_string(), "Drowned".to_string(), String::from("NARRATOR"))
         .await
         .unwrap();
 
@@ -107,7 +107,7 @@ async fn create_adventure_leaves_stored_adventure_in_shared_state() {
     let (manager, _db) = new_manager().await;
 
     let created = manager
-        .create_adventure("Tides of Glass".to_string(), "A drowned city".to_string())
+        .create_adventure("Tides of Glass".to_string(), "A drowned city".to_string(), String::from("NARRATOR"))
         .await
         .unwrap();
 

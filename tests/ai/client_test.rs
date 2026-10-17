@@ -13,6 +13,7 @@ fn client() -> OpenAiCompatibleClient {
 }
 
 #[tokio::test]
+#[ignore = "requires a running Ollama server"]
 async fn chat_model_answers_a_prompt() {
     let messages = [ChatMessage::user(
         "In one short sentence, greet a traveller.",
@@ -28,6 +29,7 @@ async fn chat_model_answers_a_prompt() {
 }
 
 #[tokio::test]
+#[ignore = "requires a running Ollama server"]
 async fn request_json_returns_a_single_schema_shaped_object() {
     let messages = [ChatMessage::user("Describe a quiet harbour at dusk.")];
     let schema = JsonSchema {
@@ -63,6 +65,7 @@ async fn request_json_returns_a_single_schema_shaped_object() {
 }
 
 #[tokio::test]
+#[ignore = "requires a running Ollama server"]
 async fn memory_model_returns_a_memory_record() {
     let history = [
         ChatMessage::user("I am Mara, a tide-singer from the drowned quarter."),

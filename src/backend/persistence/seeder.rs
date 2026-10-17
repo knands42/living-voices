@@ -234,7 +234,7 @@ async fn seed_connection(
     tx: &mut sqlx::Transaction<'static, Sqlite>,
     seed: &SeedAdventure,
 ) -> Result<Uuid, PersistenceError> {
-    let mut adventure = Adventure::new(seed.title.to_string(), seed.description.to_string());
+    let mut adventure = Adventure::new(seed.title.to_string(), seed.description.to_string(), String::from("NARRATOR"));
     adventure.genre = seed.genre.map(str::to_string);
     adventure.tone = seed.tone.map(str::to_string);
     adventure.lore = Lore::new().with_text(seed.lore.to_string());

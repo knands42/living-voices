@@ -1,13 +1,14 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::backend::domain::{character::Character, lore::Lore};
+use crate::backend::domain::{character::Character, lore::Lore, narrator::Narrator};
 
 #[derive(Clone, Debug)]
 pub struct Adventure {
     pub id: Uuid,
     pub title: String,
     pub description: String,
+    pub narrator: Narrator,
     pub lore: Lore,
     pub characters: Vec<Character>,
     pub genre: Option<String>,
@@ -18,12 +19,13 @@ pub struct Adventure {
 }
 
 impl Adventure {
-    pub fn new(title: String, description: String) -> Self {
+    pub fn new(title: String, description: String, narrator_name: String) -> Self {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4(),
             title,
             description,
+            narrator: Narrator::new(String::from(narrator_name)),
             lore: Lore::new(),
             characters: Vec::new(),
             genre: None,

@@ -1,8 +1,8 @@
+use crate::ai::{AiError, MemoryUpdate};
+use crate::backend::PersistenceError;
+use crate::backend::application::state::{SharedState, StateError};
 use sqlx::SqlitePool;
 use thiserror::Error;
-use crate::ai::{AiError, MemoryUpdate};
-use crate::backend::application::state::{SharedState, StateError};
-use crate::backend::PersistenceError;
 
 #[derive(Error, Debug)]
 pub enum TextManagerError {

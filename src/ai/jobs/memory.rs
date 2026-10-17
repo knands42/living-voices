@@ -53,7 +53,6 @@ impl MemoryUpdate {
     }
 }
 
-
 fn schema() -> JsonSchema {
     JsonSchema {
         name: "memory_update".to_string(),

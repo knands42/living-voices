@@ -4,5 +4,6 @@ pub mod db;
 pub mod error;
 pub mod lore;
 pub mod migrator;
+pub mod narrator;
 pub mod seeder;
 pub mod tags;

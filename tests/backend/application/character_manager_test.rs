@@ -32,7 +32,7 @@ async fn new_manager() -> (CharacterManager, SharedState, TempDb, SqlitePool) {
 // character.adventure_id is a foreign key, so characters must reference an
 // existing adventure row.
 async fn persist_adventure(pool: &SqlitePool) -> Uuid {
-    let adventure = Adventure::new("Tides of Glass".to_string(), "A drowned city".to_string());
+    let adventure = Adventure::new("Tides of Glass".to_string(), "A drowned city".to_string(), String::from("NARRATOR"));
     let mut conn = pool.acquire().await.expect("acquire conn");
     insert_adventure(&mut conn, &adventure)
         .await

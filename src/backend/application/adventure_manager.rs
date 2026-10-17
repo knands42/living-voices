@@ -5,7 +5,10 @@ use crate::backend::{
     PersistenceError,
     application::state::{SharedState, StateError},
     domain::adventure::Adventure,
-    persistence::adventure::insert_adventure,
+    persistence::{
+        adventure::insert_adventure,
+        narrator::insert_narrator,
+    },
 };
 
 #[derive(Error, Debug)]
@@ -31,8 +34,9 @@ impl AdventureManager {
         &self,
         title: String,
         description: String,
+        narrator_name: String,
     ) -> Result<Adventure, AdventureManagerError> {
-        let adventure = Adventure::new(title, description);
+        let adventure = Adventure::new(title, description, narrator_name);
         {
             let mut guard = self.state.write()?;
             guard.set_adventure(adventure.clone());
@@ -40,6 +44,7 @@ impl AdventureManager {
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         insert_adventure(&mut conn, &adventure).await?;
+        insert_narrator(&mut conn, adventure.id, &adventure.narrator).await?;
         Ok(adventure)
     }
 
