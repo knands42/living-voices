@@ -1,10 +1,10 @@
 //! Compress conversation history into durable facts plus a rolling summary.
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::json;
 
 use crate::ai::{
-    client::OpenAiCompatibleClient,
+    client::{JsonSchema, OpenAiCompatibleClient},
     error::AiError,
     types::{ChatMessage, Sampling},
 };
@@ -17,6 +17,7 @@ places, plans, promises and changes. Keep names, numbers and identifiers verbati
 - \"summary\": one concise paragraph covering the conversation so far.
 Never invent details that are not in the conversation.";
 
+/// Durable memory distilled from a stretch of conversation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemoryUpdate {
     pub facts: Vec<String>,
@@ -24,28 +25,12 @@ pub struct MemoryUpdate {
 }
 
 impl MemoryUpdate {
-    /// Parse a model reply, tolerating ```json fences, surrounding prose, and a
-    /// reply split across several JSON objects (the distiller tends to emit
-    /// `facts` and `summary` as separate objects). Objects are merged.
+    /// Decode the model's reply. The reply is schema-constrained (see [`schema`]),
+    /// so it is a single JSON object and needs no salvaging.
     pub fn from_reply(reply: &str) -> Result<Self, AiError> {
-        let mut facts = Vec::new();
-        let mut summary = None;
-
-        for object in json_objects(reply) {
-            let value: Value =
-                serde_json::from_str(object).map_err(|_| AiError::MalformedMemory {
-                    reply: reply.to_string(),
-                })?;
-            absorb(&value, &mut facts, &mut summary);
-        }
-
-        let Some(summary) = summary else {
-            return Err(AiError::MalformedMemory {
-                reply: reply.to_string(),
-            });
-        };
-
-        Ok(Self { facts, summary })
+        serde_json::from_str(reply).map_err(|_| AiError::MalformedMemory {
+            reply: reply.to_string(),
+        })
     }
 }
 
@@ -59,62 +44,29 @@ pub async fn distill(
     messages.push(ChatMessage::system(SYSTEM_PROMPT));
     messages.extend_from_slice(history);
 
+    let format = crate::ai::client::ResponseFormat::JsonSchema {
+        json_schema: &schema(),
+    };
+    
     let reply = client
-        .request(model, &messages, Sampling::EXTRACTION)
+        .send(model, &messages, Sampling::EXTRACTION, Some(format))
         .await?;
 
     MemoryUpdate::from_reply(&reply)
 }
 
-/// Fold one decoded JSON object into the accumulating record.
-fn absorb(value: &Value, facts: &mut Vec<String>, summary: &mut Option<String>) {
-    if let Some(list) = value.get("facts").and_then(Value::as_array) {
-        facts.extend(list.iter().filter_map(Value::as_str).map(str::to_string));
+/// The shape the memory model must produce.
+fn schema() -> JsonSchema {
+    JsonSchema {
+        name: "memory_update".to_string(),
+        schema: json!({
+            "type": "object",
+            "properties": {
+                "facts": { "type": "array", "items": { "type": "string" } },
+                "summary": { "type": "string" }
+            },
+            "required": ["facts", "summary"],
+            "additionalProperties": false
+        }),
     }
-
-    if let Some(text) = value.get("summary").and_then(Value::as_str)
-        && !text.trim().is_empty()
-    {
-        *summary = Some(text.to_string());
-    }
-}
-
-/// Every top-level `{...}` object in `text`, ignoring braces inside strings.
-/// TODO: Make usage of a lib for this algorithm
-fn json_objects(text: &str) -> Vec<&str> {
-    let mut objects = Vec::new();
-    let mut depth = 0usize;
-    let mut start = None;
-    let mut in_string = false;
-    let mut escaped = false;
-
-    for (index, character) in text.char_indices() {
-        if in_string {
-            match character {
-                '\\' if !escaped => escaped = true,
-                '"' if !escaped => in_string = false,
-                _ => escaped = false,
-            }
-            continue;
-        }
-
-        match character {
-            '"' => in_string = true,
-            '{' => {
-                start.get_or_insert(index);
-                depth += 1;
-            }
-            '}' if depth > 0 => {
-                depth -= 1;
-                if depth == 0
-                    && let Some(begin) = start.take()
-                {
-                    objects.push(&text[begin..=index]);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    objects
 }

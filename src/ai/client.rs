@@ -9,6 +9,13 @@ use crate::ai::{
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
+/// A named JSON schema that a model's reply must conform to.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct JsonSchema {
+    pub name: String,
+    pub schema: serde_json::Value,
+}
+
 /// A client for any OpenAI-compatible chat-completion endpoint with
 /// `/chat/completions` request and response shape
 #[derive(Clone, Debug)]
@@ -38,12 +45,23 @@ impl OpenAiCompatibleClient {
         messages: &[ChatMessage],
         sampling: Sampling,
     ) -> Result<String, AiError> {
+        self.send(model, messages, sampling, None).await
+    }
+
+    pub async fn send(
+        &self,
+        model: &str,
+        messages: &[ChatMessage],
+        sampling: Sampling,
+        response_format: Option<ResponseFormat<'_>>,
+    ) -> Result<String, AiError> {
         let url = self.chat_completions_url();
         let body = ChatRequest {
             model,
             messages,
             temperature: sampling.temperature,
             stream: false,
+            response_format,
         };
 
         let response = self
@@ -86,6 +104,15 @@ struct ChatRequest<'a> {
     messages: &'a [ChatMessage],
     temperature: f32,
     stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    response_format: Option<ResponseFormat<'a>>,
+}
+
+/// Serialises to the OpenAI `response_format` wire shape.
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ResponseFormat<'a> {
+    JsonSchema { json_schema: &'a JsonSchema },
 }
 
 #[derive(Deserialize)]

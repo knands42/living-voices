@@ -1,7 +1,7 @@
 use living_voices::ai::jobs::memory::MemoryUpdate;
 
 #[test]
-fn parses_a_plain_json_object() {
+fn parses_the_schema_shaped_object() {
     let reply = r#"{"facts": ["Mara hates the sea."], "summary": "Mara speaks."}"#;
 
     let update = MemoryUpdate::from_reply(reply).expect("parse");
@@ -11,8 +11,8 @@ fn parses_a_plain_json_object() {
 }
 
 #[test]
-fn parses_json_wrapped_in_a_code_fence() {
-    let reply = "```json\n{\"facts\": [], \"summary\": \"Quiet scene.\"}\n```";
+fn tolerates_leading_and_trailing_whitespace() {
+    let reply = "\n  {\"facts\": [], \"summary\": \"Quiet scene.\"}  \n";
 
     let update = MemoryUpdate::from_reply(reply).expect("parse");
 
@@ -21,48 +21,15 @@ fn parses_json_wrapped_in_a_code_fence() {
 }
 
 #[test]
-fn parses_json_surrounded_by_prose() {
-    let reply =
-        "Sure! Here is the record:\n{\"facts\": [\"A\"], \"summary\": \"B\"}\nHope that helps.";
-
-    let update = MemoryUpdate::from_reply(reply).expect("parse");
-
-    assert_eq!(update.facts, vec!["A".to_string()]);
-    assert_eq!(update.summary, "B");
-}
-
-#[test]
-fn merges_facts_and_summary_split_across_two_objects() {
-    let reply = "{\"facts\": [\"Mara is a tide-singer.\", \"Mara hates the sea.\"]}\n\
-                 {\"summary\": \"Mara, a tide-singer, hates the sea.\"}";
-
-    let update = MemoryUpdate::from_reply(reply).expect("parse");
-
-    assert_eq!(
-        update.facts,
-        vec![
-            "Mara is a tide-singer.".to_string(),
-            "Mara hates the sea.".to_string()
-        ]
-    );
-    assert_eq!(update.summary, "Mara, a tide-singer, hates the sea.");
-}
-
-#[test]
-fn ignores_braces_inside_string_values() {
-    let reply = r#"{"facts": ["uses {} as a placeholder"], "summary": "brace talk"}"#;
-
-    let update = MemoryUpdate::from_reply(reply).expect("parse");
-
-    assert_eq!(update.facts, vec!["uses {} as a placeholder".to_string()]);
-    assert_eq!(update.summary, "brace talk");
-}
-
-#[test]
 fn rejects_a_reply_without_the_expected_fields() {
     let reply = r#"{"unrelated": true}"#;
 
-    let result = MemoryUpdate::from_reply(reply);
+    assert!(MemoryUpdate::from_reply(reply).is_err());
+}
 
-    assert!(result.is_err());
+#[test]
+fn rejects_prose_instead_of_json() {
+    let reply = "Sure! Here is the record you asked for.";
+
+    assert!(MemoryUpdate::from_reply(reply).is_err());
 }

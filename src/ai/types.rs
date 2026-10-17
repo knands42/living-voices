@@ -37,9 +37,10 @@ impl ChatMessage {
     }
 }
 
-/// How freely a model samples. Low values stay faithful to the prompt.
+/// How freely a model samples.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Sampling {
+    /// Low values stay faithful to the prompt
     pub temperature: f32,
 }
 

@@ -3,6 +3,6 @@ pub mod error;
 pub mod jobs;
 pub mod types;
 
-pub use client::OpenAiCompatibleClient;
+pub use client::{JsonSchema, OpenAiCompatibleClient, ResponseFormat};
 pub use error::AiError;
 pub use types::{ChatMessage, Role, Sampling};
