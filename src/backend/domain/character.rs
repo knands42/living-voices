@@ -16,8 +16,6 @@ impl CharacterStatus {
         CharacterStatus::Unavailable,
     ];
 
-    pub const DEFAULT: CharacterStatus = CharacterStatus::Present;
-
     pub const fn as_str(self) -> &'static str {
         match self {
             CharacterStatus::Away => "away",

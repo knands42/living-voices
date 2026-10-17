@@ -1,10 +1,14 @@
 use living_voices::backend::domain::character::{
-    Character, CharacterStatus, DEFAULT_STATUS, STATUSES,
+    Character, CharacterStatus,
 };
 use uuid::Uuid;
 
 fn new_character() -> Character {
-    Character::new("Maren".to_string(), "A lighthouse keeper".to_string())
+    Character::new(
+        "Maren".to_string(),
+        None,
+        "A lighthouse keeper".to_string()
+    )
 }
 
 #[test]
@@ -23,13 +27,8 @@ fn new_sets_name_description_and_empty_fields() {
 fn new_defaults_status_to_active() {
     let character = new_character();
 
-    assert_eq!(character.status, DEFAULT_STATUS);
-    assert_eq!(DEFAULT_STATUS, "active");
-}
-
-#[test]
-fn statuses_contains_the_default() {
-    assert!(STATUSES.contains(&DEFAULT_STATUS));
+    assert_eq!(character.status, CharacterStatus::default());
+    assert_eq!(CharacterStatus::default().as_str(), "present");
 }
 
 #[test]
