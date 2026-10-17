@@ -4,6 +4,18 @@
 #   debug   -> this project directory
 #   release -> $HOME/projects/living-voice
 #
-# Add app options below, e.g.
-# [audio]
-# sample_rate = 44100
+# Every text endpoint speaks the OpenAI chat-completions API, so any
+# OpenAI-compatible server (Ollama, llama.cpp, LM Studio) works unchanged.
+
+[models.chat]
+base_url = "http://localhost:11434/v1"
+model = "llama3.1:8b"
+
+[models.memory]
+base_url = "http://localhost:11434/v1"
+model = "hf.co/sennaLLMLearner/qwen2.5-7b-memory-distiller:Q4_K_M"
+
+[models.image]
+backend = "comfyui"
+base_url = "http://localhost:8188"
+workflow = "scene.json"

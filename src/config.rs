@@ -6,9 +6,56 @@ use serde::{Deserialize, Serialize};
 const CONFIG_FILE: &str = "config.toml";
 const DB_FILE: &str = "living_voices.db";
 
+const DEFAULT_OLLAMA_URL: &str = "http://localhost:11434/v1";
+const DEFAULT_COMFYUI_URL: &str = "http://localhost:8188";
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 #[serde(default)]
-pub struct Settings {}
+pub struct Settings {
+    pub models: Models,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
+#[serde(default)]
+pub struct Models {
+    pub chat: TextModel,
+    pub memory: TextModel,
+    pub image: ImageModel,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(default)]
+pub struct TextModel {
+    pub base_url: String,
+    pub model: String,
+}
+
+impl Default for TextModel {
+    fn default() -> Self {
+        Self {
+            base_url: DEFAULT_OLLAMA_URL.to_string(),
+            model: String::new(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(default)]
+pub struct ImageModel {
+    pub backend: String,
+    pub base_url: String,
+    pub workflow: String,
+}
+
+impl Default for ImageModel {
+    fn default() -> Self {
+        Self {
+            backend: "comfyui".to_string(),
+            base_url: DEFAULT_COMFYUI_URL.to_string(),
+            workflow: String::new(),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Config {
