@@ -1,6 +1,6 @@
 use living_voices::{
     app::App,
-    backend::{run_migrations, seed_titles},
+    backend::{open_pool, run_migrations, seed_titles},
     config::Config,
 };
 
@@ -12,8 +12,15 @@ async fn main() {
     let config = Config::new().expect("Failed to initialize config");
     log::info!("Config loaded from {}", config.config_file.display());
 
-    // Run migrations before anything else touches the DB
-    if let Err(e) = run_migrations(&config.db_path.to_string_lossy().as_ref()).await {
+    let pool = match open_pool(&config.db_path.to_string_lossy().as_ref()).await {
+        Ok(pool) => pool,
+        Err(e) => {
+            eprintln!("Failed to open database pool: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    if let Err(e) = run_migrations(pool.clone()).await {
         eprintln!("Database migration failed: {e}");
         std::process::exit(1);
     }
@@ -35,7 +42,7 @@ async fn main() {
         log::info!("Demo mode: debug build — exiting after seed.");
     }
 
-    let app = App::new();
+    let app = App::new(pool);
     log::info!("Starting Living Voices");
 
     if let Err(err) = app.run() {

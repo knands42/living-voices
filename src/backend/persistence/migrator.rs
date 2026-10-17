@@ -1,12 +1,10 @@
-use sqlx::migrate::Migrator;
+use sqlx::{SqlitePool, migrate::Migrator};
 
-use crate::backend::persistence::{db::open_pool, error::PersistenceError};
+use crate::backend::persistence::error::PersistenceError;
 
 static MIGRATIONS: Migrator = sqlx::migrate!("./migrations");
 
-pub async fn run_migrations(db_path: &str) -> Result<(), PersistenceError> {
-    let pool = open_pool(db_path).await?;
-
+pub async fn run_migrations(pool: SqlitePool) -> Result<(), PersistenceError> {
     MIGRATIONS.run(&pool).await?;
     pool.close().await;
 

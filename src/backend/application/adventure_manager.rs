@@ -1,27 +1,33 @@
+use sqlx::SqlitePool;
 use thiserror::Error;
 
 use crate::backend::{
+    PersistenceError,
     application::state::{SharedState, StateError},
     domain::adventure::Adventure,
+    persistence::adventure::insert_adventure,
 };
 
 #[derive(Error, Debug)]
 pub enum AdventureManagerError {
     #[error("state error: {0}")]
     State(#[from] StateError),
+    #[error("database error: {0}")]
+    DatabaseError(#[from] PersistenceError),
 }
 
 #[derive(Clone, Debug)]
 pub struct AdventureManager {
     state: SharedState,
+    pool: SqlitePool,
 }
 
 impl AdventureManager {
-    pub fn new(state: SharedState) -> Self {
-        Self { state }
+    pub fn new(state: SharedState, pool: SqlitePool) -> Self {
+        Self { state, pool }
     }
 
-    pub fn create_adventure(
+    pub async fn create_adventure(
         &self,
         title: String,
         description: String,
@@ -31,6 +37,9 @@ impl AdventureManager {
             let mut guard = self.state.write()?;
             guard.set_adventure(adventure.clone());
         }
+
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        insert_adventure(&mut conn, &adventure).await?;
         Ok(adventure)
     }
 

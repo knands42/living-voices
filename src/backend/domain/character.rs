@@ -42,6 +42,7 @@ impl Default for CharacterStatus {
 #[derive(Clone, Debug)]
 pub struct Character {
     pub id: Uuid,
+    pub adventure_id: Option<Uuid>,
     pub name: String,
     pub description: String,
     pub status: CharacterStatus,
@@ -52,9 +53,10 @@ pub struct Character {
 }
 
 impl Character {
-    pub fn new(name: String, description: String) -> Self {
+    pub fn new(name: String, adventure_id: Option<Uuid>, description: String) -> Self {
         Self {
             id: Uuid::new_v4(),
+            adventure_id,
             name,
             description,
             backstory: String::new(),

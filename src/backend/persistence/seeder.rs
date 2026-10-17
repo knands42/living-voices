@@ -244,6 +244,7 @@ async fn seed_connection(
     for seed_character in seed.characters {
         let mut character = Character::new(
             seed_character.name.to_string(),
+            Some(adventure.id),
             seed_character.description.to_string(),
         )
         .with_backstory(seed_character.backstory.to_string())
@@ -286,7 +287,7 @@ async fn seed_connection(
     insert_lore(&mut *tx, adventure.id, &adventure.lore).await?;
 
     for character in &adventure.characters {
-        insert_character(&mut *tx, adventure.id, character).await?;
+        insert_character(&mut *tx, Some(adventure.id), character).await?;
     }
 
     for character in &adventure.characters {

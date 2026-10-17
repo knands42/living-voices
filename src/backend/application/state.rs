@@ -52,12 +52,12 @@ impl SharedState {
     pub fn read(&self) -> Result<std::sync::RwLockReadGuard<'_, AppState>, StateError> {
         self.0
             .try_read()
-            .map_err(|e| StateError::ReadLockFailed((e.to_string())))
+            .map_err(|e| StateError::ReadLockFailed(e.to_string()))
     }
 
     pub fn write(&self) -> Result<std::sync::RwLockWriteGuard<'_, AppState>, StateError> {
         self.0
             .try_write()
-            .map_err(|e| StateError::WriteLockFailed((e.to_string())))
+            .map_err(|e| StateError::WriteLockFailed(e.to_string()))
     }
 }

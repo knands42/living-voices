@@ -13,7 +13,7 @@ use crate::backend::{
 
 pub async fn insert_character(
     conn: &mut SqliteConnection,
-    adventure_id: Uuid,
+    adventure_id: Option<Uuid>,
     character: &Character,
 ) -> Result<(), PersistenceError> {
     sqlx::query(
@@ -21,7 +21,7 @@ pub async fn insert_character(
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
     )
     .bind(character.id.to_string())
-    .bind(adventure_id.to_string())
+    .bind(adventure_id.map(|id| id.to_string()))
     .bind(&character.name)
     .bind(&character.description)
     .bind(&character.backstory)

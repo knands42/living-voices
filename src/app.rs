@@ -1,3 +1,5 @@
+use sqlx::SqlitePool;
+
 use crate::{
     backend::application::{
         adventure_manager::AdventureManager, character_manager::CharacterManager,
@@ -17,10 +19,10 @@ pub struct App {
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new(pool: SqlitePool) -> Self {
         let state = SharedState::new();
-        let adventures = AdventureManager::new(state.clone());
-        let characters = CharacterManager::new(state);
+        let adventures = AdventureManager::new(state.clone(), pool.clone());
+        let characters = CharacterManager::new(state, pool);
         Self {
             ctx: UiContext {
                 adventures,
