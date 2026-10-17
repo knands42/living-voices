@@ -22,7 +22,7 @@ impl App {
     pub fn new(pool: SqlitePool) -> Self {
         let state = SharedState::new();
         let adventures = AdventureManager::new(state.clone(), pool.clone());
-        let characters = CharacterManager::new(state, pool);
+        let characters = CharacterManager::new(state.clone(), pool.clone());
         Self {
             ctx: UiContext {
                 adventures,

@@ -1,5 +1,7 @@
 use living_voices::ai::jobs::memory;
-use living_voices::ai::{ChatMessage, JsonSchema, OpenAiCompatibleClient, Sampling, ResponseFormat};
+use living_voices::ai::{
+    ChatMessage, JsonSchema, OpenAiCompatibleClient, ResponseFormat, Sampling,
+};
 use serde_json::json;
 
 const OLLAMA_URL: &str = "http://localhost:11434/v1";
@@ -68,7 +70,7 @@ async fn memory_model_returns_a_memory_record() {
         ChatMessage::user("I hate the sea."),
     ];
 
-    let update = memory::distill(&client(), MEMORY_MODEL, &history)
+    let update = memory::MemoryUpdate::distill(&client(), MEMORY_MODEL, &history)
         .await
         .expect("distill");
 

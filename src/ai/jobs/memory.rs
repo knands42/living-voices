@@ -14,7 +14,7 @@ You compress a roleplay conversation into a memory record.
 Reply with JSON only, containing exactly these two fields:
 - \"facts\": an array of short, atomic, self-contained statements about people, \
 places, plans, promises and changes. Keep names, numbers and identifiers verbatim.
-- \"summary\": one concise paragraph covering the conversation so far.
+- \"summary\": one concise paragraph covering the conversation so far (in order).
 Never invent details that are not in the conversation.";
 
 /// Durable memory distilled from a stretch of conversation.
@@ -25,37 +25,35 @@ pub struct MemoryUpdate {
 }
 
 impl MemoryUpdate {
-    /// Decode the model's reply. The reply is schema-constrained (see [`schema`]),
-    /// so it is a single JSON object and needs no salvaging.
     pub fn from_reply(reply: &str) -> Result<Self, AiError> {
         serde_json::from_str(reply).map_err(|_| AiError::MalformedMemory {
             reply: reply.to_string(),
         })
     }
+
+    /// Distill `history` into facts and a summary using the memory model.
+    pub async fn distill(
+        client: &OpenAiCompatibleClient,
+        model: &str,
+        history: &[ChatMessage],
+    ) -> Result<MemoryUpdate, AiError> {
+        let mut messages = Vec::with_capacity(history.len() + 1);
+        messages.push(ChatMessage::system(SYSTEM_PROMPT));
+        messages.extend_from_slice(history);
+
+        let format = crate::ai::client::ResponseFormat::JsonSchema {
+            json_schema: &schema(),
+        };
+
+        let reply = client
+            .send(model, &messages, Sampling::EXTRACTION, Some(format))
+            .await?;
+
+        MemoryUpdate::from_reply(&reply)
+    }
 }
 
-/// Distill `history` into facts and a summary using the memory model.
-pub async fn distill(
-    client: &OpenAiCompatibleClient,
-    model: &str,
-    history: &[ChatMessage],
-) -> Result<MemoryUpdate, AiError> {
-    let mut messages = Vec::with_capacity(history.len() + 1);
-    messages.push(ChatMessage::system(SYSTEM_PROMPT));
-    messages.extend_from_slice(history);
 
-    let format = crate::ai::client::ResponseFormat::JsonSchema {
-        json_schema: &schema(),
-    };
-    
-    let reply = client
-        .send(model, &messages, Sampling::EXTRACTION, Some(format))
-        .await?;
-
-    MemoryUpdate::from_reply(&reply)
-}
-
-/// The shape the memory model must produce.
 fn schema() -> JsonSchema {
     JsonSchema {
         name: "memory_update".to_string(),
