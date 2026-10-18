@@ -1,13 +1,35 @@
 use living_voices::{
     app::App,
     backend::{open_pool, run_migrations, seed_titles},
+    cli,
     config::Config,
 };
+
+#[derive(Clone, Copy, Debug)]
+enum Frontend {
+    Cli,
+    Ui,
+}
+
+impl Frontend {
+    fn from_args() -> Self {
+        for arg in std::env::args().skip(1) {
+            match arg.as_str() {
+                "--ui" | "-u" | "ui" => return Frontend::Ui,
+                "--cli" | "-c" | "cli" => return Frontend::Cli,
+                _ => {}
+            }
+        }
+        Frontend::Cli
+    }
+}
 
 #[tokio::main]
 async fn main() {
     env_logger::init();
     log_panics::init();
+
+    let frontend = Frontend::from_args();
 
     let config = Config::new().expect("Failed to initialize config");
     log::info!("Config loaded from {}", config.config_file.display());
@@ -56,9 +78,14 @@ async fn main() {
         }
     }
 
-    log::info!("Starting Living Voices");
+    log::info!("Starting Living Voices ({:?})", frontend);
 
-    if let Err(err) = app.run() {
+    let result: Result<(), Box<dyn std::error::Error>> = match frontend {
+        Frontend::Ui => app.run().map_err(Into::into),
+        Frontend::Cli => cli::run(&app).map_err(Into::into),
+    };
+
+    if let Err(err) = result {
         eprintln!("Application error: {err}");
         std::process::exit(1);
     }
