@@ -37,7 +37,6 @@ impl ChatMessage {
     }
 }
 
-/// How freely a model samples.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Sampling {
     /// Low values stay faithful to the prompt
@@ -46,8 +45,8 @@ pub struct Sampling {
 
 impl Sampling {
     /// Character dialogue: expressive but coherent.
-    pub const CHAT: Self = Self { temperature: 0.8 };
+    pub const CHAT: Self = Self { temperature: 0.5 };
 
     /// Memory and summary extraction: faithful, no invention.
-    pub const EXTRACTION: Self = Self { temperature: 0.2 };
+    pub const EXTRACTION: Self = Self { temperature: 0.1 };
 }

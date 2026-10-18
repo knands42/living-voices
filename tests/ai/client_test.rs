@@ -20,7 +20,7 @@ async fn chat_model_answers_a_prompt() {
     )];
 
     let reply = client()
-        .request(CHAT_MODEL, &messages, Sampling::CHAT)
+        .send(CHAT_MODEL, &messages, Sampling::CHAT, None)
         .await
         .expect("request");
 

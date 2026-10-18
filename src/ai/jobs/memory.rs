@@ -1,5 +1,3 @@
-//! Compress conversation history into durable facts plus a rolling summary.
-
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -8,6 +6,10 @@ use crate::ai::{
     error::AiError,
     types::{ChatMessage, Sampling},
 };
+use crate::backend::application::port::memory_port::{
+    DistillError, DistilledMemory, MemoryDistiller,
+};
+use crate::backend::domain::message::Message;
 
 const SYSTEM_PROMPT: &str = "\
 You compress a roleplay conversation into a memory record.
@@ -18,13 +20,30 @@ places, plans, promises and changes. Keep names, numbers and identifiers verbati
 Never invent details that are not in the conversation.";
 
 /// Durable memory distilled from a stretch of conversation.
+///
+/// `facts` + `summary` are the model's JSON reply shape. `base_url` + `model`
+/// are distiller config and are NOT part of that JSON, so serde skips them on
+/// deserialize (they default to empty) and omits them on serialize.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemoryUpdate {
     pub facts: Vec<String>,
     pub summary: String,
+    #[serde(skip)]
+    base_url: String,
+    #[serde(skip)]
+    model: String,
 }
 
 impl MemoryUpdate {
+    pub fn new(base_url: String, model: String) -> Self {
+        Self {
+            facts: vec![],
+            summary: String::new(),
+            base_url,
+            model,
+        }
+    }
+
     pub fn from_reply(reply: &str) -> Result<Self, AiError> {
         serde_json::from_str(reply).map_err(|_| AiError::MalformedMemory {
             reply: reply.to_string(),
@@ -50,6 +69,28 @@ impl MemoryUpdate {
             .await?;
 
         MemoryUpdate::from_reply(&reply)
+    }
+}
+
+impl MemoryDistiller for MemoryUpdate {
+    async fn distill(&self, messages: &[Message]) -> Result<DistilledMemory, DistillError> {
+        let history: Vec<ChatMessage> = messages.iter().map(ChatMessage::from).collect();
+        let client = OpenAiCompatibleClient::new(&self.base_url)
+            .map_err(|e| DistillError::Provider(e.to_string()))?;
+        let update = MemoryUpdate::distill(&client, &self.model, &history)
+            .await
+            .map_err(|e| DistillError::Provider(e.to_string()))?;
+
+        Ok(DistilledMemory::from(update))
+    }
+}
+
+impl From<MemoryUpdate> for DistilledMemory {
+    fn from(memory_update: MemoryUpdate) -> Self {
+        DistilledMemory {
+            summary: memory_update.summary,
+            facts: memory_update.facts,
+        }
     }
 }
 

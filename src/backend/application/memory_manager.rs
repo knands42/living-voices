@@ -1,46 +1,44 @@
 use sqlx::SqlitePool;
 use thiserror::Error;
 
-use crate::ai::{AiError, ChatMessage, MemoryUpdate, OpenAiCompatibleClient};
 use crate::backend::PersistenceError;
+use crate::backend::application::port::memory_port::{
+    DistillError, DistilledMemory, MemoryDistiller,
+};
 use crate::backend::application::state::{SharedState, StateError};
 use crate::backend::domain::memory::{Fact, Summary};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::memory_persistence::{insert_facts, insert_summary, last_covered};
 use crate::backend::persistence::message_persistence::fetch_since;
-use crate::config::TextModel;
 
 #[derive(Error, Debug)]
 pub enum MemoryManagerError {
     #[error("failed to compress the memory {0}")]
-    CompressionFailed(#[from] AiError),
+    CompressionFailed(#[from] DistillError),
     #[error("state error: {0}")]
     State(#[from] StateError),
     #[error("database error: {0}")]
     DatabaseError(#[from] PersistenceError),
 }
 
-#[derive(Clone, Debug)]
-pub struct MemoryManager {
+#[derive(Clone)]
+pub struct MemoryManager<D: MemoryDistiller> {
     state: SharedState,
     pool: SqlitePool,
-    /// OpenAI-compatible endpoint used for the distillation calls.
-    base_url: String,
-    model: String,
+    /// The memory port, chosen at compile time. Never names an `ai` type.
+    distiller: D,
 }
 
-impl MemoryManager {
-    pub fn new(state: SharedState, pool: SqlitePool, model: TextModel) -> Self {
+impl<D: MemoryDistiller> MemoryManager<D> {
+    pub fn new(state: SharedState, pool: SqlitePool, distiller: D) -> Self {
         Self {
             state,
             pool,
-            base_url: model.base_url,
-            model: model.model,
+            distiller,
         }
     }
 
     /// Compress every message not yet covered by the latest summary.
-    // TODO: Make less dependand on AI pakacge, inversion control
     pub async fn compress(&self) -> Result<(), MemoryManagerError> {
         let adventure_id = {
             let guard = self.state.read()?;
@@ -64,15 +62,13 @@ impl MemoryManager {
         };
         let from_seq = after_seq + 1;
 
-        let history: Vec<ChatMessage> = messages.iter().map(ChatMessage::from).collect();
-        let client = OpenAiCompatibleClient::new(&self.base_url)?;
-        let update = MemoryUpdate::distill(&client, &self.model, &history).await?;
+        // Inversion of control: one call across the port, no ai type named here.
+        let DistilledMemory { facts, summary } = self.distiller.distill(&messages).await?;
 
-        let summary = Summary::new(adventure_id, update.summary, from_seq, to_seq);
+        let summary = Summary::new(adventure_id, summary, from_seq, to_seq);
         insert_summary(&mut conn, &summary).await?;
 
-        let facts: Vec<Fact> = update
-            .facts
+        let facts: Vec<Fact> = facts
             .into_iter()
             .map(|text| Fact::new(adventure_id, summary.id, text))
             .collect();
@@ -85,26 +81,4 @@ impl MemoryManager {
 /// `seq` of the newest message in the batch, or `None` when the batch is empty.
 fn last_seq(messages: &[Message]) -> Option<i64> {
     messages.last().and_then(|m| m.seq).map(|s| s as i64)
-}
-
-/// Render a stored message as the conversation line handed to the memory model:
-/// `[<speaker> <kind>] to [<target>]: <text>` per part, parts joined with ` + `,
-/// e.g. `[Alice whisper] to [Bob]: come here + [Alice do]: raise the drawing`.
-impl From<&Message> for ChatMessage {
-    fn from(message: &Message) -> Self {
-        let rendered = message
-            .parts
-            .iter()
-            .map(|part| {
-                let mut segment = format!("[{} {}]", message.speaker_name, part.kind);
-                if let Some(target) = &part.target_name {
-                    segment.push_str(&format!(" to [{target}]"));
-                }
-                segment.push_str(&format!(": {}", part.text));
-                segment
-            })
-            .collect::<Vec<_>>()
-            .join(" + ");
-        ChatMessage::user(rendered)
-    }
 }

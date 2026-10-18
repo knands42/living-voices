@@ -3,7 +3,7 @@ use sqlx::{Row, query, query_scalar};
 use uuid::Uuid;
 
 use crate::backend::application::helper::setup_db;
-use living_voices::ai::ChatMessage;
+use living_voices::ai::{ChatMessage, MemoryUpdate};
 use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
@@ -21,6 +21,12 @@ fn memory_model() -> TextModel {
     config.settings.models.memory
 }
 
+/// Build the distiller the app wires in, from the configured memory model.
+fn distiller() -> MemoryUpdate {
+    let model = memory_model();
+    MemoryUpdate::new(model.base_url, model.model)
+}
+
 async fn setup_adventure(pool: &SqlitePool) -> Adventure {
     let adventure = Adventure::new(
         "Test adventure".into(),
@@ -34,13 +40,13 @@ async fn setup_adventure(pool: &SqlitePool) -> Adventure {
     adventure
 }
 
-async fn load_adventure(pool: &SqlitePool, adventure: &Adventure) -> MemoryManager {
+async fn load_adventure(pool: &SqlitePool, adventure: &Adventure) -> MemoryManager<MemoryUpdate> {
     let state = SharedState::new();
     state
         .write()
         .expect("lock")
         .set_adventure(adventure.clone());
-    MemoryManager::new(state, pool.clone(), memory_model())
+    MemoryManager::new(state, pool.clone(), distiller())
 }
 
 async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: u64) -> Vec<i64> {
@@ -143,7 +149,7 @@ async fn compress_resumes_after_the_last_covered_seq() {
 async fn compress_is_a_noop_without_a_current_adventure() {
     // Given a migrated database and no adventure loaded in the state
     let (pool, _db) = setup_db().await;
-    let manager = MemoryManager::new(SharedState::new(), pool.clone(), memory_model());
+    let manager = MemoryManager::new(SharedState::new(), pool.clone(), distiller());
 
     // When compressing
     let result = manager.compress().await;

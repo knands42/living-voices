@@ -7,6 +7,9 @@ lint:
 test:
     cargo test
 
+test-ignored:
+    cargo test --ignore
+
 run-debug: build
     ./target/debug/living_voices
 

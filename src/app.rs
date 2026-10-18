@@ -1,5 +1,6 @@
 use sqlx::SqlitePool;
 
+use crate::ai::MemoryUpdate;
 use crate::{
     backend::application::{
         adventure_manager::AdventureManager, character_manager::CharacterManager,
@@ -14,7 +15,6 @@ pub struct AppContext {
     pub adventures: AdventureManager,
     pub characters: CharacterManager,
     pub messages: MessageManager,
-    pub memory: MemoryManager,
 }
 
 pub struct App {
@@ -27,13 +27,13 @@ impl App {
         let adventures = AdventureManager::new(state.clone(), pool.clone());
         let characters = CharacterManager::new(state.clone(), pool.clone());
         let messages = MessageManager::new(state.clone(), pool.clone());
-        let memory = MemoryManager::new(state.clone(), pool.clone(), memory_model);
+        let distiller = MemoryUpdate::new(memory_model.base_url, memory_model.model);
+        let _unused = MemoryManager::new(state.clone(), pool.clone(), distiller);
         Self {
             ctx: AppContext {
                 adventures,
                 characters,
                 messages,
-                memory,
             },
         }
     }

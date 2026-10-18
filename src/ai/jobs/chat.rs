@@ -3,6 +3,29 @@ use crate::ai::{
     error::AiError,
     types::{ChatMessage, Sampling},
 };
+use crate::backend::domain::message::Message;
+
+/// Render a stored message as the conversation line handed to a model:
+/// `[<speaker> <kind>] to [<target>]: <text>` per part, parts joined with ` + `,
+/// e.g. `[Alice whisper] to [Bob]: come here + [Alice do]: raise the drawing`.
+impl From<&Message> for ChatMessage {
+    fn from(message: &Message) -> Self {
+        let rendered = message
+            .parts
+            .iter()
+            .map(|part| {
+                let mut segment = format!("[{} {}]", message.speaker_name, part.kind);
+                if let Some(target) = &part.target_name {
+                    segment.push_str(&format!(" to [{target}]"));
+                }
+                segment.push_str(&format!(": {}", part.text));
+                segment
+            })
+            .collect::<Vec<_>>()
+            .join(" + ");
+        ChatMessage::user(rendered)
+    }
+}
 
 /// Generate the assistant's next line.
 ///
@@ -21,5 +44,5 @@ pub async fn respond(
     messages.extend_from_slice(history);
     messages.push(ChatMessage::user(user_message));
 
-    client.request(model, &messages, Sampling::CHAT).await
+    client.send(model, &messages, Sampling::CHAT, None).await
 }

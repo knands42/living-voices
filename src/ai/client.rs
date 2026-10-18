@@ -38,16 +38,6 @@ impl OpenAiCompatibleClient {
         Ok(Self { http, base_url })
     }
 
-    /// Send a conversation to `model` and return the assistant's reply.
-    pub async fn request(
-        &self,
-        model: &str,
-        messages: &[ChatMessage],
-        sampling: Sampling,
-    ) -> Result<String, AiError> {
-        self.send(model, messages, sampling, None).await
-    }
-
     pub async fn send(
         &self,
         model: &str,
