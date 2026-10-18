@@ -5,6 +5,7 @@ use crate::{
         adventure_manager::AdventureManager, character_manager::CharacterManager,
         memory_manager::MemoryManager, message_manager::MessageManager, state::SharedState,
     },
+    config::TextModel,
     ui,
 };
 
@@ -21,12 +22,12 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: SqlitePool, memory_model: TextModel) -> Self {
         let state = SharedState::new();
         let adventures = AdventureManager::new(state.clone(), pool.clone());
         let characters = CharacterManager::new(state.clone(), pool.clone());
         let messages = MessageManager::new(state.clone(), pool.clone());
-        let memory = MemoryManager::new(state.clone(), pool.clone());
+        let memory = MemoryManager::new(state.clone(), pool.clone(), memory_model);
         Self {
             ctx: AppContext {
                 adventures,

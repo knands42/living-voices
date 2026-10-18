@@ -42,7 +42,7 @@ async fn main() {
         log::info!("Demo mode: debug build — exiting after seed.");
     }
 
-    let app = App::new(pool);
+    let app = App::new(pool, config.settings.models.memory.clone());
     log::info!("Starting Living Voices");
 
     if let Err(err) = app.run() {

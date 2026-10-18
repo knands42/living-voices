@@ -9,7 +9,6 @@ use crate::backend::{
 
 struct MessageRow {
     seq: u64,
-    id: String,
     adventure_id: String,
     narrator_id: Option<String>,
     character_id: Option<String>,
@@ -24,7 +23,6 @@ impl MessageRow {
     fn decode(row: &sqlx::sqlite::SqliteRow) -> Self {
         Self {
             seq: row.get("seq"),
-            id: row.get("id"),
             adventure_id: row.get("adventure_id"),
             narrator_id: row.get("narrator_id"),
             character_id: row.get("character_id"),
@@ -47,19 +45,19 @@ pub async fn insert_message(
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
          RETURNING seq",
     )
-    .bind(msg.adventure_id.to_string())
-    .bind(msg.character_id.map(|id| id.to_string()))
-    .bind(&msg.speaker_name)
-    .bind(msg.kind.as_str())
-    .bind(&msg.text)
-    .bind(msg.target_name.as_deref())
-    .bind(from_timestamp_to_str(&msg.created_at))
-    .fetch_one(&mut *conn)
-    .await?;
+        .bind(msg.adventure_id.to_string())
+        .bind(msg.character_id.map(|id| id.to_string()))
+        .bind(&msg.speaker_name)
+        .bind(msg.kind.as_str())
+        .bind(&msg.text)
+        .bind(msg.target_name.as_deref())
+        .bind(from_timestamp_to_str(&msg.created_at))
+        .fetch_one(&mut *conn)
+        .await?;
 
-    let seq: u64 = row.get("seq");
+    let seq: i64 = row.get("seq");
     Ok(Message {
-        seq: Some(seq),
+        seq: Some(seq as u64),
         ..msg.clone()
     })
 }
@@ -90,8 +88,6 @@ impl TryFrom<MessageRow> for Message {
     type Error = PersistenceError;
 
     fn try_from(row: MessageRow) -> Result<Self, Self::Error> {
-        let id = Uuid::parse_str(&row.id)
-            .map_err(|e| PersistenceError::Database(sqlx::Error::Decode(Box::new(e))))?;
         let adventure_id = Uuid::parse_str(&row.adventure_id)
             .map_err(|e| PersistenceError::Database(sqlx::Error::Decode(Box::new(e))))?;
         let kind = MessageKind::from_str(&row.kind).ok_or_else(|| {
