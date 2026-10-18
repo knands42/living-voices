@@ -63,42 +63,42 @@ pub struct MessagePart {
 }
 
 impl MessagePart {
-    pub fn new(kind: MessageKind, text: &str) -> Self {
+    pub fn new(kind: MessageKind, text: impl Into<String>) -> Self {
         Self {
             kind,
             target_name: None,
-            text: text.to_string(),
+            text: text.into(),
             nuance: None,
         }
     }
 
-    pub fn with_target(mut self, target_name: &str) -> Self {
-        self.target_name = Some(target_name.to_string());
+    pub fn with_target(mut self, target_name: impl Into<String>) -> Self {
+        self.target_name = Some(target_name.into());
         self
     }
 
     pub fn render(&self, speaker: &str) -> String {
-        let final_text = self.text.clone();
         let nuance = self.nuance();
         let mode = |label: &str| match nuance.as_deref() {
             Some(n) => format!("({label} {n})"),
             None => format!("({label})"),
         };
 
+        let text = &self.text;
         match (self.kind, self.target_name.as_deref()) {
             (MessageKind::Say, Some(target)) => {
-                format!("{speaker} {} -> {target}: {final_text}", mode("say"))
+                format!("[{speaker} {} -> {target}]: {text}", mode("say"))
             }
-            (MessageKind::Say, None) => format!("{speaker} (say): {final_text}"),
+            (MessageKind::Say, None) => format!("[{speaker} (say)]: {text}"),
             (MessageKind::Think, _) => {
-                format!("{speaker} {}): {final_text}", mode("think"))
+                format!("[{speaker} {}]: {text}", mode("think"))
             }
-            (MessageKind::Do, None) => format!("{speaker} * {final_text}"),
+            (MessageKind::Do, None) => format!("[{speaker} {}]: {text}", mode("do")),
             (MessageKind::Do, Some(target)) => {
-                format!("{speaker} {} -> {target} * {final_text}", mode("do"))
+                format!("[{speaker} {} -> {target}]: {text}", mode("do"))
             }
-            (MessageKind::Ooc, _) => format!("{speaker} (out of character): {final_text}"),
-            (MessageKind::Narration, _) => format!("narrator: {final_text}"),
+            (MessageKind::Ooc, _) => format!("[{speaker} (out of character)]: {text}"),
+            (MessageKind::Narration, _) => format!("[narrator]: {text}"),
         }
     }
 
