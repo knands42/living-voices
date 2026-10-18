@@ -10,8 +10,8 @@ use crate::backend::{
         lore::Lore,
     },
     persistence::{
-        adventure::insert_adventure,
-        characters::{insert_character, insert_relations},
+        adventure_persistence::insert_adventure,
+        characters_persistence::{insert_character, insert_relations},
         db::open_pool,
         error::PersistenceError,
         lore::insert_lore,

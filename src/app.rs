@@ -3,8 +3,7 @@ use sqlx::SqlitePool;
 use crate::{
     backend::application::{
         adventure_manager::AdventureManager, character_manager::CharacterManager,
-        memory_manager::MemoryManager, message_manager::MessageManager,
-        state::SharedState,
+        memory_manager::MemoryManager, message_manager::MessageManager, state::SharedState,
     },
     ui,
 };
@@ -14,7 +13,7 @@ pub struct AppContext {
     pub adventures: AdventureManager,
     pub characters: CharacterManager,
     pub messages: MessageManager,
-    pub memory: MemoryManager
+    pub memory: MemoryManager,
 }
 
 pub struct App {
@@ -33,7 +32,7 @@ impl App {
                 adventures,
                 characters,
                 messages,
-                memory
+                memory,
             },
         }
     }

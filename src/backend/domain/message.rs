@@ -32,6 +32,17 @@ impl MessageKind {
             MessageKind::Whisper => "whisper",
         }
     }
+
+    pub fn from_str(s: &str) -> Option<MessageKind> {
+        match s {
+            "narration" => Some(MessageKind::Narration),
+            "say" => Some(MessageKind::Say),
+            "do" => Some(MessageKind::Do),
+            "think" => Some(MessageKind::Think),
+            "whisper" => Some(MessageKind::Whisper),
+            _ => None,
+        }
+    }
 }
 
 impl Display for MessageKind {
@@ -45,10 +56,10 @@ impl Display for MessageKind {
 #[derive(Clone, Debug)]
 pub struct Message {
     /// it is `None` until persisted and always `Some` when read back.
-    pub seq: Option<i64>,
-    pub id: Uuid,
+    pub seq: Option<u64>,
     pub adventure_id: Uuid,
-    pub character_id: Uuid,
+    pub character_id: Option<Uuid>,
+    pub narrator_id: Option<Uuid>,
     pub speaker_name: String,
     pub kind: MessageKind,
     pub text: String,
@@ -61,16 +72,17 @@ impl Message {
     pub const NARRATOR_SPEAKER_NAME: &'static str = "NARRATOR";
     pub fn new(
         adventure_id: Uuid,
-        character_id: Uuid,
+        character_id: Option<Uuid>,
+        narrator_id: Option<Uuid>,
         speaker_name: String,
         kind: MessageKind,
         text: String,
     ) -> Self {
         Self {
             seq: None,
-            id: Uuid::new_v4(),
             adventure_id,
             character_id,
+            narrator_id,
             speaker_name,
             kind,
             text,
@@ -78,6 +90,7 @@ impl Message {
             created_at: Utc::now(),
         }
     }
+
     pub fn with_target(mut self, target_name: String) -> Self {
         self.target_name = Some(target_name);
         self

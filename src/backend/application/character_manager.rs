@@ -5,7 +5,7 @@ use crate::backend::{
     PersistenceError,
     application::state::{SharedState, StateError},
     domain::character::Character,
-    persistence::characters::insert_character,
+    persistence::characters_persistence::insert_character,
 };
 
 #[derive(Error, Debug)]

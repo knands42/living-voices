@@ -1,9 +1,11 @@
-pub mod adventure;
-pub mod characters;
+pub mod adventure_persistence;
+pub mod characters_persistence;
 pub mod db;
 pub mod error;
 pub mod lore;
+pub mod memory_persistence;
+pub mod message_persistence;
 pub mod migrator;
-pub mod narrator;
+pub mod narrator_persistence;
 pub mod seeder;
 pub mod tags;

@@ -5,7 +5,7 @@ use crate::backend::{
     PersistenceError,
     application::state::{SharedState, StateError},
     domain::adventure::Adventure,
-    persistence::{adventure::insert_adventure, narrator::insert_narrator},
+    persistence::{adventure_persistence::insert_adventure, narrator_persistence::insert_narrator},
 };
 
 #[derive(Error, Debug)]

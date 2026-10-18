@@ -1,13 +1,12 @@
-use crate::ai::{AiError, MemoryUpdate};
 use crate::backend::PersistenceError;
 use crate::backend::application::state::{SharedState, StateError};
+use crate::backend::domain::message::Message;
+use crate::backend::persistence::message_persistence::insert_message;
 use sqlx::SqlitePool;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum TextManagerError {
-    #[error("failed to compress the memory {0}")]
-    CompressionFailed(#[from] AiError),
+pub enum MessageManagerError {
     #[error("state error: {0}")]
     State(#[from] StateError),
     #[error("database error: {0}")]
@@ -25,11 +24,13 @@ impl MessageManager {
         Self { state, pool }
     }
 
-    pub fn compress(self) -> Result<(), TextManagerError> {
+    pub async fn create_message(self, message: Message) -> Result<(), MessageManagerError> {
         {
-            let mut guard = self.state.write()?;
+            let _unused = self.state.write()?;
         }
 
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        insert_message(&mut conn, &message).await?;
         Ok(())
     }
 }

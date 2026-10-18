@@ -3,7 +3,7 @@ use living_voices::backend::application::{
 };
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::{Character, CharacterStatus};
-use living_voices::backend::persistence::adventure::insert_adventure;
+use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::{open_pool, run_migrations};
 use sqlx::SqlitePool;
 use uuid::Uuid;

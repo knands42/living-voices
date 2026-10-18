@@ -45,6 +45,12 @@ fn ensure_parent_dir(db_path: &str) -> Result<(), PersistenceError> {
     })
 }
 
-pub fn timestamp(at: &DateTime<Utc>) -> String {
+pub fn from_timestamp_to_str(at: &DateTime<Utc>) -> String {
     at.to_rfc3339_opts(SecondsFormat::Millis, true)
+}
+
+pub fn from_str_to_timestamp(s: &str) -> Result<DateTime<Utc>, PersistenceError> {
+    DateTime::parse_from_rfc3339(s)
+        .map(|dt| dt.with_timezone(&Utc))
+        .map_err(|e| PersistenceError::Database(sqlx::Error::Decode(Box::new(e))))
 }

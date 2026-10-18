@@ -4,7 +4,7 @@ use uuid::Uuid;
 use crate::backend::{
     domain::adventure::Adventure,
     persistence::{
-        db::timestamp,
+        db::from_timestamp_to_str,
         error::PersistenceError,
         tags::{ensure_tag, normalize},
     },
@@ -23,8 +23,8 @@ pub async fn insert_adventure(
     .bind(&adventure.description)
     .bind(&adventure.genre)
     .bind(&adventure.tone)
-    .bind(timestamp(&adventure.created_at))
-    .bind(timestamp(&adventure.updated_at))
+    .bind(from_timestamp_to_str(&adventure.created_at))
+    .bind(from_timestamp_to_str(&adventure.updated_at))
     .execute(&mut *conn)
     .await?;
 
