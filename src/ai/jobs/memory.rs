@@ -20,7 +20,6 @@ places, plans, promises and changes. Keep names, numbers and identifiers verbati
 - \"summary\": one concise paragraph covering the conversation so far (in order).
 Never invent details that are not in the conversation.";
 
-/// `config` is distiller config, not part of the model's JSON reply (serde skips it).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MemoryUpdate {
     pub facts: Vec<String>,

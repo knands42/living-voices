@@ -25,10 +25,18 @@ backend = "comfyui"
 base_url = "http://localhost:8188"
 workflow = "scene.json"
 
-# Memory subsystem knobs (not tied to a single model endpoint).
 [memory]
 # Distill once this many messages are uncovered by any summary.
 compress_threshold = 80
 # How many recent summaries / facts the prompt-context block carries.
 summary_limit = 5
 fact_limit = 5
+
+[director]
+# Chance (0.0–1.0) that a character you explicitly target answers directly.
+targeted_pick_chance = 0.8
+narrator_change_if_ooc = 0.2
+
+[director.narrator_pick_chance_after_message_threshold_range]
+min = 20
+max = 30

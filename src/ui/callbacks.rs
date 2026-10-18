@@ -5,7 +5,7 @@ use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
 use crate::{
     app::AppContext,
-    backend::application::port::chat_port::ChatHandler,
+    backend::application::port::chat_port::{ChatHandler, NarratorHandler},
     backend::application::port::memory_port::MemoryDistiller,
     ui::{ChatMessage, RootWindow},
 };
@@ -30,10 +30,11 @@ const MODE_WHISPER: i32 = 3;
 
 pub fn register_callbacks<
     C: ChatHandler + Clone + 'static,
+    N: NarratorHandler + Clone + 'static,
     M: MemoryDistiller + Clone + 'static,
 >(
     ui: &RootWindow,
-    ctx: &AppContext<C, M>,
+    ctx: &AppContext<C, N, M>,
 ) {
     register_main_callbacks(ui, ctx);
     register_chat_callbacks(ui, ctx);
@@ -46,10 +47,11 @@ pub fn register_callbacks<
 
 fn register_main_callbacks<
     C: ChatHandler + Clone + 'static,
+    N: NarratorHandler + Clone + 'static,
     M: MemoryDistiller + Clone + 'static,
 >(
     ui: &RootWindow,
-    _ctx: &AppContext<C, M>,
+    _ctx: &AppContext<C, N, M>,
 ) {
     let ui_weak = ui.as_weak();
 
@@ -68,10 +70,11 @@ fn register_main_callbacks<
 
 fn register_chat_callbacks<
     C: ChatHandler + Clone + 'static,
+    N: NarratorHandler + Clone + 'static,
     M: MemoryDistiller + Clone + 'static,
 >(
     ui: &RootWindow,
-    _ctx: &AppContext<C, M>,
+    _ctx: &AppContext<C, N, M>,
 ) {
     let seed: Vec<ChatMessage> = ui.get_messages().iter().collect();
     let messages: Rc<VecModel<ChatMessage>> = Rc::new(VecModel::from(seed));

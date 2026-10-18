@@ -55,18 +55,21 @@ pub trait ChatHandler: Send + Sync {
         user_message: &str,
     ) -> Result<ChatReply, ChatResponseError>;
 
-    async fn narrator_respond(
+    /// Let the model BOTH pick which character from `candidates` speaks and
+    /// voice them. The narrator is never a choice here — that decision is made
+    /// upstream by the director.
+    async fn autonomous_respond(
         &self,
-        narrator_tone: &str,
+        candidates: &[Candidate],
         memory: &str,
         user_message: &str,
     ) -> Result<ChatReply, ChatResponseError>;
+}
 
-    /// Let the model BOTH pick the speaker (from `cast`) and voice them
-    async fn autonomous_respond(
+pub trait NarratorHandler: Send + Sync {
+    async fn narrator_respond(
         &self,
         narrator_tone: &str,
-        candidates: &[Candidate],
         memory: &str,
         user_message: &str,
     ) -> Result<ChatReply, ChatResponseError>;

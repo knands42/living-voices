@@ -2,11 +2,15 @@ use crate::backend::PersistenceError;
 use crate::backend::application::director::Director;
 use crate::backend::application::history::HistoryBuilder;
 use crate::backend::application::memory_manager::MemoryManager;
-use crate::backend::application::port::chat_port::{Candidate, ChatHandler, ChatResponseError};
+use crate::backend::application::port::chat_port::{
+    Candidate, ChatHandler, ChatResponseError, NarratorHandler,
+};
 use crate::backend::application::port::memory_port::MemoryDistiller;
 use crate::backend::application::state::{SharedState, StateError};
 use crate::backend::domain::message::Message;
-use crate::backend::persistence::message_persistence::insert_message;
+use crate::backend::persistence::message_persistence::{
+    count_since_last_narration, insert_message,
+};
 use crate::config::MemorySettings;
 use sqlx::SqlitePool;
 use thiserror::Error;
@@ -26,20 +30,24 @@ pub enum MessageManagerError {
 }
 
 #[derive(Clone, Debug)]
-pub struct MessageManager<D: ChatHandler, M: MemoryDistiller> {
+pub struct MessageManager<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller> {
     state: SharedState,
     pool: SqlitePool,
     chat_handler: D,
+    narrator_handler: N,
     director: Director,
     memory: MemoryManager<M>,
     memory_settings: MemorySettings,
 }
 
-impl<D: ChatHandler, M: MemoryDistiller + Clone + 'static> MessageManager<D, M> {
+impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
+    MessageManager<D, N, M>
+{
     pub fn new(
         state: SharedState,
         pool: SqlitePool,
         chat_handler: D,
+        narrator_handler: N,
         director: Director,
         memory: MemoryManager<M>,
         memory_settings: MemorySettings,
@@ -48,6 +56,7 @@ impl<D: ChatHandler, M: MemoryDistiller + Clone + 'static> MessageManager<D, M> 
             state,
             pool,
             chat_handler,
+            narrator_handler,
             director,
             memory,
             memory_settings,
@@ -81,19 +90,28 @@ impl<D: ChatHandler, M: MemoryDistiller + Clone + 'static> MessageManager<D, M> 
             self.memory_settings.fact_limit,
         )
         .await?;
+        let messages_since_narration = count_since_last_narration(&mut conn, adventure.id).await?;
         drop(conn);
 
         let user_message = incoming.parts.render(incoming.speaker_name.as_str());
 
-        let reply = self
-            .chat_handler
-            .autonomous_respond(
-                adventure.tone.as_str(),
-                &candidates,
-                &history,
-                &user_message,
-            )
-            .await?;
+        let reply =
+            if self
+                .director
+                .should_narrator_speak(&candidates, &incoming, messages_since_narration)
+            {
+                self.narrator_handler
+                    .narrator_respond(adventure.tone.as_str(), &history, &user_message)
+                    .await?
+            } else if let Some(candidate) = self.director.pick_character(&candidates, &incoming) {
+                self.chat_handler
+                    .character_respond(candidate, &history, &user_message)
+                    .await?
+            } else {
+                self.chat_handler
+                    .autonomous_respond(&candidates, &history, &user_message)
+                    .await?
+            };
 
         let reply_message = adventure.message_from_reply(&reply.replier, &reply.reply);
         let stored_reply = self.create_message(reply_message).await?;

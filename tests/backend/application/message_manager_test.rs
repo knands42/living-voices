@@ -4,6 +4,7 @@ use sqlx::sqlite::SqlitePool;
 use crate::backend::application::helper::setup_db;
 use living_voices::ai::MemoryUpdate;
 use living_voices::ai::jobs::chat::Chat;
+use living_voices::ai::jobs::narrator::Narrator;
 use living_voices::backend::application::director::Director;
 use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::message_manager::{MessageManager, MessageManagerError};
@@ -26,6 +27,11 @@ fn chat_model() -> TextModel {
 /// Build the chat handler the app wires in, from the configured chat model.
 fn chat_handler() -> Chat {
     Chat::new(chat_model())
+}
+
+/// The narrator shares the chat text endpoint, as the app wires it.
+fn narrator_handler() -> Narrator {
+    Narrator::new(chat_model())
 }
 
 fn memory_manager(state: SharedState, pool: &SqlitePool) -> MemoryManager<MemoryUpdate> {
@@ -68,7 +74,10 @@ async fn setup_adventure(pool: &SqlitePool, characters: &[&str]) -> Adventure {
     adventure
 }
 
-fn load_adventure(pool: &SqlitePool, adventure: &Adventure) -> MessageManager<Chat, MemoryUpdate> {
+fn load_adventure(
+    pool: &SqlitePool,
+    adventure: &Adventure,
+) -> MessageManager<Chat, Narrator, MemoryUpdate> {
     let state = SharedState::new();
     state
         .write()
@@ -79,7 +88,8 @@ fn load_adventure(pool: &SqlitePool, adventure: &Adventure) -> MessageManager<Ch
         state,
         pool.clone(),
         chat_handler(),
-        Director::new(),
+        narrator_handler(),
+        Director::new(1.0, Default::default()),
         memory,
         memory_settings(),
     )
@@ -195,7 +205,8 @@ async fn send_message_errors_without_a_current_adventure() {
         state,
         pool.clone(),
         chat_handler(),
-        Director::new(),
+        narrator_handler(),
+        Director::new(1.0, Default::default()),
         memory,
         memory_settings(),
     );

@@ -23,11 +23,24 @@ const DEFAULT_SUMMARY_LIMIT: u64 = 5;
 /// How many facts the prompt-context block carries.
 const DEFAULT_FACT_LIMIT: u64 = 5;
 
+/// Chance (0.0–1.0) that an explicitly targeted character answers directly,
+/// rather than deferring the pick to the autonomous model call.
+const DEFAULT_TARGETED_PICK_CHANCE: f32 = 0.8;
+
+const DEFAULT_NARRATOR_CHANGE_IF_OOC: f32 = 0.2;
+
+/// Below `min` messages since the narrator last spoke, the ramp adds nothing to
+/// the narrator's chance; from `min` to `max` it ramps 0→100%; at/after `max`
+/// the narrator is certain to take the turn.
+const DEFAULT_NARRATOR_RAMP_MIN: u64 = 20;
+const DEFAULT_NARRATOR_RAMP_MAX: u64 = 30;
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct Settings {
     pub models: Models,
     pub memory: MemorySettings,
+    pub director: DirectorSettings,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -53,14 +66,11 @@ impl Default for Models {
 pub struct TextModel {
     pub base_url: String,
     pub model: String,
-    /// Sampling temperature. Lower stays faithful to the prompt.
     pub temperature: f32,
-    /// Seconds before an in-flight request to this endpoint is abandoned.
     pub request_timeout_secs: u64,
 }
 
 impl TextModel {
-    /// The default a chat endpoint should use when the file omits `temperature`.
     pub fn chat_default() -> Self {
         Self {
             temperature: DEFAULT_CHAT_TEMPERATURE,
@@ -68,7 +78,6 @@ impl TextModel {
         }
     }
 
-    /// The default a memory endpoint should use when the file omits `temperature`.
     pub fn memory_default() -> Self {
         Self {
             temperature: DEFAULT_MEMORY_TEMPERATURE,
@@ -88,7 +97,6 @@ impl Default for TextModel {
     }
 }
 
-/// Knobs for the memory subsystem that are not tied to a single model endpoint.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(default)]
 pub struct MemorySettings {
@@ -107,6 +115,50 @@ impl Default for MemorySettings {
             summary_limit: DEFAULT_SUMMARY_LIMIT,
             fact_limit: DEFAULT_FACT_LIMIT,
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(default)]
+pub struct DirectorSettings {
+    /// Chance (0.0–1.0)
+    pub targeted_pick_chance: f32,
+    /// Chance (0.0–1.0)
+    pub narrator_change_if_ooc: f32,
+    /// As messages pile up without the narrator speaking, its chance to take
+    pub narrator_pick_chance_after_message_threshold_range: MessageThresholdRange,
+}
+
+impl Default for DirectorSettings {
+    fn default() -> Self {
+        Self {
+            targeted_pick_chance: DEFAULT_TARGETED_PICK_CHANCE,
+            narrator_change_if_ooc: DEFAULT_NARRATOR_CHANGE_IF_OOC,
+            narrator_pick_chance_after_message_threshold_range: MessageThresholdRange::default(),
+        }
+    }
+}
+
+/// An inclusive `min..=max` message-count window, read from TOML as
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(default)]
+pub struct MessageThresholdRange {
+    pub min: u64,
+    pub max: u64,
+}
+
+impl Default for MessageThresholdRange {
+    fn default() -> Self {
+        Self {
+            min: DEFAULT_NARRATOR_RAMP_MIN,
+            max: DEFAULT_NARRATOR_RAMP_MAX,
+        }
+    }
+}
+
+impl MessageThresholdRange {
+    pub fn normalized(self) -> (u64, u64) {
+        (self.min, self.max.max(self.min))
     }
 }
 

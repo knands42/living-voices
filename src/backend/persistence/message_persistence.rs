@@ -123,6 +123,26 @@ pub async fn fetch_last_n(
         .collect()
 }
 
+/// How many messages have been appended since the narrator last spoke
+pub async fn count_since_last_narration(
+    conn: &mut SqliteConnection,
+    adventure_id: Uuid,
+) -> Result<u64, PersistenceError> {
+    let row = sqlx::query(
+        "SELECT COUNT(*) AS c FROM message
+         WHERE adventure_id = ?1
+           AND seq > COALESCE(
+               (SELECT MAX(seq) FROM message
+                WHERE adventure_id = ?1 AND narrator_id IS NOT NULL),
+               0)",
+    )
+    .bind(adventure_id.to_string())
+    .fetch_one(&mut *conn)
+    .await?;
+
+    Ok(row.get::<i64, _>("c") as u64)
+}
+
 impl TryFrom<MessageRow> for Message {
     type Error = PersistenceError;
 
