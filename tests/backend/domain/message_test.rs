@@ -11,7 +11,7 @@ fn messagekind_all_contains_expected_variants() {
         MessageKind::Say,
         MessageKind::Do,
         MessageKind::Think,
-        MessageKind::Whisper,
+        MessageKind::Ooc,
     ];
     // When checking ALL
     // Then ALL matches expected
@@ -27,7 +27,7 @@ fn messagekind_as_str_returns_correct_labels() {
     assert_eq!(MessageKind::Say.as_str(), "say");
     assert_eq!(MessageKind::Do.as_str(), "do");
     assert_eq!(MessageKind::Think.as_str(), "think");
-    assert_eq!(MessageKind::Whisper.as_str(), "whisper");
+    assert_eq!(MessageKind::Ooc.as_str(), "ooc");
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn messagekind_from_str_parses_labels() {
     assert_eq!(MessageKind::from_str("say"), Some(MessageKind::Say));
     assert_eq!(MessageKind::from_str("do"), Some(MessageKind::Do));
     assert_eq!(MessageKind::from_str("think"), Some(MessageKind::Think));
-    assert_eq!(MessageKind::from_str("whisper"), Some(MessageKind::Whisper));
+    assert_eq!(MessageKind::from_str("ooc"), Some(MessageKind::Ooc));
 }
 
 #[test]
@@ -60,7 +60,7 @@ fn messagekind_display_formats_as_str() {
     // Given kind
     // When formatting
     // Then uses as_str value
-    assert_eq!(MessageKind::Whisper.to_string(), "whisper");
+    assert_eq!(MessageKind::Ooc.to_string(), "ooc");
     assert_eq!(MessageKind::Narration.to_string(), "narration");
 }
 
@@ -85,7 +85,7 @@ fn message_new_sets_defaults() {
         char_id,
         nar_id,
         "Alice".to_string(),
-        MessageParts::one(MessagePart::new(MessageKind::Say, "Hello".to_string())),
+        MessageParts::one(MessagePart::new(MessageKind::Say, "Hello")),
     );
     let after = Utc::now();
     // Then seq is None, parts hold the single Say part, fields match
@@ -105,8 +105,7 @@ fn message_new_sets_defaults() {
 fn message_part_with_target_sets_target_name() {
     // Given a part without target
     // When adding a target
-    let part = MessagePart::new(MessageKind::Do, "raise the drawing".to_string())
-        .with_target("Charlie".to_string());
+    let part = MessagePart::new(MessageKind::Do, "raise the drawing").with_target("Charlie");
     // Then target_name set — `do` allows a target: an action can be done to someone
     assert_eq!(part.target_name.as_deref(), Some("Charlie"));
 }
@@ -114,10 +113,7 @@ fn message_part_with_target_sets_target_name() {
 #[test]
 fn message_parts_one_yields_single_part() {
     // Given a single-part message
-    let parts = MessageParts::one(MessagePart::new(
-        MessageKind::Do,
-        "open the door".to_string(),
-    ));
+    let parts = MessageParts::one(MessagePart::new(MessageKind::Do, "open the door"));
     // When iterating
     // Then exactly one part is yielded
     let kinds: Vec<MessageKind> = parts.iter().map(|p| p.kind).collect();
@@ -127,17 +123,16 @@ fn message_parts_one_yields_single_part() {
 
 #[test]
 fn message_parts_two_keeps_both_parts_in_order() {
-    // Given two parts: whispering while drawing
+    // Given two parts: a targeted whisper (say -> target) while drawing
     let parts = MessageParts::two(
-        MessagePart::new(MessageKind::Whisper, "come here".to_string())
-            .with_target("Charlie".to_string()),
-        MessagePart::new(MessageKind::Do, "raise the drawing".to_string()),
+        MessagePart::new(MessageKind::Say, "come here").with_target("Charlie"),
+        MessagePart::new(MessageKind::Do, "raise the drawing"),
     );
     // When iterating
     let collected: Vec<&MessagePart> = parts.iter().collect();
     // Then both parts are yielded in order, each with its own text
     assert_eq!(collected.len(), 2);
-    assert_eq!(collected[0].kind, MessageKind::Whisper);
+    assert_eq!(collected[0].kind, MessageKind::Say);
     assert_eq!(collected[0].text, "come here");
     assert_eq!(collected[0].target_name.as_deref(), Some("Charlie"));
     assert_eq!(collected[1].kind, MessageKind::Do);

@@ -18,9 +18,9 @@ CREATE TABLE message
     created_at             TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
     CONSTRAINT message_kind_known
-        CHECK (kind IN ('narration', 'say', 'do', 'think', 'whisper')),
+        CHECK (kind IN ('narration', 'say', 'do', 'think', 'ooc')),
     CONSTRAINT message_secondary_kind_known
-        CHECK (secondary_kind IS NULL OR secondary_kind IN ('narration', 'say', 'do', 'think', 'whisper')),
+        CHECK (secondary_kind IS NULL OR secondary_kind IN ('narration', 'say', 'do', 'think', 'ooc')),
     CONSTRAINT message_target_kind_known
         CHECK (target_name IS NULL OR kind IN ('say', 'whisper', 'do')),
     CONSTRAINT message_secondary_target_kind_known

@@ -12,14 +12,14 @@ pub struct Adventure {
     pub lore: Lore,
     pub characters: Vec<Character>,
     pub genre: Option<String>,
-    pub tone: Option<String>,
+    pub tone: String,
     pub tags: Vec<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
 impl Adventure {
-    pub fn new(title: String, description: String, narrator_name: String) -> Self {
+    pub fn new(title: String, description: String, narrator_name: String, tone: &str) -> Self {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4(),
@@ -29,7 +29,7 @@ impl Adventure {
             lore: Lore::new(),
             characters: Vec::new(),
             genre: None,
-            tone: None,
+            tone: String::from(tone),
             tags: Vec::new(),
             created_at: now,
             updated_at: now,
@@ -38,5 +38,9 @@ impl Adventure {
 
     pub fn add_tags(&mut self, tags: Vec<String>) {
         self.tags.extend(tags);
+    }
+
+    pub fn find_character(&self, name: &str) -> Option<&Character> {
+        self.characters.iter().find(|c| c.name == name)
     }
 }

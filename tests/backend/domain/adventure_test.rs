@@ -5,6 +5,7 @@ fn new_adventure() -> Adventure {
         "Tides of Glass".to_string(),
         "A drowned city".to_string(),
         String::from("NARRATOR"),
+        "",
     )
 }
 
@@ -24,7 +25,7 @@ fn new_defaults_optional_metadata_to_none() {
     let adventure = new_adventure();
 
     assert!(adventure.genre.is_none());
-    assert!(adventure.tone.is_none());
+    assert!(adventure.tone.is_empty());
 }
 
 #[test]

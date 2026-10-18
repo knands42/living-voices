@@ -1,12 +1,15 @@
 use sqlx::{Connection, QueryBuilder, Row, SqliteConnection};
 use uuid::Uuid;
 
+use crate::backend::persistence::db::from_str_to_uuid;
 use crate::backend::{
     domain::memory::{Fact, Summary},
-    persistence::{db::from_timestamp_to_str, error::PersistenceError},
+    persistence::{
+        db::{from_str_to_timestamp, from_timestamp_to_str},
+        error::PersistenceError,
+    },
 };
 
-/// The highest `to_seq` covered by any summary for this adventure, or `None`
 pub async fn last_covered(conn: &mut SqliteConnection, adventure_id: Uuid) -> Option<u64> {
     let row = sqlx::query("SELECT MAX(to_seq) AS m FROM summary WHERE adventure_id = ?1")
         .bind(adventure_id.to_string())
@@ -15,6 +18,84 @@ pub async fn last_covered(conn: &mut SqliteConnection, adventure_id: Uuid) -> Op
         .ok()??;
 
     row.get::<Option<i64>, _>("m").map(|v| v as u64)
+}
+
+/// Load the most recent summary for an adventure together with its facts
+pub async fn latest_summaries(
+    conn: &mut SqliteConnection,
+    adventure_id: Uuid,
+    limit: u64,
+) -> Result<Vec<Summary>, PersistenceError> {
+    let rows = sqlx::query(
+        "SELECT id, adventure_id, text, from_seq, to_seq, created_at
+         FROM summary
+         WHERE adventure_id = ?1
+         ORDER BY to_seq DESC
+         LIMIT ?2",
+    )
+    .bind(adventure_id.to_string())
+    .bind(limit as i64)
+    .fetch_all(&mut *conn)
+    .await?;
+
+    let summaries = rows
+        .iter()
+        .map(decode_summary)
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(summaries)
+}
+
+pub async fn latest_facts(
+    conn: &mut SqliteConnection,
+    summary_id: Uuid,
+    limit: u64,
+) -> Result<Vec<Fact>, PersistenceError> {
+    let fact_rows = sqlx::query(
+        "SELECT id, adventure_id, source_summary_id, text, created_at
+         FROM fact
+         WHERE summary_id = ?1
+         ORDER BY created_at ASC
+         LIMIT ?2",
+    )
+    .bind(summary_id.to_string())
+    .bind(limit as i64)
+    .fetch_all(&mut *conn)
+    .await?;
+
+    let facts = fact_rows
+        .iter()
+        .map(decode_fact)
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(facts)
+}
+
+// TODO: Standardize to the same pattern used on `message_persistence`
+fn decode_summary(row: &sqlx::sqlite::SqliteRow) -> Result<Summary, PersistenceError> {
+    let id = from_str_to_uuid(row.get::<String, _>("id"))?;
+    let adventure_id = from_str_to_uuid(row.get::<String, _>("adventure_id"))?;
+    Ok(Summary {
+        id,
+        adventure_id,
+        text: row.get("text"),
+        from_seq: row.get("from_seq"),
+        to_seq: row.get("to_seq"),
+        created_at: from_str_to_timestamp(&row.get::<String, _>("created_at"))?,
+    })
+}
+
+fn decode_fact(row: &sqlx::sqlite::SqliteRow) -> Result<Fact, PersistenceError> {
+    let id = from_str_to_uuid(row.get::<String, _>("id"))?;
+    let adventure_id = from_str_to_uuid(row.get::<String, _>("adventure_id"))?;
+    let source_summary_id = from_str_to_uuid(row.get::<String, _>("source_summary_id"))?;
+    Ok(Fact {
+        id,
+        adventure_id,
+        source_summary_id,
+        text: row.get("text"),
+        created_at: from_str_to_timestamp(&row.get::<String, _>("created_at"))?,
+    })
 }
 
 /// Insert a summary row.
@@ -29,8 +110,8 @@ pub async fn insert_summary(
     .bind(summary.id.to_string())
     .bind(summary.adventure_id.to_string())
     .bind(&summary.text)
-    .bind(summary.from_seq)
-    .bind(summary.to_seq)
+    .bind(summary.from_seq as i64)
+    .bind(summary.to_seq as i64)
     .bind(from_timestamp_to_str(&summary.created_at))
     .execute(&mut *conn)
     .await?;

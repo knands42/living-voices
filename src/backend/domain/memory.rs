@@ -8,13 +8,13 @@ pub struct Summary {
     pub id: Uuid,
     pub adventure_id: Uuid,
     pub text: String,
-    pub from_seq: i64,
-    pub to_seq: i64,
+    pub from_seq: u64,
+    pub to_seq: u64,
     pub created_at: DateTime<Utc>,
 }
 
 impl Summary {
-    pub fn new(adventure_id: Uuid, text: String, from_seq: i64, to_seq: i64) -> Self {
+    pub fn new(adventure_id: Uuid, text: String, from_seq: u64, to_seq: u64) -> Self {
         Self {
             id: Uuid::new_v4(),
             adventure_id,
@@ -23,6 +23,21 @@ impl Summary {
             to_seq,
             created_at: Utc::now(),
         }
+    }
+
+    pub fn render(summaries: &[Summary]) -> Option<String> {
+        if summaries.is_empty() {
+            return None;
+        }
+
+        let mut block = String::new();
+        block.push_str("Story so far: ");
+
+        for summary in summaries {
+            block.push_str(&format!("\n- {}", summary.text));
+        }
+
+        Some(block)
     }
 }
 
@@ -45,5 +60,20 @@ impl Fact {
             text,
             created_at: Utc::now(),
         }
+    }
+
+    pub fn render(facts: &[Fact]) -> Option<String> {
+        if facts.is_empty() {
+            return None;
+        }
+
+        let mut block = String::new();
+        block.push_str("\nKnown facts:");
+
+        for fact in facts {
+            block.push_str(&format!("\n- {}", fact.text));
+        }
+
+        Some(block)
     }
 }

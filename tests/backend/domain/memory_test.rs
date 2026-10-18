@@ -9,7 +9,7 @@ fn summary_new_sets_fields() {
     let adv = Uuid::new_v4();
     let before = Utc::now();
     // When creating new Summary
-    let s = Summary::new(adv, "compressed".to_string(), 1i64, 5i64);
+    let s = Summary::new(adv, "compressed".to_string(), 1u64, 5u64);
     let after = Utc::now();
     // Then id generated, fields match
     assert_ne!(s.id, Uuid::nil());

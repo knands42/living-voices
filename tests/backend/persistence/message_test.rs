@@ -11,6 +11,7 @@ async fn setup_adventure(pool: &SqlitePool) -> Adventure {
         "Test adventure".into(),
         "Description".into(),
         "Guide".into(),
+        "",
     );
     let mut conn = pool.acquire().await.expect("acquire");
     insert_adventure(&mut conn, &adventure)
@@ -33,10 +34,8 @@ async fn insert_and_fetch_round_trip_keeps_both_parts() {
         None,
         "Alice".to_string(),
         MessageParts::two(
-            MessagePart::new(MessageKind::Whisper, "come here".to_string())
-                .with_target("Bob".to_string()),
-            MessagePart::new(MessageKind::Do, "raise the drawing".to_string())
-                .with_target("Bob".to_string()),
+            MessagePart::new(MessageKind::Say, "come here").with_target("Bob"),
+            MessagePart::new(MessageKind::Do, "raise the drawing").with_target("Bob"),
         ),
     );
     insert_message(&mut conn, &message)
@@ -51,7 +50,7 @@ async fn insert_and_fetch_round_trip_keeps_both_parts() {
 
     let parts: Vec<&MessagePart> = messages[0].parts.iter().collect();
     assert_eq!(parts.len(), 2);
-    assert_eq!(parts[0].kind, MessageKind::Whisper);
+    assert_eq!(parts[0].kind, MessageKind::Say);
     assert_eq!(parts[0].text, "come here");
     assert_eq!(parts[0].target_name.as_deref(), Some("Bob"));
     assert_eq!(parts[1].kind, MessageKind::Do);
@@ -73,8 +72,7 @@ async fn insert_rejects_target_on_kind_without_target() {
         None,
         "Alice".to_string(),
         MessageParts::one(
-            MessagePart::new(MessageKind::Think, "what is he doing".to_string())
-                .with_target("Bob".to_string()),
+            MessagePart::new(MessageKind::Think, "what is he doing").with_target("Bob"),
         ),
     );
     let result = insert_message(&mut conn, &message).await;

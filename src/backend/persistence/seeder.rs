@@ -238,9 +238,9 @@ async fn seed_connection(
         seed.title.to_string(),
         seed.description.to_string(),
         String::from("NARRATOR"),
+        seed.tone.unwrap_or_default(),
     );
     adventure.genre = seed.genre.map(str::to_string);
-    adventure.tone = seed.tone.map(str::to_string);
     adventure.lore = Lore::new().with_text(seed.lore.to_string());
     adventure.add_tags(seed.tags.iter().map(|tag| tag.to_string()).collect());
 

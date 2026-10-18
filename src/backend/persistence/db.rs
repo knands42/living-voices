@@ -1,11 +1,11 @@
 use std::path::Path;
 use std::time::Duration;
 
+use crate::backend::persistence::error::PersistenceError;
 use chrono::{DateTime, SecondsFormat, Utc};
 use sqlx::SqlitePool;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
-
-use crate::backend::persistence::error::PersistenceError;
+use uuid::Uuid;
 
 const MAX_CONNECTIONS: u32 = 4;
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
@@ -53,4 +53,8 @@ pub fn from_str_to_timestamp(s: &str) -> Result<DateTime<Utc>, PersistenceError>
     DateTime::parse_from_rfc3339(s)
         .map(|dt| dt.with_timezone(&Utc))
         .map_err(|e| PersistenceError::Database(sqlx::Error::Decode(Box::new(e))))
+}
+
+pub fn from_str_to_uuid(s: String) -> Result<Uuid, PersistenceError> {
+    Uuid::parse_str(&s).map_err(|e| PersistenceError::Database(sqlx::Error::Decode(Box::new(e))))
 }

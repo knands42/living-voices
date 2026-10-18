@@ -28,6 +28,7 @@ async fn persist_adventure(pool: &SqlitePool) -> Uuid {
         "Tides of Glass".to_string(),
         "A drowned city".to_string(),
         String::from("NARRATOR"),
+        "",
     );
     let mut conn = pool.acquire().await.expect("acquire conn");
     insert_adventure(&mut conn, &adventure)

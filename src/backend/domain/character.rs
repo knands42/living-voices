@@ -90,4 +90,24 @@ impl Character {
     pub fn add_relation(&mut self, entity_id: Uuid, relation: String) {
         self.relations.insert(entity_id, relation);
     }
+
+    pub fn render(&self, adventure_tone: Option<&str>) -> String {
+        let mut parts = vec![format!("You are {}.", self.name)];
+        if !self.description.trim().is_empty() {
+            parts.push(self.description.clone());
+        }
+        if !self.traits.is_empty() {
+            parts.push(format!("Traits: {}.", self.traits.join(", ")));
+        }
+        if !self.backstory.trim().is_empty() {
+            parts.push(format!("Backstory: {}", self.backstory));
+        }
+        if let Some(tone) = adventure_tone {
+            if !tone.trim().is_empty() {
+                parts.push(format!("Overall tone: {tone}."));
+            }
+        }
+
+        parts.join(" ")
+    }
 }

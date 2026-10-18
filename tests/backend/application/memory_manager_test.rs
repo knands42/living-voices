@@ -32,6 +32,7 @@ async fn setup_adventure(pool: &SqlitePool) -> Adventure {
         "Test adventure".into(),
         "Description".into(),
         "Guide".into(),
+        "",
     );
     let mut conn = pool.acquire().await.expect("acquire");
     insert_adventure(&mut conn, &adventure)
@@ -58,7 +59,7 @@ async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: u64) -> Vec
             None,
             None,
             format!("Speaker {i}"),
-            MessageParts::one(MessagePart::new(MessageKind::Say, format!("line {i}"))),
+            MessageParts::one(MessagePart::new(MessageKind::Say, &format!("line {i}"))),
         );
         let stored = insert_message(&mut conn, &message)
             .await
@@ -112,7 +113,12 @@ async fn compress_resumes_after_the_last_covered_seq() {
     let seqs = seed_messages(&pool, adventure.id, 3).await;
 
     let mut conn = pool.acquire().await.expect("acquire");
-    let earlier = Summary::new(adventure.id, "Earlier summary".into(), seqs[0], seqs[0]);
+    let earlier = Summary::new(
+        adventure.id,
+        "Earlier summary".into(),
+        seqs[0] as u64,
+        seqs[0] as u64,
+    );
     insert_summary(&mut conn, &earlier)
         .await
         .expect("insert summary");
@@ -173,7 +179,12 @@ async fn compress_is_a_noop_when_every_message_is_covered() {
     let seqs = seed_messages(&pool, adventure.id, 2).await;
 
     let mut conn = pool.acquire().await.expect("acquire");
-    let earlier = Summary::new(adventure.id, "Earlier summary".into(), seqs[0], seqs[1]);
+    let earlier = Summary::new(
+        adventure.id,
+        "Earlier summary".into(),
+        seqs[0] as u64,
+        seqs[1] as u64,
+    );
     insert_summary(&mut conn, &earlier)
         .await
         .expect("insert summary");
@@ -206,10 +217,7 @@ fn chat_message_from_single_part_formats_speaker_kind_and_target() {
         None,
         None,
         "Alice".to_string(),
-        MessageParts::one(
-            MessagePart::new(MessageKind::Say, "Open the door".to_string())
-                .with_target("Bob".to_string()),
-        ),
+        MessageParts::one(MessagePart::new(MessageKind::Say, "Open the door").with_target("Bob")),
     );
 
     // When rendering it for the memory model
@@ -221,20 +229,15 @@ fn chat_message_from_single_part_formats_speaker_kind_and_target() {
 
 #[test]
 fn chat_message_from_two_parts_joins_segments() {
-    // Given a message that whispers while doing something
+    // Given a message that speaks to a target while doing something
     let message = Message::new(
         Uuid::new_v4(),
         None,
         None,
         "Alice".to_string(),
         MessageParts::two(
-            MessagePart::new(
-                MessageKind::Whisper,
-                "come here, drawing my sword".to_string(),
-            )
-            .with_target("Bob".to_string()),
-            MessagePart::new(MessageKind::Do, "raise the paper".to_string())
-                .with_target("Bob".to_string()),
+            MessagePart::new(MessageKind::Say, "come here, drawing my sword").with_target("Bob"),
+            MessagePart::new(MessageKind::Do, "raise the paper").with_target("Bob"),
         ),
     );
 
@@ -244,6 +247,6 @@ fn chat_message_from_two_parts_joins_segments() {
     // Then both actions appear, each segment with its own text, joined with ` + `
     assert_eq!(
         chat.content,
-        "[Alice whisper] to [Bob]: come here, drawing my sword + [Alice do] to [Bob]: raise the paper"
+        "[Alice say] to [Bob]: come here, drawing my sword + [Alice do] to [Bob]: raise the paper"
     );
 }

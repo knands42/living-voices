@@ -32,8 +32,9 @@ impl AdventureManager {
         title: String,
         description: String,
         narrator_name: String,
+        adventure_tone: &str,
     ) -> Result<Adventure, AdventureManagerError> {
-        let adventure = Adventure::new(title, description, narrator_name);
+        let adventure = Adventure::new(title, description, narrator_name, adventure_tone);
         {
             let mut guard = self.state.write()?;
             guard.set_adventure(adventure.clone());

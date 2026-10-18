@@ -7,7 +7,6 @@ use crate::backend::application::port::memory_port::{
 };
 use crate::backend::application::state::{SharedState, StateError};
 use crate::backend::domain::memory::{Fact, Summary};
-use crate::backend::domain::message::Message;
 use crate::backend::persistence::memory_persistence::{insert_facts, insert_summary, last_covered};
 use crate::backend::persistence::message_persistence::fetch_since;
 
@@ -50,21 +49,17 @@ impl<D: MemoryDistiller> MemoryManager<D> {
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
 
-        // If nothing, skip
-        let after_seq = match last_covered(&mut conn, adventure_id).await {
-            Some(covered) => covered as i64,
-            None => 0,
-        };
-
+        let after_seq = last_covered(&mut conn, adventure_id)
+            .await
+            .unwrap_or_else(|| 0);
         let messages = fetch_since(&mut conn, adventure_id, after_seq).await?;
-        let Some(to_seq) = last_seq(&messages) else {
+        let to_seq = messages.last().and_then(|m| m.seq).unwrap_or(0);
+        if (to_seq == 0) {
             return Ok(());
-        };
+        }
         let from_seq = after_seq + 1;
 
-        // Inversion of control: one call across the port, no ai type named here.
         let DistilledMemory { facts, summary } = self.distiller.distill(&messages).await?;
-
         let summary = Summary::new(adventure_id, summary, from_seq, to_seq);
         insert_summary(&mut conn, &summary).await?;
 
@@ -76,9 +71,4 @@ impl<D: MemoryDistiller> MemoryManager<D> {
 
         Ok(())
     }
-}
-
-/// `seq` of the newest message in the batch, or `None` when the batch is empty.
-fn last_seq(messages: &[Message]) -> Option<i64> {
-    messages.last().and_then(|m| m.seq).map(|s| s as i64)
 }

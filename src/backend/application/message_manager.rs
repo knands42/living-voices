@@ -1,8 +1,13 @@
 use crate::backend::PersistenceError;
-use crate::backend::application::port::chat_port::{ChatHandler, ChatResponseError};
+use crate::backend::application::director::Director;
+use crate::backend::application::port::chat_port::{Candidate, ChatHandler, ChatResponseError};
 use crate::backend::application::state::{SharedState, StateError};
-use crate::backend::domain::message::Message;
-use crate::backend::persistence::message_persistence::insert_message;
+use crate::backend::domain::memory::{Fact, Summary};
+use crate::backend::domain::message::{Message, MessageKind, MessagePart, MessageParts};
+use crate::backend::persistence::memory_persistence::{
+    last_covered, latest_facts, latest_summaries,
+};
+use crate::backend::persistence::message_persistence::{fetch_last_n, fetch_since, insert_message};
 use sqlx::SqlitePool;
 use thiserror::Error;
 
@@ -16,6 +21,8 @@ pub enum MessageManagerError {
     Chat(#[from] ChatResponseError),
     #[error("no adventure is currently loaded")]
     NoAdventure,
+    #[error("no character is available to respond")]
+    NoResponder,
 }
 
 #[derive(Clone, Debug)]
@@ -35,87 +42,114 @@ pub struct MessageManager<D: ChatHandler> {
     state: SharedState,
     pool: SqlitePool,
     chat_handler: D,
+    director: Director,
 }
 
 impl<D: ChatHandler> MessageManager<D> {
-    pub fn new(state: SharedState, pool: SqlitePool, chat_handler: D) -> Self {
+    pub fn new(state: SharedState, pool: SqlitePool, chat_handler: D, director: Director) -> Self {
         Self {
             state,
             pool,
             chat_handler,
+            director,
         }
     }
 
-    /// Persist a single message
+    /// Persist a single message.
     async fn create_message(&self, message: Message) -> Result<Message, MessageManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         let stored = insert_message(&mut conn, &message).await?;
         Ok(stored)
     }
 
-    /// Run one chat turn end to end:
+    /// Run one chat turn end to end
     pub async fn send_message(&self, incoming: Message) -> Result<ChatView, MessageManagerError> {
-        // Current adventure — the whole turn is scoped to it.
-        let adventure_id = {
+        let adventure = {
             let guard = self.state.read()?;
             guard
                 .current_adventure
                 .as_ref()
                 .ok_or(MessageManagerError::NoAdventure)?
-                .id
+                .clone()
         };
 
-        // 2. Persist the incoming message.
-        let stored_incoming = self.create_message(incoming).await?;
+        self.create_message(incoming.clone()).await?;
 
-        // 3. Build the context the LLM should see.
-        //    This is the step that answers your question: send the summary +
-        //    facts for everything up to `last_covered`, then ONLY the raw
-        //    messages with seq > last_covered. Never the covered raw messages —
-        //    they are already represented by the summary.
-        //
-        //    TODO (your core logic): assemble (system, history) where
-        //      - system = persona/story prompt + rendered summary + facts
-        //      - history = uncovered messages (fetch_since(last_covered))
-        //                  mapped to ChatMessage via `From<&Message>`
-        //    NOTE: two persistence helpers do not exist yet and are yours to add
-        //    (shape is a schema decision):
-        //      - a loader for the latest summary + its facts for an adventure
-        //      - a `fetch_last_n(adventure_id, CHAT_VIEW_LIMIT)` for step 7
-        let history: Vec<crate::ai::ChatMessage> =
-            todo!("fetch uncovered messages, map to Vec<ChatMessage>");
-        let user_message: &str = todo!("render the incoming message as the user line");
-        // TODO: source these from the adventure/character (voice settings).
-        let narrator_tone: &str = todo!("narrator tone for this adventure");
-        let _character_tone: &str = todo!("character tone for the speaking NPC");
+        let candidates = Candidate::from_adventure(&adventure);
 
-        // 4. Ask the handler. The speaker is already chosen (later: by the
-        //    Director). For now this defaults to the narrator; when the Director
-        //    lands, branch here between `narrator_respond` and
-        //    `character_respond(character_tone, ...)`.
-        //    Returns the plain line text — the caller already knows who speaks.
-        let reply_text = self
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+
+        let summaries = latest_summaries(&mut conn, adventure.id, 5).await?;
+        let facts = latest_facts(&mut conn, adventure.id, 5).await?;
+
+        let after_seq = last_covered(&mut conn, adventure.id).await.unwrap_or(0);
+        let uncovered = fetch_since(&mut conn, adventure.id, after_seq).await?;
+        drop(conn);
+
+        // TODO: create a history handler
+
+        let mut history = String::new();
+        history.push_str(&Summary::render(&summaries).unwrap_or_default());
+        history.push_str(&Fact::render(&facts).unwrap_or_default());
+        history.push_str(&Message::render(&uncovered).unwrap_or_default());
+
+        let user_message = incoming.parts.render(incoming.speaker_name.as_str());
+
+        let reply = self
             .chat_handler
-            .narrator_respond(narrator_tone, &history, user_message)
+            .autonomous_respond(
+                adventure.tone.as_str(),
+                &candidates,
+                &history,
+                &user_message,
+            )
             .await?;
 
-        // 5. Persist the reply as a Message.
-        //    TODO: construct the assistant Message from `reply_text` and the
-        //    known speaker, then persist with create_message.
-        let _ = &reply_text;
-        let reply: Message = todo!("build assistant Message from reply_text + known speaker");
-        let stored_reply = self.create_message(reply).await?;
+        // The model picked the speaker by name. Resolve it back to a known
+        // character; anything that is not a listed character is the narrator.
+        let (character_id, narrator_id, speaker_name, kind) =
+            match adventure.find_character(&reply.replier) {
+                Some(character) => (
+                    Some(character.id),
+                    None,
+                    character.name.clone(),
+                    MessageKind::Say,
+                ),
+                None => (
+                    None,
+                    Some(adventure.narrator.id),
+                    Message::NARRATOR_SPEAKER_NAME.to_string(),
+                    MessageKind::Narration,
+                ),
+            };
 
-        // 6. Nudge the distiller. The timer already runs the real schedule, so
-        //    this is optional. TODO: decide whether a turn also triggers a
-        //    check, or you leave it entirely to DistillScheduler.
+        let reply_message = Message::new(
+            adventure.id,
+            character_id,
+            narrator_id,
+            speaker_name,
+            MessageParts::one(MessagePart::new(kind, &reply.reply)),
+        );
+        let stored_reply = self.create_message(reply_message).await?;
 
-        // 7. Return the UI view: the last ~100 RAW messages + the fresh reply.
-        //    TODO: let messages = fetch_last_n(adventure_id, CHAT_VIEW_LIMIT);
-        let messages: Vec<Message> = todo!("fetch last CHAT_VIEW_LIMIT raw messages");
+        // TODO: trigger compression?
+
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        let messages = fetch_last_n(&mut conn, adventure.id, ChatView::CHAT_VIEW_LIMIT).await?;
+
         Ok(ChatView {
             messages,
             reply: stored_reply,
         })
+    }
+
+    async fn send_and_expect_narrator_to_reply() -> Result<ChatView, MessageManagerError> {
+        todo!()
+    }
+    async fn send_and_expect_character_to_reply() -> Result<ChatView, MessageManagerError> {
+        todo!()
+    }
+    async fn send() -> Result<ChatView, MessageManagerError> {
+        todo!()
     }
 }

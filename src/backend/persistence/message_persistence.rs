@@ -78,7 +78,7 @@ pub async fn insert_message(
 pub async fn fetch_since(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
-    after_seq: i64,
+    after_seq: u64,
 ) -> Result<Vec<Message>, PersistenceError> {
     let rows = sqlx::query(
         "SELECT seq, adventure_id, character_id, narrator_id, speaker_name, kind, text, target_name,
@@ -88,11 +88,36 @@ pub async fn fetch_since(
          ORDER BY seq ASC",
     )
     .bind(adventure_id.to_string())
-    .bind(after_seq)
+    .bind(after_seq as i64)
     .fetch_all(&mut *conn)
     .await?;
 
     rows.iter()
+        .map(MessageRow::decode)
+        .map(Message::try_from)
+        .collect()
+}
+
+pub async fn fetch_last_n(
+    conn: &mut SqliteConnection,
+    adventure_id: Uuid,
+    limit: i64,
+) -> Result<Vec<Message>, PersistenceError> {
+    let rows = sqlx::query(
+        "SELECT seq, adventure_id, character_id, narrator_id, speaker_name, kind, text, target_name,
+                secondary_kind, secondary_text, secondary_target_name, created_at
+         FROM message
+         WHERE adventure_id = ?1
+         ORDER BY seq DESC
+         LIMIT ?2",
+    )
+    .bind(adventure_id.to_string())
+    .bind(limit)
+    .fetch_all(&mut *conn)
+    .await?;
+
+    rows.iter()
+        .rev()
         .map(MessageRow::decode)
         .map(Message::try_from)
         .collect()
@@ -160,7 +185,7 @@ fn decode_part(
         ))
     })?;
     Ok(match target_name {
-        Some(target) => MessagePart::new(kind, text).with_target(target),
-        None => MessagePart::new(kind, text),
+        Some(target) => MessagePart::new(kind, &text).with_target(&target),
+        None => MessagePart::new(kind, &text),
     })
 }

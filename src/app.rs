@@ -2,6 +2,7 @@ use sqlx::SqlitePool;
 
 use crate::ai::MemoryUpdate;
 use crate::ai::jobs::chat::Chat;
+use crate::backend::application::director::Director;
 use crate::backend::application::port::chat_port::ChatHandler;
 use crate::{
     backend::application::{
@@ -34,10 +35,12 @@ impl App<Chat> {
         let distiller = MemoryUpdate::new(memory_model.base_url, memory_model.model);
         let chat_handler = Chat::new(chat_model.base_url, chat_model.model);
 
-        // application managers
+        // application
+        let director = Director::new();
+
         let adventures = AdventureManager::new(state.clone(), pool.clone());
         let characters = CharacterManager::new(state.clone(), pool.clone());
-        let messages = MessageManager::new(state.clone(), pool.clone(), chat_handler);
+        let messages = MessageManager::new(state.clone(), pool.clone(), chat_handler, director);
         let _unused = MemoryManager::new(state.clone(), pool.clone(), distiller);
 
         Self {

@@ -10,7 +10,7 @@ pub enum MessageKind {
     Say,
     Do,
     Think,
-    Whisper,
+    Ooc, // out of character
 }
 
 impl MessageKind {
@@ -19,7 +19,7 @@ impl MessageKind {
         MessageKind::Say,
         MessageKind::Do,
         MessageKind::Think,
-        MessageKind::Whisper,
+        MessageKind::Ooc,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -28,7 +28,7 @@ impl MessageKind {
             MessageKind::Say => "say",
             MessageKind::Do => "do",
             MessageKind::Think => "think",
-            MessageKind::Whisper => "whisper",
+            MessageKind::Ooc => "ooc",
         }
     }
 
@@ -38,7 +38,7 @@ impl MessageKind {
             "say" => Some(MessageKind::Say),
             "do" => Some(MessageKind::Do),
             "think" => Some(MessageKind::Think),
-            "whisper" => Some(MessageKind::Whisper),
+            "ooc" => Some(MessageKind::Ooc),
             _ => None,
         }
     }
@@ -58,20 +58,57 @@ pub struct MessagePart {
     pub text: String,
     /// when using the kind `say`/`whisper`/`do`.
     pub target_name: Option<String>,
+    /// nuance applied to the kind: "in fear", "half asleep", "sarcastic"
+    pub nuance: Option<String>,
 }
 
 impl MessagePart {
-    pub fn new(kind: MessageKind, text: String) -> Self {
+    pub fn new(kind: MessageKind, text: &str) -> Self {
         Self {
             kind,
             target_name: None,
-            text,
+            text: text.to_string(),
+            nuance: None,
         }
     }
 
-    pub fn with_target(mut self, target_name: String) -> Self {
-        self.target_name = Some(target_name);
+    pub fn with_target(mut self, target_name: &str) -> Self {
+        self.target_name = Some(target_name.to_string());
         self
+    }
+
+    pub fn render(&self, speaker: &str) -> String {
+        let final_text = self.text.clone();
+        let nuance = self.nuance();
+        let mode = |label: &str| match nuance.as_deref() {
+            Some(n) => format!("({label} {n})"),
+            None => format!("({label})"),
+        };
+
+        match (self.kind, self.target_name.as_deref()) {
+            (MessageKind::Say, Some(target)) => {
+                format!("{speaker} {} -> {target}: {final_text}", mode("say"))
+            }
+            (MessageKind::Say, None) => format!("{speaker} (say): {final_text}"),
+            (MessageKind::Think, _) => {
+                format!("{speaker} {}): {final_text}", mode("think"))
+            }
+            (MessageKind::Do, None) => format!("{speaker} * {final_text}"),
+            (MessageKind::Do, Some(target)) => {
+                format!("{speaker} {} -> {target} * {final_text}", mode("do"))
+            }
+            (MessageKind::Ooc, _) => format!("{speaker} (out of character): {final_text}"),
+            (MessageKind::Narration, _) => format!("narrator: {final_text}"),
+        }
+    }
+
+    fn nuance(&self) -> Option<String> {
+        let n = clean(self.nuance.clone()?);
+        if n.is_empty() {
+            None
+        } else {
+            Some(n.chars().take(48).collect::<String>())
+        }
     }
 }
 
@@ -108,6 +145,13 @@ impl MessageParts {
     pub fn iter(&self) -> impl Iterator<Item = &MessagePart> {
         std::iter::once(&self.primary).chain(self.secondary.as_ref())
     }
+
+    pub fn render(&self, speaker: &str) -> String {
+        self.iter()
+            .map(|part| part.render(speaker))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
 }
 
 /// One entry in an adventure's conversation log.
@@ -143,4 +187,30 @@ impl Message {
             created_at: Utc::now(),
         }
     }
+
+    pub fn render(messages: &[Message]) -> Option<String> {
+        if messages.is_empty() {
+            return None;
+        }
+
+        let mut block = String::new();
+        for message in messages {
+            block.push_str(&message.parts.render(&message.speaker_name));
+            block.push('\n');
+        }
+
+        Some(block)
+    }
+}
+
+fn clean(raw: String) -> String {
+    let mut out = String::with_capacity(raw.len());
+    for ch in raw.chars() {
+        match ch {
+            '(' | ')' | ':' | '*' | '[' | ']' | '<' | '>' => out.push(' '),
+            c if c.is_control() || c == '\n' => out.push(' '),
+            c => out.push(c),
+        }
+    }
+    out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
