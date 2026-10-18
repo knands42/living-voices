@@ -1,7 +1,12 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::backend::domain::{character::Character, lore::Lore, narrator::Narrator};
+use crate::backend::domain::{
+    character::Character,
+    lore::Lore,
+    message::{Message, MessageKind, MessagePart, MessageParts},
+    narrator::Narrator,
+};
 
 #[derive(Clone, Debug)]
 pub struct Adventure {
@@ -42,5 +47,30 @@ impl Adventure {
 
     pub fn find_character(&self, name: &str) -> Option<&Character> {
         self.characters.iter().find(|c| c.name == name)
+    }
+
+    pub fn message_from_reply(&self, replier: &str, text: &str) -> Message {
+        let (character_id, narrator_id, speaker_name, kind) = match self.find_character(replier) {
+            Some(character) => (
+                Some(character.id),
+                None,
+                character.name.clone(),
+                MessageKind::Say,
+            ),
+            None => (
+                None,
+                Some(self.narrator.id),
+                Message::NARRATOR_SPEAKER_NAME.to_string(),
+                MessageKind::Narration,
+            ),
+        };
+
+        Message::new(
+            self.id,
+            character_id,
+            narrator_id,
+            speaker_name,
+            MessageParts::one(MessagePart::new(kind, text)),
+        )
     }
 }

@@ -25,8 +25,7 @@ pub struct App<C: ChatHandler + Clone> {
 }
 
 impl App<Chat> {
-    /// Composition root: the one place allowed to name the concrete `Chat`
-    /// (and `MemoryUpdate`) implementations and wire them in.
+    /// Composition root: the only place that names the concrete `Chat`/`MemoryUpdate` impls.
     pub fn new(pool: SqlitePool, memory_model: TextModel, chat_model: TextModel) -> Self {
         // state
         let state = SharedState::new();

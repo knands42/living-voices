@@ -36,3 +36,52 @@ fn fact_new_sets_fields() {
     assert_eq!(f.text, "fact");
     assert!(f.created_at >= before && f.created_at <= after);
 }
+
+#[test]
+fn summary_render_none_when_empty() {
+    // Given no summaries
+    // When rendering
+    // Then nothing to render
+    assert!(Summary::render(&[]).is_none());
+}
+
+#[test]
+fn summary_render_lists_each_summary_under_a_heading() {
+    // Given two summaries
+    let adv = Uuid::new_v4();
+    let summaries = vec![
+        Summary::new(adv, "The ship sank.".to_string(), 1, 5),
+        Summary::new(adv, "Survivors reached the shore.".to_string(), 6, 9),
+    ];
+    // When rendering
+    let rendered = Summary::render(&summaries).expect("some output");
+    // Then each summary text appears as a bullet under the "Story so far" heading
+    assert!(rendered.starts_with("Story so far: "));
+    assert!(rendered.contains("\n- The ship sank."));
+    assert!(rendered.contains("\n- Survivors reached the shore."));
+}
+
+#[test]
+fn fact_render_none_when_empty() {
+    // Given no facts
+    // When rendering
+    // Then nothing to render
+    assert!(Fact::render(&[]).is_none());
+}
+
+#[test]
+fn fact_render_lists_each_fact_under_a_heading() {
+    // Given two facts
+    let adv = Uuid::new_v4();
+    let src = Uuid::new_v4();
+    let facts = vec![
+        Fact::new(adv, src, "Mira fears deep water.".to_string()),
+        Fact::new(adv, src, "The lighthouse is abandoned.".to_string()),
+    ];
+    // When rendering
+    let rendered = Fact::render(&facts).expect("some output");
+    // Then each fact text appears as a bullet under the "Known facts" heading
+    assert!(rendered.starts_with("\nKnown facts:"));
+    assert!(rendered.contains("\n- Mira fears deep water."));
+    assert!(rendered.contains("\n- The lighthouse is abandoned."));
+}

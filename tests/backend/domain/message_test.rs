@@ -147,3 +147,81 @@ fn message_narrator_constant_defined() {
     // Then matches expected
     assert_eq!(Message::NARRATOR_SPEAKER_NAME, "NARRATOR");
 }
+
+#[test]
+fn message_part_render_say_without_target() {
+    // Given a plain say part
+    let part = MessagePart::new(MessageKind::Say, "Hello there");
+    // When rendering with a speaker
+    // Then it reads as a speaker say line
+    assert_eq!(part.render("Alice"), "[Alice (say)]: Hello there");
+}
+
+#[test]
+fn message_part_render_say_with_target() {
+    // Given a say part addressed to someone
+    let part = MessagePart::new(MessageKind::Say, "come here").with_target("Bob");
+    // When rendering with a speaker
+    // Then the target is shown
+    assert_eq!(part.render("Alice"), "[Alice (say) -> Bob]: come here");
+}
+
+#[test]
+fn message_part_render_narration_ignores_speaker() {
+    // Given a narration part
+    let part = MessagePart::new(MessageKind::Narration, "The tide rises");
+    // When rendering with any speaker
+    // Then it is attributed to the narrator, not the speaker
+    assert_eq!(part.render("Alice"), "[narrator]: The tide rises");
+}
+
+#[test]
+fn message_parts_render_joins_parts_with_newline() {
+    // Given a message that speaks while acting
+    let parts = MessageParts::two(
+        MessagePart::new(MessageKind::Say, "come here").with_target("Bob"),
+        MessagePart::new(MessageKind::Do, "raise the drawing"),
+    );
+    // When rendering
+    let rendered = parts.render("Alice");
+    // Then both rendered parts appear, joined by a newline
+    assert_eq!(
+        rendered,
+        "[Alice (say) -> Bob]: come here\n[Alice (do)]: raise the drawing"
+    );
+}
+
+#[test]
+fn message_render_none_when_empty() {
+    // Given no messages
+    // When rendering
+    // Then nothing to render
+    assert!(Message::render(&[]).is_none());
+}
+
+#[test]
+fn message_render_lists_each_message_line() {
+    // Given two messages
+    let adv = Uuid::new_v4();
+    let messages = vec![
+        Message::new(
+            adv,
+            None,
+            None,
+            "Alice".to_string(),
+            MessageParts::one(MessagePart::new(MessageKind::Say, "Hello")),
+        ),
+        Message::new(
+            adv,
+            None,
+            None,
+            "Bob".to_string(),
+            MessageParts::one(MessagePart::new(MessageKind::Say, "Hi")),
+        ),
+    ];
+    // When rendering the block
+    let rendered = Message::render(&messages).expect("some output");
+    // Then each message is rendered under its own speaker
+    assert!(rendered.contains("[Alice (say)]: Hello"));
+    assert!(rendered.contains("[Bob (say)]: Hi"));
+}

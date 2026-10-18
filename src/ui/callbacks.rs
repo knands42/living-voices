@@ -102,7 +102,6 @@ fn register_chat_callbacks<C: ChatHandler + Clone + 'static>(
             },
         });
 
-        // Clear the composer so the next message can be typed immediately.
         ui.set_draft(SharedString::new());
     });
 }

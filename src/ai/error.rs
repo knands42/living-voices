@@ -1,6 +1,5 @@
 use thiserror::Error;
 
-/// Failures from talking to a local model endpoint.
 #[derive(Error, Debug)]
 pub enum AiError {
     #[error("could not reach the model endpoint at {url}: {source}")]

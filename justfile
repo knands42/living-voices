@@ -8,7 +8,7 @@ test:
     cargo test
 
 test-ignored:
-    cargo test --ignore
+    cargo test -- --ignored
 
 run-debug: build
     ./target/debug/living_voices

@@ -2,7 +2,6 @@ use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::Character;
 use thiserror::Error;
 
-/// One candidate the autonomous call may pick, with the tone it should use.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Candidate {
     pub name: String,
@@ -39,7 +38,6 @@ impl Candidate {
 pub struct ChatReply {
     /// "narrator" or a character name.
     pub replier: String,
-    /// The narration or dialogue text.
     pub reply: String,
 }
 
@@ -50,7 +48,6 @@ pub enum ChatResponseError {
 }
 
 pub trait ChatHandler: Send + Sync {
-    /// Voice a named character's next line
     async fn character_respond(
         &self,
         candidate: &Candidate,
@@ -58,7 +55,6 @@ pub trait ChatHandler: Send + Sync {
         user_message: &str,
     ) -> Result<ChatReply, ChatResponseError>;
 
-    /// Voice the narrator's next line
     async fn narrator_respond(
         &self,
         narrator_tone: &str,

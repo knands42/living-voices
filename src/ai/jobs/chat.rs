@@ -10,7 +10,6 @@ use crate::backend::application::port::chat_port::{
     Candidate, ChatHandler, ChatReply, ChatResponseError,
 };
 
-/// Used by the narrator
 const NARRATOR_LABEL: &str = "narrator";
 
 const NARRATOR_SYSTEM_PROMPT: &str = "\
@@ -21,14 +20,12 @@ reply.";
 
 const NARRATOR_TONE_PROMPT: &str = "Match this tone: ";
 
-/// Spoken by a named character. The model IS that character.
 const CHARACTER_SYSTEM_PROMPT: &str = "\
 You are a single character in a roleplay. Stay fully in character — speak only as
 them, in their voice, revealing only what they would know. Reply with their next
 line of dialogue or action as plain text — no narration of other characters, no
 JSON, no quotation marks around the whole reply.";
 
-/// The model BOTH chooses the speaker and voices them.
 const AUTONOMOUS_SYSTEM_PROMPT: &str = "\
 You direct one turn of a roleplay. From the cast listed below, choose who speaks
 next — a character, or the narrator — then write their line in their own voice
@@ -45,7 +42,6 @@ pub struct Chat {
     model: String,
 }
 
-/// JSON shape the autonomous call returns.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct ChatCompletion {
     replier: String,
@@ -168,7 +164,6 @@ impl ChatHandler for Chat {
     }
 }
 
-/// Render the cast (plus the narrator) as a tone roster for the prompt.
 fn render_cast(narrator_tone: &str, cast: &[Candidate]) -> String {
     let mut roster = String::from("Cast and their tones:\n");
     roster.push_str(&format!("- \"{NARRATOR_LABEL}\": {narrator_tone}\n"));

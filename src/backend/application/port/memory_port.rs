@@ -15,6 +15,5 @@ pub enum DistillError {
 }
 
 pub trait MemoryDistiller: Send + Sync {
-    /// Distill a stretch of conversation into facts plus a rolling summary.
     async fn distill(&self, messages: &[Message]) -> Result<DistilledMemory, DistillError>;
 }

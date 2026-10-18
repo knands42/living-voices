@@ -50,13 +50,11 @@ impl Display for MessageKind {
     }
 }
 
-/// One action a message carries: a kind, its text, and an optional target
-/// (`say`/`whisper`/`do` — an action can be done to someone too).
+/// One action: a kind, its text, and an optional target (`say`/`whisper`/`do` can target someone).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MessagePart {
     pub kind: MessageKind,
     pub text: String,
-    /// when using the kind `say`/`whisper`/`do`.
     pub target_name: Option<String>,
     /// nuance applied to the kind: "in fear", "half asleep", "sarcastic"
     pub nuance: Option<String>,
@@ -112,7 +110,6 @@ impl MessagePart {
     }
 }
 
-/// The actions a single message carries, e.g. whispering while doing something.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MessageParts {
     primary: MessagePart,
@@ -154,8 +151,7 @@ impl MessageParts {
     }
 }
 
-/// One entry in an adventure's conversation log.
-/// Messages are append-only.
+/// Append-only entry in an adventure's conversation log.
 #[derive(Clone, Debug)]
 pub struct Message {
     /// it is `None` until persisted and always `Some` when read back.

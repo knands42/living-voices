@@ -1,7 +1,6 @@
 use crate::backend::domain::message::Message;
 use serde::{Deserialize, Serialize};
 
-/// Who authored a message in a model conversation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
@@ -10,7 +9,6 @@ pub enum Role {
     Assistant,
 }
 
-/// One turn of a conversation sent to a chat-completion model.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub role: Role,
@@ -38,9 +36,7 @@ impl ChatMessage {
     }
 }
 
-/// Render a stored message as the conversation line handed to a model:
-/// `[<speaker> <kind>] to [<target>]: <text>` per part, parts joined with ` + `,
-/// e.g. `[Alice whisper] to [Bob]: come here + [Alice do]: raise the drawing`.
+/// Renders as `[<speaker> <kind>] to [<target>]: <text>` per part, joined with ` + `.
 impl From<&Message> for ChatMessage {
     fn from(message: &Message) -> Self {
         let rendered = message

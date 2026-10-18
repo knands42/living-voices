@@ -19,11 +19,7 @@ places, plans, promises and changes. Keep names, numbers and identifiers verbati
 - \"summary\": one concise paragraph covering the conversation so far (in order).
 Never invent details that are not in the conversation.";
 
-/// Durable memory distilled from a stretch of conversation.
-///
-/// `facts` + `summary` are the model's JSON reply shape. `base_url` + `model`
-/// are distiller config and are NOT part of that JSON, so serde skips them on
-/// deserialize (they default to empty) and omits them on serialize.
+/// `base_url`/`model` are distiller config, not part of the model's JSON reply (serde skips them).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemoryUpdate {
     pub facts: Vec<String>,

@@ -15,8 +15,7 @@ pub struct JsonSchema {
     pub schema: serde_json::Value,
 }
 
-/// A client for any OpenAI-compatible chat-completion endpoint with
-/// `/chat/completions` request and response shape
+/// A client for any OpenAI-compatible `/chat/completions` endpoint.
 #[derive(Clone, Debug)]
 pub struct OpenAiCompatibleClient {
     http: reqwest::Client,

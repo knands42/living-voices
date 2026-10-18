@@ -1,8 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-/// A compressed span of an adventure's message log, covering the `message.seq`
-/// values `from_seq..=to_seq` inclusive.
+/// A compressed span of an adventure's log, covering `message.seq` values `from_seq..=to_seq`.
 #[derive(Clone, Debug)]
 pub struct Summary {
     pub id: Uuid,

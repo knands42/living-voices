@@ -54,7 +54,7 @@ impl<D: MemoryDistiller> MemoryManager<D> {
             .unwrap_or_else(|| 0);
         let messages = fetch_since(&mut conn, adventure_id, after_seq).await?;
         let to_seq = messages.last().and_then(|m| m.seq).unwrap_or(0);
-        if (to_seq == 0) {
+        if to_seq == 0 {
             return Ok(());
         }
         let from_seq = after_seq + 1;

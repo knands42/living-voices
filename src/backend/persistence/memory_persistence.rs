@@ -91,7 +91,6 @@ pub async fn last_covered(conn: &mut SqliteConnection, adventure_id: Uuid) -> Op
     row.get::<Option<i64>, _>("m").map(|v| v as u64)
 }
 
-/// Load the most recent summary for an adventure together with its facts
 pub async fn latest_summaries(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
@@ -117,17 +116,17 @@ pub async fn latest_summaries(
 
 pub async fn latest_facts(
     conn: &mut SqliteConnection,
-    summary_id: Uuid,
+    adventure_id: Uuid,
     limit: u64,
 ) -> Result<Vec<Fact>, PersistenceError> {
     let fact_rows = sqlx::query(
         "SELECT id, adventure_id, source_summary_id, text, created_at
          FROM fact
-         WHERE summary_id = ?1
+         WHERE adventure_id = ?1
          ORDER BY created_at ASC
          LIMIT ?2",
     )
-    .bind(summary_id.to_string())
+    .bind(adventure_id.to_string())
     .bind(limit as i64)
     .fetch_all(&mut *conn)
     .await?;
@@ -139,7 +138,6 @@ pub async fn latest_facts(
         .collect()
 }
 
-/// Insert a summary row.
 pub async fn insert_summary(
     conn: &mut SqliteConnection,
     summary: &Summary,
@@ -160,7 +158,6 @@ pub async fn insert_summary(
     Ok(())
 }
 
-/// Insert every fact linked to its `source_summary_id` in one pass.
 pub async fn insert_facts(
     conn: &mut SqliteConnection,
     facts: &[Fact],
