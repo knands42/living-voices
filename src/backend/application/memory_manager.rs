@@ -26,7 +26,6 @@ pub struct MemoryManager {
     pool: SqlitePool,
     /// OpenAI-compatible endpoint used for the distillation calls.
     base_url: String,
-    /// The memory model from `[models.memory]`.
     model: String,
 }
 
@@ -41,10 +40,6 @@ impl MemoryManager {
     }
 
     /// Compress every message not yet covered by the latest summary.
-    ///
-    /// No-op when there is no current adventure or when every message is
-    /// already covered. Otherwise the uncovered messages are distilled into a
-    /// [`Summary`] plus its [`Fact`]s, which are persisted together.
     pub async fn compress(&self) -> Result<(), MemoryManagerError> {
         let adventure_id = {
             let guard = self.state.read()?;
@@ -56,16 +51,17 @@ impl MemoryManager {
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
 
-        // Nothing covered yet means the whole log; otherwise resume after it.
+        // If nothing, skip
         let after_seq = match last_covered(&mut conn, adventure_id).await {
-            Some(covered) => covered as i64 + 1,
+            Some(covered) => covered as i64,
             None => 0,
         };
 
         let messages = fetch_since(&mut conn, adventure_id, after_seq).await?;
-        let (Some(from_seq), Some(to_seq)) = (first_seq(&messages), last_seq(&messages)) else {
+        let Some(to_seq) = last_seq(&messages) else {
             return Ok(());
         };
+        let from_seq = after_seq + 1;
 
         let history = to_history(&messages);
         let client = OpenAiCompatibleClient::new(&self.base_url)?;
@@ -85,11 +81,6 @@ impl MemoryManager {
     }
 }
 
-/// `seq` of the oldest message in the batch, or `None` when the batch is empty.
-fn first_seq(messages: &[Message]) -> Option<i64> {
-    messages.first().and_then(|m| m.seq).map(|s| s as i64)
-}
-
 /// `seq` of the newest message in the batch, or `None` when the batch is empty.
 fn last_seq(messages: &[Message]) -> Option<i64> {
     messages.last().and_then(|m| m.seq).map(|s| s as i64)
@@ -101,6 +92,7 @@ fn to_history(messages: &[Message]) -> Vec<ChatMessage> {
         .iter()
         .map(|m| {
             let mut line = format!("[{}] {}: {}", m.kind, m.speaker_name, m.text);
+            // TODO: Improve the order here on formatting the message: `[<character> say] to [<target>]: <message>`
             if let Some(target) = &m.target_name {
                 line.push_str(&format!(" (to {target})"));
             }

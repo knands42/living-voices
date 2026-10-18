@@ -61,6 +61,7 @@ pub struct Message {
     pub character_id: Option<Uuid>,
     pub narrator_id: Option<Uuid>,
     pub speaker_name: String,
+    // TODO: A message can have multiple messageKind, a player can whisper and do some action, maybe a hashmap with the kind key and value the text
     pub kind: MessageKind,
     pub text: String,
     /// when using the option `say`/`whisper`.

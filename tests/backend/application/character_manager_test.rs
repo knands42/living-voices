@@ -4,21 +4,13 @@ use living_voices::backend::application::{
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::{Character, CharacterStatus};
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
-use living_voices::backend::{open_pool, run_migrations};
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
-use crate::backend::application::helper::TempDb;
+use crate::backend::application::helper::{TempDb, setup_db};
 
 async fn new_manager_with(state: SharedState) -> (CharacterManager, TempDb, SqlitePool) {
-    let path = std::env::temp_dir().join(format!("living_voices_test_{}.db", Uuid::new_v4()));
-    let db = TempDb(path);
-    let path_str = db.0.to_string_lossy().into_owned();
-
-    let migrating = open_pool(&path_str).await.expect("open pool");
-    run_migrations(migrating).await.expect("run migrations");
-
-    let pool = open_pool(&path_str).await.expect("reopen pool");
+    let (pool, db) = setup_db().await;
     let manager = CharacterManager::new(state, pool.clone());
     (manager, db, pool)
 }

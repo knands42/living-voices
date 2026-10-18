@@ -41,8 +41,8 @@ pub async fn insert_message(
     msg: &Message,
 ) -> Result<Message, PersistenceError> {
     let row = sqlx::query(
-        "INSERT INTO message (id, adventure_id, character_id, speaker_name, kind, text, target_name, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+        "INSERT INTO message (adventure_id, character_id, speaker_name, kind, text, target_name, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
          RETURNING seq",
     )
         .bind(msg.adventure_id.to_string())
@@ -68,7 +68,7 @@ pub async fn fetch_since(
     after_seq: i64,
 ) -> Result<Vec<Message>, PersistenceError> {
     let rows = sqlx::query(
-        "SELECT seq, id, adventure_id, character_id, speaker_name, kind, text, target_name, created_at
+        "SELECT seq, adventure_id, character_id, narrator_id, speaker_name, kind, text, target_name, created_at
          FROM message
          WHERE adventure_id = ?1 AND seq > ?2
          ORDER BY seq ASC",
