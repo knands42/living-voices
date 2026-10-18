@@ -1,3 +1,4 @@
+use crate::backend::domain::message::Message;
 use serde::{Deserialize, Serialize};
 
 /// Who authored a message in a model conversation.
@@ -34,6 +35,28 @@ impl ChatMessage {
             role,
             content: content.into(),
         }
+    }
+}
+
+/// Render a stored message as the conversation line handed to a model:
+/// `[<speaker> <kind>] to [<target>]: <text>` per part, parts joined with ` + `,
+/// e.g. `[Alice whisper] to [Bob]: come here + [Alice do]: raise the drawing`.
+impl From<&Message> for ChatMessage {
+    fn from(message: &Message) -> Self {
+        let rendered = message
+            .parts
+            .iter()
+            .map(|part| {
+                let mut segment = format!("[{} {}]", message.speaker_name, part.kind);
+                if let Some(target) = &part.target_name {
+                    segment.push_str(&format!(" to [{target}]"));
+                }
+                segment.push_str(&format!(": {}", part.text));
+                segment
+            })
+            .collect::<Vec<_>>()
+            .join(" + ");
+        ChatMessage::user(rendered)
     }
 }
 

@@ -5,6 +5,7 @@ use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
 use crate::{
     app::AppContext,
+    backend::application::port::chat_port::ChatHandler,
     ui::{ChatMessage, RootWindow},
 };
 
@@ -26,7 +27,7 @@ const MODE_WHISPER: i32 = 3;
 // Entry point
 // ---------------------------------------------------------------------------
 
-pub fn register_callbacks(ui: &RootWindow, ctx: &AppContext) {
+pub fn register_callbacks<C: ChatHandler + Clone + 'static>(ui: &RootWindow, ctx: &AppContext<C>) {
     register_main_callbacks(ui, ctx);
     register_chat_callbacks(ui, ctx);
     register_shared_callbacks(ui);
@@ -36,7 +37,10 @@ pub fn register_callbacks(ui: &RootWindow, ctx: &AppContext) {
 // Home / Adventures page
 // ---------------------------------------------------------------------------
 
-fn register_main_callbacks(ui: &RootWindow, _ctx: &AppContext) {
+fn register_main_callbacks<C: ChatHandler + Clone + 'static>(
+    ui: &RootWindow,
+    _ctx: &AppContext<C>,
+) {
     let ui_weak = ui.as_weak();
 
     ui.on_adventure_selected(move |title| {
@@ -52,7 +56,10 @@ fn register_main_callbacks(ui: &RootWindow, _ctx: &AppContext) {
 // Chat page
 // ---------------------------------------------------------------------------
 
-fn register_chat_callbacks(ui: &RootWindow, _ctx: &AppContext) {
+fn register_chat_callbacks<C: ChatHandler + Clone + 'static>(
+    ui: &RootWindow,
+    _ctx: &AppContext<C>,
+) {
     let seed: Vec<ChatMessage> = ui.get_messages().iter().collect();
     let messages: Rc<VecModel<ChatMessage>> = Rc::new(VecModel::from(seed));
     ui.set_messages(ModelRc::from(messages.clone()));

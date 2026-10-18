@@ -9,7 +9,6 @@ use crate::ai::{
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
-/// A named JSON schema that a model's reply must conform to.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct JsonSchema {
     pub name: String,

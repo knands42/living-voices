@@ -75,6 +75,7 @@ impl MemoryUpdate {
 impl MemoryDistiller for MemoryUpdate {
     async fn distill(&self, messages: &[Message]) -> Result<DistilledMemory, DistillError> {
         let history: Vec<ChatMessage> = messages.iter().map(ChatMessage::from).collect();
+        // TODO: Consider adding client as part of the struct
         let client = OpenAiCompatibleClient::new(&self.base_url)
             .map_err(|e| DistillError::Provider(e.to_string()))?;
         let update = MemoryUpdate::distill(&client, &self.model, &history)
