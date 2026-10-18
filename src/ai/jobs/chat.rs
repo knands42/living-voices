@@ -37,9 +37,6 @@ Reply with JSON only, exactly these two fields:
 - \"replier\": the exact name of the speaker you chose, or \"narrator\".
 - \"reply\": that speaker's line, as plain text.";
 
-// TODO: improve this prompt, its not tone anymore, it's the whole character personality, traits, tone, etc
-const CONTEXT_PROMPT: &str = "Match this context: ";
-
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Chat {
     #[serde(skip)]

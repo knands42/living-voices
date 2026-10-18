@@ -105,8 +105,6 @@ impl<D: ChatHandler> MessageManager<D> {
             )
             .await?;
 
-        // The model picked the speaker by name. Resolve it back to a known
-        // character; anything that is not a listed character is the narrator.
         let (character_id, narrator_id, speaker_name, kind) =
             match adventure.find_character(&reply.replier) {
                 Some(character) => (

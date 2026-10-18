@@ -10,6 +10,77 @@ use crate::backend::{
     },
 };
 
+struct SummaryRow {
+    id: String,
+    adventure_id: String,
+    text: String,
+    from_seq: i64,
+    to_seq: i64,
+    created_at: String,
+}
+
+impl SummaryRow {
+    fn decode(row: &sqlx::sqlite::SqliteRow) -> Self {
+        Self {
+            id: row.get("id"),
+            adventure_id: row.get("adventure_id"),
+            text: row.get("text"),
+            from_seq: row.get("from_seq"),
+            to_seq: row.get("to_seq"),
+            created_at: row.get("created_at"),
+        }
+    }
+}
+
+impl TryFrom<SummaryRow> for Summary {
+    type Error = PersistenceError;
+
+    fn try_from(row: SummaryRow) -> Result<Self, Self::Error> {
+        Ok(Summary {
+            id: from_str_to_uuid(row.id)?,
+            adventure_id: from_str_to_uuid(row.adventure_id)?,
+            text: row.text,
+            from_seq: row.from_seq as u64,
+            to_seq: row.to_seq as u64,
+            created_at: from_str_to_timestamp(&row.created_at)?,
+        })
+    }
+}
+
+struct FactRow {
+    id: String,
+    adventure_id: String,
+    source_summary_id: String,
+    text: String,
+    created_at: String,
+}
+
+impl FactRow {
+    fn decode(row: &sqlx::sqlite::SqliteRow) -> Self {
+        Self {
+            id: row.get("id"),
+            adventure_id: row.get("adventure_id"),
+            source_summary_id: row.get("source_summary_id"),
+            text: row.get("text"),
+            created_at: row.get("created_at"),
+        }
+    }
+}
+
+impl TryFrom<FactRow> for Fact {
+    type Error = PersistenceError;
+
+    fn try_from(row: FactRow) -> Result<Self, Self::Error> {
+        Ok(Fact {
+            id: from_str_to_uuid(row.id)?,
+            adventure_id: from_str_to_uuid(row.adventure_id)?,
+            source_summary_id: from_str_to_uuid(row.source_summary_id)?,
+            text: row.text,
+            created_at: from_str_to_timestamp(&row.created_at)?,
+        })
+    }
+}
+
 pub async fn last_covered(conn: &mut SqliteConnection, adventure_id: Uuid) -> Option<u64> {
     let row = sqlx::query("SELECT MAX(to_seq) AS m FROM summary WHERE adventure_id = ?1")
         .bind(adventure_id.to_string())
@@ -38,12 +109,10 @@ pub async fn latest_summaries(
     .fetch_all(&mut *conn)
     .await?;
 
-    let summaries = rows
-        .iter()
-        .map(decode_summary)
-        .collect::<Result<Vec<_>, _>>()?;
-
-    Ok(summaries)
+    rows.iter()
+        .map(SummaryRow::decode)
+        .map(Summary::try_from)
+        .collect()
 }
 
 pub async fn latest_facts(
@@ -63,39 +132,11 @@ pub async fn latest_facts(
     .fetch_all(&mut *conn)
     .await?;
 
-    let facts = fact_rows
+    fact_rows
         .iter()
-        .map(decode_fact)
-        .collect::<Result<Vec<_>, _>>()?;
-
-    Ok(facts)
-}
-
-// TODO: Standardize to the same pattern used on `message_persistence`
-fn decode_summary(row: &sqlx::sqlite::SqliteRow) -> Result<Summary, PersistenceError> {
-    let id = from_str_to_uuid(row.get::<String, _>("id"))?;
-    let adventure_id = from_str_to_uuid(row.get::<String, _>("adventure_id"))?;
-    Ok(Summary {
-        id,
-        adventure_id,
-        text: row.get("text"),
-        from_seq: row.get("from_seq"),
-        to_seq: row.get("to_seq"),
-        created_at: from_str_to_timestamp(&row.get::<String, _>("created_at"))?,
-    })
-}
-
-fn decode_fact(row: &sqlx::sqlite::SqliteRow) -> Result<Fact, PersistenceError> {
-    let id = from_str_to_uuid(row.get::<String, _>("id"))?;
-    let adventure_id = from_str_to_uuid(row.get::<String, _>("adventure_id"))?;
-    let source_summary_id = from_str_to_uuid(row.get::<String, _>("source_summary_id"))?;
-    Ok(Fact {
-        id,
-        adventure_id,
-        source_summary_id,
-        text: row.get("text"),
-        created_at: from_str_to_timestamp(&row.get::<String, _>("created_at"))?,
-    })
+        .map(FactRow::decode)
+        .map(Fact::try_from)
+        .collect()
 }
 
 /// Insert a summary row.
