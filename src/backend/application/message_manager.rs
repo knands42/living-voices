@@ -7,11 +7,9 @@ use crate::backend::application::port::memory_port::MemoryDistiller;
 use crate::backend::application::state::{SharedState, StateError};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::message_persistence::insert_message;
+use crate::config::MemorySettings;
 use sqlx::SqlitePool;
 use thiserror::Error;
-
-/// Distill once this many messages are uncovered by any summary.
-const DISTILL_THRESHOLD: u64 = 80;
 
 #[derive(Error, Debug)]
 pub enum MessageManagerError {
@@ -34,6 +32,7 @@ pub struct MessageManager<D: ChatHandler, M: MemoryDistiller> {
     chat_handler: D,
     director: Director,
     memory: MemoryManager<M>,
+    memory_settings: MemorySettings,
 }
 
 impl<D: ChatHandler, M: MemoryDistiller + Clone + 'static> MessageManager<D, M> {
@@ -43,6 +42,7 @@ impl<D: ChatHandler, M: MemoryDistiller + Clone + 'static> MessageManager<D, M> 
         chat_handler: D,
         director: Director,
         memory: MemoryManager<M>,
+        memory_settings: MemorySettings,
     ) -> Self {
         Self {
             state,
@@ -50,6 +50,7 @@ impl<D: ChatHandler, M: MemoryDistiller + Clone + 'static> MessageManager<D, M> 
             chat_handler,
             director,
             memory,
+            memory_settings,
         }
     }
 
@@ -73,7 +74,13 @@ impl<D: ChatHandler, M: MemoryDistiller + Clone + 'static> MessageManager<D, M> 
 
         let candidates = Candidate::from_adventure(&adventure);
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let history = HistoryBuilder::build(&mut conn, adventure.id).await?;
+        let history = HistoryBuilder::build(
+            &mut conn,
+            adventure.id,
+            self.memory_settings.summary_limit,
+            self.memory_settings.fact_limit,
+        )
+        .await?;
         drop(conn);
 
         let user_message = incoming.parts.render(incoming.speaker_name.as_str());
@@ -97,7 +104,11 @@ impl<D: ChatHandler, M: MemoryDistiller + Clone + 'static> MessageManager<D, M> 
     }
 
     async fn maybe_compress_memory(&self) {
-        match self.memory.needs_compression(DISTILL_THRESHOLD).await {
+        match self
+            .memory
+            .needs_compression(self.memory_settings.compress_threshold)
+            .await
+        {
             Ok(false) => {}
             Ok(true) => {
                 let memory = self.memory.clone();

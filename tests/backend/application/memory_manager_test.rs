@@ -23,8 +23,7 @@ fn memory_model() -> TextModel {
 
 /// Build the distiller the app wires in, from the configured memory model.
 fn distiller() -> MemoryUpdate {
-    let model = memory_model();
-    MemoryUpdate::new(model.base_url, model.model)
+    MemoryUpdate::new(memory_model())
 }
 
 async fn setup_adventure(pool: &SqlitePool) -> Adventure {

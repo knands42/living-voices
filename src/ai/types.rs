@@ -55,17 +55,3 @@ impl From<&Message> for ChatMessage {
         ChatMessage::user(rendered)
     }
 }
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Sampling {
-    /// Low values stay faithful to the prompt
-    pub temperature: f32,
-}
-
-impl Sampling {
-    /// Character dialogue: expressive but coherent.
-    pub const CHAT: Self = Self { temperature: 0.5 };
-
-    /// Memory and summary extraction: faithful, no invention.
-    pub const EXTRACTION: Self = Self { temperature: 0.1 };
-}

@@ -2,10 +2,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use crate::ai::{
-    error::AiError,
-    types::{ChatMessage, Sampling},
-};
+use crate::ai::{error::AiError, types::ChatMessage};
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
@@ -23,10 +20,16 @@ pub struct OpenAiCompatibleClient {
 }
 
 impl OpenAiCompatibleClient {
+    /// Build a client with the default request timeout.
     pub fn new(base_url: impl Into<String>) -> Result<Self, AiError> {
+        Self::with_timeout(base_url, REQUEST_TIMEOUT)
+    }
+
+    /// Build a client with an explicit request timeout.
+    pub fn with_timeout(base_url: impl Into<String>, timeout: Duration) -> Result<Self, AiError> {
         let base_url = base_url.into();
         let http = reqwest::Client::builder()
-            .timeout(REQUEST_TIMEOUT)
+            .timeout(timeout)
             .build()
             .map_err(|source| AiError::Transport {
                 url: base_url.clone(),
@@ -40,14 +43,14 @@ impl OpenAiCompatibleClient {
         &self,
         model: &str,
         messages: &[ChatMessage],
-        sampling: Sampling,
+        temperature: f32,
         response_format: Option<ResponseFormat<'_>>,
     ) -> Result<String, AiError> {
         let url = self.chat_completions_url();
         let body = ChatRequest {
             model,
             messages,
-            temperature: sampling.temperature,
+            temperature,
             stream: false,
             response_format,
         };

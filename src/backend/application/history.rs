@@ -9,9 +9,6 @@ use crate::backend::persistence::memory_persistence::{
 };
 use crate::backend::persistence::message_persistence::fetch_since;
 
-const SUMMARY_LIMIT: u64 = 5;
-const FACT_LIMIT: u64 = 5;
-
 /// Assembles the prompt-context ("history") block handed to the chat provider.
 pub struct HistoryBuilder;
 
@@ -19,9 +16,11 @@ impl HistoryBuilder {
     pub async fn build(
         conn: &mut SqliteConnection,
         adventure_id: Uuid,
+        summary_limit: u64,
+        fact_limit: u64,
     ) -> Result<String, PersistenceError> {
-        let summaries = latest_summaries(conn, adventure_id, SUMMARY_LIMIT).await?;
-        let facts = latest_facts(conn, adventure_id, FACT_LIMIT).await?;
+        let summaries = latest_summaries(conn, adventure_id, summary_limit).await?;
+        let facts = latest_facts(conn, adventure_id, fact_limit).await?;
 
         let after_seq = last_covered(conn, adventure_id).await.unwrap_or(0);
         let uncovered = fetch_since(conn, adventure_id, after_seq).await?;

@@ -25,15 +25,17 @@ fn chat_model() -> TextModel {
 
 /// Build the chat handler the app wires in, from the configured chat model.
 fn chat_handler() -> Chat {
-    let model = chat_model();
-    Chat::new(model.base_url, model.model)
+    Chat::new(chat_model())
 }
 
 fn memory_manager(state: SharedState, pool: &SqlitePool) -> MemoryManager<MemoryUpdate> {
     let config = Config::new().expect("load config");
-    let model = config.settings.models.memory;
-    let distiller = MemoryUpdate::new(model.base_url, model.model);
+    let distiller = MemoryUpdate::new(config.settings.models.memory);
     MemoryManager::new(state, pool.clone(), distiller)
+}
+
+fn memory_settings() -> living_voices::config::MemorySettings {
+    Config::new().expect("load config").settings.memory
 }
 
 async fn setup_adventure(pool: &SqlitePool, characters: &[&str]) -> Adventure {
@@ -73,7 +75,14 @@ fn load_adventure(pool: &SqlitePool, adventure: &Adventure) -> MessageManager<Ch
         .expect("lock")
         .set_adventure(adventure.clone());
     let memory = memory_manager(state.clone(), pool);
-    MessageManager::new(state, pool.clone(), chat_handler(), Director::new(), memory)
+    MessageManager::new(
+        state,
+        pool.clone(),
+        chat_handler(),
+        Director::new(),
+        memory,
+        memory_settings(),
+    )
 }
 
 fn player_line(adventure_id: uuid::Uuid, speaker: &str, text: &str) -> Message {
@@ -182,7 +191,14 @@ async fn send_message_errors_without_a_current_adventure() {
     let (pool, _db) = setup_db().await;
     let state = SharedState::new();
     let memory = memory_manager(state.clone(), &pool);
-    let manager = MessageManager::new(state, pool.clone(), chat_handler(), Director::new(), memory);
+    let manager = MessageManager::new(
+        state,
+        pool.clone(),
+        chat_handler(),
+        Director::new(),
+        memory,
+        memory_settings(),
+    );
 
     // When sending a message
     let incoming = player_line(uuid::Uuid::new_v4(), "Player", "Hello");

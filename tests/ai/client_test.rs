@@ -1,12 +1,12 @@
 use living_voices::ai::jobs::memory;
-use living_voices::ai::{
-    ChatMessage, JsonSchema, OpenAiCompatibleClient, ResponseFormat, Sampling,
-};
+use living_voices::ai::{ChatMessage, JsonSchema, OpenAiCompatibleClient, ResponseFormat};
 use serde_json::json;
 
 const OLLAMA_URL: &str = "http://localhost:11434/v1";
 const CHAT_MODEL: &str = "llama3.1:8b";
 const MEMORY_MODEL: &str = "hf.co/sennaLLMLearner/qwen2.5-7b-memory-distiller:Q4_K_M";
+const CHAT_TEMPERATURE: f32 = 0.5;
+const MEMORY_TEMPERATURE: f32 = 0.1;
 
 fn client() -> OpenAiCompatibleClient {
     OpenAiCompatibleClient::new(OLLAMA_URL).expect("build client")
@@ -20,7 +20,7 @@ async fn chat_model_answers_a_prompt() {
     )];
 
     let reply = client()
-        .send(CHAT_MODEL, &messages, Sampling::CHAT, None)
+        .send(CHAT_MODEL, &messages, CHAT_TEMPERATURE, None)
         .await
         .expect("request");
 
@@ -49,7 +49,7 @@ async fn request_json_returns_a_single_schema_shaped_object() {
         json_schema: &schema,
     };
     let reply = client()
-        .send(CHAT_MODEL, &messages, Sampling::CHAT, Some(format))
+        .send(CHAT_MODEL, &messages, CHAT_TEMPERATURE, Some(format))
         .await
         .expect("request_json");
 
@@ -73,9 +73,10 @@ async fn memory_model_returns_a_memory_record() {
         ChatMessage::user("I hate the sea."),
     ];
 
-    let update = memory::MemoryUpdate::distill(&client(), MEMORY_MODEL, &history)
-        .await
-        .expect("distill");
+    let update =
+        memory::MemoryUpdate::distill(&client(), MEMORY_MODEL, MEMORY_TEMPERATURE, &history)
+            .await
+            .expect("distill");
 
     // The distiller's wording is its own business; the contract is a record
     // carrying at least one fact and a summary.

@@ -9,13 +9,28 @@ const DB_FILE: &str = "living_voices.db";
 const DEFAULT_OLLAMA_URL: &str = "http://localhost:11434/v1";
 const DEFAULT_COMFYUI_URL: &str = "http://localhost:8188";
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
+/// Character dialogue: expressive but coherent.
+const DEFAULT_CHAT_TEMPERATURE: f32 = 0.5;
+/// Memory/summary extraction: faithful, no invention.
+const DEFAULT_MEMORY_TEMPERATURE: f32 = 0.1;
+/// Seconds before an in-flight model request is abandoned.
+const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 120;
+
+/// Distill once this many messages are uncovered by any summary.
+const DEFAULT_COMPRESS_THRESHOLD: u64 = 80;
+/// How many summaries the prompt-context block carries.
+const DEFAULT_SUMMARY_LIMIT: u64 = 5;
+/// How many facts the prompt-context block carries.
+const DEFAULT_FACT_LIMIT: u64 = 5;
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct Settings {
     pub models: Models,
+    pub memory: MemorySettings,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct Models {
     pub chat: TextModel,
@@ -23,11 +38,43 @@ pub struct Models {
     pub image: ImageModel,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+impl Default for Models {
+    fn default() -> Self {
+        Self {
+            chat: TextModel::chat_default(),
+            memory: TextModel::memory_default(),
+            image: ImageModel::default(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct TextModel {
     pub base_url: String,
     pub model: String,
+    /// Sampling temperature. Lower stays faithful to the prompt.
+    pub temperature: f32,
+    /// Seconds before an in-flight request to this endpoint is abandoned.
+    pub request_timeout_secs: u64,
+}
+
+impl TextModel {
+    /// The default a chat endpoint should use when the file omits `temperature`.
+    pub fn chat_default() -> Self {
+        Self {
+            temperature: DEFAULT_CHAT_TEMPERATURE,
+            ..Self::default()
+        }
+    }
+
+    /// The default a memory endpoint should use when the file omits `temperature`.
+    pub fn memory_default() -> Self {
+        Self {
+            temperature: DEFAULT_MEMORY_TEMPERATURE,
+            ..Self::default()
+        }
+    }
 }
 
 impl Default for TextModel {
@@ -35,6 +82,30 @@ impl Default for TextModel {
         Self {
             base_url: DEFAULT_OLLAMA_URL.to_string(),
             model: String::new(),
+            temperature: DEFAULT_CHAT_TEMPERATURE,
+            request_timeout_secs: DEFAULT_REQUEST_TIMEOUT_SECS,
+        }
+    }
+}
+
+/// Knobs for the memory subsystem that are not tied to a single model endpoint.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(default)]
+pub struct MemorySettings {
+    /// Trigger distillation once this many messages are uncovered by any summary.
+    pub compress_threshold: u64,
+    /// How many recent summaries the prompt-context block carries.
+    pub summary_limit: u64,
+    /// How many recent facts the prompt-context block carries.
+    pub fact_limit: u64,
+}
+
+impl Default for MemorySettings {
+    fn default() -> Self {
+        Self {
+            compress_threshold: DEFAULT_COMPRESS_THRESHOLD,
+            summary_limit: DEFAULT_SUMMARY_LIMIT,
+            fact_limit: DEFAULT_FACT_LIMIT,
         }
     }
 }

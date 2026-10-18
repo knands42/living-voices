@@ -4,11 +4,12 @@ use serde_json::json;
 use crate::ai::{
     client::{JsonSchema, OpenAiCompatibleClient, ResponseFormat},
     error::AiError,
-    types::{ChatMessage, Sampling},
+    types::ChatMessage,
 };
 use crate::backend::application::port::chat_port::{
     Candidate, ChatHandler, ChatReply, ChatResponseError,
 };
+use crate::config::TextModel;
 
 const NARRATOR_LABEL: &str = "narrator";
 
@@ -37,9 +38,7 @@ Reply with JSON only, exactly these two fields:
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Chat {
     #[serde(skip)]
-    base_url: String,
-    #[serde(skip)]
-    model: String,
+    config: TextModel,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -57,13 +56,16 @@ impl ChatCompletion {
 }
 
 impl Chat {
-    pub fn new(base_url: String, model: String) -> Self {
-        Self { base_url, model }
+    pub fn new(config: TextModel) -> Self {
+        Self { config }
     }
 
     fn client(&self) -> Result<OpenAiCompatibleClient, ChatResponseError> {
-        OpenAiCompatibleClient::new(&self.base_url)
-            .map_err(|e| ChatResponseError::Provider(e.to_string()))
+        OpenAiCompatibleClient::with_timeout(
+            &self.config.base_url,
+            std::time::Duration::from_secs(self.config.request_timeout_secs),
+        )
+        .map_err(|e| ChatResponseError::Provider(e.to_string()))
     }
 
     /// Shared path for the two KNOWN-speaker calls
@@ -83,7 +85,12 @@ impl Chat {
         messages.push(ChatMessage::user(user_message));
 
         client
-            .send(self.model.as_str(), &messages, Sampling::CHAT, None)
+            .send(
+                self.config.model.as_str(),
+                &messages,
+                self.config.temperature,
+                None,
+            )
             .await
             .map_err(|e| ChatResponseError::Provider(e.to_string()))
     }
@@ -150,7 +157,12 @@ impl ChatHandler for Chat {
         };
 
         let raw = client
-            .send(self.model.as_str(), &messages, Sampling::CHAT, Some(format))
+            .send(
+                self.config.model.as_str(),
+                &messages,
+                self.config.temperature,
+                Some(format),
+            )
             .await
             .map_err(|e| ChatResponseError::Provider(e.to_string()))?;
 

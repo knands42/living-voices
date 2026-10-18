@@ -46,6 +46,7 @@ async fn main() {
         pool,
         config.settings.models.memory.clone(),
         config.settings.models.chat.clone(),
+        config.settings.memory.clone(),
     );
     log::info!("Starting Living Voices");
 

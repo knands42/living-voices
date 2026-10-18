@@ -10,12 +10,25 @@
 [models.chat]
 base_url = "http://localhost:11434/v1"
 model = "llama3.1:8b"
+temperature = 0.5
+request_timeout_secs = 120
 
 [models.memory]
 base_url = "http://localhost:11434/v1"
 model = "hf.co/sennaLLMLearner/qwen2.5-7b-memory-distiller:Q4_K_M"
+# Distillation must stay faithful to the conversation, so keep this low.
+temperature = 0.1
+request_timeout_secs = 120
 
 [models.image]
 backend = "comfyui"
 base_url = "http://localhost:8188"
 workflow = "scene.json"
+
+# Memory subsystem knobs (not tied to a single model endpoint).
+[memory]
+# Distill once this many messages are uncovered by any summary.
+compress_threshold = 80
+# How many recent summaries / facts the prompt-context block carries.
+summary_limit = 5
+fact_limit = 5

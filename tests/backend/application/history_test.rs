@@ -56,7 +56,7 @@ async fn build_returns_empty_string_when_nothing_is_stored() {
     let mut conn = pool.acquire().await.expect("acquire");
 
     // When building the history block
-    let history = HistoryBuilder::build(&mut conn, adventure.id)
+    let history = HistoryBuilder::build(&mut conn, adventure.id, 5, 5)
         .await
         .expect("build history");
 
@@ -84,7 +84,7 @@ async fn build_includes_summaries_facts_and_uncovered_messages() {
     insert_facts(&mut conn, &facts).await.expect("insert facts");
 
     // When building the history block
-    let history = HistoryBuilder::build(&mut conn, adventure.id)
+    let history = HistoryBuilder::build(&mut conn, adventure.id, 5, 5)
         .await
         .expect("build history");
 
@@ -112,7 +112,7 @@ async fn build_excludes_messages_already_covered_by_a_summary() {
         .expect("insert summary");
 
     // When building the history block
-    let history = HistoryBuilder::build(&mut conn, adventure.id)
+    let history = HistoryBuilder::build(&mut conn, adventure.id, 5, 5)
         .await
         .expect("build history");
 

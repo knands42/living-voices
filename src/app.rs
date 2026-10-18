@@ -10,7 +10,7 @@ use crate::{
         adventure_manager::AdventureManager, character_manager::CharacterManager,
         memory_manager::MemoryManager, message_manager::MessageManager, state::SharedState,
     },
-    config::TextModel,
+    config::{MemorySettings, TextModel},
     ui,
 };
 
@@ -26,29 +26,39 @@ pub struct App<C: ChatHandler + Clone, M: MemoryDistiller + Clone + 'static> {
 }
 
 impl App<Chat, MemoryUpdate> {
-    /// Composition root: the only place that names the concrete `Chat`/`MemoryUpdate` impls.
-    pub fn new(pool: SqlitePool, memory_model: TextModel, chat_model: TextModel) -> Self {
+    pub fn new(
+        pool: SqlitePool,
+        memory_model: TextModel,
+        chat_model: TextModel,
+        memory_settings: MemorySettings,
+    ) -> Self {
         // state
         let state = SharedState::new();
 
         // ai modules
-        let distiller = MemoryUpdate::new(memory_model.base_url, memory_model.model);
-        let chat_handler = Chat::new(chat_model.base_url, chat_model.model);
+        let distiller = MemoryUpdate::new(memory_model);
+        let chat_handler = Chat::new(chat_model);
 
         // application
         let director = Director::new();
 
-        let adventures = AdventureManager::new(state.clone(), pool.clone());
-        let characters = CharacterManager::new(state.clone(), pool.clone());
-        let memory = MemoryManager::new(state.clone(), pool.clone(), distiller);
-        let messages =
-            MessageManager::new(state.clone(), pool.clone(), chat_handler, director, memory);
+        let adventure_manager = AdventureManager::new(state.clone(), pool.clone());
+        let character_manager = CharacterManager::new(state.clone(), pool.clone());
+        let memory_manager = MemoryManager::new(state.clone(), pool.clone(), distiller);
+        let message_manager = MessageManager::new(
+            state.clone(),
+            pool.clone(),
+            chat_handler,
+            director,
+            memory_manager,
+            memory_settings,
+        );
 
         Self {
             ctx: AppContext {
-                adventures,
-                characters,
-                messages,
+                adventures: adventure_manager,
+                characters: character_manager,
+                messages: message_manager,
             },
         }
     }
