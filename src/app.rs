@@ -4,6 +4,7 @@ use crate::ai::MemoryUpdate;
 use crate::ai::jobs::chat::Chat;
 use crate::backend::application::director::Director;
 use crate::backend::application::port::chat_port::ChatHandler;
+use crate::backend::application::port::memory_port::MemoryDistiller;
 use crate::{
     backend::application::{
         adventure_manager::AdventureManager, character_manager::CharacterManager,
@@ -14,17 +15,17 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct AppContext<C: ChatHandler + Clone> {
+pub struct AppContext<C: ChatHandler + Clone, M: MemoryDistiller + Clone + 'static> {
     pub adventures: AdventureManager,
     pub characters: CharacterManager,
-    pub messages: MessageManager<C>,
+    pub messages: MessageManager<C, M>,
 }
 
-pub struct App<C: ChatHandler + Clone> {
-    ctx: AppContext<C>,
+pub struct App<C: ChatHandler + Clone, M: MemoryDistiller + Clone + 'static> {
+    ctx: AppContext<C, M>,
 }
 
-impl App<Chat> {
+impl App<Chat, MemoryUpdate> {
     /// Composition root: the only place that names the concrete `Chat`/`MemoryUpdate` impls.
     pub fn new(pool: SqlitePool, memory_model: TextModel, chat_model: TextModel) -> Self {
         // state
@@ -39,8 +40,9 @@ impl App<Chat> {
 
         let adventures = AdventureManager::new(state.clone(), pool.clone());
         let characters = CharacterManager::new(state.clone(), pool.clone());
-        let messages = MessageManager::new(state.clone(), pool.clone(), chat_handler, director);
-        let _unused = MemoryManager::new(state.clone(), pool.clone(), distiller);
+        let memory = MemoryManager::new(state.clone(), pool.clone(), distiller);
+        let messages =
+            MessageManager::new(state.clone(), pool.clone(), chat_handler, director, memory);
 
         Self {
             ctx: AppContext {
@@ -52,7 +54,7 @@ impl App<Chat> {
     }
 }
 
-impl<C: ChatHandler + Clone + 'static> App<C> {
+impl<C: ChatHandler + Clone + 'static, M: MemoryDistiller + Clone + 'static> App<C, M> {
     pub fn run(&self) -> Result<(), slint::PlatformError> {
         ui::run(self.ctx.clone())
     }

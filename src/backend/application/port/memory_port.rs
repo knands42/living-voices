@@ -15,5 +15,8 @@ pub enum DistillError {
 }
 
 pub trait MemoryDistiller: Send + Sync {
-    async fn distill(&self, messages: &[Message]) -> Result<DistilledMemory, DistillError>;
+    fn distill(
+        &self,
+        messages: &[Message],
+    ) -> impl std::future::Future<Output = Result<DistilledMemory, DistillError>> + Send;
 }

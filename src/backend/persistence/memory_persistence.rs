@@ -91,6 +91,21 @@ pub async fn last_covered(conn: &mut SqliteConnection, adventure_id: Uuid) -> Op
     row.get::<Option<i64>, _>("m").map(|v| v as u64)
 }
 
+/// How many messages are not yet covered by any summary
+pub async fn count_uncovered(
+    conn: &mut SqliteConnection,
+    adventure_id: Uuid,
+    after_seq: u64,
+) -> Result<u64, PersistenceError> {
+    let row = sqlx::query("SELECT COUNT(*) AS c FROM message WHERE adventure_id = ?1 AND seq > ?2")
+        .bind(adventure_id.to_string())
+        .bind(after_seq as i64)
+        .fetch_one(&mut *conn)
+        .await?;
+
+    Ok(row.get::<i64, _>("c") as u64)
+}
+
 pub async fn latest_summaries(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,

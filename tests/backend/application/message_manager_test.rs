@@ -2,8 +2,10 @@ use sqlx::query_scalar;
 use sqlx::sqlite::SqlitePool;
 
 use crate::backend::application::helper::setup_db;
+use living_voices::ai::MemoryUpdate;
 use living_voices::ai::jobs::chat::Chat;
 use living_voices::backend::application::director::Director;
+use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::message_manager::{MessageManager, MessageManagerError};
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
@@ -25,6 +27,13 @@ fn chat_model() -> TextModel {
 fn chat_handler() -> Chat {
     let model = chat_model();
     Chat::new(model.base_url, model.model)
+}
+
+fn memory_manager(state: SharedState, pool: &SqlitePool) -> MemoryManager<MemoryUpdate> {
+    let config = Config::new().expect("load config");
+    let model = config.settings.models.memory;
+    let distiller = MemoryUpdate::new(model.base_url, model.model);
+    MemoryManager::new(state, pool.clone(), distiller)
 }
 
 async fn setup_adventure(pool: &SqlitePool, characters: &[&str]) -> Adventure {
@@ -57,13 +66,14 @@ async fn setup_adventure(pool: &SqlitePool, characters: &[&str]) -> Adventure {
     adventure
 }
 
-fn load_adventure(pool: &SqlitePool, adventure: &Adventure) -> MessageManager<Chat> {
+fn load_adventure(pool: &SqlitePool, adventure: &Adventure) -> MessageManager<Chat, MemoryUpdate> {
     let state = SharedState::new();
     state
         .write()
         .expect("lock")
         .set_adventure(adventure.clone());
-    MessageManager::new(state, pool.clone(), chat_handler(), Director::new())
+    let memory = memory_manager(state.clone(), pool);
+    MessageManager::new(state, pool.clone(), chat_handler(), Director::new(), memory)
 }
 
 fn player_line(adventure_id: uuid::Uuid, speaker: &str, text: &str) -> Message {
@@ -171,7 +181,8 @@ async fn send_message_errors_without_a_current_adventure() {
     // Given a manager with no adventure loaded (no model call is reached)
     let (pool, _db) = setup_db().await;
     let state = SharedState::new();
-    let manager = MessageManager::new(state, pool.clone(), chat_handler(), Director::new());
+    let memory = memory_manager(state.clone(), &pool);
+    let manager = MessageManager::new(state, pool.clone(), chat_handler(), Director::new(), memory);
 
     // When sending a message
     let incoming = player_line(uuid::Uuid::new_v4(), "Player", "Hello");

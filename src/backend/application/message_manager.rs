@@ -1,12 +1,17 @@
 use crate::backend::PersistenceError;
 use crate::backend::application::director::Director;
 use crate::backend::application::history::HistoryBuilder;
+use crate::backend::application::memory_manager::MemoryManager;
 use crate::backend::application::port::chat_port::{Candidate, ChatHandler, ChatResponseError};
+use crate::backend::application::port::memory_port::MemoryDistiller;
 use crate::backend::application::state::{SharedState, StateError};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::message_persistence::insert_message;
 use sqlx::SqlitePool;
 use thiserror::Error;
+
+/// Distill once this many messages are uncovered by any summary.
+const DISTILL_THRESHOLD: u64 = 80;
 
 #[derive(Error, Debug)]
 pub enum MessageManagerError {
@@ -23,20 +28,28 @@ pub enum MessageManagerError {
 }
 
 #[derive(Clone, Debug)]
-pub struct MessageManager<D: ChatHandler> {
+pub struct MessageManager<D: ChatHandler, M: MemoryDistiller> {
     state: SharedState,
     pool: SqlitePool,
     chat_handler: D,
     director: Director,
+    memory: MemoryManager<M>,
 }
 
-impl<D: ChatHandler> MessageManager<D> {
-    pub fn new(state: SharedState, pool: SqlitePool, chat_handler: D, director: Director) -> Self {
+impl<D: ChatHandler, M: MemoryDistiller + Clone + 'static> MessageManager<D, M> {
+    pub fn new(
+        state: SharedState,
+        pool: SqlitePool,
+        chat_handler: D,
+        director: Director,
+        memory: MemoryManager<M>,
+    ) -> Self {
         Self {
             state,
             pool,
             chat_handler,
             director,
+            memory,
         }
     }
 
@@ -78,9 +91,24 @@ impl<D: ChatHandler> MessageManager<D> {
         let reply_message = adventure.message_from_reply(&reply.replier, &reply.reply);
         let stored_reply = self.create_message(reply_message).await?;
 
-        // TODO: trigger compression?
+        self.maybe_compress_memory().await;
 
         Ok(stored_reply)
+    }
+
+    async fn maybe_compress_memory(&self) {
+        match self.memory.needs_compression(DISTILL_THRESHOLD).await {
+            Ok(false) => {}
+            Ok(true) => {
+                let memory = self.memory.clone();
+                tokio::spawn(async move {
+                    if let Err(err) = memory.compress().await {
+                        eprintln!("memory compression failed: {err}");
+                    }
+                });
+            }
+            Err(err) => eprintln!("memory compression check failed: {err}"),
+        }
     }
 
     async fn send_and_expect_narrator_to_reply() -> Result<Message, MessageManagerError> {
