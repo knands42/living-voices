@@ -4,6 +4,6 @@ mod character_manager_test;
 
 mod state_test;
 
-mod helper;
+pub(crate) mod helper;
 
 mod memory_manager_test;

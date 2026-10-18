@@ -40,6 +40,7 @@ impl MemoryManager {
     }
 
     /// Compress every message not yet covered by the latest summary.
+    // TODO: Make less dependand on AI pakacge, inversion control
     pub async fn compress(&self) -> Result<(), MemoryManagerError> {
         let adventure_id = {
             let guard = self.state.read()?;
@@ -63,7 +64,7 @@ impl MemoryManager {
         };
         let from_seq = after_seq + 1;
 
-        let history = to_history(&messages);
+        let history: Vec<ChatMessage> = messages.iter().map(ChatMessage::from).collect();
         let client = OpenAiCompatibleClient::new(&self.base_url)?;
         let update = MemoryUpdate::distill(&client, &self.model, &history).await?;
 
@@ -86,17 +87,24 @@ fn last_seq(messages: &[Message]) -> Option<i64> {
     messages.last().and_then(|m| m.seq).map(|s| s as i64)
 }
 
-/// Render the message batch as the conversation handed to the memory model.
-fn to_history(messages: &[Message]) -> Vec<ChatMessage> {
-    messages
-        .iter()
-        .map(|m| {
-            let mut line = format!("[{}] {}: {}", m.kind, m.speaker_name, m.text);
-            // TODO: Improve the order here on formatting the message: `[<character> say] to [<target>]: <message>`
-            if let Some(target) = &m.target_name {
-                line.push_str(&format!(" (to {target})"));
-            }
-            ChatMessage::user(line)
-        })
-        .collect()
+/// Render a stored message as the conversation line handed to the memory model:
+/// `[<speaker> <kind>] to [<target>]: <text>` per part, parts joined with ` + `,
+/// e.g. `[Alice whisper] to [Bob]: come here + [Alice do]: raise the drawing`.
+impl From<&Message> for ChatMessage {
+    fn from(message: &Message) -> Self {
+        let rendered = message
+            .parts
+            .iter()
+            .map(|part| {
+                let mut segment = format!("[{} {}]", message.speaker_name, part.kind);
+                if let Some(target) = &part.target_name {
+                    segment.push_str(&format!(" to [{target}]"));
+                }
+                segment.push_str(&format!(": {}", part.text));
+                segment
+            })
+            .collect::<Vec<_>>()
+            .join(" + ");
+        ChatMessage::user(rendered)
+    }
 }

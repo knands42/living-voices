@@ -1,6 +1,5 @@
-use std::fmt::Display;
-
 use chrono::{DateTime, Utc};
+use std::fmt::Display;
 use uuid::Uuid;
 
 /// How a message is spoken. Mirrors the vocabulary the DB enforces.
@@ -51,8 +50,68 @@ impl Display for MessageKind {
     }
 }
 
+/// One action a message carries: a kind, its text, and an optional target
+/// (`say`/`whisper`/`do` — an action can be done to someone too).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MessagePart {
+    pub kind: MessageKind,
+    pub text: String,
+    /// when using the kind `say`/`whisper`/`do`.
+    pub target_name: Option<String>,
+}
+
+impl MessagePart {
+    pub fn new(kind: MessageKind, text: String) -> Self {
+        Self {
+            kind,
+            target_name: None,
+            text,
+        }
+    }
+
+    pub fn with_target(mut self, target_name: String) -> Self {
+        self.target_name = Some(target_name);
+        self
+    }
+}
+
+/// The actions a single message carries, e.g. whispering while doing something.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MessageParts {
+    primary: MessagePart,
+    secondary: Option<MessagePart>,
+}
+
+impl MessageParts {
+    pub fn one(part: MessagePart) -> Self {
+        Self {
+            primary: part,
+            secondary: None,
+        }
+    }
+
+    pub fn two(primary: MessagePart, secondary: MessagePart) -> Self {
+        Self {
+            primary,
+            secondary: Some(secondary),
+        }
+    }
+
+    pub fn primary(&self) -> &MessagePart {
+        &self.primary
+    }
+
+    pub fn secondary(&self) -> Option<&MessagePart> {
+        self.secondary.as_ref()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &MessagePart> {
+        std::iter::once(&self.primary).chain(self.secondary.as_ref())
+    }
+}
+
 /// One entry in an adventure's conversation log.
-/// Messages are append-only
+/// Messages are append-only.
 #[derive(Clone, Debug)]
 pub struct Message {
     /// it is `None` until persisted and always `Some` when read back.
@@ -61,11 +120,7 @@ pub struct Message {
     pub character_id: Option<Uuid>,
     pub narrator_id: Option<Uuid>,
     pub speaker_name: String,
-    // TODO: A message can have multiple messageKind, a player can whisper and do some action, maybe a hashmap with the kind key and value the text
-    pub kind: MessageKind,
-    pub text: String,
-    /// when using the option `say`/`whisper`.
-    pub target_name: Option<String>,
+    pub parts: MessageParts,
     pub created_at: DateTime<Utc>,
 }
 
@@ -76,8 +131,7 @@ impl Message {
         character_id: Option<Uuid>,
         narrator_id: Option<Uuid>,
         speaker_name: String,
-        kind: MessageKind,
-        text: String,
+        parts: MessageParts,
     ) -> Self {
         Self {
             seq: None,
@@ -85,15 +139,8 @@ impl Message {
             character_id,
             narrator_id,
             speaker_name,
-            kind,
-            text,
-            target_name: None,
+            parts,
             created_at: Utc::now(),
         }
-    }
-
-    pub fn with_target(mut self, target_name: String) -> Self {
-        self.target_name = Some(target_name);
-        self
     }
 }

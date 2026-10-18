@@ -3,11 +3,12 @@ use sqlx::{Row, query, query_scalar};
 use uuid::Uuid;
 
 use crate::backend::application::helper::setup_db;
+use living_voices::ai::ChatMessage;
 use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::memory::Summary;
-use living_voices::backend::domain::message::{Message, MessageKind};
+use living_voices::backend::domain::message::{Message, MessageKind, MessagePart, MessageParts};
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::persistence::memory_persistence::{insert_summary, last_covered};
 use living_voices::backend::persistence::message_persistence::insert_message;
@@ -51,8 +52,7 @@ async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: u64) -> Vec
             None,
             None,
             format!("Speaker {i}"),
-            MessageKind::Say,
-            format!("line {i}"),
+            MessageParts::one(MessagePart::new(MessageKind::Say, format!("line {i}"))),
         );
         let stored = insert_message(&mut conn, &message)
             .await
@@ -188,4 +188,56 @@ async fn compress_is_a_noop_when_every_message_is_covered() {
         .expect("summary rows");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].get::<String, _>("id"), earlier.id.to_string());
+}
+
+// ---------------------------------------------------------------- formatting
+
+#[test]
+fn chat_message_from_single_part_formats_speaker_kind_and_target() {
+    // Given a message with one targeted part
+    let message = Message::new(
+        Uuid::new_v4(),
+        None,
+        None,
+        "Alice".to_string(),
+        MessageParts::one(
+            MessagePart::new(MessageKind::Say, "Open the door".to_string())
+                .with_target("Bob".to_string()),
+        ),
+    );
+
+    // When rendering it for the memory model
+    let chat = ChatMessage::from(&message);
+
+    // Then the line reads `[<character> say] to [<target>]: <message>`
+    assert_eq!(chat.content, "[Alice say] to [Bob]: Open the door");
+}
+
+#[test]
+fn chat_message_from_two_parts_joins_segments() {
+    // Given a message that whispers while doing something
+    let message = Message::new(
+        Uuid::new_v4(),
+        None,
+        None,
+        "Alice".to_string(),
+        MessageParts::two(
+            MessagePart::new(
+                MessageKind::Whisper,
+                "come here, drawing my sword".to_string(),
+            )
+            .with_target("Bob".to_string()),
+            MessagePart::new(MessageKind::Do, "raise the paper".to_string())
+                .with_target("Bob".to_string()),
+        ),
+    );
+
+    // When rendering it for the memory model
+    let chat = ChatMessage::from(&message);
+
+    // Then both actions appear, each segment with its own text, joined with ` + `
+    assert_eq!(
+        chat.content,
+        "[Alice whisper] to [Bob]: come here, drawing my sword + [Alice do] to [Bob]: raise the paper"
+    );
 }

@@ -1,7 +1,7 @@
 use chrono::Utc;
 use uuid::Uuid;
 
-use living_voices::backend::domain::message::{Message, MessageKind};
+use living_voices::backend::domain::message::{Message, MessageKind, MessagePart, MessageParts};
 
 #[test]
 fn messagekind_all_contains_expected_variants() {
@@ -85,37 +85,64 @@ fn message_new_sets_defaults() {
         char_id,
         nar_id,
         "Alice".to_string(),
-        MessageKind::Say,
-        "Hello".to_string(),
+        MessageParts::one(MessagePart::new(MessageKind::Say, "Hello".to_string())),
     );
     let after = Utc::now();
-    // Then seq is None, target_name None, fields match
+    // Then seq is None, parts hold the single Say part, fields match
     assert!(m.seq.is_none());
     assert_eq!(m.adventure_id, adv);
     assert_eq!(m.character_id, char_id);
     assert_eq!(m.narrator_id, nar_id);
     assert_eq!(m.speaker_name, "Alice");
-    assert_eq!(m.kind, MessageKind::Say);
-    assert_eq!(m.text, "Hello");
-    assert!(m.target_name.is_none());
+    assert_eq!(m.parts.primary().kind, MessageKind::Say);
+    assert_eq!(m.parts.primary().text, "Hello");
+    assert!(m.parts.primary().target_name.is_none());
+    assert!(m.parts.secondary().is_none());
     assert!(m.created_at >= before && m.created_at <= after);
 }
 
 #[test]
-fn message_with_target_sets_target_name() {
-    // Given base message
-    let m = Message::new(
-        Uuid::new_v4(),
-        None,
-        None,
-        "Bob".to_string(),
-        MessageKind::Whisper,
-        "Pssst".to_string(),
+fn message_part_with_target_sets_target_name() {
+    // Given a part without target
+    // When adding a target
+    let part = MessagePart::new(MessageKind::Do, "raise the drawing".to_string())
+        .with_target("Charlie".to_string());
+    // Then target_name set — `do` allows a target: an action can be done to someone
+    assert_eq!(part.target_name.as_deref(), Some("Charlie"));
+}
+
+#[test]
+fn message_parts_one_yields_single_part() {
+    // Given a single-part message
+    let parts = MessageParts::one(MessagePart::new(
+        MessageKind::Do,
+        "open the door".to_string(),
+    ));
+    // When iterating
+    // Then exactly one part is yielded
+    let kinds: Vec<MessageKind> = parts.iter().map(|p| p.kind).collect();
+    assert_eq!(kinds, [MessageKind::Do]);
+    assert!(parts.secondary().is_none());
+}
+
+#[test]
+fn message_parts_two_keeps_both_parts_in_order() {
+    // Given two parts: whispering while drawing
+    let parts = MessageParts::two(
+        MessagePart::new(MessageKind::Whisper, "come here".to_string())
+            .with_target("Charlie".to_string()),
+        MessagePart::new(MessageKind::Do, "raise the drawing".to_string()),
     );
-    // When adding target
-    let m2 = m.with_target("Charlie".to_string());
-    // Then target_name set
-    assert_eq!(m2.target_name.as_deref(), Some("Charlie"));
+    // When iterating
+    let collected: Vec<&MessagePart> = parts.iter().collect();
+    // Then both parts are yielded in order, each with its own text
+    assert_eq!(collected.len(), 2);
+    assert_eq!(collected[0].kind, MessageKind::Whisper);
+    assert_eq!(collected[0].text, "come here");
+    assert_eq!(collected[0].target_name.as_deref(), Some("Charlie"));
+    assert_eq!(collected[1].kind, MessageKind::Do);
+    assert_eq!(collected[1].text, "raise the drawing");
+    assert!(collected[1].target_name.is_none());
 }
 
 #[test]
