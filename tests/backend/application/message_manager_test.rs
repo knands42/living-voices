@@ -89,7 +89,7 @@ fn load_adventure(
         pool.clone(),
         chat_handler(),
         narrator_handler(),
-        Director::new(1.0, Default::default()),
+        Director::new(Default::default()),
         memory,
         memory_settings(),
     )
@@ -206,7 +206,7 @@ async fn send_message_errors_without_a_current_adventure() {
         pool.clone(),
         chat_handler(),
         narrator_handler(),
-        Director::new(1.0, Default::default()),
+        Director::new(Default::default()),
         memory,
         memory_settings(),
     );
