@@ -25,23 +25,6 @@ async fn main() {
         std::process::exit(1);
     }
 
-    #[cfg(debug_assertions)]
-    {
-        use living_voices::backend::run_seeds;
-
-        log::info!("Seeding demo world: {}", seed_titles().join(", "));
-
-        match run_seeds(&config.db_path.to_string_lossy().as_ref()).await {
-            Ok(ids) => log::info!("Seeded {} adventures", ids.len()),
-            Err(err) => {
-                eprintln!("Could not seed demo world: {err}");
-                std::process::exit(1);
-            }
-        }
-
-        log::info!("Demo mode: debug build — exiting after seed.");
-    }
-
     let app = App::new(
         pool,
         config.settings.models.memory.clone(),
@@ -49,6 +32,30 @@ async fn main() {
         config.settings.memory.clone(),
         config.settings.director.clone(),
     );
+
+    #[cfg(debug_assertions)]
+    {
+        use living_voices::backend::run_seeds;
+
+        log::info!("Seeding demo world: {}", seed_titles().join(", "));
+
+        match run_seeds(&config.db_path.to_string_lossy().as_ref()).await {
+            Ok(adventures) => {
+                log::info!("Seeded {} adventures", adventures.len());
+                if let Some(first) = adventures.into_iter().next() {
+                    if let Err(err) = app.load_adventure(first) {
+                        eprintln!("Could not open seeded adventure: {err}");
+                        std::process::exit(1);
+                    }
+                }
+            }
+            Err(err) => {
+                eprintln!("Could not seed demo world: {err}");
+                std::process::exit(1);
+            }
+        }
+    }
+
     log::info!("Starting Living Voices");
 
     if let Err(err) = app.run() {

@@ -116,30 +116,25 @@ export component RootWindow inherits Window {
     ];
 
     // ---- Chat-page inputs ----
-    in property <[ChatCharacter]> characters: [
-        { name: "Kaelen", role: "Elf Ranger", glyph: "K", hue: #2f4a2a, active: false, location: "", level: "", status: "" },
-        { name: "Zora",   role: "Wizard",    glyph: "Z", hue: #3a2f52, active: false, location: "", level: "", status: "" },
-        { name: "Morwyn", role: "Rogue",     glyph: "M", hue: #3a2a1f, active: true,  location: "Alley", level: "Level 1", status: "Status" }
-    ];
-    in property <[ChatMessage]> messages: [
-        { speaker: "Kaelen",   time: "14:32",      narrator: false, own: false, text: "The forest feels unusually quiet tonight..." },
-        { speaker: "Zora",     time: "14:32",      narrator: false, own: false, text: "Indeed, the magical aura has shifted." },
-        { speaker: "Narrator", time: "scroll bg.", narrator: true,  own: false, text: "You hear rustling in the bushes nearby..." },
-        { speaker: "Morwyn",   time: "14:34",      narrator: false, own: true,  text: "I'll scout ahead carefully..." }
-    ];
+    // Characters and messages are filled from the loaded adventure by Rust.
+    // Chat starts EMPTY, like a fresh session.
+    in property <[ChatCharacter]> characters: [];
+    in property <[ChatMessage]> messages: [];
     in property <[ActionMode]> action-modes: [
         { label: "Say" }, { label: "Do" }, { label: "Think" }, { label: "Whisper" }
     ];
-    in-out property <int> active-mode: 0;
+    // Action selection: a primary (always set) + optional secondary (-1 = none).
+    in-out property <int> mode-primary: 0;
+    in-out property <int> mode-secondary: -1;
     in-out property <ChatCharacter> whisper-target: {
-        name: "Morwyn", role: "Rogue", glyph: "M", hue: #3a2a1f,
+        name: "", role: "", glyph: "", hue: #3a2a1f,
         active: false, location: "", level: "", status: ""
     };
     // Live draft text in the composer. Rust reads it on send and clears it after.
     in-out property <string> draft: "";
     in property <NarratorEvent> narrator-event: {
-        body: "A guard rounds the corner, halting your progress!",
-        event-label: "EVENT: A Guard Appears"
+        body: "",
+        event-label: ""
     };
     in property <StoryClockData> story-clock: { phase: "EVENING", time: "19:48" };
 
@@ -153,7 +148,6 @@ export component RootWindow inherits Window {
     callback nsfw-toggled(bool);
     // Chat
     callback character-selected(string);
-    callback mode-selected(int);
     callback send-message();
 
     // ---- Background atmosphere (shared across pages) ----
@@ -195,13 +189,13 @@ export component RootWindow inherits Window {
             characters: root.characters;
             messages: root.messages;
             action-modes: root.action-modes;
-            active-mode <=> root.active-mode;
+            mode-primary <=> root.mode-primary;
+            mode-secondary <=> root.mode-secondary;
             whisper-target <=> root.whisper-target;
             draft <=> root.draft;
             narrator-event: root.narrator-event;
             story-clock: root.story-clock;
             character-selected(name) => { root.character-selected(name); }
-            mode-selected(i) => { root.mode-selected(i); }
             send-message => { root.send-message(); }
         }
     }

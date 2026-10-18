@@ -196,13 +196,13 @@ pub fn find_seed(title: &str) -> Option<&'static SeedAdventure> {
         .find(|seed| seed.title.eq_ignore_ascii_case(title))
 }
 
-pub async fn run_seeds(db_path: &str) -> Result<Vec<Uuid>, PersistenceError> {
+pub async fn run_seeds(db_path: &str) -> Result<Vec<Adventure>, PersistenceError> {
     let pool = open_pool(db_path).await?;
 
     let mut created = Vec::with_capacity(SEED_ADVENTURES.len());
     for seed in SEED_ADVENTURES {
-        let id = seed_pool(&pool, seed).await?;
-        created.push(id);
+        let adventure = seed_pool(&pool, seed).await?;
+        created.push(adventure);
     }
 
     pool.close().await;
@@ -216,24 +216,24 @@ pub async fn seed_one(db_path: &str, title: &str) -> Result<Uuid, PersistenceErr
     })?;
 
     let pool = open_pool(db_path).await?;
-    let id = seed_pool(&pool, seed).await?;
+    let adventure = seed_pool(&pool, seed).await?;
     pool.close().await;
 
-    Ok(id)
+    Ok(adventure.id)
 }
 
-async fn seed_pool(pool: &SqlitePool, seed: &SeedAdventure) -> Result<Uuid, PersistenceError> {
+async fn seed_pool(pool: &SqlitePool, seed: &SeedAdventure) -> Result<Adventure, PersistenceError> {
     let mut tx = pool.begin().await?;
-    let id = seed_connection(&mut tx, seed).await?;
+    let adventure = seed_connection(&mut tx, seed).await?;
     tx.commit().await?;
 
-    Ok(id)
+    Ok(adventure)
 }
 
 async fn seed_connection(
     tx: &mut sqlx::Transaction<'static, Sqlite>,
     seed: &SeedAdventure,
-) -> Result<Uuid, PersistenceError> {
+) -> Result<Adventure, PersistenceError> {
     let mut adventure = Adventure::new(
         seed.title.to_string(),
         seed.description.to_string(),
@@ -298,5 +298,5 @@ async fn seed_connection(
         insert_relations(&mut *tx, character.id, &character.relations).await?;
     }
 
-    Ok(adventure.id)
+    Ok(adventure)
 }

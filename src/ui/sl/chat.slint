@@ -399,11 +399,12 @@ component ActionButton inherits Rectangle {
     }
 }
 
-// A chip inside the composer field that advertises what the current action mode
-// will do: "Say to Morwyn", "Do", "Think", "Whisper to Morwyn". For modes that
-// require a target (say / whisper) the target avatar is shown next to the text,
-// and the text falls back to "…" when no target is picked yet.
-component ModePill inherits Rectangle {
+// A chip inside the composer field that advertises ONE selected action mode:
+// "Say to Morwyn", "Do", "Think", "Whisper to Morwyn". For modes that require a
+// target (say / whisper) the target avatar is shown next to the text, and the
+// text falls back to "…" when no target is picked yet. The composer shows one
+// of these per selected mode (up to two), so a "Say + Do" turn reads clearly.
+component ModeLabel inherits Rectangle {
     in property <int> mode;              // 0=say, 1=do, 2=think, 3=whisper
     in property <ChatCharacter> target;
 
@@ -537,18 +538,51 @@ component Sidebar inherits Rectangle {
 component ChatCenter inherits Rectangle {
     in property <[ChatMessage]> messages;
     in property <[ActionMode]> action-modes;
-    in-out property <int> active-mode;
     in property <[ChatCharacter]> characters;
     in-out property <ChatCharacter> whisper-target;
     in-out property <string> draft;
-    in property <NarratorEvent> narrator-event;
 
-    property <bool> needs-target: root.active-mode == 0 || root.active-mode == 3;
+    // ---- Action selection ----------------------------------------------
+    // The player may combine up to TWO actions in one turn (e.g. "Say" + "Do").
+    //   mode-primary    always set, 0..3 (defaults to Say)
+    //   mode-secondary  -1 = none, otherwise 0..3 and different from primary
+    // Rust reads both on send and builds a one- or two-part message.
+    in-out property <int> mode-primary: 0;
+    in-out property <int> mode-secondary: -1;
+
+    // True when any selected mode addresses someone (Say / Whisper).
+    property <bool> needs-target: root.is-targeted(root.mode-primary)
+        || root.is-targeted(root.mode-secondary);
     property <bool> can-send: root.draft != ""
         && (!root.needs-target || root.whisper-target.name != "");
 
-    callback mode-selected(int);
     callback send-clicked;
+
+    // Toggle action `i` in/out of the two-slot selection. Kept here (not in
+    // Rust) so the buttons feel instant; Rust only reads the final choice.
+    function toggle-mode(i: int) {
+        if (i == root.mode-primary) {
+            // Deselecting the primary: promote the secondary if there is one,
+            // otherwise keep it — a turn always has at least one action.
+            if (root.mode-secondary != -1) {
+                root.mode-primary = root.mode-secondary;
+                root.mode-secondary = -1;
+            }
+        } else if (i == root.mode-secondary) {
+            root.mode-secondary = -1;              // deselect the secondary
+        } else if (root.mode-secondary == -1) {
+            root.mode-secondary = i;               // add as the second action
+        } else {
+            root.mode-secondary = i;               // replace the second action
+        }
+    }
+
+    pure function is-targeted(mode: int) -> bool {
+        mode == 0 || mode == 3
+    }
+    pure function is-selected(i: int) -> bool {
+        i == root.mode-primary || i == root.mode-secondary
+    }
 
     background: transparent;
 
@@ -560,37 +594,29 @@ component ChatCenter inherits Rectangle {
         ParchmentScroll {
             vertical-stretch: 1;
 
-            Flickable {
+            log := Flickable {
                 width: parent.width;
                 height: parent.height;
                 content-width: self.width;
+                content-height: col.preferred-height;
 
-                VerticalLayout {
+                // Keep the newest message in view: whenever the content grows
+                // past the viewport, pin the scroll to the bottom.
+                content-y: min(0px, self.height - self.content-height);
+
+                col := VerticalLayout {
                     padding-left: AppTheme.pad-card;
                     padding-right: AppTheme.pad-card;
                     padding-top: 16px;
                     padding-bottom: 16px;
                     spacing: 10px;
 
-                    for msg[i] in root.messages: Rectangle {
-                        height: entry.preferred-height;
-
-                        entry := ChatEntry {
-                            data: msg;
-                            width: parent.width;
-                        }
-                    }
-
-                    // Current narrator event, shown as the newest info in the flow
-                    if root.narrator-event.event-label != "" || root.narrator-event.body != "": Rectangle {
-                        height: event-notice.preferred-height;
-
-                        event-notice := NarratorNotice {
-                            label: root.narrator-event.event-label;
-                            body: root.narrator-event.body;
-                            width: Math.min(parent.width - 48px, 460px);
-                            x: (parent.width - self.width) / 2;
-                        }
+                    // Every message — player lines, character replies AND
+                    // narration — flows here in order, so a new line always
+                    // lands after the latest narration, never above it.
+                    for msg[i] in root.messages: ChatEntry {
+                        data: msg;
+                        width: parent.width;
                     }
 
                     Rectangle { height: 0px; }
@@ -598,7 +624,7 @@ component ChatCenter inherits Rectangle {
             }
         }
 
-        // ---- composer field: mode pill + editable input + send ----
+        // ---- composer field: mode label(s) + editable input + send ----
         Rectangle {
             height: 56px;
             border-radius: AppTheme.radius-card;
@@ -613,29 +639,31 @@ component ChatCenter inherits Rectangle {
                 spacing: 10px;
                 alignment: stretch;
 
-                // Vertical-centering wrapper so the pill doesn't stretch to 56px
+                // Vertical-centering wrapper so the labels don't stretch to 56px.
+                // One label per selected action: "Say to Morwyn", "+ Do", …
                 VerticalLayout {
                     alignment: center;
-                    ModePill {
-                        mode: root.active-mode;
-                        target: root.whisper-target;
+                    HorizontalLayout {
+                        spacing: 6px;
+                        alignment: start;
+
+                        ModeLabel {
+                            mode: root.mode-primary;
+                            target: root.whisper-target;
+                        }
+                        if root.mode-secondary != -1: ModeLabel {
+                            mode: root.mode-secondary;
+                            target: root.whisper-target;
+                        }
                     }
                 }
 
                 ComposerInput {
                     horizontal-stretch: 1;
                     text <=> root.draft;
-                    placeholder: root.active-mode == 0
-                        ? (root.whisper-target.name != ""
-                            ? "Speak to " + root.whisper-target.name + "…"
-                            : "Pick someone to speak to below…")
-                        : (root.active-mode == 1
-                            ? "Describe what your character does…"
-                            : (root.active-mode == 2
-                                ? "What is on your character's mind?"
-                                : (root.whisper-target.name != ""
-                                    ? "Whisper privately to " + root.whisper-target.name + "…"
-                                    : "Pick someone to whisper to below…")));
+                    placeholder: root.needs-target && root.whisper-target.name == ""
+                        ? "Pick someone to address below…"
+                        : "Write your turn…";
                     submitted => {
                         if (root.can-send) {
                             root.send-clicked();
@@ -674,7 +702,7 @@ component ChatCenter inherits Rectangle {
             }
         }
 
-        // ---- action-mode bar: Say / Do / Think / Whisper ----
+        // ---- action-mode bar: Say / Do / Think / Whisper (pick up to two) ----
         HorizontalLayout {
             spacing: 10px;
             alignment: center;
@@ -682,10 +710,9 @@ component ChatCenter inherits Rectangle {
 
             for mode[i] in root.action-modes: ActionButton {
                 label: mode.label;
-                active: i == root.active-mode;
+                active: root.is-selected(i);
                 clicked => {
-                    root.active-mode = i;
-                    root.mode-selected(i);
+                    root.toggle-mode(i);
                 }
             }
 
@@ -699,7 +726,7 @@ component ChatCenter inherits Rectangle {
             }
         }
 
-        // ---- helper row: target picker when the mode needs one, else a hint ----
+        // ---- helper row: target picker when a mode needs one, else a hint ----
         Rectangle {
             height: 48px;
 
@@ -708,7 +735,7 @@ component ChatCenter inherits Rectangle {
                 alignment: center;
 
                 Text {
-                    text: root.active-mode == 0 ? "Speak to:" : "Whisper to:";
+                    text: "Address:";
                     font-family: AppTheme.font-body;
                     font-size: AppTheme.font-label;
                     color: AppTheme.text-muted;
@@ -739,9 +766,7 @@ component ChatCenter inherits Rectangle {
                 alignment: center;
 
                 Text {
-                    text: root.active-mode == 1
-                        ? "Do — describe an action your character performs. No target needed."
-                        : "Think — your character's silent inner thoughts. Only you hear them.";
+                    text: "Pick one or two actions above, then write your turn.";
                     font-family: AppTheme.font-body;
                     font-italic: true;
                     font-size: AppTheme.font-label;
@@ -936,7 +961,8 @@ export component ChatPage inherits Rectangle {
     in property <[ChatCharacter]> characters;
     in property <[ChatMessage]> messages;
     in property <[ActionMode]> action-modes;
-    in-out property <int> active-mode;
+    in-out property <int> mode-primary: 0;
+    in-out property <int> mode-secondary: -1;
     in-out property <ChatCharacter> whisper-target;
     in-out property <string> draft;
     in property <NarratorEvent> narrator-event;
@@ -944,7 +970,6 @@ export component ChatPage inherits Rectangle {
 
     // ---- callbacks ----
     callback character-selected(string);
-    callback mode-selected(int);
     callback send-message();
 
     HorizontalLayout {
@@ -962,14 +987,11 @@ export component ChatPage inherits Rectangle {
             horizontal-stretch: 1;
             messages: root.messages;
             action-modes: root.action-modes;
-            active-mode <=> root.active-mode;
+            mode-primary <=> root.mode-primary;
+            mode-secondary <=> root.mode-secondary;
             characters: root.characters;
             whisper-target <=> root.whisper-target;
             draft <=> root.draft;
-            narrator-event: root.narrator-event;
-            mode-selected(i) => {
-                root.mode-selected(i);
-            }
             send-clicked => {
                 root.send-message();
             }

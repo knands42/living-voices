@@ -7,6 +7,7 @@ use crate::{
     app::AppContext,
     backend::application::port::chat_port::{ChatHandler, NarratorHandler},
     backend::application::port::memory_port::MemoryDistiller,
+    backend::domain::message::{Message, MessageKind, MessagePart, MessageParts},
     ui::{ChatMessage, RootWindow},
 };
 
@@ -18,11 +19,14 @@ const PAGE_CHAT: i32 = 1;
 // Tab codes
 const TAB_CAMPAIGNS: i32 = 0;
 
-// Chat action modes
+// Chat action modes (must match the order of `action-modes` in app.slint).
 const MODE_SAY: i32 = 0;
 const MODE_DO: i32 = 1;
 const MODE_THINK: i32 = 2;
 const MODE_WHISPER: i32 = 3;
+
+// Sentinel for "no secondary action selected" (see ChatCenter in chat.slint).
+const MODE_NONE: i32 = -1;
 
 // ---------------------------------------------------------------------------
 // Entry point
@@ -74,11 +78,19 @@ fn register_chat_callbacks<
     M: MemoryDistiller + Clone + 'static,
 >(
     ui: &RootWindow,
-    _ctx: &AppContext<C, N, M>,
+    ctx: &AppContext<C, N, M>,
 ) {
+    // Back the `messages` property with a VecModel we can push to over time.
     let seed: Vec<ChatMessage> = ui.get_messages().iter().collect();
     let messages: Rc<VecModel<ChatMessage>> = Rc::new(VecModel::from(seed));
     ui.set_messages(ModelRc::from(messages.clone()));
+
+    // The async handle for the Tokio runtime `main` is already running on.
+    // Model/DB calls run there; results are posted back to the UI thread via
+    // `slint::invoke_from_event_loop`.
+    let runtime = tokio::runtime::Handle::current();
+    let message_manager = ctx.messages.clone();
+    let adventures = ctx.adventures.clone();
 
     let ui_weak = ui.as_weak();
     let msgs = messages.clone();
@@ -91,44 +103,205 @@ fn register_chat_callbacks<
             return;
         }
 
-        let kind = mode_kind(ui.get_active_mode());
-        let needs_target = matches!(kind, "say" | "whisper");
+        // Which action(s) the player picked: a primary plus an optional second.
+        let primary = ui.get_mode_primary();
+        let secondary = ui.get_mode_secondary();
 
-        let target = ui.get_whisper_target();
-        let target_name = target.name.to_string();
-        if needs_target && target_name.trim().is_empty() {
-            log::debug!("send ignored: {kind} requires a target");
+        let target_name = ui.get_whisper_target().name.to_string();
+        let target_trimmed = target_name.trim();
+        // A Say / Whisper part needs someone to address.
+        let needs_target = mode_needs_target(primary) || mode_needs_target(secondary);
+        if needs_target && target_trimmed.is_empty() {
+            log::debug!("send ignored: selected action needs a target");
             return;
         }
 
-        let speaker = ui.get_player_name();
-        let time: SharedString = Local::now().format("%H:%M").to_string().into();
+        let Some(adventure) = adventures.current_adventure() else {
+            log::warn!("send ignored: no adventure loaded");
+            return;
+        };
 
-        msgs.push(ChatMessage {
-            speaker,
-            text: draft_trim.into(),
-            time,
-            narrator: false,
-            own: true,
-            kind: kind.into(),
-            target: if needs_target {
-                target_name.into()
-            } else {
-                SharedString::new()
-            },
-        });
+        let speaker = ui.get_player_name().to_string();
 
+        // 1) Show the player's line immediately, in order, at the bottom.
+        push_player_bubble(
+            &msgs,
+            &speaker,
+            draft_trim,
+            primary,
+            secondary,
+            target_trimmed,
+        );
         ui.set_draft(SharedString::new());
+
+        // 2) Build the domain message (one or two parts) and send it.
+        let domain_message = build_domain_message(
+            &adventure.id,
+            &speaker,
+            draft_trim,
+            primary,
+            secondary,
+            target_trimmed,
+        );
+
+        let manager = message_manager.clone();
+        let ui_for_reply = ui.as_weak();
+        runtime.spawn(async move {
+            let result = manager.send_message(domain_message).await;
+            // Hop back to the UI thread to mutate the model safely.
+            let _ = slint::invoke_from_event_loop(move || {
+                let Some(ui) = ui_for_reply.upgrade() else {
+                    return;
+                };
+                let model = ui.get_messages();
+                let Some(vec_model) = model.as_any().downcast_ref::<VecModel<ChatMessage>>() else {
+                    return;
+                };
+                match result {
+                    Ok(reply) => vec_model.push(reply_to_bubble(&reply)),
+                    Err(err) => {
+                        log::error!("send_message failed: {err}");
+                        vec_model.push(error_bubble(&err.to_string()));
+                    }
+                }
+            });
+        });
     });
 }
 
-fn mode_kind(mode: i32) -> &'static str {
+/// Does this UI mode address another character (Say / Whisper)?
+fn mode_needs_target(mode: i32) -> bool {
+    matches!(mode, MODE_SAY | MODE_WHISPER)
+}
+
+/// Map a UI mode to a domain `MessageKind`. The domain has no dedicated
+/// "whisper" kind — a whisper is a targeted `Say`, so it maps there.
+fn mode_to_kind(mode: i32) -> MessageKind {
+    match mode {
+        MODE_SAY => MessageKind::Say,
+        MODE_DO => MessageKind::Do,
+        MODE_THINK => MessageKind::Think,
+        MODE_WHISPER => MessageKind::Say,
+        _ => MessageKind::Say,
+    }
+}
+
+/// The UI `kind` string used for styling a bubble (keeps "whisper" distinct).
+fn mode_to_ui_kind(mode: i32) -> &'static str {
     match mode {
         MODE_SAY => "say",
         MODE_DO => "do",
         MODE_THINK => "think",
         MODE_WHISPER => "whisper",
         _ => "say",
+    }
+}
+
+/// Build one `MessagePart` for a selected mode, attaching the target when the
+/// mode addresses someone.
+fn build_part(mode: i32, text: &str, target: &str) -> MessagePart {
+    let part = MessagePart::new(mode_to_kind(mode), text);
+    if mode_needs_target(mode) && !target.is_empty() {
+        part.with_target(target)
+    } else {
+        part
+    }
+}
+
+/// Assemble the domain message from the draft and the one or two chosen modes.
+fn build_domain_message(
+    adventure_id: &uuid::Uuid,
+    speaker: &str,
+    text: &str,
+    primary: i32,
+    secondary: i32,
+    target: &str,
+) -> Message {
+    let primary_part = build_part(primary, text, target);
+    let parts = if secondary == MODE_NONE {
+        MessageParts::one(primary_part)
+    } else {
+        MessageParts::two(primary_part, build_part(secondary, text, target))
+    };
+
+    // Player-authored line: not tied to a cast character or the narrator.
+    Message::new(*adventure_id, None, None, speaker.to_string(), parts)
+}
+
+/// Append the player's own line to the visible log (right-aligned, "own").
+fn push_player_bubble(
+    msgs: &Rc<VecModel<ChatMessage>>,
+    speaker: &str,
+    text: &str,
+    primary: i32,
+    secondary: i32,
+    target: &str,
+) {
+    let time: SharedString = Local::now().format("%H:%M").to_string().into();
+    // The bubble's caption shows the primary mode; a combined turn still reads
+    // naturally because the text carries both actions.
+    let ui_kind = mode_to_ui_kind(if secondary != MODE_NONE && primary == MODE_THINK {
+        secondary // prefer the spoken/acted caption over a silent "think"
+    } else {
+        primary
+    });
+    let show_target = mode_needs_target(primary) || mode_needs_target(secondary);
+
+    msgs.push(ChatMessage {
+        speaker: speaker.into(),
+        text: text.into(),
+        time,
+        narrator: false,
+        own: true,
+        kind: ui_kind.into(),
+        target: if show_target {
+            target.into()
+        } else {
+            SharedString::new()
+        },
+    });
+}
+
+/// Convert a persisted reply (character or narrator) into a UI bubble.
+fn reply_to_bubble(reply: &Message) -> ChatMessage {
+    let primary = reply.parts.primary();
+    let is_narrator = reply.narrator_id.is_some();
+    let time: SharedString = reply
+        .created_at
+        .with_timezone(&Local)
+        .format("%H:%M")
+        .to_string()
+        .into();
+
+    ChatMessage {
+        speaker: reply.speaker_name.as_str().into(),
+        text: primary.text.as_str().into(),
+        time,
+        narrator: is_narrator,
+        own: false,
+        kind: if is_narrator {
+            SharedString::new()
+        } else {
+            primary.kind.as_str().into()
+        },
+        target: primary
+            .target_name
+            .as_deref()
+            .map(SharedString::from)
+            .unwrap_or_default(),
+    }
+}
+
+/// A non-blocking inline notice when a send fails (e.g. model unreachable).
+fn error_bubble(message: &str) -> ChatMessage {
+    ChatMessage {
+        speaker: "System".into(),
+        text: format!("Could not get a reply: {message}").into(),
+        time: Local::now().format("%H:%M").to_string().into(),
+        narrator: true,
+        own: false,
+        kind: SharedString::new(),
+        target: SharedString::new(),
     }
 }
 

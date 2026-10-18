@@ -82,6 +82,16 @@ impl<
     M: MemoryDistiller + Clone + 'static,
 > App<C, N, M>
 {
+    /// Make `adventure` the current one before the UI starts, so the chat page
+    /// opens against a real, persisted adventure (cast + narrator).
+    #[cfg(debug_assertions)]
+    pub fn load_adventure(
+        &self,
+        adventure: crate::backend::domain::adventure::Adventure,
+    ) -> Result<(), crate::backend::application::adventure_manager::AdventureManagerError> {
+        self.ctx.adventures.set_current_adventure(adventure)
+    }
+
     pub fn run(&self) -> Result<(), slint::PlatformError> {
         ui::run(self.ctx.clone())
     }

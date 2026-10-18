@@ -48,29 +48,29 @@ pub enum ChatResponseError {
 }
 
 pub trait ChatHandler: Send + Sync {
-    async fn character_respond(
+    fn character_respond(
         &self,
         candidate: &Candidate,
         memory: &str,
         user_message: &str,
-    ) -> Result<ChatReply, ChatResponseError>;
+    ) -> impl std::future::Future<Output = Result<ChatReply, ChatResponseError>> + Send;
 
     /// Let the model BOTH pick which character from `candidates` speaks and
     /// voice them. The narrator is never a choice here — that decision is made
     /// upstream by the director.
-    async fn autonomous_respond(
+    fn autonomous_respond(
         &self,
         candidates: &[Candidate],
         memory: &str,
         user_message: &str,
-    ) -> Result<ChatReply, ChatResponseError>;
+    ) -> impl std::future::Future<Output = Result<ChatReply, ChatResponseError>> + Send;
 }
 
 pub trait NarratorHandler: Send + Sync {
-    async fn narrator_respond(
+    fn narrator_respond(
         &self,
         narrator_tone: &str,
         memory: &str,
         user_message: &str,
-    ) -> Result<ChatReply, ChatResponseError>;
+    ) -> impl std::future::Future<Output = Result<ChatReply, ChatResponseError>> + Send;
 }

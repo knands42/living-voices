@@ -49,4 +49,10 @@ impl AdventureManager {
     pub fn current_adventure(&self) -> Option<Adventure> {
         self.state.read().ok()?.current_adventure.clone()
     }
+
+    pub fn set_current_adventure(&self, adventure: Adventure) -> Result<(), AdventureManagerError> {
+        let mut guard = self.state.write()?;
+        guard.set_adventure(adventure);
+        Ok(())
+    }
 }
