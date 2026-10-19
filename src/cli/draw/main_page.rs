@@ -1,9 +1,17 @@
+use crate::ai::MemoryUpdate;
+use crate::ai::jobs::chat::Chat;
+use crate::ai::jobs::narrator::Narrator;
+use crate::app::AppContext;
 use crate::cli::state::CliState;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::prelude::{Line, Modifier, Span, Style};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-pub fn render(frame: &mut ratatui::Frame, state: &CliState) {
+pub fn render(
+    frame: &mut ratatui::Frame,
+    state: &CliState,
+    ctx: &AppContext<Chat, Narrator, MemoryUpdate>,
+) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)

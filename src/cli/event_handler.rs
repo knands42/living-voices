@@ -21,7 +21,6 @@ pub fn handle_key(
         (_, KeyCode::Char('q') | KeyCode::Esc) => Flow::Quit,
 
         (Page::Main, KeyCode::Char('a')) => {
-            // sync call — no await
             state.adventures = match ctx.adventures.current_adventure() {
                 Some(a) => vec![a],
                 None => Vec::new(),
@@ -31,7 +30,6 @@ pub fn handle_key(
         }
 
         (Page::Main, KeyCode::Char('n')) => {
-            // async call — bridge via the tokio runtime
             let res = runtime.block_on(ctx.adventures.create_adventure(
                 "New Tale".into(),
                 "".into(),

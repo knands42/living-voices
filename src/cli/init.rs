@@ -32,7 +32,7 @@ fn event_loop(
     runtime: &Handle,
 ) -> io::Result<()> {
     loop {
-        terminal.draw(|f| draw::draw(f, state))?;
+        terminal.draw(|f| draw::draw(f, state, ctx))?;
 
         if event::poll(Duration::from_millis(250))?
             && let Event::Key(key) = event::read()?
