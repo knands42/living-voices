@@ -37,6 +37,11 @@ rand = "0.10.3"
 ratatui = "0.30.2"
 crossterm = "0.29.0"
 color-eyre = "0.6.5"
+# Graphics-protocol image widget. `chafa-dyn` disabled to avoid the system
+# libchafa build dep; we keep `crossterm` + `image-defaults`. Pictures only
+# render in terminals that support Kitty/iTerm2/Sixel; everywhere else we
+# fall back to the GlyphAvatar in cli::draw::avatar.
+ratatui-image = { version = "12.0.0-rc.3", default-features = false, features = ["crossterm", "image-defaults"] }
 
 [build-dependencies]
 slint-build = "1.18.1"
