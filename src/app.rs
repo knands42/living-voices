@@ -74,6 +74,10 @@ impl App<Chat, Narrator, MemoryUpdate> {
             },
         }
     }
+
+    pub fn ctx(&self) -> &AppContext<Chat, Narrator, MemoryUpdate> {
+        &self.ctx
+    }
 }
 
 impl<

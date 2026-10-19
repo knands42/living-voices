@@ -82,7 +82,7 @@ async fn main() {
 
     let result: Result<(), Box<dyn std::error::Error>> = match frontend {
         Frontend::Ui => app.run().map_err(Into::into),
-        Frontend::Cli => cli::run(&app).map_err(Into::into),
+        Frontend::Cli => cli::init::run(&app).map_err(Into::into),
     };
 
     if let Err(err) = result {
