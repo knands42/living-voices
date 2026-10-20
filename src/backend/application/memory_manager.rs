@@ -2,15 +2,8 @@ use sqlx::SqlitePool;
 use thiserror::Error;
 
 use crate::backend::PersistenceError;
-use crate::backend::application::port::memory_port::{
-    DistillError, DistilledMemory, MemoryDistiller,
-};
+use crate::backend::application::port::memory_port::{DistillError, MemoryDistiller};
 use crate::backend::application::state::{SharedState, StateError};
-use crate::backend::domain::memory::{Fact, Summary};
-use crate::backend::persistence::memory_persistence::{
-    count_uncovered, insert_facts, insert_summary, last_covered,
-};
-use crate::backend::persistence::message_persistence::fetch_since;
 
 #[derive(Error, Debug)]
 pub enum MemoryManagerError {
@@ -48,10 +41,7 @@ impl<D: MemoryDistiller> MemoryManager<D> {
         };
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let after_seq = last_covered(&mut conn, adventure_id).await.unwrap_or(0);
-        let uncovered = count_uncovered(&mut conn, adventure_id, after_seq).await?;
-
-        Ok(uncovered >= threshold)
+        todo!()
     }
 
     /// Compress every message not yet covered by the latest summary.
@@ -65,27 +55,6 @@ impl<D: MemoryDistiller> MemoryManager<D> {
         };
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-
-        let after_seq = last_covered(&mut conn, adventure_id)
-            .await
-            .unwrap_or_else(|| 0);
-        let messages = fetch_since(&mut conn, adventure_id, after_seq).await?;
-        let to_seq = messages.last().and_then(|m| m.seq).unwrap_or(0);
-        if to_seq == 0 {
-            return Ok(());
-        }
-        let from_seq = after_seq + 1;
-
-        let DistilledMemory { facts, summary } = self.distiller.distill(&messages).await?;
-        let summary = Summary::new(adventure_id, summary, from_seq, to_seq);
-        insert_summary(&mut conn, &summary).await?;
-
-        let facts: Vec<Fact> = facts
-            .into_iter()
-            .map(|text| Fact::new(adventure_id, summary.id, text))
-            .collect();
-        insert_facts(&mut conn, &facts).await?;
-
-        Ok(())
+        todo!()
     }
 }

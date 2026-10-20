@@ -1,5 +1,5 @@
 use crate::backend::application::port::chat_port::Candidate;
-use crate::backend::domain::message::{Message, MessageKind};
+use crate::backend::domain::message::Message;
 use crate::config::DirectorSettings;
 
 /// Decides who answers a player's turn, with no model call.
@@ -12,7 +12,6 @@ impl Director {
     pub fn new(director_settings: DirectorSettings) -> Self {
         Self { director_settings }
     }
-
     pub fn should_narrator_speak(
         &self,
         candidates: &[Candidate],
@@ -25,13 +24,13 @@ impl Director {
         }
 
         // Scene-setting turns are the narrator's.
-        if matches!(incoming.parts.primary().kind, MessageKind::Narration) {
+        if incoming.narrator_id.is_some() {
             return true;
         }
 
         let roll = rand::random::<f32>();
         // If the incoming message is OOC, the narrator has a chance to speak.
-        if matches!(incoming.parts.primary().kind, MessageKind::Ooc) {
+        if incoming.ooc {
             return roll < self.director_settings.narrator_change_if_ooc;
         }
 
@@ -66,19 +65,27 @@ impl Director {
         } else {
             None
         }
+        // TODO: Implement logic for picking a character when the roll is not for the targeted character.
     }
 
-    /// The cast member named as a target on any part of the incoming message.
+    /// A cast member chosen at random from the incoming message's targets.
     fn targeted_character<'a>(
         &self,
         candidates: &'a [Candidate],
         incoming: &Message,
     ) -> Option<&'a Candidate> {
-        let target = incoming
-            .parts
-            .iter()
-            .find_map(|part| part.target_name.as_deref())?;
+        let targeted = incoming.targeted_characters.as_ref()?;
 
-        candidates.iter().find(|c| c.name == target)
+        let in_cast: Vec<&'a Candidate> = candidates
+            .iter()
+            .filter(|c| targeted.iter().any(|t| t.name == c.name))
+            .collect();
+
+        if in_cast.is_empty() {
+            return None;
+        }
+
+        let pick = rand::random_range(0..in_cast.len());
+        Some(in_cast[pick])
     }
 }

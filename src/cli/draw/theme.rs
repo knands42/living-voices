@@ -15,9 +15,7 @@ pub const PLUM: Color = Color::Rgb(0xa0, 0x6c, 0xa8);
 pub const RUST: Color = Color::Rgb(0xa8, 0x4a, 0x3c);
 pub const CARD_EDGE: Color = Color::Rgb(0x6b, 0x55, 0x3c);
 
-/// Stable, muted jewel-tone palette used to color speakers. Picking by
-/// hash keeps the choice consistent across frames without any state.
-pub const SPEAKER_PALETTE: [Color; 6] = [EMBER, GOLD, MOSS, SKY, PLUM, RUST];
+pub const SPEAKER_PALETTE: [Color; 7] = [EMBER, GOLD, MOSS, SKY, PLUM, RUST, GOLD_FADED];
 
 /// Deterministic color for a speaker name — same name, same hue every frame.
 pub fn speaker_color(name: &str) -> Color {

@@ -264,7 +264,7 @@ fn push_player_bubble(
 
 /// Convert a persisted reply (character or narrator) into a UI bubble.
 fn reply_to_bubble(reply: &Message) -> ChatMessage {
-    let primary = reply.parts.primary();
+    let primary = reply.text;
     let is_narrator = reply.narrator_id.is_some();
     let time: SharedString = reply
         .created_at

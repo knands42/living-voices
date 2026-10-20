@@ -93,7 +93,7 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
         let messages_since_narration = count_since_last_narration(&mut conn, adventure.id).await?;
         drop(conn);
 
-        let user_message = incoming.parts.render(incoming.speaker_name.as_str());
+        let user_message = incoming.text.as_str();
 
         let reply =
             if self

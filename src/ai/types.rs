@@ -1,4 +1,3 @@
-use crate::backend::domain::message::Message;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -33,25 +32,5 @@ impl ChatMessage {
             role,
             content: content.into(),
         }
-    }
-}
-
-/// Renders as `[<speaker> <kind>] to [<target>]: <text>` per part, joined with ` + `.
-impl From<&Message> for ChatMessage {
-    fn from(message: &Message) -> Self {
-        let rendered = message
-            .parts
-            .iter()
-            .map(|part| {
-                let mut segment = format!("[{} {}]", message.speaker_name, part.kind);
-                if let Some(target) = &part.target_name {
-                    segment.push_str(&format!(" to [{target}]"));
-                }
-                segment.push_str(&format!(": {}", part.text));
-                segment
-            })
-            .collect::<Vec<_>>()
-            .join(" + ");
-        ChatMessage::user(rendered)
     }
 }

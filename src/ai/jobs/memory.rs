@@ -68,7 +68,10 @@ impl MemoryUpdate {
 
 impl MemoryDistiller for MemoryUpdate {
     async fn distill(&self, messages: &[Message]) -> Result<DistilledMemory, DistillError> {
-        let history: Vec<ChatMessage> = messages.iter().map(ChatMessage::from).collect();
+        let history: Vec<ChatMessage> = messages
+            .iter()
+            .map(|message| ChatMessage::user(message.text.clone()))
+            .collect();
         let client = OpenAiCompatibleClient::with_timeout(
             &self.config.base_url,
             std::time::Duration::from_secs(self.config.request_timeout_secs),

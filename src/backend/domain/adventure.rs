@@ -2,10 +2,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::backend::domain::{
-    character::Character,
-    lore::Lore,
-    message::{Message, MessageKind, MessagePart, MessageParts},
-    narrator::Narrator,
+    character::Character, lore::Lore, message::Message, narrator::Narrator,
 };
 
 #[derive(Clone, Debug)]
@@ -50,18 +47,12 @@ impl Adventure {
     }
 
     pub fn message_from_reply(&self, replier: &str, text: &str) -> Message {
-        let (character_id, narrator_id, speaker_name, kind) = match self.find_character(replier) {
-            Some(character) => (
-                Some(character.id),
-                None,
-                character.name.clone(),
-                MessageKind::Say,
-            ),
+        let (character_id, narrator_id, speaker_name) = match self.find_character(replier) {
+            Some(character) => (Some(character.id), None, character.name.clone()),
             None => (
                 None,
                 Some(self.narrator.id),
                 Message::NARRATOR_SPEAKER_NAME.to_string(),
-                MessageKind::Narration,
             ),
         };
 
@@ -70,7 +61,9 @@ impl Adventure {
             character_id,
             narrator_id,
             speaker_name,
-            MessageParts::one(MessagePart::new(kind, text)),
+            text,
+            false,
+            None,
         )
     }
 }

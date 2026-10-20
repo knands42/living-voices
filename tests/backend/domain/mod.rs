@@ -1,4 +1,4 @@
-mod memory_test;
+mod memory;
 mod message_test;
 
 mod adventure_test;

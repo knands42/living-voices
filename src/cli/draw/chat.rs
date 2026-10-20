@@ -1,22 +1,22 @@
-use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use ratatui::style::{Modifier, Style};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Paragraph, Wrap};
-
 use crate::ai::MemoryUpdate;
 use crate::ai::jobs::chat::Chat;
 use crate::ai::jobs::narrator::Narrator;
 use crate::app::AppContext;
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::{Character, CharacterStatus};
-use crate::backend::domain::message::MessageKind;
+use crate::backend::domain::message::Message;
 use crate::cli::draw::avatar::{Avatar, GlyphAvatar};
 use crate::cli::draw::theme::{
-    CARD_EDGE, EMBER, GOLD, GOLD_FADED, INK, INK_DIM, dim, ink, muted, speaker_color,
+    CARD_EDGE, EMBER, GOLD, GOLD_FADED, INK, dim, ink, muted, speaker_color,
 };
 use crate::cli::draw::widgets::{StatusKind, card, hints, pill, status_dot};
 use crate::cli::state::{CliState, Page};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Paragraph, Wrap};
+use uuid::Uuid;
 
 pub fn render(frame: &mut Frame, state: &CliState, ctx: &AppContext<Chat, Narrator, MemoryUpdate>) {
     let input = match &state.page {
@@ -183,8 +183,15 @@ fn render_transcript(frame: &mut Frame, area: Rect, adventure: Option<&Adventure
     frame.render_widget(block, area);
 
     let lines = match adventure {
-        // TODO(transcript): replace with real `MessageManager::list(adventure_id)`.
-        Some(a) => mock_transcript(a),
+        Some(a) => vec![message_line(Message::new(
+            a.id,
+            Some(a.characters.iter().next().unwrap().id),
+            None,
+            a.characters.iter().next().unwrap().name.clone(),
+            "This is a test".to_string(),
+            false,
+            Some(vec![]),
+        ))],
         None => vec![Line::from(Span::styled(
             "open a tale to begin the scene",
             muted(),
@@ -197,76 +204,19 @@ fn render_transcript(frame: &mut Frame, area: Rect, adventure: Option<&Adventure
     frame.render_widget(p, inner);
 }
 
-fn mock_transcript(adventure: &Adventure) -> Vec<Line<'_>> {
-    let mut out: Vec<Line> = Vec::with_capacity(adventure.characters.len() * 2 + 2);
-    out.push(message_line(
-        "NARRATOR",
-        MessageKind::Narration,
-        "The lanterns hiss awake. Something stirs beyond the treeline.",
-    ));
-    out.push(Line::from(""));
-
-    for character in &adventure.characters {
-        out.push(message_line(
-            character.name.as_str(),
-            MessageKind::Say,
-            "I think I heard it too.",
-        ));
-    }
-
-    if adventure.characters.is_empty() {
-        out.push(Line::from(Span::styled(
-            "(no cast yet — add characters to this tale)",
-            muted(),
-        )));
-    }
-
-    out
-}
-
-fn message_line<'a>(speaker: &'a str, kind: MessageKind, text: &'a str) -> Line<'a> {
-    let hue = speaker_color(speaker);
+fn message_line<'a>(message: Message) -> Line<'a> {
+    let hue = speaker_color(&message.speaker_name);
     let gutter = Span::styled("▌ ", Style::default().fg(hue));
 
-    match kind {
-        MessageKind::Narration => Line::from(vec![
-            Span::styled("» ", Style::default().fg(GOLD)),
-            Span::styled(
-                text,
-                Style::default().fg(INK_DIM).add_modifier(Modifier::ITALIC),
-            ),
-        ]),
-        MessageKind::Say => Line::from(vec![
-            gutter,
-            Span::styled(
-                speaker,
-                Style::default().fg(hue).add_modifier(Modifier::BOLD),
-            ),
-            Span::styled(" · ", dim()),
-            Span::styled(text, ink()),
-        ]),
-        MessageKind::Do => Line::from(vec![
-            gutter,
-            Span::styled(
-                format!("*{speaker} "),
-                Style::default().fg(hue).add_modifier(Modifier::BOLD),
-            ),
-            Span::styled(format!("{text}*"), ink().add_modifier(Modifier::ITALIC)),
-        ]),
-        MessageKind::Think => Line::from(vec![
-            gutter,
-            Span::styled(
-                format!("{speaker} thinks "),
-                Style::default().fg(hue).add_modifier(Modifier::DIM),
-            ),
-            Span::styled(text, muted()),
-        ]),
-        MessageKind::Ooc => Line::from(vec![
-            Span::styled("〈ooc〉 ", Style::default().fg(INK_DIM)),
-            Span::styled(speaker, dim().add_modifier(Modifier::BOLD)),
-            Span::styled(format!(": {text}"), dim()),
-        ]),
-    }
+    Line::from(vec![
+        gutter,
+        Span::styled(
+            message.speaker_name,
+            Style::default().fg(hue).add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(" · ", dim()),
+        Span::styled(message.text, ink()),
+    ])
 }
 
 // ---------- Meta rail (right) ----------
