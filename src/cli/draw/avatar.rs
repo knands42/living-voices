@@ -8,7 +8,6 @@ use ratatui_image::protocol::StatefulProtocol;
 
 use super::theme::{INK, speaker_color};
 
-/// Anything that can paint itself into a rectangle. Pages talk to this.
 pub trait Avatar {
     fn render(&mut self, area: Rect, buf: &mut Buffer);
 }
@@ -42,8 +41,7 @@ impl Avatar for GlyphAvatar {
         }
 
         // Paint a solid tinted field with top/bottom half-blocks so even
-        // half-cell heights read as a square. Walking the buffer directly
-        // avoids building a Paragraph just for the fill.
+        // half-cell heights read as a square.
         for y in area.top()..area.bottom() {
             for x in area.left()..area.right() {
                 buf[(x, y)]

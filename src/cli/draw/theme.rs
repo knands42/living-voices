@@ -8,6 +8,7 @@ pub const EMBER: Color = Color::Rgb(0xd9, 0x6a, 0x3a); // accents, active
 
 pub const EMBER_SOFT: Color = Color::Rgb(0xb0, 0x55, 0x2e);
 pub const GOLD: Color = Color::Rgb(0xe8, 0xb4, 0x4a);
+pub const GOLD_FADED: Color = Color::Rgb(97, 78, 20);
 pub const MOSS: Color = Color::Rgb(0x7a, 0x9a, 0x4e);
 pub const SKY: Color = Color::Rgb(0x6c, 0x9d, 0xc6);
 pub const PLUM: Color = Color::Rgb(0xa0, 0x6c, 0xa8);

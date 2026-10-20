@@ -139,11 +139,4 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
             Err(err) => eprintln!("memory compression check failed: {err}"),
         }
     }
-
-    async fn send_and_expect_narrator_to_reply() -> Result<Message, MessageManagerError> {
-        todo!()
-    }
-    async fn send_and_expect_character_to_reply() -> Result<Message, MessageManagerError> {
-        todo!()
-    }
 }

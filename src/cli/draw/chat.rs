@@ -13,7 +13,7 @@ use crate::backend::domain::character::{Character, CharacterStatus};
 use crate::backend::domain::message::MessageKind;
 use crate::cli::draw::avatar::{Avatar, GlyphAvatar};
 use crate::cli::draw::theme::{
-    CARD_EDGE, EMBER, GOLD, INK, INK_DIM, dim, ink, muted, speaker_color,
+    CARD_EDGE, EMBER, GOLD, GOLD_FADED, INK, INK_DIM, dim, ink, muted, speaker_color,
 };
 use crate::cli::draw::widgets::{StatusKind, card, hints, pill, status_dot};
 use crate::cli::state::{CliState, Page};
@@ -42,9 +42,9 @@ pub fn render(frame: &mut Frame, state: &CliState, ctx: &AppContext<Chat, Narrat
     let cols = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Length(26),
-            Constraint::Min(30),
-            Constraint::Length(28),
+            Constraint::Length(26), // cast
+            Constraint::Min(30),    // chat
+            Constraint::Length(28), // lore
         ])
         .split(rows[1]);
 
@@ -101,21 +101,22 @@ fn render_cast(frame: &mut Frame, area: Rect, adventure: Option<&Adventure>) {
         return;
     };
 
-    let mut cursor_y = inner.top();
+    let mut row_top = inner.top();
+
     // Row is 3 lines tall: [avatar+name] [role+status] [spacer]
     for (i, character) in adventure.characters.iter().enumerate() {
         let row_h: u16 = 3;
-        if cursor_y + row_h > inner.bottom() {
+        if row_top + row_h > inner.bottom() {
             break;
         }
         let row = Rect {
             x: inner.left(),
-            y: cursor_y,
+            y: row_top,
             width: inner.width,
             height: row_h,
         };
         render_cast_row(frame, row, character, i == 0);
-        cursor_y += row_h;
+        row_top += row_h;
     }
 }
 
@@ -132,6 +133,7 @@ fn render_cast_row(frame: &mut Frame, area: Rect, character: &Character, active:
         width: 3,
         height: 2,
     };
+    // TODO: Make this a profile pic
     let mut avatar = GlyphAvatar::from_name(&character.name);
     let buf = frame.buffer_mut();
     avatar.render(avatar_area, buf);
@@ -139,6 +141,7 @@ fn render_cast_row(frame: &mut Frame, area: Rect, character: &Character, active:
     // Right side: name + status dot on line 1, role on line 2.
     let name_color = if active { EMBER } else { INK };
     let name_line = Line::from(vec![
+        Span::raw(" "),
         status_dot(to_status_kind(character.status)),
         Span::raw(" "),
         Span::styled(
@@ -150,8 +153,11 @@ fn render_cast_row(frame: &mut Frame, area: Rect, character: &Character, active:
             }),
         ),
     ]);
-    let role_line = Line::from(Span::styled(character.status.as_str(), muted()));
 
+    let role_line = Line::from(vec![
+        Span::raw(" "),
+        Span::styled(character.status.as_str(), muted()),
+    ]);
     let text_area = Rect {
         x: cols[1].left(),
         y: cols[1].top(),
@@ -191,8 +197,6 @@ fn render_transcript(frame: &mut Frame, area: Rect, adventure: Option<&Adventure
     frame.render_widget(p, inner);
 }
 
-/// Visual mock. One narration line + one `say` line per character. Lets the
-/// coloring and layout read as intended without a wired backend.
 fn mock_transcript(adventure: &Adventure) -> Vec<Line<'_>> {
     let mut out: Vec<Line> = Vec::with_capacity(adventure.characters.len() * 2 + 2);
     out.push(message_line(
@@ -284,7 +288,7 @@ fn render_meta(frame: &mut Frame, area: Rect, adventure: Option<&Adventure>) {
             if i > 0 {
                 spans.push(Span::raw(" "));
             }
-            spans.push(pill(tag, GOLD));
+            spans.push(pill(tag, GOLD_FADED));
         }
         Line::from(spans)
     };
@@ -340,6 +344,10 @@ fn render_composer(frame: &mut Frame, area: Rect, input: &str, adventure: Option
 
 fn render_hints(frame: &mut Frame, area: Rect) {
     let bar = hints(&[
+        ("1", "say"),
+        ("2", "do"),
+        ("3", "think"),
+        ("4", "be away"),
         ("enter", "send"),
         ("tab", "cycle kind"),
         ("@", "target"),
