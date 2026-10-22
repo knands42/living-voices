@@ -1,7 +1,7 @@
 use sqlx::{Row, SqliteConnection};
 use uuid::Uuid;
 
-use crate::backend::persistence::db::from_str_to_timestamp;
+use crate::backend::persistence::db::{from_str_to_timestamp, from_str_to_uuid};
 use crate::backend::{
     domain::message::Message,
     persistence::{db::from_timestamp_to_str, error::PersistenceError},
@@ -114,7 +114,7 @@ pub async fn fetch_last_n(
 pub async fn count_since_last_narration(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
-) -> Result<u64, PersistenceError> {
+) -> Result<u8, PersistenceError> {
     let row = sqlx::query(
         "SELECT COUNT(*) AS c FROM message
          WHERE adventure_id = ?1
@@ -127,7 +127,7 @@ pub async fn count_since_last_narration(
     .fetch_one(&mut *conn)
     .await?;
 
-    Ok(row.get::<i64, _>("c") as u64)
+    Ok(row.get::<u8, _>("c"))
 }
 
 /// The log stores targets as their character ids; whole Character rows live in
@@ -142,10 +142,18 @@ impl TryFrom<MessageRow> for Message {
     type Error = PersistenceError;
 
     fn try_from(row: MessageRow) -> Result<Self, Self::Error> {
-        let adventure_id = parse_uuid(&row.adventure_id)?;
+        let adventure_id = from_str_to_uuid(&row.adventure_id)?;
         let created_at = from_str_to_timestamp(&row.created_at)?;
-        let character_id = row.character_id.as_deref().map(parse_uuid).transpose()?;
-        let narrator_id = row.narrator_id.as_deref().map(parse_uuid).transpose()?;
+        let character_id = row
+            .character_id
+            .as_deref()
+            .map(from_str_to_uuid)
+            .transpose()?;
+        let narrator_id = row
+            .narrator_id
+            .as_deref()
+            .map(from_str_to_uuid)
+            .transpose()?;
 
         Ok(Message {
             seq: Some(row.seq),
@@ -159,8 +167,4 @@ impl TryFrom<MessageRow> for Message {
             created_at,
         })
     }
-}
-
-fn parse_uuid(s: &str) -> Result<Uuid, PersistenceError> {
-    Uuid::parse_str(s).map_err(|e| PersistenceError::Database(sqlx::Error::Decode(Box::new(e))))
 }

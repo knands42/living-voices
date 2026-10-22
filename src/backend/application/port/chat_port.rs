@@ -21,13 +21,17 @@ impl Candidate {
         }
     }
 
-    pub fn from_adventure(adventure: &Adventure) -> Vec<Self> {
+    pub fn from_adventure(adventure: &Adventure, candidates: Vec<String>) -> Vec<Self> {
         let mut parts = vec![];
         for character in adventure.characters.iter() {
-            parts.push(Self::from_character(
-                character,
-                Some(adventure.tone.as_str()),
-            ));
+            for candidate in candidates.iter() {
+                if &character.name == candidate {
+                    parts.push(Self::from_character(
+                        character,
+                        Some(adventure.tone.as_str()),
+                    ));
+                }
+            }
         }
 
         parts

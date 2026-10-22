@@ -9,17 +9,13 @@ pub enum Permanence {
     Permanent,
     #[default]
     Plot,
-    Scene,
 }
 
 impl Permanence {
-    pub const ALL: [Permanence; 3] = [Permanence::Permanent, Permanence::Plot, Permanence::Scene];
-
     pub const fn as_str(self) -> &'static str {
         match self {
             Permanence::Permanent => "permanent",
             Permanence::Plot => "plot",
-            Permanence::Scene => "scene",
         }
     }
 
@@ -27,7 +23,6 @@ impl Permanence {
         match s {
             "permanent" => Some(Permanence::Permanent),
             "plot" => Some(Permanence::Plot),
-            "scene" => Some(Permanence::Scene),
             _ => None,
         }
     }
@@ -46,7 +41,7 @@ pub struct Fact {
     pub adventure_id: Uuid,
     pub subject: String,
     pub fact: String,
-    pub source_episode_id: Option<Uuid>,
+    pub act_id: Uuid,
     pub permanence: Permanence,
     pub superseded_by: Option<Uuid>,
     pub created_at: DateTime<Utc>,
@@ -57,6 +52,7 @@ impl Fact {
         adventure_id: Uuid,
         subject: impl Into<String>,
         fact: impl Into<String>,
+        act_id: Uuid,
         permanence: Permanence,
     ) -> Self {
         Self {
@@ -64,16 +60,11 @@ impl Fact {
             adventure_id,
             subject: subject.into(),
             fact: fact.into(),
-            source_episode_id: None,
+            act_id,
             permanence,
             superseded_by: None,
             created_at: Utc::now(),
         }
-    }
-
-    pub fn from_episode(mut self, episode_id: Uuid) -> Self {
-        self.source_episode_id = Some(episode_id);
-        self
     }
 
     pub fn superseded_by(&self) -> Option<Uuid> {

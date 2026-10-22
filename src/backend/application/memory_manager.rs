@@ -41,11 +41,12 @@ impl<D: MemoryDistiller> MemoryManager<D> {
         };
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        // did it surpass the min threshold of messages?
         todo!()
     }
 
     /// Compress every message not yet covered by the latest summary.
-    pub async fn compress(&self) -> Result<(), MemoryManagerError> {
+    pub async fn compress_and_update(&self) -> Result<(), MemoryManagerError> {
         let adventure_id = {
             let guard = self.state.read()?;
             let Some(adventure) = guard.current_adventure.as_ref() else {
@@ -55,6 +56,9 @@ impl<D: MemoryDistiller> MemoryManager<D> {
         };
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        // build compression prompt
+        // call distill
+        // retrieve data in a given schema to update facts, act digest (if act closed), act running_digest, state, etc
         todo!()
     }
 }

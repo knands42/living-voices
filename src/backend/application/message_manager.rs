@@ -1,13 +1,15 @@
 use crate::backend::PersistenceError;
+use crate::backend::application::context::ContextBuilder;
 use crate::backend::application::director::Director;
-use crate::backend::application::history::HistoryBuilder;
 use crate::backend::application::memory_manager::MemoryManager;
 use crate::backend::application::port::chat_port::{
-    Candidate, ChatHandler, ChatResponseError, NarratorHandler,
+    Candidate, ChatHandler, ChatReply, ChatResponseError, NarratorHandler,
 };
 use crate::backend::application::port::memory_port::MemoryDistiller;
 use crate::backend::application::state::{SharedState, StateError};
+use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::message::Message;
+use crate::backend::persistence::memory_persistence::get_active_candidates;
 use crate::backend::persistence::message_persistence::{
     count_since_last_narration, insert_message,
 };
@@ -81,37 +83,24 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
 
         self.create_message(incoming.clone()).await?;
 
-        let candidates = Candidate::from_adventure(&adventure);
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let history = HistoryBuilder::build(
-            &mut conn,
-            adventure.id,
-            self.memory_settings.summary_limit,
-            self.memory_settings.fact_limit,
-        )
-        .await?;
+        let candidates_str = get_active_candidates(&mut conn, &adventure.id.to_string()).await?;
+        let parsed_candidates = Candidate::from_adventure(&adventure, candidates_str);
+        let history = ContextBuilder::build_autonomous_chat_prompt(&mut conn).await?;
         let messages_since_narration = count_since_last_narration(&mut conn, adventure.id).await?;
         drop(conn);
 
         let user_message = incoming.text.as_str();
-
-        let reply =
-            if self
-                .director
-                .should_narrator_speak(&candidates, &incoming, messages_since_narration)
-            {
-                self.narrator_handler
-                    .narrator_respond(adventure.tone.as_str(), &history, &user_message)
-                    .await?
-            } else if let Some(candidate) = self.director.pick_character(&candidates, &incoming) {
-                self.chat_handler
-                    .character_respond(candidate, &history, &user_message)
-                    .await?
-            } else {
-                self.chat_handler
-                    .autonomous_respond(&candidates, &history, &user_message)
-                    .await?
-            };
+        let reply = self
+            .send(
+                &incoming,
+                &adventure,
+                &parsed_candidates,
+                &history,
+                messages_since_narration,
+                &user_message,
+            )
+            .await?;
 
         let reply_message = adventure.message_from_reply(&reply.replier, &reply.reply);
         let stored_reply = self.create_message(reply_message).await?;
@@ -121,17 +110,49 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
         Ok(stored_reply)
     }
 
+    async fn send(
+        &self,
+        incoming: &Message,
+        adventure: &Adventure,
+        parsed_candidates: &Vec<Candidate>,
+        history: &String,
+        messages_since_narration: u8,
+        user_message: &&str,
+    ) -> Result<ChatReply, MessageManagerError> {
+        Ok(
+            if self.director.should_narrator_speak(
+                &parsed_candidates,
+                &incoming,
+                messages_since_narration,
+            ) {
+                self.narrator_handler
+                    .narrator_respond(adventure.tone.as_str(), &history, &user_message)
+                    .await?
+            } else if let Some(candidate) =
+                self.director.pick_character(&parsed_candidates, &incoming)
+            {
+                self.chat_handler
+                    .character_respond(candidate, &history, &user_message)
+                    .await?
+            } else {
+                self.chat_handler
+                    .autonomous_respond(&parsed_candidates, &history, &user_message)
+                    .await?
+            },
+        )
+    }
+
     async fn maybe_compress_memory(&self) {
         match self
             .memory
-            .needs_compression(self.memory_settings.compress_threshold)
+            .needs_compression(self.memory_settings.compress_after_threshold as u64)
             .await
         {
             Ok(false) => {}
             Ok(true) => {
                 let memory = self.memory.clone();
                 tokio::spawn(async move {
-                    if let Err(err) = memory.compress().await {
+                    if let Err(err) = memory.compress_and_update().await {
                         eprintln!("memory compression failed: {err}");
                     }
                 });

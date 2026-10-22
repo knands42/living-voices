@@ -2,7 +2,7 @@
 #
 # Paths are not configurable here. They follow the build profile:
 #   debug   -> this project directory
-#   release -> $HOME/projects/living-voice
+#   release -> $HOME/.living-voice
 #
 # Every text endpoint speaks the OpenAI chat-completions API, so any
 # OpenAI-compatible server (Ollama, llama.cpp, LM Studio) works unchanged.
@@ -16,7 +16,6 @@ request_timeout_secs = 120
 [models.memory]
 base_url = "http://localhost:11434/v1"
 model = "hf.co/sennaLLMLearner/qwen2.5-7b-memory-distiller:Q4_K_M"
-# Distillation must stay faithful to the conversation, so keep this low.
 temperature = 0.1
 request_timeout_secs = 120
 
@@ -26,16 +25,12 @@ base_url = "http://localhost:8188"
 workflow = "scene.json"
 
 [memory]
-# Distill once this many messages are uncovered by any summary.
-compress_threshold = 80
-# How many recent summaries / facts the prompt-context block carries.
-summary_limit = 5
-fact_limit = 5
+compress_after_threshold = 70
+compress_last_messages = 50
 
 [director]
-# Chance (0.0–1.0) that a character you explicitly target answers directly.
-targeted_pick_chance = 0.8
-narrator_change_if_ooc = 0.2
+targeted_pick_chance = 0.8      # (0.0 - 1.0)
+narrator_change_if_ooc = 0.2    # (0.0 - 1.0)
 
 [director.narrator_pick_chance_after_message_threshold_range]
 min = 20

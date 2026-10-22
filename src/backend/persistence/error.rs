@@ -25,6 +25,9 @@ pub enum PersistenceError {
 
     #[error("`{adventure}` is not valid: {reason}")]
     InvalidAdventure { adventure: String, reason: String },
+
+    #[error("failed to parse: {0}")]
+    ParsingError(#[from] serde_json::Error),
 }
 
 impl PersistenceError {

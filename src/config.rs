@@ -6,34 +6,24 @@ use serde::{Deserialize, Serialize};
 const CONFIG_FILE: &str = "config.toml";
 const DB_FILE: &str = "living_voices.db";
 
-const DEFAULT_OLLAMA_URL: &str = "http://localhost:11434/v1";
-const DEFAULT_COMFYUI_URL: &str = "http://localhost:8188";
+const DEFAULT_CHAT_MODEL_URL: &str = "http://localhost:11434/v1";
+const DEFAULT_CHAT_MEMORY_URL: &str = "http://localhost:11434/v1";
+const DEFAULT_IMAGE_MODEL_URL: &str = "http://localhost:8188";
 
-/// Character dialogue: expressive but coherent.
 const DEFAULT_CHAT_TEMPERATURE: f32 = 0.5;
-/// Memory/summary extraction: faithful, no invention.
 const DEFAULT_MEMORY_TEMPERATURE: f32 = 0.1;
-/// Seconds before an in-flight model request is abandoned.
 const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 120;
 
-/// Distill once this many messages are uncovered by any summary.
-const DEFAULT_COMPRESS_THRESHOLD: u64 = 80;
-/// How many summaries the prompt-context block carries.
-const DEFAULT_SUMMARY_LIMIT: u64 = 5;
-/// How many facts the prompt-context block carries.
-const DEFAULT_FACT_LIMIT: u64 = 5;
+const DEFAULT_COMPRESS_AFTER_THRESHOLD: u8 = 70;
+const DEFAULT_COMPRESS_LAST_MESSAGES: u8 = 50;
+const DEFAULT_SUMMARY_LIMIT: u8 = 5;
+const DEFAULT_FACT_LIMIT: u8 = 5;
 
-/// Chance (0.0–1.0) that an explicitly targeted character answers directly,
-/// rather than deferring the pick to the autonomous model call.
 const DEFAULT_TARGETED_PICK_CHANCE: f32 = 0.8;
-
 const DEFAULT_NARRATOR_CHANGE_IF_OOC: f32 = 0.2;
 
-/// Below `min` messages since the narrator last spoke, the ramp adds nothing to
-/// the narrator's chance; from `min` to `max` it ramps 0→100%; at/after `max`
-/// the narrator is certain to take the turn.
-const DEFAULT_NARRATOR_RAMP_MIN: u64 = 20;
-const DEFAULT_NARRATOR_RAMP_MAX: u64 = 30;
+const DEFAULT_NARRATOR_RAMP_MIN: u8 = 20;
+const DEFAULT_NARRATOR_RAMP_MAX: u8 = 30;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 #[serde(default)]
@@ -89,7 +79,7 @@ impl TextModel {
 impl Default for TextModel {
     fn default() -> Self {
         Self {
-            base_url: DEFAULT_OLLAMA_URL.to_string(),
+            base_url: DEFAULT_CHAT_MODEL_URL.to_string(),
             model: String::new(),
             temperature: DEFAULT_CHAT_TEMPERATURE,
             request_timeout_secs: DEFAULT_REQUEST_TIMEOUT_SECS,
@@ -100,20 +90,15 @@ impl Default for TextModel {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(default)]
 pub struct MemorySettings {
-    /// Trigger distillation once this many messages are uncovered by any summary.
-    pub compress_threshold: u64,
-    /// How many recent summaries the prompt-context block carries.
-    pub summary_limit: u64,
-    /// How many recent facts the prompt-context block carries.
-    pub fact_limit: u64,
+    pub compress_after_threshold: u8,
+    pub compress_last_messages: u8,
 }
 
 impl Default for MemorySettings {
     fn default() -> Self {
         Self {
-            compress_threshold: DEFAULT_COMPRESS_THRESHOLD,
-            summary_limit: DEFAULT_SUMMARY_LIMIT,
-            fact_limit: DEFAULT_FACT_LIMIT,
+            compress_after_threshold: DEFAULT_COMPRESS_AFTER_THRESHOLD,
+            compress_last_messages: DEFAULT_COMPRESS_LAST_MESSAGES,
         }
     }
 }
@@ -121,11 +106,8 @@ impl Default for MemorySettings {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct DirectorSettings {
-    /// Chance (0.0–1.0)
     pub targeted_pick_chance: f32,
-    /// Chance (0.0–1.0)
     pub narrator_change_if_ooc: f32,
-    /// As messages pile up without the narrator speaking, its chance to take
     pub narrator_pick_chance_after_message_threshold_range: MessageThresholdRange,
 }
 
@@ -143,8 +125,8 @@ impl Default for DirectorSettings {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(default)]
 pub struct MessageThresholdRange {
-    pub min: u64,
-    pub max: u64,
+    pub min: u8,
+    pub max: u8,
 }
 
 impl Default for MessageThresholdRange {
@@ -157,7 +139,7 @@ impl Default for MessageThresholdRange {
 }
 
 impl MessageThresholdRange {
-    pub fn normalized(self) -> (u64, u64) {
+    pub fn normalized(self) -> (u8, u8) {
         (self.min, self.max.max(self.min))
     }
 }
@@ -174,7 +156,7 @@ impl Default for ImageModel {
     fn default() -> Self {
         Self {
             backend: "comfyui".to_string(),
-            base_url: DEFAULT_COMFYUI_URL.to_string(),
+            base_url: DEFAULT_IMAGE_MODEL_URL.to_string(),
             workflow: String::new(),
         }
     }
@@ -202,9 +184,7 @@ impl Config {
         }
 
         let settings = Self::load_config_into_file(&config_file);
-
         log::info!("Config loaded from {}", config_file.display());
-
         let db_path = config_dir.join(DB_FILE);
 
         Ok(Self {
@@ -251,5 +231,5 @@ fn base_dir() -> &'static Path {
 #[cfg(not(debug_assertions))]
 fn base_dir() -> PathBuf {
     let home = std::env::var("HOME").expect("Fail to get home directory");
-    PathBuf::from(home).join("projects").join("living-voice")
+    PathBuf::from(home).join(".living-voice")
 }

@@ -16,7 +16,7 @@ impl Director {
         &self,
         candidates: &[Candidate],
         incoming: &Message,
-        messages_since_narration: u64,
+        messages_since_narration: u8,
     ) -> bool {
         // No cast to speak => narrator by necessity.
         if candidates.is_empty() {
@@ -37,7 +37,7 @@ impl Director {
         roll < self.narrator_chance(messages_since_narration)
     }
 
-    fn narrator_chance(&self, messages_since_narration: u64) -> f32 {
+    fn narrator_chance(&self, messages_since_narration: u8) -> f32 {
         let (min, max) = self
             .director_settings
             .narrator_pick_chance_after_message_threshold_range

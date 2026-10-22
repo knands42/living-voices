@@ -32,3 +32,10 @@ db-tables:
 db-reset:
     rm -f {{db}} {{db}}-wal {{db}}-shm
     @echo "removed {{db}}"
+
+
+# -------------------- testing -------------------- #
+send-message:
+    curl -s http://localhost:11434/api/chat \
+        -H 'Content-Type: application/json' \
+        --data-binary @./tests/ai/example.json | jq -r .message.content

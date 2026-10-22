@@ -7,7 +7,7 @@ use crate::{
     app::AppContext,
     backend::application::port::chat_port::{ChatHandler, NarratorHandler},
     backend::application::port::memory_port::MemoryDistiller,
-    backend::domain::message::{Message, MessageKind, MessagePart, MessageParts},
+    backend::domain::message::Message,
     ui::{ChatMessage, RootWindow},
 };
 
@@ -174,15 +174,15 @@ fn mode_needs_target(mode: i32) -> bool {
     matches!(mode, MODE_SAY | MODE_WHISPER)
 }
 
-/// Map a UI mode to a domain `MessageKind`. The domain has no dedicated
-/// "whisper" kind — a whisper is a targeted `Say`, so it maps there.
-fn mode_to_kind(mode: i32) -> MessageKind {
+/// Map a UI mode to a short prose prefix so the flat message text carries the
+/// action. The domain no longer has a message kind — the text is pre-formatted.
+fn mode_to_prefix(mode: i32) -> &'static str {
     match mode {
-        MODE_SAY => MessageKind::Say,
-        MODE_DO => MessageKind::Do,
-        MODE_THINK => MessageKind::Think,
-        MODE_WHISPER => MessageKind::Say,
-        _ => MessageKind::Say,
+        MODE_SAY => "says",
+        MODE_DO => "does",
+        MODE_THINK => "thinks",
+        MODE_WHISPER => "whispers",
+        _ => "says",
     }
 }
 
@@ -197,14 +197,12 @@ fn mode_to_ui_kind(mode: i32) -> &'static str {
     }
 }
 
-/// Build one `MessagePart` for a selected mode, attaching the target when the
-/// mode addresses someone.
-fn build_part(mode: i32, text: &str, target: &str) -> MessagePart {
-    let part = MessagePart::new(mode_to_kind(mode), text);
+/// Render one action as a line of ready-formatted text.
+fn format_part(mode: i32, text: &str, target: &str) -> String {
     if mode_needs_target(mode) && !target.is_empty() {
-        part.with_target(target)
+        format!("{} to {}: {}", mode_to_prefix(mode), target, text)
     } else {
-        part
+        format!("{}: {}", mode_to_prefix(mode), text)
     }
 }
 
@@ -217,15 +215,22 @@ fn build_domain_message(
     secondary: i32,
     target: &str,
 ) -> Message {
-    let primary_part = build_part(primary, text, target);
-    let parts = if secondary == MODE_NONE {
-        MessageParts::one(primary_part)
-    } else {
-        MessageParts::two(primary_part, build_part(secondary, text, target))
-    };
+    let mut body = format_part(primary, text, target);
+    if secondary != MODE_NONE {
+        body.push('\n');
+        body.push_str(&format_part(secondary, text, target));
+    }
 
     // Player-authored line: not tied to a cast character or the narrator.
-    Message::new(*adventure_id, None, None, speaker.to_string(), parts)
+    Message::new(
+        *adventure_id,
+        None,
+        None,
+        speaker.to_string(),
+        body,
+        false,
+        None,
+    )
 }
 
 /// Append the player's own line to the visible log (right-aligned, "own").
@@ -264,7 +269,6 @@ fn push_player_bubble(
 
 /// Convert a persisted reply (character or narrator) into a UI bubble.
 fn reply_to_bubble(reply: &Message) -> ChatMessage {
-    let primary = reply.text;
     let is_narrator = reply.narrator_id.is_some();
     let time: SharedString = reply
         .created_at
@@ -275,20 +279,12 @@ fn reply_to_bubble(reply: &Message) -> ChatMessage {
 
     ChatMessage {
         speaker: reply.speaker_name.as_str().into(),
-        text: primary.text.as_str().into(),
+        text: reply.text.as_str().into(),
         time,
         narrator: is_narrator,
         own: false,
-        kind: if is_narrator {
-            SharedString::new()
-        } else {
-            primary.kind.as_str().into()
-        },
-        target: primary
-            .target_name
-            .as_deref()
-            .map(SharedString::from)
-            .unwrap_or_default(),
+        kind: SharedString::new(),
+        target: SharedString::new(),
     }
 }
 

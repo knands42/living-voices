@@ -75,6 +75,7 @@ impl ChatHandler for Chat {
             ChatMessage::user(user_message),
         ];
 
+        // TODO: add keep_alive for caching tokens
         let reply = client
             .send(
                 self.config.model.as_str(),

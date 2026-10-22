@@ -55,6 +55,6 @@ pub fn from_str_to_timestamp(s: &str) -> Result<DateTime<Utc>, PersistenceError>
         .map_err(|e| PersistenceError::Database(sqlx::Error::Decode(Box::new(e))))
 }
 
-pub fn from_str_to_uuid(s: String) -> Result<Uuid, PersistenceError> {
+pub fn from_str_to_uuid(s: &str) -> Result<Uuid, PersistenceError> {
     Uuid::parse_str(&s).map_err(|e| PersistenceError::Database(sqlx::Error::Decode(Box::new(e))))
 }

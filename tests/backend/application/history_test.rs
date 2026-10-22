@@ -2,7 +2,7 @@ use sqlx::sqlite::SqlitePool;
 use uuid::Uuid;
 
 use crate::backend::application::helper::setup_db;
-use living_voices::backend::application::history::HistoryBuilder;
+use living_voices::backend::application::context::HistoryBuilder;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::memory::{Fact, Summary};
 use living_voices::backend::domain::message::{Message, MessageKind, MessagePart, MessageParts};

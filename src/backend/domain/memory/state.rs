@@ -8,9 +8,9 @@ pub struct State {
     pub adventure_id: Uuid,
     pub day: Option<String>,
     pub place: Option<String>,
-    pub present: Vec<String>,
+    pub characters_present: Vec<String>,
     pub open_threads: Vec<String>,
-    pub wounds: Vec<String>,
+    pub conditions: Vec<String>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -21,9 +21,9 @@ impl State {
             adventure_id,
             day: None,
             place: None,
-            present: Vec::new(),
+            characters_present: Vec::new(),
             open_threads: Vec::new(),
-            wounds: Vec::new(),
+            conditions: Vec::new(),
             updated_at: Utc::now(),
         }
     }
@@ -36,14 +36,14 @@ impl State {
         if let Some(place) = &self.place {
             lines.push(format!("Place: {place}"));
         }
-        if !self.present.is_empty() {
-            lines.push(format!("Present: {}", self.present.join(", ")));
+        if !self.characters_present.is_empty() {
+            lines.push(format!("Present: {}", self.characters_present.join(", ")));
         }
         if !self.open_threads.is_empty() {
             lines.push(format!("Open threads: {}", self.open_threads.join(", ")));
         }
-        if !self.wounds.is_empty() {
-            lines.push(format!("Wounds: {}", self.wounds.join(", ")));
+        if !self.conditions.is_empty() {
+            lines.push(format!("Wounds: {}", self.conditions.join(", ")));
         }
 
         if lines.is_empty() {
