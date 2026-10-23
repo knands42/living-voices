@@ -58,3 +58,11 @@ pub fn from_str_to_timestamp(s: &str) -> Result<DateTime<Utc>, PersistenceError>
 pub fn from_str_to_uuid(s: &str) -> Result<Uuid, PersistenceError> {
     Uuid::parse_str(&s).map_err(|e| PersistenceError::Database(sqlx::Error::Decode(Box::new(e))))
 }
+
+pub fn parse_json_array(value: Option<&str>) -> Result<Vec<String>, PersistenceError> {
+    match value {
+        None => Ok(Vec::new()),
+        Some(text) if text.trim().is_empty() => Ok(Vec::new()),
+        Some(text) => serde_json::from_str(text).map_err(PersistenceError::ParsingError),
+    }
+}

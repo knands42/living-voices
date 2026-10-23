@@ -49,6 +49,7 @@ impl State {
         if lines.is_empty() {
             return None;
         }
+
         Some(format!("Current state:\n- {}", lines.join("\n- ")))
     }
 }

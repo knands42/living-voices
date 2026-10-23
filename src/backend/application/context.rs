@@ -1,8 +1,14 @@
 use sqlx::SqliteConnection;
 
 use crate::backend::application::port::chat_port::PromptTurn;
+use crate::backend::domain::adventure::Adventure;
+use crate::backend::domain::character::Character;
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::error::PersistenceError;
+use crate::backend::persistence::memory_persistence::fetch_state;
+use crate::backend::persistence::message_persistence::fetch_last_n;
+
+const AUTONOMOUS_HISTORY_WINDOW: i64 = 50;
 
 const AUTONOMOUS_CHAT_PROMPT: &str = "You write one beat of an interactive roleplay at a time: one character speaks and/or acts, or you narrate the world around the player";
 const AUTONOMOUS_CHAT_HEADER_INSTRUCTION: &str = r#"## HEADER — the first line of every reply, nothing before it
@@ -79,6 +85,7 @@ Judge the fiction, not your own prose. A loud argument is not a close; a quiet
 moment after it, where the story would naturally turn, is. Do not inflate the
 number to be helpful — most beats are 1 or 2."#;
 
+// TODO: Improve this prompt
 const DISTILL_PROMPT: &str = r#"## DISTILL
 Below you are given the existing memory (## CONTEXT: the current PAST ACTS, CURRENT
 STATE, facts and memories) followed by the latest conversation turns. The existing
@@ -86,7 +93,7 @@ memory was true as of its last update; the conversation is what happened since.
 
 Reconcile the two. Produce the memory record as it should stand NOW — not a record
 of only the new turns, and not a copy of the old one. Return JSON only, with exactly
-two fields:
+three fields:
 
 - "facts": the facts that are true now. For each one decide:
     - KEEP an existing fact unchanged if the conversation neither changed nor
@@ -122,9 +129,17 @@ two fields:
     - "open_threads"        unresolved threads, each a short phrase. Drop a thread the conversation closed; add ones it opened.
     - "conditions"          active conditions now, each a short phrase, e.g. "kaelen: left arm, minor", "mood: tense", "storm approaching". Drop conditions that ended.
 
+- "running_digest": a prose summary of the CURRENT ACT so far — the "THIS ACT SO FAR"
+  section. This is a full rewrite, not an append: fold the existing THIS ACT SO FAR
+  (if any) together with the new turns into one coherent, up-to-date account of what
+  has happened in this act. A few tight paragraphs in past tense, naming who did what
+  and how threads moved. It should read as the single story-so-far, not a changelog.
+  Do not restate permanent lore or other acts; cover only the current act. If there
+  is no prior digest, write it from the turns alone.
+
 Record only what the existing memory or the conversation establishes. Never invent
-anything. Prefer a few sharp facts over many vague ones. Do not write prose —
-JSON only."#;
+anything. Prefer a few sharp facts over many vague ones. The "running_digest" is the
+only prose; "facts" and "state" are structured. Return JSON only."#;
 
 const SINGLE_CHARACTER_CHAT_PROMPT: &str = "You write one beat of an interactive roleplay. The turn belongs to one character, named below — continue it.";
 
@@ -210,59 +225,64 @@ pub struct ContextBuilder;
 impl ContextBuilder {
     pub async fn build_autonomous_chat_prompt(
         conn: &mut SqliteConnection,
+        adventure: &Adventure,
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let head = [
             AUTONOMOUS_CHAT_PROMPT.to_string(),
-            ContextBuilder::build_settings_prompt(conn).await?,
-            ContextBuilder::build_characters_prompt(conn).await?,
+            ContextBuilder::build_settings_prompt(adventure),
+            ContextBuilder::build_characters_prompt(adventure),
             AUTONOMOUS_CHAT_HEADER_INSTRUCTION.to_string(),
             AUTONOMOUS_CHAT_BODY_INSTRUCTION.to_string(),
             AUTONOMOUS_CHAT_RULES_INSTRUCTION.to_string(),
             AUTONOMOUS_CHAT_CHAT_EXAMPLES_INSTRUCTION.to_string(),
         ];
 
-        ContextBuilder::assemble(conn, &head).await
+        ContextBuilder::assemble(conn, adventure, &head).await
     }
 
     pub async fn build_single_character_chat_prompt(
         conn: &mut SqliteConnection,
+        adventure: &Adventure,
+        character: &Character,
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let head = [
             SINGLE_CHARACTER_CHAT_PROMPT.to_string(),
-            ContextBuilder::build_settings_prompt(conn).await?,
+            ContextBuilder::build_settings_prompt(adventure),
             SINGLE_CHARACTER_CHAT_BODY_INSTRUCTION.to_string(),
             SINGLE_CHARACTER_CHAT_RULES_INSTRUCTION.to_string(),
             SINGLE_CHARACTER_CHAT_EXAMPLES_INSTRUCTION.to_string(),
-            ContextBuilder::build_character_prompt(conn).await?,
+            character.render(),
         ];
 
-        ContextBuilder::assemble(conn, &head).await
+        ContextBuilder::assemble(conn, adventure, &head).await
     }
 
     pub async fn build_narrator_chat_prompt(
         conn: &mut SqliteConnection,
+        adventure: &Adventure,
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let head = [
             NARRATOR_CHAT_PROMPT.to_string(),
-            ContextBuilder::build_settings_prompt(conn).await?,
+            ContextBuilder::build_settings_prompt(adventure),
             NARRATOR_CHAT_BODY_INSTRUCTION.to_string(),
             NARRATOR_CHAT_RULES_INSTRUCTION.to_string(),
             NARRATOR_CHAT_EXAMPLES_INSTRUCTION.to_string(),
         ];
 
-        ContextBuilder::assemble(conn, &head).await
+        ContextBuilder::assemble(conn, adventure, &head).await
     }
 
     async fn assemble(
         conn: &mut SqliteConnection,
+        adventure: &Adventure,
         head: &[String],
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
 
         turns.push(PromptTurn::system(
-            ContextBuilder::build_static_context(conn).await?,
+            ContextBuilder::build_static_context(conn, adventure).await?,
         ));
-        turns.extend(ContextBuilder::build_previous_messages(conn).await?);
+        turns.extend(ContextBuilder::build_previous_messages(conn, adventure).await?);
 
         // TODO: on demand, not every call
         turns.push(PromptTurn::system(ContextBuilder::build_closure_prompt(
@@ -272,18 +292,38 @@ impl ContextBuilder {
         Ok(turns)
     }
 
-    pub async fn build_settings_prompt(
-        conn: &mut SqliteConnection,
-    ) -> Result<String, PersistenceError> {
-        todo!()
+    /// The settings block: the adventure's identity, tone and lore. Pure over
+    /// the loaded `Adventure`, so no database access is needed.
+    pub fn build_settings_prompt(adventure: &Adventure) -> String {
+        let mut lines = vec!["## SETTINGS".to_string()];
+
+        lines.push(format!("Title: {}", adventure.title));
+        if !adventure.description.trim().is_empty() {
+            lines.push(format!("Premise: {}", adventure.description));
+        }
+        if let Some(genre) = adventure.genre.as_deref().filter(|g| !g.trim().is_empty()) {
+            lines.push(format!("Genre: {genre}"));
+        }
+        if !adventure.tone.trim().is_empty() {
+            lines.push(format!("Tone: {}", adventure.tone));
+        }
+        if !adventure.lore.text.trim().is_empty() {
+            lines.push(format!("Lore: {}", adventure.lore.text));
+        }
+        lines.push(format!("Narrator: {}", adventure.narrator.name));
+
+        lines.join("\n")
     }
 
-    async fn build_static_context(conn: &mut SqliteConnection) -> Result<String, PersistenceError> {
+    async fn build_static_context(
+        conn: &mut SqliteConnection,
+        adventure: &Adventure,
+    ) -> Result<String, PersistenceError> {
         let final_prompt = vec![
             "## CONTEXT".to_string(),
             ContextBuilder::build_acts_prompt(conn).await?,
-            ContextBuilder::build_current_state(conn).await?,
-            ContextBuilder::build_relevant_memories(conn).await?,
+            ContextBuilder::build_current_state(conn, adventure).await?,
+            ContextBuilder::build_relevant_memories(conn, adventure).await?,
         ];
 
         Ok(final_prompt.join("\n\n"))
@@ -299,48 +339,81 @@ impl ContextBuilder {
         final_prompt.push_str("THIS ACT SO FAR\n");
         // TODO: retrieve from db the current active act.running_digest
 
+        let _ = conn;
         Ok(final_prompt)
     }
 
-    async fn build_current_state(conn: &mut SqliteConnection) -> Result<String, PersistenceError> {
-        let mut final_prompt = String::new();
+    async fn build_current_state(
+        conn: &mut SqliteConnection,
+        adventure: &Adventure,
+    ) -> Result<String, PersistenceError> {
+        if let Some(state) = fetch_state(conn, adventure.id).await? {
+            if let Some(rendered) = state.render() {
+                return Ok(format!("CURRENT STATE\n{0}", rendered).to_string());
+            }
+        }
 
-        final_prompt.push_str("CURRENT STATE\n");
-        // TODO: retrieve from db the current state
-        final_prompt.push_str("Time: \n");
-        final_prompt.push_str("Place: \n");
-        final_prompt.push_str("Present: \n");
-        final_prompt.push_str("Open Threads: \n");
-        final_prompt.push_str("Conditions: \n");
-
-        Ok(final_prompt)
+        Ok(String::new())
     }
 
-    /// The dynamic middle: each past message as a Player turn (the human) or a
-    /// Cast turn (a character or narrator reply).
+    /// The dynamic middle: the most recent messages, each a Player turn (the
+    /// human) or a Cast turn (a character or narrator reply).
     async fn build_previous_messages(
         conn: &mut SqliteConnection,
+        adventure: &Adventure,
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
-        todo!()
+        let messages = fetch_last_n(conn, adventure.id, AUTONOMOUS_HISTORY_WINDOW).await?;
+
+        Ok(messages
+            .into_iter()
+            .map(|message| ContextBuilder::message_to_turn(adventure, &message))
+            .collect())
+    }
+
+    /// Classify a stored message. Does it come from the player or NPC?
+    fn message_to_turn(adventure: &Adventure, message: &Message) -> PromptTurn {
+        if ContextBuilder::is_player_message(adventure, message) {
+            PromptTurn::player(message.text.clone())
+        } else {
+            PromptTurn::cast(format!("{}: {}", message.speaker_name, message.text))
+        }
+    }
+
+    fn is_player_message(adventure: &Adventure, message: &Message) -> bool {
+        if message.narrator_id.is_some() {
+            return false;
+        }
+
+        match message.character_id {
+            Some(author_id) => adventure
+                .characters
+                .iter()
+                .any(|c| c.id == author_id && c.is_player),
+            None => false,
+        }
     }
 
     async fn build_relevant_memories(
         conn: &mut SqliteConnection,
+        adventure: &Adventure,
     ) -> Result<String, PersistenceError> {
-        todo!()
+        // TODO: retrieve the live facts for the acts
+        Ok(String::new())
     }
 
-    async fn build_characters_prompt(
-        conn: &mut SqliteConnection,
-    ) -> Result<String, PersistenceError> {
-        // for each character retrieved build_character_prompt()
-        todo!()
-    }
+    /// The full cast, each rendered in the adventure's tone.
+    fn build_characters_prompt(adventure: &Adventure) -> String {
+        if adventure.characters.is_empty() {
+            return String::new();
+        }
 
-    async fn build_character_prompt(
-        conn: &mut SqliteConnection,
-    ) -> Result<String, PersistenceError> {
-        todo!()
+        let mut block = String::from("## CHARACTERS CAST");
+        for character in &adventure.characters {
+            block.push_str("\n");
+            block.push_str(&character.render());
+        }
+
+        block
     }
 
     pub fn build_closure_prompt(
@@ -354,15 +427,15 @@ impl ContextBuilder {
 
     pub async fn build_distill_prompt(
         conn: &mut SqliteConnection,
+        adventure: &Adventure,
         messages: &[Message],
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
-        let mut turns = Vec::with_capacity(messages.len() + 1);
+        let mut turns = Vec::with_capacity(messages.len() + 2);
         turns.push(PromptTurn::system(DISTILL_PROMPT.to_string()));
 
         turns.push(PromptTurn::system(
-            ContextBuilder::build_static_context(conn).await?,
+            ContextBuilder::build_static_context(conn, adventure).await?,
         ));
-        turns.extend(ContextBuilder::build_previous_messages(conn).await?);
 
         turns.extend(messages.iter().map(|message| {
             PromptTurn::player(format!("{}: {}", message.speaker_name, message.text))

@@ -12,7 +12,8 @@ fn parses_the_schema_shaped_object() {
             "characters_present": ["Mara"],
             "open_threads": ["why Mara left the sea"],
             "conditions": ["mood: wary"]
-        }
+        },
+        "running_digest": "Mara arrived in the drowned quarter and admitted she hates the sea."
     }"#;
 
     let update = MemoryUpdate::from_reply(reply).expect("parse");
@@ -24,6 +25,7 @@ fn parses_the_schema_shaped_object() {
     assert_eq!(update.state.day.as_deref(), Some("Day 1, noon"));
     assert_eq!(update.state.place.as_deref(), Some("the drowned quarter"));
     assert_eq!(update.state.characters_present, vec!["Mara".to_string()]);
+    assert!(update.running_digest.contains("drowned quarter"));
 }
 
 #[test]

@@ -1,7 +1,40 @@
 use sqlx::{Row, SqliteConnection};
 use uuid::Uuid;
 
-use crate::backend::{domain::memory::Act, persistence::error::PersistenceError};
+use crate::backend::persistence::db::parse_json_array;
+use crate::backend::{
+    domain::memory::{Act, State},
+    persistence::{
+        db::{from_str_to_timestamp, from_str_to_uuid},
+        error::PersistenceError,
+    },
+};
+
+struct StateRow {
+    id: String,
+    adventure_id: String,
+    day: Option<String>,
+    place: Option<String>,
+    characters_present: Option<String>,
+    open_threads: Option<String>,
+    conditions: Option<String>,
+    updated_at: String,
+}
+
+impl StateRow {
+    fn decode(row: &sqlx::sqlite::SqliteRow) -> Self {
+        Self {
+            id: row.get("id"),
+            adventure_id: row.get("adventure_id"),
+            day: row.get("day"),
+            place: row.get("place"),
+            characters_present: row.get("characters_present"),
+            open_threads: row.get("open_threads"),
+            conditions: row.get("conditions"),
+            updated_at: row.get("updated_at"),
+        }
+    }
+}
 
 /// How many messages sit after `after_seq` in the log.
 pub async fn count_uncovered(
@@ -27,7 +60,7 @@ pub async fn get_active_candidates(
         .fetch_one(&mut *conn)
         .await?;
 
-    parse_characters_present(row.get("characters_present"))
+    parse_json_array(row.get("characters_present"))
 }
 
 pub async fn get_act(
@@ -37,6 +70,40 @@ pub async fn get_act(
     todo!()
 }
 
-fn parse_characters_present(chars: &str) -> Result<Vec<String>, PersistenceError> {
-    serde_json::from_str(chars).map_err(PersistenceError::ParsingError)
+/// The single live `state` row for an adventure, if one exists yet.
+pub async fn fetch_state(
+    conn: &mut SqliteConnection,
+    adventure_id: Uuid,
+) -> Result<Option<State>, PersistenceError> {
+    let row = sqlx::query(
+        "SELECT id, adventure_id, day, place, characters_present, open_threads,
+                conditions, updated_at
+         FROM state
+         WHERE adventure_id = ?1",
+    )
+    .bind(adventure_id.to_string())
+    .fetch_optional(&mut *conn)
+    .await?;
+
+    row.as_ref()
+        .map(StateRow::decode)
+        .map(State::try_from)
+        .transpose()
+}
+
+impl TryFrom<StateRow> for State {
+    type Error = PersistenceError;
+
+    fn try_from(row: StateRow) -> Result<Self, Self::Error> {
+        Ok(State {
+            id: from_str_to_uuid(&row.id)?,
+            adventure_id: from_str_to_uuid(&row.adventure_id)?,
+            day: row.day,
+            place: row.place,
+            characters_present: parse_json_array(row.characters_present.as_deref())?,
+            open_threads: parse_json_array(row.open_threads.as_deref())?,
+            conditions: parse_json_array(row.conditions.as_deref())?,
+            updated_at: from_str_to_timestamp(&row.updated_at)?,
+        })
+    }
 }

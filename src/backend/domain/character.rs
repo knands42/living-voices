@@ -2,6 +2,7 @@ use std::{collections::HashMap, fmt::Display};
 
 use uuid::Uuid;
 
+// TODO: Characters are immutable, so this should be in a different table
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CharacterStatus {
     Present,
@@ -45,6 +46,7 @@ pub struct Character {
     pub description: String,
     pub status: CharacterStatus,
     pub backstory: String,
+    pub is_player: bool,
     pub traits: Vec<String>, // Speaks only in tidal registers, ...
     pub tags: Vec<String>,   // Protagonist, Brave ...
     pub relations: HashMap<Uuid, String>, // Mother, Father ...
@@ -59,6 +61,7 @@ impl Character {
             description,
             backstory: String::new(),
             status: CharacterStatus::default(),
+            is_player: false,
             traits: Vec::new(),
             tags: Vec::new(),
             relations: HashMap::new(),
@@ -72,6 +75,11 @@ impl Character {
 
     pub fn with_status(mut self, status: CharacterStatus) -> Self {
         self.status = status;
+        self
+    }
+
+    pub fn set_as_player(mut self) -> Self {
+        self.is_player = true;
         self
     }
 
@@ -91,21 +99,16 @@ impl Character {
         self.relations.insert(entity_id, relation);
     }
 
-    pub fn render(&self, adventure_tone: Option<&str>) -> String {
-        let mut parts = vec![format!("You are {}.", self.name)];
+    pub fn render(&self) -> String {
+        let mut parts = vec![format!("{}.", self.name)];
         if !self.description.trim().is_empty() {
             parts.push(self.description.clone());
-        }
-        if !self.traits.is_empty() {
-            parts.push(format!("Traits: {}.", self.traits.join(", ")));
         }
         if !self.backstory.trim().is_empty() {
             parts.push(format!("Backstory: {}", self.backstory));
         }
-        if let Some(tone) = adventure_tone {
-            if !tone.trim().is_empty() {
-                parts.push(format!("Overall tone: {tone}."));
-            }
+        if !self.traits.is_empty() {
+            parts.push(format!("Traits: {}.", self.traits.join(", ")));
         }
 
         parts.join(" ")

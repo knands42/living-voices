@@ -10,7 +10,6 @@ use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::application::port::memory_port::{
     DistillError, DistilledFact, DistilledMemory, DistilledState, FactPermanence, MemoryDistiller,
 };
-use crate::backend::domain::message::Message;
 use crate::config::TextModel;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -54,6 +53,8 @@ pub struct StateSnapshot {
 pub struct MemoryUpdate {
     pub facts: Vec<Fact>,
     pub state: StateSnapshot,
+    #[serde(default)]
+    pub running_digest: String,
     #[serde(skip)]
     config: TextModel,
 }
@@ -63,6 +64,7 @@ impl MemoryUpdate {
         Self {
             facts: vec![],
             state: StateSnapshot::default(),
+            running_digest: String::new(),
             config,
         }
     }
@@ -140,7 +142,11 @@ impl From<MemoryUpdate> for DistilledMemory {
             conditions: memory_update.state.conditions,
         };
 
-        DistilledMemory { facts, state }
+        DistilledMemory {
+            facts,
+            state,
+            running_digest: memory_update.running_digest,
+        }
     }
 }
 
@@ -192,9 +198,10 @@ fn schema() -> JsonSchema {
                         "conditions"
                     ],
                     "additionalProperties": false
-                }
+                },
+                "running_digest": { "type": "string" }
             },
-            "required": ["facts", "state"],
+            "required": ["facts", "state", "running_digest"],
             "additionalProperties": false
         }),
     }

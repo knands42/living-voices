@@ -8,7 +8,7 @@ CREATE TABLE character
     backstory      TEXT NOT NULL DEFAULT '',
     status         TEXT NOT NULL DEFAULT 'present',
     portrait_path  TEXT,
-    main_character BOOL NOT NULL DEFAULT FALSE,
+    is_player      BOOL NOT NULL DEFAULT FALSE,
     created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
