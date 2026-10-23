@@ -1,15 +1,16 @@
 -- A character belongs to exactly one adventure
 CREATE TABLE character
 (
-    id            TEXT    NOT NULL PRIMARY KEY,
-    adventure_id   TEXT    NULL REFERENCES adventure (id),
-    name          TEXT    NOT NULL,
-    description   TEXT    NOT NULL DEFAULT '',
-    backstory     TEXT    NOT NULL DEFAULT '',
-    status        TEXT    NOT NULL DEFAULT 'present',
-    portrait_path TEXT,
-    created_at    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-    updated_at    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    id             TEXT NOT NULL PRIMARY KEY,
+    adventure_id   TEXT NULL REFERENCES adventure (id),
+    name           TEXT NOT NULL,
+    description    TEXT NOT NULL DEFAULT '',
+    backstory      TEXT NOT NULL DEFAULT '',
+    status         TEXT NOT NULL DEFAULT 'present',
+    portrait_path  TEXT,
+    main_character BOOL NOT NULL DEFAULT FALSE,
+    created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
     CONSTRAINT character_id_is_uuid CHECK (length(id) = 36),
     CONSTRAINT character_name_not_blank CHECK (length(trim(name)) > 0),
@@ -45,10 +46,13 @@ CREATE TABLE character_tag
 
 -- Same no-op-on-duplicate behaviour as adventure_tag.
 CREATE TRIGGER character_tag_ignore_duplicate_insert
-    BEFORE INSERT ON character_tag
+    BEFORE INSERT
+    ON character_tag
     FOR EACH ROW
-    WHEN EXISTS (SELECT 1 FROM character_tag
-                 WHERE character_id = NEW.character_id AND tag = NEW.tag)
+    WHEN EXISTS (SELECT 1
+                 FROM character_tag
+                 WHERE character_id = NEW.character_id
+                   AND tag = NEW.tag)
 BEGIN
     SELECT RAISE(IGNORE);
 END;
@@ -57,10 +61,10 @@ END;
 -- relation per target character per direction.
 CREATE TABLE character_relation
 (
-    character_id         TEXT    NOT NULL REFERENCES character (id) ON DELETE CASCADE,
-    related_character_id TEXT    NOT NULL REFERENCES character (id) ON DELETE CASCADE,
-    relation             TEXT    NOT NULL,
-    created_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    character_id         TEXT NOT NULL REFERENCES character (id) ON DELETE CASCADE,
+    related_character_id TEXT NOT NULL REFERENCES character (id) ON DELETE CASCADE,
+    relation             TEXT NOT NULL,
+    created_at           TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
     PRIMARY KEY (character_id, related_character_id),
 
@@ -69,7 +73,8 @@ CREATE TABLE character_relation
 ) WITHOUT ROWID;
 
 CREATE TRIGGER character_touch_updated_at
-    AFTER UPDATE ON character
+    AFTER UPDATE
+    ON character
     FOR EACH ROW
     WHEN NEW.updated_at = OLD.updated_at
 BEGIN

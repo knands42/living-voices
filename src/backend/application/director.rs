@@ -1,4 +1,4 @@
-use crate::backend::application::port::chat_port::Candidate;
+use crate::backend::domain::character::Character;
 use crate::backend::domain::message::Message;
 use crate::config::DirectorSettings;
 
@@ -14,7 +14,7 @@ impl Director {
     }
     pub fn should_narrator_speak(
         &self,
-        candidates: &[Candidate],
+        candidates: &[&Character],
         incoming: &Message,
         messages_since_narration: u8,
     ) -> bool {
@@ -55,9 +55,9 @@ impl Director {
 
     pub fn pick_character<'a>(
         &self,
-        candidates: &'a [Candidate],
+        candidates: &'a [&Character],
         incoming: &Message,
-    ) -> Option<&'a Candidate> {
+    ) -> Option<&'a Character> {
         let roll = rand::random::<f32>();
         if roll < self.director_settings.targeted_pick_chance {
             let targeted = self.targeted_character(candidates, incoming)?;
@@ -71,14 +71,15 @@ impl Director {
     /// A cast member chosen at random from the incoming message's targets.
     fn targeted_character<'a>(
         &self,
-        candidates: &'a [Candidate],
+        candidates: &'a [&Character],
         incoming: &Message,
-    ) -> Option<&'a Candidate> {
+    ) -> Option<&'a Character> {
         let targeted = incoming.targeted_characters.as_ref()?;
 
-        let in_cast: Vec<&'a Candidate> = candidates
+        let in_cast: Vec<&'a Character> = candidates
             .iter()
             .filter(|c| targeted.iter().any(|t| t.name == c.name))
+            .copied()
             .collect();
 
         if in_cast.is_empty() {

@@ -3,18 +3,18 @@ use crate::backend::application::context::ContextBuilder;
 use crate::backend::application::director::Director;
 use crate::backend::application::memory_manager::MemoryManager;
 use crate::backend::application::port::chat_port::{
-    Candidate, ChatHandler, ChatReply, ChatResponseError, NarratorHandler,
+    ChatHandler, ChatReply, ChatResponseError, NarratorHandler,
 };
 use crate::backend::application::port::memory_port::MemoryDistiller;
 use crate::backend::application::state::{SharedState, StateError};
-use crate::backend::domain::adventure::Adventure;
+use crate::backend::domain::character::Character;
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::memory_persistence::get_active_candidates;
 use crate::backend::persistence::message_persistence::{
     count_since_last_narration, insert_message,
 };
 use crate::config::MemorySettings;
-use sqlx::SqlitePool;
+use sqlx::{SqliteConnection, SqlitePool};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -84,23 +84,19 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
         self.create_message(incoming.clone()).await?;
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let candidates_str = get_active_candidates(&mut conn, &adventure.id.to_string()).await?;
-        let parsed_candidates = Candidate::from_adventure(&adventure, candidates_str);
-        let history = ContextBuilder::build_autonomous_chat_prompt(&mut conn).await?;
+        let present_names = get_active_candidates(&mut conn, &adventure.id.to_string()).await?;
+        let active_characters = adventure.active_characters(&present_names);
         let messages_since_narration = count_since_last_narration(&mut conn, adventure.id).await?;
-        drop(conn);
 
-        let user_message = incoming.text.as_str();
         let reply = self
             .send(
+                &mut conn,
                 &incoming,
-                &adventure,
-                &parsed_candidates,
-                &history,
-                messages_since_narration,
-                &user_message,
+                &active_characters,
+                messages_since_narration as u8,
             )
             .await?;
+        drop(conn);
 
         let reply_message = adventure.message_from_reply(&reply.replier, &reply.reply);
         let stored_reply = self.create_message(reply_message).await?;
@@ -112,34 +108,35 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
 
     async fn send(
         &self,
+        conn: &mut SqliteConnection,
         incoming: &Message,
-        adventure: &Adventure,
-        parsed_candidates: &Vec<Candidate>,
-        history: &String,
+        active_characters: &[&Character],
         messages_since_narration: u8,
-        user_message: &&str,
     ) -> Result<ChatReply, MessageManagerError> {
-        Ok(
-            if self.director.should_narrator_speak(
-                &parsed_candidates,
-                &incoming,
-                messages_since_narration,
-            ) {
-                self.narrator_handler
-                    .narrator_respond(adventure.tone.as_str(), &history, &user_message)
-                    .await?
-            } else if let Some(candidate) =
-                self.director.pick_character(&parsed_candidates, &incoming)
-            {
-                self.chat_handler
-                    .character_respond(candidate, &history, &user_message)
-                    .await?
-            } else {
-                self.chat_handler
-                    .autonomous_respond(&parsed_candidates, &history, &user_message)
-                    .await?
-            },
-        )
+        if self.director.should_narrator_speak(
+            active_characters,
+            incoming,
+            messages_since_narration,
+        ) {
+            let context = ContextBuilder::build_narrator_chat_prompt(conn).await?;
+            let reply = self.narrator_handler.narrator_respond(&context).await?;
+            return Ok(ChatReply {
+                replier: Message::NARRATOR_SPEAKER_NAME.to_string(),
+                reply,
+            });
+        }
+
+        if let Some(character) = self.director.pick_character(active_characters, incoming) {
+            let context = ContextBuilder::build_single_character_chat_prompt(conn).await?;
+            let reply = self.chat_handler.character_respond(&context).await?;
+            return Ok(ChatReply {
+                replier: character.name.clone(),
+                reply,
+            });
+        }
+
+        let context = ContextBuilder::build_autonomous_chat_prompt(conn).await?;
+        Ok(self.chat_handler.autonomous_respond(&context).await?)
     }
 
     async fn maybe_compress_memory(&self) {

@@ -5,3 +5,4 @@ echo "Running cargo fmt..."
 cargo fmt
 
 git add -u
+

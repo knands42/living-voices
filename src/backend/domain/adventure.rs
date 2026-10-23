@@ -46,6 +46,13 @@ impl Adventure {
         self.characters.iter().find(|c| c.name == name)
     }
 
+    pub fn active_characters(&self, present_names: &[String]) -> Vec<&Character> {
+        self.characters
+            .iter()
+            .filter(|c| present_names.iter().any(|name| name == &c.name))
+            .collect()
+    }
+
     pub fn message_from_reply(&self, replier: &str, text: &str) -> Message {
         let (character_id, narrator_id, speaker_name) = match self.find_character(replier) {
             Some(character) => (Some(character.id), None, character.name.clone()),

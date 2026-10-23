@@ -1,3 +1,4 @@
+use crate::backend::application::port::chat_port::{PromptTurn, Speaker};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -31,6 +32,16 @@ impl ChatMessage {
         Self {
             role,
             content: content.into(),
+        }
+    }
+}
+
+impl From<PromptTurn> for ChatMessage {
+    fn from(value: PromptTurn) -> Self {
+        match value.speaker {
+            Speaker::System => ChatMessage::system(value.text.as_str()),
+            Speaker::Player => ChatMessage::user(value.text.as_str()),
+            Speaker::Cast => ChatMessage::assistant(value.text.as_str()),
         }
     }
 }

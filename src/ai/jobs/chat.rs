@@ -7,23 +7,9 @@ use crate::ai::{
     types::ChatMessage,
 };
 use crate::backend::application::port::chat_port::{
-    Candidate, ChatHandler, ChatReply, ChatResponseError,
+    ChatHandler, ChatReply, ChatResponseError, PromptTurn,
 };
 use crate::config::TextModel;
-
-const CHARACTER_SYSTEM_PROMPT: &str = "\
-You are a single character in a roleplay. Stay fully in character — speak only as
-them, in their voice, revealing only what they would know. Reply with their next
-line of dialogue or action as plain text — no narration of other characters, no
-JSON, no quotation marks around the whole reply.";
-
-const AUTONOMOUS_SYSTEM_PROMPT: &str = "\
-You direct one turn of a roleplay. From the cast listed below, choose which
-character speaks next — never the narrator — then write their line in their own
-voice and tone.
-Reply with JSON only, exactly these two fields:
-- \"replier\": the exact name of the character you chose from the cast.
-- \"reply\": that character's line, as plain text.";
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Chat {
@@ -60,58 +46,38 @@ impl Chat {
 }
 
 impl ChatHandler for Chat {
-    async fn character_respond(
-        &self,
-        candidate: &Candidate,
-        memory: &str,
-        user_message: &str,
-    ) -> Result<ChatReply, ChatResponseError> {
+    async fn character_respond(&self, context: &[PromptTurn]) -> Result<String, ChatResponseError> {
         let client = self.client()?;
-
-        let messages = [
-            ChatMessage::system(CHARACTER_SYSTEM_PROMPT),
-            ChatMessage::system(candidate.context.as_str()),
-            ChatMessage::system(memory),
-            ChatMessage::user(user_message),
-        ];
+        let prompt = context
+            .iter()
+            .cloned()
+            .map(ChatMessage::from)
+            .collect::<Vec<ChatMessage>>();
 
         // TODO: add keep_alive for caching tokens
         let reply = client
             .send(
                 self.config.model.as_str(),
-                &messages,
+                &prompt,
                 self.config.temperature,
                 None,
             )
             .await
             .map_err(|e| ChatResponseError::Provider(e.to_string()))?;
 
-        Ok(ChatReply {
-            replier: candidate.name.clone(),
-            reply,
-        })
+        Ok(reply)
     }
 
     async fn autonomous_respond(
         &self,
-        candidates: &[Candidate],
-        memory: &str,
-        user_message: &str,
+        context: &[PromptTurn],
     ) -> Result<ChatReply, ChatResponseError> {
         let client = self.client()?;
-
-        let messages = [
-            ChatMessage::system(AUTONOMOUS_SYSTEM_PROMPT),
-            ChatMessage::system(
-                candidates
-                    .iter()
-                    .map(|c| format!("- \"{}\": {}", c.name, c.context))
-                    .collect::<Vec<String>>()
-                    .join("\n"),
-            ),
-            ChatMessage::system(memory),
-            ChatMessage::user(user_message),
-        ];
+        let prompt = context
+            .iter()
+            .cloned()
+            .map(ChatMessage::from)
+            .collect::<Vec<ChatMessage>>();
 
         let format = ResponseFormat::JsonSchema {
             json_schema: &schema(),
@@ -120,7 +86,7 @@ impl ChatHandler for Chat {
         let raw = client
             .send(
                 self.config.model.as_str(),
-                &messages,
+                &prompt,
                 self.config.temperature,
                 Some(format),
             )

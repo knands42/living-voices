@@ -1,5 +1,6 @@
 use sqlx::SqliteConnection;
 
+use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::persistence::error::PersistenceError;
 
 const AUTONOMOUS_CHAT_PROMPT: &str = "You write one beat of an interactive roleplay at a time: one character speaks and/or acts, or you narrate the world around the player";
@@ -161,8 +162,8 @@ pub struct ContextBuilder;
 impl ContextBuilder {
     pub async fn build_autonomous_chat_prompt(
         conn: &mut SqliteConnection,
-    ) -> Result<String, PersistenceError> {
-        let final_prompt = vec![
+    ) -> Result<Vec<PromptTurn>, PersistenceError> {
+        let head = [
             AUTONOMOUS_CHAT_PROMPT.to_string(),
             ContextBuilder::build_settings_prompt(conn).await?,
             ContextBuilder::build_characters_prompt(conn).await?,
@@ -170,44 +171,57 @@ impl ContextBuilder {
             AUTONOMOUS_CHAT_BODY_INSTRUCTION.to_string(),
             AUTONOMOUS_CHAT_RULES_INSTRUCTION.to_string(),
             AUTONOMOUS_CHAT_CHAT_EXAMPLES_INSTRUCTION.to_string(),
-            ContextBuilder::build_context(conn).await?,
-            ContextBuilder::build_closure_prompt(10, 600), // TODO: on demand, not every call
         ];
 
-        Ok(final_prompt.join("\n\n"))
+        ContextBuilder::assemble(conn, &head).await
     }
 
     pub async fn build_single_character_chat_prompt(
         conn: &mut SqliteConnection,
-    ) -> Result<String, PersistenceError> {
-        let final_prompt = vec![
+    ) -> Result<Vec<PromptTurn>, PersistenceError> {
+        let head = [
             SINGLE_CHARACTER_CHAT_PROMPT.to_string(),
             ContextBuilder::build_settings_prompt(conn).await?,
             SINGLE_CHARACTER_CHAT_BODY_INSTRUCTION.to_string(),
             SINGLE_CHARACTER_CHAT_RULES_INSTRUCTION.to_string(),
             SINGLE_CHARACTER_CHAT_EXAMPLES_INSTRUCTION.to_string(),
-            ContextBuilder::build_context(conn).await?,
             ContextBuilder::build_character_prompt(conn).await?,
-            ContextBuilder::build_closure_prompt(10, 600), // TODO: on demand, not every call
         ];
 
-        Ok(final_prompt.join("\n\n"))
+        ContextBuilder::assemble(conn, &head).await
     }
 
     pub async fn build_narrator_chat_prompt(
         conn: &mut SqliteConnection,
-    ) -> Result<String, PersistenceError> {
-        let final_prompt = vec![
+    ) -> Result<Vec<PromptTurn>, PersistenceError> {
+        let head = [
             NARRATOR_CHAT_PROMPT.to_string(),
             ContextBuilder::build_settings_prompt(conn).await?,
             NARRATOR_CHAT_BODY_INSTRUCTION.to_string(),
             NARRATOR_CHAT_RULES_INSTRUCTION.to_string(),
             NARRATOR_CHAT_EXAMPLES_INSTRUCTION.to_string(),
-            ContextBuilder::build_context(conn).await?,
-            ContextBuilder::build_closure_prompt(10, 600), // TODO: on demand, not every call
         ];
 
-        Ok(final_prompt.join("\n\n"))
+        ContextBuilder::assemble(conn, &head).await
+    }
+
+    async fn assemble(
+        conn: &mut SqliteConnection,
+        head: &[String],
+    ) -> Result<Vec<PromptTurn>, PersistenceError> {
+        let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
+
+        turns.push(PromptTurn::system(
+            ContextBuilder::build_static_context(conn).await?,
+        ));
+        turns.extend(ContextBuilder::build_previous_messages(conn).await?);
+
+        // TODO: on demand, not every call
+        turns.push(PromptTurn::system(ContextBuilder::build_closure_prompt(
+            10, 600,
+        )));
+
+        Ok(turns)
     }
 
     pub async fn build_settings_prompt(
@@ -216,12 +230,11 @@ impl ContextBuilder {
         todo!()
     }
 
-    async fn build_context(conn: &mut SqliteConnection) -> Result<String, PersistenceError> {
+    async fn build_static_context(conn: &mut SqliteConnection) -> Result<String, PersistenceError> {
         let final_prompt = vec![
             "## CONTEXT".to_string(),
             ContextBuilder::build_acts_prompt(conn).await?,
             ContextBuilder::build_current_state(conn).await?,
-            ContextBuilder::build_previous_messages(conn).await?,
             ContextBuilder::build_relevant_memories(conn).await?,
         ];
 
@@ -255,9 +268,11 @@ impl ContextBuilder {
         Ok(final_prompt)
     }
 
+    /// The dynamic middle: each past message as a Player turn (the human) or a
+    /// Cast turn (a character or narrator reply).
     async fn build_previous_messages(
         conn: &mut SqliteConnection,
-    ) -> Result<String, PersistenceError> {
+    ) -> Result<Vec<PromptTurn>, PersistenceError> {
         todo!()
     }
 
@@ -285,7 +300,6 @@ impl ContextBuilder {
         current_act_messages_max_threshold: u16, // TODO: later it will be controlled on the adventure settings, for now defaults to 200
     ) -> String {
         CLOSURE_PROMPT
-            .replace("{progress}", "ongoing") // TODO: get this
             .replace("{0}", &current_number_of_messages.to_string())
             .replace("{1}", &current_act_messages_max_threshold.to_string())
     }
