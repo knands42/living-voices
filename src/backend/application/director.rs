@@ -37,6 +37,29 @@ impl Director {
         roll < self.narrator_chance(messages_since_narration)
     }
 
+    pub fn pick_character<'a>(
+        &self,
+        candidates: &'a [&Character],
+        incoming: &Message,
+    ) -> Option<&'a Character> {
+        let roll = rand::random::<f32>();
+        if roll < self.director_settings.targeted_pick_chance {
+            let targeted = self.targeted_character(candidates, incoming)?;
+            Some(targeted)
+        } else {
+            None
+        }
+        // TODO: Implement logic for picking a character when the roll is not for the targeted character.
+    }
+
+    pub fn should_request_closure(&self, messages_in_act: u16) -> bool {
+        messages_in_act >= self.director_settings.act_max_messages / 2
+    }
+
+    pub fn get_max_act_messages(&self) -> u16 {
+        self.director_settings.act_max_messages
+    }
+
     fn narrator_chance(&self, messages_since_narration: u8) -> f32 {
         let (min, max) = self
             .director_settings
@@ -51,21 +74,6 @@ impl Director {
 
         let span = (max - min) as f32;
         (messages_since_narration - min) as f32 / span
-    }
-
-    pub fn pick_character<'a>(
-        &self,
-        candidates: &'a [&Character],
-        incoming: &Message,
-    ) -> Option<&'a Character> {
-        let roll = rand::random::<f32>();
-        if roll < self.director_settings.targeted_pick_chance {
-            let targeted = self.targeted_character(candidates, incoming)?;
-            Some(targeted)
-        } else {
-            None
-        }
-        // TODO: Implement logic for picking a character when the roll is not for the targeted character.
     }
 
     /// A cast member chosen at random from the incoming message's targets.

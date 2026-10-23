@@ -36,19 +36,27 @@ impl StateRow {
     }
 }
 
-/// How many messages sit after `after_seq` in the log.
-pub async fn count_uncovered(
+/// How many messages sit inside the adventure's active act.
+pub async fn count_uncovered_per_act(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
-    after_seq: u64,
-) -> Result<u64, PersistenceError> {
-    let row = sqlx::query("SELECT COUNT(*) AS c FROM message WHERE adventure_id = ?1 AND seq > ?2")
-        .bind(adventure_id.to_string())
-        .bind(after_seq as i64)
-        .fetch_one(&mut *conn)
-        .await?;
+) -> Result<u16, PersistenceError> {
+    let adventure_id = adventure_id.to_string();
 
-    Ok(row.get::<i64, _>("c") as u64)
+    let row = sqlx::query(
+        "SELECT COUNT(*) AS count
+         FROM message
+         WHERE adventure_id = ?1
+           AND seq >= COALESCE(
+               (SELECT from_seq FROM act WHERE adventure_id = ?1 AND status = 'active'),
+               0
+           )",
+    )
+    .bind(&adventure_id)
+    .fetch_one(&mut *conn)
+    .await?;
+
+    Ok(row.get::<u16, _>("count"))
 }
 
 pub async fn get_active_candidates(
@@ -63,15 +71,8 @@ pub async fn get_active_candidates(
     parse_json_array(row.get("characters_present"))
 }
 
-pub async fn get_act(
-    conn: &mut SqliteConnection,
-    adventure_id: &str,
-) -> Result<Vec<Act>, PersistenceError> {
-    todo!()
-}
-
 /// The single live `state` row for an adventure, if one exists yet.
-pub async fn fetch_state(
+pub async fn get_state(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
 ) -> Result<Option<State>, PersistenceError> {

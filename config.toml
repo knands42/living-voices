@@ -27,6 +27,7 @@ workflow = "scene.json"
 [memory]
 compress_after_threshold = 70
 compress_last_messages = 50
+act_max_messages = 200
 
 [director]
 targeted_pick_chance = 0.8      # (0.0 - 1.0)

@@ -1,12 +1,12 @@
-use sqlx::SqliteConnection;
-
+use crate::backend::application::director::Director;
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::Character;
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::error::PersistenceError;
-use crate::backend::persistence::memory_persistence::fetch_state;
+use crate::backend::persistence::memory_persistence::{count_uncovered_per_act, get_state};
 use crate::backend::persistence::message_persistence::fetch_last_n;
+use sqlx::SqliteConnection;
 
 const AUTONOMOUS_HISTORY_WINDOW: i64 = 50;
 
@@ -226,6 +226,7 @@ impl ContextBuilder {
     pub async fn build_autonomous_chat_prompt(
         conn: &mut SqliteConnection,
         adventure: &Adventure,
+        director: &Director,
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let head = [
             AUTONOMOUS_CHAT_PROMPT.to_string(),
@@ -237,12 +238,13 @@ impl ContextBuilder {
             AUTONOMOUS_CHAT_CHAT_EXAMPLES_INSTRUCTION.to_string(),
         ];
 
-        ContextBuilder::assemble(conn, adventure, &head).await
+        ContextBuilder::assemble(conn, adventure, director, &head).await
     }
 
     pub async fn build_single_character_chat_prompt(
         conn: &mut SqliteConnection,
         adventure: &Adventure,
+        director: &Director,
         character: &Character,
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let head = [
@@ -254,12 +256,13 @@ impl ContextBuilder {
             character.render(),
         ];
 
-        ContextBuilder::assemble(conn, adventure, &head).await
+        ContextBuilder::assemble(conn, adventure, director, &head).await
     }
 
     pub async fn build_narrator_chat_prompt(
         conn: &mut SqliteConnection,
         adventure: &Adventure,
+        director: &Director,
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let head = [
             NARRATOR_CHAT_PROMPT.to_string(),
@@ -269,12 +272,13 @@ impl ContextBuilder {
             NARRATOR_CHAT_EXAMPLES_INSTRUCTION.to_string(),
         ];
 
-        ContextBuilder::assemble(conn, adventure, &head).await
+        ContextBuilder::assemble(conn, adventure, director, &head).await
     }
 
     async fn assemble(
         conn: &mut SqliteConnection,
         adventure: &Adventure,
+        director: &Director,
         head: &[String],
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
@@ -284,16 +288,17 @@ impl ContextBuilder {
         ));
         turns.extend(ContextBuilder::build_previous_messages(conn, adventure).await?);
 
-        // TODO: on demand, not every call
-        turns.push(PromptTurn::system(ContextBuilder::build_closure_prompt(
-            10, 200,
-        )));
+        let messages_in_act = count_uncovered_per_act(conn, adventure.id).await? as u16;
+        if director.should_request_closure(messages_in_act) {
+            turns.push(PromptTurn::system(ContextBuilder::build_closure_prompt(
+                messages_in_act,
+                director.get_max_act_messages(),
+            )));
+        }
 
         Ok(turns)
     }
 
-    /// The settings block: the adventure's identity, tone and lore. Pure over
-    /// the loaded `Adventure`, so no database access is needed.
     pub fn build_settings_prompt(adventure: &Adventure) -> String {
         let mut lines = vec!["## SETTINGS".to_string()];
 
@@ -347,7 +352,7 @@ impl ContextBuilder {
         conn: &mut SqliteConnection,
         adventure: &Adventure,
     ) -> Result<String, PersistenceError> {
-        if let Some(state) = fetch_state(conn, adventure.id).await? {
+        if let Some(state) = get_state(conn, adventure.id).await? {
             if let Some(rendered) = state.render() {
                 return Ok(format!("CURRENT STATE\n{0}", rendered).to_string());
             }

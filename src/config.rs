@@ -21,6 +21,7 @@ const DEFAULT_FACT_LIMIT: u8 = 5;
 
 const DEFAULT_TARGETED_PICK_CHANCE: f32 = 0.8;
 const DEFAULT_NARRATOR_CHANGE_IF_OOC: f32 = 0.2;
+const DEFAULT_ACT_MAX_MESSAGES: u16 = 200;
 
 const DEFAULT_NARRATOR_RAMP_MIN: u8 = 20;
 const DEFAULT_NARRATOR_RAMP_MAX: u8 = 30;
@@ -108,6 +109,7 @@ impl Default for MemorySettings {
 pub struct DirectorSettings {
     pub targeted_pick_chance: f32,
     pub narrator_change_if_ooc: f32,
+    pub act_max_messages: u16,
     pub narrator_pick_chance_after_message_threshold_range: MessageThresholdRange,
 }
 
@@ -116,6 +118,7 @@ impl Default for DirectorSettings {
         Self {
             targeted_pick_chance: DEFAULT_TARGETED_PICK_CHANCE,
             narrator_change_if_ooc: DEFAULT_NARRATOR_CHANGE_IF_OOC,
+            act_max_messages: DEFAULT_ACT_MAX_MESSAGES,
             narrator_pick_chance_after_message_threshold_range: MessageThresholdRange::default(),
         }
     }

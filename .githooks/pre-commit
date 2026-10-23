@@ -5,3 +5,6 @@ echo "Running cargo fmt..."
 cargo fmt
 
 git add -u
+
+echo "Running cargo test..."
+cargo test

@@ -120,7 +120,8 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
             incoming,
             messages_since_narration,
         ) {
-            let context = ContextBuilder::build_narrator_chat_prompt(conn, adventure).await?;
+            let context =
+                ContextBuilder::build_narrator_chat_prompt(conn, adventure, &self.director).await?;
             let reply = self.narrator_handler.narrator_respond(&context).await?;
             return Ok(ChatReply {
                 replier: Message::NARRATOR_SPEAKER_NAME.to_string(),
@@ -129,9 +130,13 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
         }
 
         if let Some(character) = self.director.pick_character(active_characters, incoming) {
-            let context =
-                ContextBuilder::build_single_character_chat_prompt(conn, adventure, character)
-                    .await?;
+            let context = ContextBuilder::build_single_character_chat_prompt(
+                conn,
+                adventure,
+                &self.director,
+                character,
+            )
+            .await?;
             let reply = self.chat_handler.character_respond(&context).await?;
             return Ok(ChatReply {
                 replier: character.name.clone(),
@@ -139,7 +144,8 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
             });
         }
 
-        let context = ContextBuilder::build_autonomous_chat_prompt(conn, adventure).await?;
+        let context =
+            ContextBuilder::build_autonomous_chat_prompt(conn, adventure, &self.director).await?;
         Ok(self.chat_handler.autonomous_respond(&context).await?)
     }
 
