@@ -13,31 +13,6 @@ use crate::backend::application::port::memory_port::{
 use crate::backend::domain::message::Message;
 use crate::config::TextModel;
 
-const SYSTEM_PROMPT: &str = "\
-You distill a roleplay conversation into a structured memory record.
-Reply with JSON only, containing exactly these two fields:
-
-- \"facts\": an array of objects, each a single atomic thing that is now true. \
-Each object has:
-    - \"subject\": who or what the fact is about (a name or thing), verbatim.
-    - \"fact\": one short, self-contained statement. Keep names, numbers and \
-identifiers verbatim.
-    - \"permanence\": one of \"permanent\" (true for the rest of the story — \
-identities, bonds, irreversible changes), \"plot\" (true until the story moves \
-on — a current goal, a held grudge, an open deal) or \"scene\" (true only right \
-now — a stance, a held object, a momentary mood).
-
-- \"state\": one object describing the single current situation, with:
-    - \"day\": the in-world time, e.g. \"Day 2, dusk\" (null if unknown).
-    - \"place\": where the scene is, e.g. \"cave mouth\" (null if unknown).
-    - \"characters_present\": array of names of everyone on scene now.
-    - \"open_threads\": array of unresolved threads, each a short phrase.
-    - \"conditions\": array of active conditions, each a short phrase, e.g. \
-\"kaelen: left arm, minor\", \"mood: tense\", \"storm approaching\".
-
-Only record what the conversation establishes. Never invent details that are not \
-in the conversation. Prefer fewer, sharper facts over many vague ones.";
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Permanence {
@@ -184,7 +159,7 @@ fn schema() -> JsonSchema {
                             "fact": { "type": "string" },
                             "permanence": {
                                 "type": "string",
-                                "enum": ["permanent", "plot", "scene"]
+                                "enum": ["permanent", "plot"]
                             }
                         },
                         "required": ["subject", "fact", "permanence"],

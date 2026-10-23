@@ -80,31 +80,51 @@ moment after it, where the story would naturally turn, is. Do not inflate the
 number to be helpful — most beats are 1 or 2."#;
 
 const DISTILL_PROMPT: &str = r#"## DISTILL
-Read the conversation turns above and distill them into a structured memory record.
-Return JSON only, with exactly two fields:
+Below you are given the existing memory (## CONTEXT: the current PAST ACTS, CURRENT
+STATE, facts and memories) followed by the latest conversation turns. The existing
+memory was true as of its last update; the conversation is what happened since.
 
-- "facts": an array of atomic things that are now true. Each item is an object:
-    - "subject": who or what the fact is about (a name or a thing), verbatim.
-    - "fact": one short, self-contained statement. Keep names, numbers and
-      identifiers verbatim.
+Reconcile the two. Produce the memory record as it should stand NOW — not a record
+of only the new turns, and not a copy of the old one. Return JSON only, with exactly
+two fields:
+
+- "facts": the facts that are true now. For each one decide:
+    - KEEP an existing fact unchanged if the conversation neither changed nor
+      contradicted it, and it still matters.
+    - OVERRIDE a fact when the conversation changes it: emit the new version with
+      the same "subject", stating the new truth (e.g. a wound that healed, an ally
+      who turned, a goal that was met or abandoned). The new fact replaces the old.
+    - ADD a fact the conversation newly establishes.
+    - DROP a "plot" fact once the conversation resolves it or makes it moot. Never
+      drop a "permanent" fact.
+  Each item is an object:
+    - "subject": who or what the fact is about (a name or a thing), verbatim. Reuse
+      the existing subject spelling so an updated fact lines up with the one it
+      replaces.
+    - "fact": one short, self-contained statement, in the present. Keep names,
+      numbers and identifiers verbatim.
     - "permanence": one of
         "permanent"  true for the rest of the story — an identity, a bond, an
-                     irreversible change.
-        "plot"       true until the story moves on — a current goal, a held
-                     grudge, an open deal.
-        "scene"      true only right now — a stance, a held object, a passing mood.
+                     irreversible change. Never contradicted by later events.
+        "plot"       true until the story moves on or says otherwise — a current
+                     goal, a held grudge, an open deal.
+  When a new fact clashes with an existing one, the conversation wins: the later
+  truth replaces the earlier. Do not emit both the old and the new version of the
+  same fact.
 
-- "state": one object describing the single current situation:
-    - "day"                 in-world time, e.g. "Day 2, dusk" (null if unknown).
-    - "place"               where the scene is, e.g. "cave mouth" (null if unknown).
-    - "characters_present"  array of names of everyone on scene now.
-    - "open_threads"        array of unresolved threads, each a short phrase.
-    - "conditions"          array of active conditions, each a short phrase, e.g.
-                            "kaelen: left arm, minor", "mood: tense",
-                            "storm approaching".
+- "state": one object describing the single current situation AFTER these turns.
+  Start from the existing CURRENT STATE and update only what the conversation moved;
+  carry forward anything it did not touch. Do not reset a field to empty just
+  because the latest turns did not mention it.
+    - "day"                 in-world time now, e.g. "Day 2, dusk" (null if never established).
+    - "place"               where the scene is now, e.g. "cave mouth" (unknown if not specified).
+    - "characters_present"  names of everyone on scene now (only the speakers not npc interactions) — add arrivals, remove those who left.
+    - "open_threads"        unresolved threads, each a short phrase. Drop a thread the conversation closed; add ones it opened.
+    - "conditions"          active conditions now, each a short phrase, e.g. "kaelen: left arm, minor", "mood: tense", "storm approaching". Drop conditions that ended.
 
-Record only what the conversation establishes. Never invent anything. Prefer a few
-sharp facts over many vague ones. Do not write prose — JSON only."#;
+Record only what the existing memory or the conversation establishes. Never invent
+anything. Prefer a few sharp facts over many vague ones. Do not write prose —
+JSON only."#;
 
 const SINGLE_CHARACTER_CHAT_PROMPT: &str = "You write one beat of an interactive roleplay. The turn belongs to one character, named below — continue it.";
 
@@ -246,7 +266,7 @@ impl ContextBuilder {
 
         // TODO: on demand, not every call
         turns.push(PromptTurn::system(ContextBuilder::build_closure_prompt(
-            10, 600,
+            10, 200,
         )));
 
         Ok(turns)
