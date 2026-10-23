@@ -27,7 +27,7 @@ impl MessageRow {
             character_id: row.get("character_id"),
             speaker_name: row.get("speaker_name"),
             text: row.get("text"),
-            ooc: row.get::<i64, _>("ooc") != 0,
+            ooc: row.get::<u8, _>("ooc") != 0,
             created_at: row.get("created_at"),
         }
     }

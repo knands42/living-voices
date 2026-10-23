@@ -2,9 +2,10 @@ use crate::backend::application::director::Director;
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::Character;
+use crate::backend::domain::memory::{Act, ActStatus};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::error::PersistenceError;
-use crate::backend::persistence::memory_persistence::{count_uncovered_per_act, get_state};
+use crate::backend::persistence::memory_persistence::{count_uncovered_per_act, get_act, get_state};
 use crate::backend::persistence::message_persistence::fetch_last_n;
 use sqlx::SqliteConnection;
 
@@ -326,7 +327,7 @@ impl ContextBuilder {
     ) -> Result<String, PersistenceError> {
         let final_prompt = vec![
             "## CONTEXT".to_string(),
-            ContextBuilder::build_acts_prompt(conn).await?,
+            ContextBuilder::build_acts_prompt(conn, adventure).await?,
             ContextBuilder::build_current_state(conn, adventure).await?,
             ContextBuilder::build_relevant_memories(conn, adventure).await?,
         ];
@@ -334,18 +335,34 @@ impl ContextBuilder {
         Ok(final_prompt.join("\n\n"))
     }
 
-    async fn build_acts_prompt(conn: &mut SqliteConnection) -> Result<String, PersistenceError> {
-        let mut final_prompt = String::new();
+    async fn build_acts_prompt(
+        conn: &mut SqliteConnection,
+        adventure: &Adventure,
+    ) -> Result<String, PersistenceError> {
+        let acts = get_act(conn, adventure.id).await?;
 
-        final_prompt.push_str("PAST ACTS\n");
-        // TODO: retrieve from db here all previous acts.digest
-        final_prompt.push_str("CURRENT ACT\n");
-        // TODO: retrieve from db the current active act.index
-        final_prompt.push_str("THIS ACT SO FAR\n");
-        // TODO: retrieve from db the current active act.running_digest
+        let current = acts.iter().find(|act| act.status == ActStatus::Active);
+        let past: Vec<&Act> = acts
+            .iter()
+            .filter(|act| act.status != ActStatus::Active && act.digest.is_some())
+            .collect();
 
-        let _ = conn;
-        Ok(final_prompt)
+        let mut sections = Vec::new();
+
+        if !past.is_empty() {
+            sections.push(format!("### PAST ACTS\n{}", Act::render_digest(&past)));
+        }
+
+        if let Some(act) = current {
+            sections.push(format!("### CURRENT ACT\n{}", act.render_index()));
+
+            let running = act.render_running_digest();
+            if !running.trim().is_empty() {
+                sections.push(format!("### THIS ACT SO FAR\n{running}"));
+            }
+        }
+
+        Ok(sections.join("\n\n"))
     }
 
     async fn build_current_state(
@@ -354,7 +371,7 @@ impl ContextBuilder {
     ) -> Result<String, PersistenceError> {
         if let Some(state) = get_state(conn, adventure.id).await? {
             if let Some(rendered) = state.render() {
-                return Ok(format!("CURRENT STATE\n{0}", rendered).to_string());
+                return Ok(format!("### CURRENT STATE\n{0}", rendered).to_string());
             }
         }
 

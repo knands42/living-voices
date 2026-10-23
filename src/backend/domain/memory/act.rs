@@ -22,16 +22,6 @@ impl ActStatus {
         ActStatus::Bypassed,
     ];
 
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            ActStatus::Unstarted => "unstarted",
-            ActStatus::Active => "active",
-            ActStatus::Resolved => "resolved",
-            ActStatus::Failed => "failed",
-            ActStatus::Bypassed => "bypassed",
-        }
-    }
-
     pub fn from_str(s: &str) -> Option<ActStatus> {
         match s {
             "unstarted" => Some(ActStatus::Unstarted),
@@ -46,7 +36,13 @@ impl ActStatus {
 
 impl Display for ActStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
+        f.write_str(match self {
+            ActStatus::Unstarted => "unstarted",
+            ActStatus::Active => "active",
+            ActStatus::Resolved => "resolved",
+            ActStatus::Failed => "failed",
+            ActStatus::Bypassed => "bypassed",
+        })
     }
 }
 
@@ -109,5 +105,36 @@ impl Act {
         self.digest = Some(digest.into());
         self.from_seq = Some(from_seq);
         self.to_seq = Some(to_seq);
+    }
+
+    pub fn render_index(&self) -> String {
+        match &self.index_line {
+            Some(line) => format!(
+                "Act {}\ngoal: {}\nstatus: {}\nsummary: {}",
+                self.ordinal, self.goal, self.status, line
+            ),
+            None => format!(
+                "Act {}\ngoal: {}\nstatus: {}",
+                self.ordinal, self.goal, self.status
+            ),
+        }
+    }
+
+    pub fn render_running_digest(&self) -> String {
+        self.running_digest.clone().unwrap_or_default()
+    }
+
+    pub fn render_digest(acts: &[&Act]) -> String {
+        acts.iter()
+            .filter_map(|act| {
+                act.digest.as_ref().map(|digest| {
+                    format!(
+                        "Act {}\ngoal: {}\nstatus: {}\ndigest: {}",
+                        act.ordinal, act.goal, act.status, digest
+                    )
+                })
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 }

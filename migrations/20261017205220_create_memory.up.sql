@@ -1,6 +1,6 @@
 -- one row per act. Acts are the ONLY story unit:
 -- An act lasts roughly 200-600 messages.
-CREATE TABLE acts (
+CREATE TABLE act (
   id          TEXT    NOT NULL PRIMARY KEY,
   adventure_id TEXT   NOT NULL REFERENCES adventure (id) ON DELETE CASCADE,
   ordinal     INTEGER NOT NULL,
@@ -15,46 +15,46 @@ CREATE TABLE acts (
   created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 
-  CONSTRAINT acts_id_is_uuid CHECK (length(id) = 36),
-  CONSTRAINT acts_goal_not_blank CHECK (length(trim(goal)) > 0),
-  CONSTRAINT acts_status_known
+  CONSTRAINT act_id_is_uuid CHECK (length(id) = 36),
+  CONSTRAINT act_goal_not_blank CHECK (length(trim(goal)) > 0),
+  CONSTRAINT act_status_known
       CHECK (status IN ('unstarted', 'active', 'resolved', 'failed', 'bypassed')),
-  CONSTRAINT acts_span_ordered CHECK (from_seq IS NULL OR to_seq IS NULL OR to_seq >= from_seq)
+  CONSTRAINT act_span_ordered CHECK (from_seq IS NULL OR to_seq IS NULL OR to_seq >= from_seq)
 );
 
-CREATE INDEX acts_adventure_ordinal_idx ON acts (adventure_id, ordinal);
+CREATE INDEX act_adventure_ordinal_idx ON act (adventure_id, ordinal);
 
-CREATE TRIGGER acts_touch_updated_at
-    AFTER UPDATE ON acts
+CREATE TRIGGER act_touch_updated_at
+    AFTER UPDATE ON act
     FOR EACH ROW
     WHEN NEW.updated_at = OLD.updated_at
 BEGIN
-    UPDATE acts
+    UPDATE act
     SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
     WHERE id = OLD.id;
 END;
 
--- facts are rows, not prose
-CREATE TABLE facts (
+-- fact are rows, not prose
+CREATE TABLE fact (
   id             TEXT NOT NULL PRIMARY KEY,
   adventure_id   TEXT NOT NULL REFERENCES adventure (id) ON DELETE CASCADE,
   subject        TEXT NOT NULL,     -- "elara", "the crown", "the order"
   fact           TEXT NOT NULL,
-  act_id         TEXT NOT NULL REFERENCES acts (id) ON DELETE SET NULL,
+  act_id         TEXT NOT NULL REFERENCES act (id) ON DELETE SET NULL,
   permanence     TEXT NOT NULL,     -- permanent | plot
-  superseded_by  TEXT NULL REFERENCES facts (id) ON DELETE SET NULL,
+  superseded_by  TEXT NULL REFERENCES fact (id) ON DELETE SET NULL,
   created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 
-  CONSTRAINT facts_id_is_uuid CHECK (length(id) = 36),
-  CONSTRAINT facts_subject_not_blank CHECK (length(trim(subject)) > 0),
-  CONSTRAINT facts_fact_not_blank CHECK (length(trim(fact)) > 0),
-  CONSTRAINT facts_permanence_known
+  CONSTRAINT fact_id_is_uuid CHECK (length(id) = 36),
+  CONSTRAINT fact_subject_not_blank CHECK (length(trim(subject)) > 0),
+  CONSTRAINT fact_fact_not_blank CHECK (length(trim(fact)) > 0),
+  CONSTRAINT fact_permanence_known
       CHECK (permanence IN ('permanent', 'plot', 'scene')),
-  CONSTRAINT facts_not_self_superseded CHECK (superseded_by IS NULL OR superseded_by <> id)
+  CONSTRAINT fact_not_self_superseded CHECK (superseded_by IS NULL OR superseded_by <> id)
 );
 
-CREATE INDEX facts_adventure_subject_idx ON facts (adventure_id, subject);
-CREATE INDEX facts_act_idx ON facts (act_id);
+CREATE INDEX fact_adventure_subject_idx ON fact (adventure_id, subject);
+CREATE INDEX fact_act_idx ON fact (act_id);
 
 -- exactly one live row per adventure
 CREATE TABLE state (

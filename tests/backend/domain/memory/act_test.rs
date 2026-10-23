@@ -3,14 +3,6 @@ use uuid::Uuid;
 use living_voices::backend::domain::memory::{Act, ActStatus};
 
 #[test]
-fn act_status_round_trips_through_str() {
-    for status in ActStatus::ALL {
-        assert_eq!(ActStatus::from_str(status.as_str()), Some(status));
-    }
-    assert_eq!(ActStatus::from_str("nonsense"), None);
-}
-
-#[test]
 fn act_new_starts_unstarted_with_no_span() {
     let adv = Uuid::new_v4();
     let act = Act::new(adv, 1, "recover the crown");

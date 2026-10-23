@@ -8,13 +8,14 @@ CREATE TABLE character
     backstory      TEXT NOT NULL DEFAULT '',
     status         TEXT NOT NULL DEFAULT 'present',
     portrait_path  TEXT,
-    is_player      BOOL NOT NULL DEFAULT FALSE,
+    is_player      INTEGER NOT NULL DEFAULT 0,
     created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
     CONSTRAINT character_id_is_uuid CHECK (length(id) = 36),
     CONSTRAINT character_name_not_blank CHECK (length(trim(name)) > 0),
-    CONSTRAINT character_status_known CHECK (status IN ('present', 'away', 'unavailable'))
+    CONSTRAINT character_status_known CHECK (status IN ('present', 'away', 'unavailable')),
+    CONSTRAINT character_is_player_is_bool CHECK (is_player IN (0, 1))
 );
 
 CREATE INDEX character_adventure_name_idx ON character (adventure_id, name);
