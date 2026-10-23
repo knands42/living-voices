@@ -12,31 +12,35 @@ fn message_new_stores_text_with_seq_unset() {
         None,
         "Alice".to_string(),
         "[Alice (say)]: Hello",
+        false,
+        None,
     );
     assert!(m.seq.is_none());
     assert_eq!(m.adventure_id, adv);
     assert_eq!(m.character_id, char_id);
+    assert!(m.narrator_id.is_none());
     assert_eq!(m.speaker_name, "Alice");
     assert_eq!(m.text, "[Alice (say)]: Hello");
+    assert!(!m.ooc);
+    assert!(m.targeted_characters.is_none());
+}
+
+#[test]
+fn message_new_keeps_ooc_flag() {
+    let adv = Uuid::new_v4();
+    let m = Message::new(
+        adv,
+        None,
+        None,
+        "Alice".to_string(),
+        "meta aside",
+        true,
+        None,
+    );
+    assert!(m.ooc);
 }
 
 #[test]
 fn message_narrator_constant_defined() {
     assert_eq!(Message::NARRATOR_SPEAKER_NAME, "NARRATOR");
-}
-
-#[test]
-fn message_render_none_when_empty() {
-    assert!(Message::render(&[]).is_none());
-}
-
-#[test]
-fn message_render_joins_each_text_on_its_own_line() {
-    let adv = Uuid::new_v4();
-    let messages = vec![
-        Message::new(adv, None, None, "Alice".to_string(), "[Alice (say)]: Hello"),
-        Message::new(adv, None, None, "Bob".to_string(), "[Bob (say)]: Hi"),
-    ];
-    let rendered = Message::render(&messages).expect("some output");
-    assert_eq!(rendered, "[Alice (say)]: Hello\n[Bob (say)]: Hi\n");
 }

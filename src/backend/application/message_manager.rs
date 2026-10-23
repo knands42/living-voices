@@ -142,7 +142,7 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
     async fn maybe_compress_memory(&self) {
         match self
             .memory
-            .needs_compression(self.memory_settings.compress_after_threshold as u64)
+            .needs_compression(self.memory_settings.compress_after_threshold)
             .await
         {
             Ok(false) => {}

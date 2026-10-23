@@ -1,6 +1,7 @@
 use sqlx::SqliteConnection;
 
 use crate::backend::application::port::chat_port::PromptTurn;
+use crate::backend::domain::message::Message;
 use crate::backend::persistence::error::PersistenceError;
 
 const AUTONOMOUS_CHAT_PROMPT: &str = "You write one beat of an interactive roleplay at a time: one character speaks and/or acts, or you narrate the world around the player";
@@ -77,6 +78,33 @@ Then always end your reply with one line:
 Judge the fiction, not your own prose. A loud argument is not a close; a quiet
 moment after it, where the story would naturally turn, is. Do not inflate the
 number to be helpful — most beats are 1 or 2."#;
+
+const DISTILL_PROMPT: &str = r#"## DISTILL
+Read the conversation turns above and distill them into a structured memory record.
+Return JSON only, with exactly two fields:
+
+- "facts": an array of atomic things that are now true. Each item is an object:
+    - "subject": who or what the fact is about (a name or a thing), verbatim.
+    - "fact": one short, self-contained statement. Keep names, numbers and
+      identifiers verbatim.
+    - "permanence": one of
+        "permanent"  true for the rest of the story — an identity, a bond, an
+                     irreversible change.
+        "plot"       true until the story moves on — a current goal, a held
+                     grudge, an open deal.
+        "scene"      true only right now — a stance, a held object, a passing mood.
+
+- "state": one object describing the single current situation:
+    - "day"                 in-world time, e.g. "Day 2, dusk" (null if unknown).
+    - "place"               where the scene is, e.g. "cave mouth" (null if unknown).
+    - "characters_present"  array of names of everyone on scene now.
+    - "open_threads"        array of unresolved threads, each a short phrase.
+    - "conditions"          array of active conditions, each a short phrase, e.g.
+                            "kaelen: left arm, minor", "mood: tense",
+                            "storm approaching".
+
+Record only what the conversation establishes. Never invent anything. Prefer a few
+sharp facts over many vague ones. Do not write prose — JSON only."#;
 
 const SINGLE_CHARACTER_CHAT_PROMPT: &str = "You write one beat of an interactive roleplay. The turn belongs to one character, named below — continue it.";
 
@@ -302,5 +330,24 @@ impl ContextBuilder {
         CLOSURE_PROMPT
             .replace("{0}", &current_number_of_messages.to_string())
             .replace("{1}", &current_act_messages_max_threshold.to_string())
+    }
+
+    pub async fn build_distill_prompt(
+        conn: &mut SqliteConnection,
+        messages: &[Message],
+    ) -> Result<Vec<PromptTurn>, PersistenceError> {
+        let mut turns = Vec::with_capacity(messages.len() + 1);
+        turns.push(PromptTurn::system(DISTILL_PROMPT.to_string()));
+
+        turns.push(PromptTurn::system(
+            ContextBuilder::build_static_context(conn).await?,
+        ));
+        turns.extend(ContextBuilder::build_previous_messages(conn).await?);
+
+        turns.extend(messages.iter().map(|message| {
+            PromptTurn::player(format!("{}: {}", message.speaker_name, message.text))
+        }));
+
+        Ok(turns)
     }
 }

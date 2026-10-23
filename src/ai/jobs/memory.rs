@@ -6,24 +6,79 @@ use crate::ai::{
     error::AiError,
     types::ChatMessage,
 };
+use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::application::port::memory_port::{
-    DistillError, DistilledMemory, MemoryDistiller,
+    DistillError, DistilledFact, DistilledMemory, DistilledState, FactPermanence, MemoryDistiller,
 };
 use crate::backend::domain::message::Message;
 use crate::config::TextModel;
 
 const SYSTEM_PROMPT: &str = "\
-You compress a roleplay conversation into a memory record.
+You distill a roleplay conversation into a structured memory record.
 Reply with JSON only, containing exactly these two fields:
-- \"facts\": an array of short, atomic, self-contained statements about people, \
-places, plans, promises and changes. Keep names, numbers and identifiers verbatim.
-- \"summary\": one concise paragraph covering the conversation so far (in order).
-Never invent details that are not in the conversation.";
+
+- \"facts\": an array of objects, each a single atomic thing that is now true. \
+Each object has:
+    - \"subject\": who or what the fact is about (a name or thing), verbatim.
+    - \"fact\": one short, self-contained statement. Keep names, numbers and \
+identifiers verbatim.
+    - \"permanence\": one of \"permanent\" (true for the rest of the story — \
+identities, bonds, irreversible changes), \"plot\" (true until the story moves \
+on — a current goal, a held grudge, an open deal) or \"scene\" (true only right \
+now — a stance, a held object, a momentary mood).
+
+- \"state\": one object describing the single current situation, with:
+    - \"day\": the in-world time, e.g. \"Day 2, dusk\" (null if unknown).
+    - \"place\": where the scene is, e.g. \"cave mouth\" (null if unknown).
+    - \"characters_present\": array of names of everyone on scene now.
+    - \"open_threads\": array of unresolved threads, each a short phrase.
+    - \"conditions\": array of active conditions, each a short phrase, e.g. \
+\"kaelen: left arm, minor\", \"mood: tense\", \"storm approaching\".
+
+Only record what the conversation establishes. Never invent details that are not \
+in the conversation. Prefer fewer, sharper facts over many vague ones.";
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Permanence {
+    Permanent,
+    Plot,
+}
+
+impl From<Permanence> for FactPermanence {
+    fn from(value: Permanence) -> Self {
+        match value {
+            Permanence::Permanent => FactPermanence::Permanent,
+            Permanence::Plot => FactPermanence::Plot,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Fact {
+    pub subject: String,
+    pub fact: String,
+    pub permanence: Permanence,
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct StateSnapshot {
+    #[serde(default)]
+    pub day: Option<String>,
+    #[serde(default)]
+    pub place: Option<String>,
+    #[serde(default)]
+    pub characters_present: Vec<String>,
+    #[serde(default)]
+    pub open_threads: Vec<String>,
+    #[serde(default)]
+    pub conditions: Vec<String>,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MemoryUpdate {
-    pub facts: Vec<String>,
-    pub summary: String,
+    pub facts: Vec<Fact>,
+    pub state: StateSnapshot,
     #[serde(skip)]
     config: TextModel,
 }
@@ -32,7 +87,7 @@ impl MemoryUpdate {
     pub fn new(config: TextModel) -> Self {
         Self {
             facts: vec![],
-            summary: String::new(),
+            state: StateSnapshot::default(),
             config,
         }
     }
@@ -43,16 +98,14 @@ impl MemoryUpdate {
         })
     }
 
-    /// Distill `history` into facts and a summary using the memory model.
     pub async fn distill(
         client: &OpenAiCompatibleClient,
         model: &str,
         temperature: f32,
-        history: &[ChatMessage],
+        prompt: &[ChatMessage],
     ) -> Result<MemoryUpdate, AiError> {
-        let mut messages = Vec::with_capacity(history.len() + 1);
-        messages.push(ChatMessage::system(SYSTEM_PROMPT));
-        messages.extend_from_slice(history);
+        let mut messages = Vec::with_capacity(prompt.len() + 1);
+        messages.extend_from_slice(prompt);
 
         let format = crate::ai::client::ResponseFormat::JsonSchema {
             json_schema: &schema(),
@@ -67,11 +120,13 @@ impl MemoryUpdate {
 }
 
 impl MemoryDistiller for MemoryUpdate {
-    async fn distill(&self, messages: &[Message]) -> Result<DistilledMemory, DistillError> {
-        let history: Vec<ChatMessage> = messages
+    async fn distill(&self, context: &[PromptTurn]) -> Result<DistilledMemory, DistillError> {
+        let prompt = context
             .iter()
-            .map(|message| ChatMessage::user(message.text.clone()))
-            .collect();
+            .cloned()
+            .map(ChatMessage::from)
+            .collect::<Vec<ChatMessage>>();
+
         let client = OpenAiCompatibleClient::with_timeout(
             &self.config.base_url,
             std::time::Duration::from_secs(self.config.request_timeout_secs),
@@ -81,7 +136,7 @@ impl MemoryDistiller for MemoryUpdate {
             &client,
             &self.config.model,
             self.config.temperature,
-            &history,
+            &prompt,
         )
         .await
         .map_err(|e| DistillError::Provider(e.to_string()))?;
@@ -92,10 +147,25 @@ impl MemoryDistiller for MemoryUpdate {
 
 impl From<MemoryUpdate> for DistilledMemory {
     fn from(memory_update: MemoryUpdate) -> Self {
-        DistilledMemory {
-            summary: memory_update.summary,
-            facts: memory_update.facts,
-        }
+        let facts = memory_update
+            .facts
+            .into_iter()
+            .map(|fact| DistilledFact {
+                subject: fact.subject,
+                fact: fact.fact,
+                permanence: fact.permanence.into(),
+            })
+            .collect();
+
+        let state = DistilledState {
+            day: memory_update.state.day,
+            place: memory_update.state.place,
+            characters_present: memory_update.state.characters_present,
+            open_threads: memory_update.state.open_threads,
+            conditions: memory_update.state.conditions,
+        };
+
+        DistilledMemory { facts, state }
     }
 }
 
@@ -105,10 +175,51 @@ fn schema() -> JsonSchema {
         schema: json!({
             "type": "object",
             "properties": {
-                "facts": { "type": "array", "items": { "type": "string" } },
-                "summary": { "type": "string" }
+                "facts": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "subject": { "type": "string" },
+                            "fact": { "type": "string" },
+                            "permanence": {
+                                "type": "string",
+                                "enum": ["permanent", "plot", "scene"]
+                            }
+                        },
+                        "required": ["subject", "fact", "permanence"],
+                        "additionalProperties": false
+                    }
+                },
+                "state": {
+                    "type": "object",
+                    "properties": {
+                        "day": { "type": ["string", "null"] },
+                        "place": { "type": ["string", "null"] },
+                        "characters_present": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        },
+                        "open_threads": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        },
+                        "conditions": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        }
+                    },
+                    "required": [
+                        "day",
+                        "place",
+                        "characters_present",
+                        "open_threads",
+                        "conditions"
+                    ],
+                    "additionalProperties": false
+                }
             },
-            "required": ["facts", "summary"],
+            "required": ["facts", "state"],
             "additionalProperties": false
         }),
     }

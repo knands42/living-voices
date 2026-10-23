@@ -1,6 +1,5 @@
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::Character;
-use living_voices::backend::domain::message::MessageKind;
 
 fn new_adventure() -> Adventure {
     Adventure::new(
@@ -92,14 +91,13 @@ fn message_from_reply_builds_a_character_say_when_replier_is_in_the_cast() {
     // When building a reply message attributed to "Mira"
     let message = adventure.message_from_reply("Mira", "The tide is turning.");
 
-    // Then it is a Say from that character, carrying the character id and no narrator id
+    // Then it is attributed to that character, carrying the character id and no narrator id
     assert_eq!(message.adventure_id, adventure.id);
     assert_eq!(message.character_id, Some(mira.id));
     assert!(message.narrator_id.is_none());
     assert_eq!(message.speaker_name, "Mira");
-    assert_eq!(message.parts.primary().kind, MessageKind::Say);
-    assert_eq!(message.parts.primary().text, "The tide is turning.");
-    assert!(message.parts.secondary().is_none());
+    assert_eq!(message.text, "The tide is turning.");
+    assert!(!message.ooc);
 }
 
 #[test]
@@ -110,10 +108,9 @@ fn message_from_reply_falls_through_to_the_narrator_for_an_unknown_replier() {
     // When building a reply message attributed to a name outside the cast
     let message = adventure.message_from_reply("Ghost", "The city holds its breath.");
 
-    // Then it is a Narration spoken by the narrator, carrying the narrator id and no character id
+    // Then it is spoken by the narrator, carrying the narrator id and no character id
     assert!(message.character_id.is_none());
     assert_eq!(message.narrator_id, Some(adventure.narrator.id));
     assert_eq!(message.speaker_name, "NARRATOR");
-    assert_eq!(message.parts.primary().kind, MessageKind::Narration);
-    assert_eq!(message.parts.primary().text, "The city holds its breath.");
+    assert_eq!(message.text, "The city holds its breath.");
 }

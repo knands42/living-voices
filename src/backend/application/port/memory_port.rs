@@ -1,11 +1,42 @@
+use crate::backend::application::port::chat_port::PromptTurn;
 use thiserror::Error;
 
-use crate::backend::domain::message::Message;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FactPermanence {
+    Permanent,
+    Plot,
+}
+
+impl FactPermanence {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            FactPermanence::Permanent => "permanent",
+            FactPermanence::Plot => "plot",
+        }
+    }
+}
+
+/// One atomic fact destined for a `facts` row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DistilledFact {
+    pub subject: String,
+    pub fact: String,
+    pub permanence: FactPermanence,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct DistilledState {
+    pub day: Option<String>,
+    pub place: Option<String>,
+    pub characters_present: Vec<String>,
+    pub open_threads: Vec<String>,
+    pub conditions: Vec<String>,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DistilledMemory {
-    pub facts: Vec<String>,
-    pub summary: String,
+    pub facts: Vec<DistilledFact>,
+    pub state: DistilledState,
 }
 
 #[derive(Error, Debug)]
@@ -17,6 +48,6 @@ pub enum DistillError {
 pub trait MemoryDistiller: Send + Sync {
     fn distill(
         &self,
-        messages: &[Message],
-    ) -> impl std::future::Future<Output = Result<DistilledMemory, DistillError>> + Send;
+        context: &[PromptTurn],
+    ) -> impl Future<Output = Result<DistilledMemory, DistillError>> + Send;
 }

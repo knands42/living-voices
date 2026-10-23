@@ -4,6 +4,7 @@ use thiserror::Error;
 use crate::backend::PersistenceError;
 use crate::backend::application::port::memory_port::{DistillError, MemoryDistiller};
 use crate::backend::application::state::{SharedState, StateError};
+use crate::backend::persistence::message_persistence::count_since_last_narration;
 
 #[derive(Error, Debug)]
 pub enum MemoryManagerError {
@@ -31,7 +32,7 @@ impl<D: MemoryDistiller> MemoryManager<D> {
         }
     }
 
-    pub async fn needs_compression(&self, threshold: u64) -> Result<bool, MemoryManagerError> {
+    pub async fn needs_compression(&self, threshold: u8) -> Result<bool, MemoryManagerError> {
         let adventure_id = {
             let guard = self.state.read()?;
             let Some(adventure) = guard.current_adventure.as_ref() else {
@@ -41,8 +42,8 @@ impl<D: MemoryDistiller> MemoryManager<D> {
         };
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        // did it surpass the min threshold of messages?
-        todo!()
+        let count = count_since_last_narration(&mut conn, adventure_id).await?;
+        Ok(count >= threshold)
     }
 
     /// Compress every message not yet covered by the latest summary.

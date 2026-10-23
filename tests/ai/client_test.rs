@@ -79,7 +79,13 @@ async fn memory_model_returns_a_memory_record() {
             .expect("distill");
 
     // The distiller's wording is its own business; the contract is a record
-    // carrying at least one fact and a summary.
+    // carrying at least one structured fact and a usable state snapshot.
     assert!(!update.facts.is_empty(), "expected at least one fact");
-    assert!(!update.summary.trim().is_empty(), "expected a summary");
+    assert!(
+        update
+            .facts
+            .iter()
+            .all(|fact| !fact.subject.trim().is_empty() && !fact.fact.trim().is_empty()),
+        "expected every fact to carry a subject and a statement"
+    );
 }
