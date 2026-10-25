@@ -30,6 +30,6 @@ pub fn handle_key(
     match state.page {
         Page::Main => handle_main(key, state, ctx, runtime),
         Page::AdventureList => handle_list(key, state),
-        Page::Chat { .. } => handle_chat(key, state),
+        Page::Chat { .. } => handle_chat(key, state, ctx, runtime),
     }
 }

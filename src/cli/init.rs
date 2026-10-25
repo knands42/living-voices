@@ -32,6 +32,8 @@ fn event_loop(
     runtime: &Handle,
 ) -> io::Result<()> {
     loop {
+        drain_replies(state);
+
         terminal.draw(|f| draw::draw(f, state, ctx))?;
 
         if event::poll(Duration::from_millis(250))?
@@ -39,6 +41,18 @@ fn event_loop(
             && matches!(handle_key(key, state, ctx, runtime), Flow::Quit)
         {
             return Ok(());
+        }
+    }
+}
+
+/// Move any replies produced by background send tasks into the chat.
+fn drain_replies(state: &mut CliState) {
+    while let Ok(event) = state.reply_rx.try_recv() {
+        match event {
+            crate::cli::state::ChatEvent::Reply(message) => state.messages.push(message),
+            crate::cli::state::ChatEvent::Failed(reason) => {
+                state.status = Some(format!("reply failed: {reason}"));
+            }
         }
     }
 }

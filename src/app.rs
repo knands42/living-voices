@@ -86,8 +86,6 @@ impl<
     M: MemoryDistiller + Clone + 'static,
 > App<C, N, M>
 {
-    /// Make `adventure` the current one before the UI starts, so the chat page
-    /// opens against a real, persisted adventure (cast + narrator).
     #[cfg(debug_assertions)]
     pub fn load_adventure(
         &self,

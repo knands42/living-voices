@@ -16,7 +16,6 @@ use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph, Wrap};
-use uuid::Uuid;
 
 pub fn render(frame: &mut Frame, state: &CliState, ctx: &AppContext<Chat, Narrator, MemoryUpdate>) {
     let input = match &state.page {
@@ -49,7 +48,7 @@ pub fn render(frame: &mut Frame, state: &CliState, ctx: &AppContext<Chat, Narrat
         .split(rows[1]);
 
     render_cast(frame, cols[0], adventure_ref);
-    render_transcript(frame, cols[1], adventure_ref);
+    render_transcript(frame, cols[1], adventure_ref, &state.messages);
     render_meta(frame, cols[2], adventure_ref);
 
     render_composer(frame, rows[2], input, adventure_ref);
@@ -176,45 +175,64 @@ fn to_status_kind(status: CharacterStatus) -> StatusKind {
 
 // ---------- Transcript (center) ----------
 
-fn render_transcript(frame: &mut Frame, area: Rect, adventure: Option<&Adventure>) {
+fn render_transcript(
+    frame: &mut Frame,
+    area: Rect,
+    adventure: Option<&Adventure>,
+    messages: &[Message],
+) {
     let block = card("Scene");
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let lines = match adventure {
-        Some(a) => vec![message_line(Message::new(
-            a.id,
-            Some(a.characters.iter().next().unwrap().id),
-            None,
-            a.characters.iter().next().unwrap().name.clone(),
-            "This is a test".to_string(),
-            false,
-            vec![],
-        ))],
-        None => vec![Line::from(Span::styled(
-            "open a tale to begin the scene",
-            muted(),
-        ))],
-    };
+    if adventure.is_none() {
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                "open a tale to begin the scene",
+                muted(),
+            ))),
+            inner,
+        );
+        return;
+    }
+
+    if messages.is_empty() {
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                "the scene is quiet — say something",
+                muted(),
+            ))),
+            inner,
+        );
+        return;
+    }
+
+    let lines: Vec<Line> = messages.iter().map(message_line).collect();
+
+    // Keep the latest lines in view: scroll so the tail sits at the bottom.
+    let total = lines.len() as u16;
+    let visible = inner.height;
+    let scroll = total.saturating_sub(visible);
 
     let p = Paragraph::new(lines)
         .wrap(Wrap { trim: false })
+        .scroll((scroll, 0))
         .alignment(Alignment::Left);
     frame.render_widget(p, inner);
 }
 
-fn message_line<'a>(message: Message) -> Line<'a> {
+fn message_line<'a>(message: &Message) -> Line<'a> {
     let hue = speaker_color(&message.speaker_name);
     let gutter = Span::styled("▌ ", Style::default().fg(hue));
 
     Line::from(vec![
         gutter,
         Span::styled(
-            message.speaker_name,
+            message.speaker_name.clone(),
             Style::default().fg(hue).add_modifier(Modifier::BOLD),
         ),
         Span::styled(" · ", dim()),
-        Span::styled(message.text, ink()),
+        Span::styled(message.text.clone(), ink()),
     ])
 }
 
