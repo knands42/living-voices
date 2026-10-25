@@ -81,6 +81,7 @@ fn send_current_input(
 
     // Instant echo: show the player's line before the model is even called.
     state.messages.push(outgoing.clone());
+    state.status = Some("the voices are thinking…".into());
 
     // Fire-and-forget the send; report the result back over the channel.
     let messages = ctx.messages.clone();

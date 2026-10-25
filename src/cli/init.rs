@@ -49,7 +49,10 @@ fn event_loop(
 fn drain_replies(state: &mut CliState) {
     while let Ok(event) = state.reply_rx.try_recv() {
         match event {
-            crate::cli::state::ChatEvent::Reply(message) => state.messages.push(message),
+            crate::cli::state::ChatEvent::Reply(message) => {
+                state.messages.push(message);
+                state.status = None;
+            }
             crate::cli::state::ChatEvent::Failed(reason) => {
                 state.status = Some(format!("reply failed: {reason}"));
             }

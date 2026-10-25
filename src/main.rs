@@ -42,7 +42,7 @@ async fn main() {
         }
     };
 
-    if let Err(e) = run_migrations(pool.clone()).await {
+    if let Err(e) = run_migrations(&pool).await {
         eprintln!("Database migration failed: {e}");
         std::process::exit(1);
     }
@@ -82,7 +82,7 @@ async fn main() {
 
     let result: Result<(), Box<dyn std::error::Error>> = match frontend {
         Frontend::Ui => app.run().map_err(Into::into),
-        Frontend::Cli => cli::init::run(&app).map_err(Into::into),
+        Frontend::Cli => tokio::task::block_in_place(|| cli::init::run(&app)).map_err(Into::into),
     };
 
     if let Err(err) = result {

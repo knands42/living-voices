@@ -29,7 +29,7 @@ pub async fn setup_db() -> (SqlitePool, TempDb) {
 
     // Given migrations applied on a fresh file
     let migrating = open_pool(&db_str).await.expect("open pool");
-    run_migrations(migrating).await.expect("run migrations");
+    run_migrations(&migrating).await.expect("run migrations");
     // `run_migrations` consumes its pool, so open a fresh one for the test
     let pool = open_pool(&db_str).await.expect("reopen pool");
 

@@ -52,7 +52,7 @@ pub fn render(frame: &mut Frame, state: &CliState, ctx: &AppContext<Chat, Narrat
     render_meta(frame, cols[2], adventure_ref);
 
     render_composer(frame, rows[2], input, adventure_ref);
-    render_hints(frame, rows[3]);
+    render_hints(frame, rows[3], state.status.as_deref());
 }
 
 // ---------- Header ----------
@@ -307,7 +307,16 @@ fn render_composer(frame: &mut Frame, area: Rect, input: &str, adventure: Option
 
 // ---------- Hints ----------
 
-fn render_hints(frame: &mut Frame, area: Rect) {
+fn render_hints(frame: &mut Frame, area: Rect, status: Option<&str>) {
+    if let Some(status) = status {
+        let line = Line::from(vec![
+            Span::styled("● ", Style::default().fg(EMBER)),
+            Span::styled(status.to_string(), ink()),
+        ]);
+        frame.render_widget(Paragraph::new(line), area);
+        return;
+    }
+
     let bar = hints(&[("enter", "send"), ("esc", "back"), ("q", "quit")]);
     frame.render_widget(bar, area);
 }
