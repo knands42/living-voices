@@ -22,6 +22,8 @@ pub enum MemoryManagerError {
     State(#[from] StateError),
     #[error("database error: {0}")]
     DatabaseError(#[from] PersistenceError),
+    #[error("message for {0} fetched from the store without a sequence number")]
+    MissingSequence(String),
 }
 
 #[derive(Clone, Debug)]
@@ -75,7 +77,9 @@ impl<D: MemoryDistiller> MemoryManager<D> {
         let Some(last) = uncovered.last() else {
             return Ok(());
         };
-        let digest_to_seq = last.seq.unwrap_or(after_seq); // TODO: if error it should stop here.
+        let digest_to_seq = last
+            .seq
+            .ok_or_else(|| MemoryManagerError::MissingSequence(last.text.clone()))?;
 
         let prompt =
             ContextBuilder::build_distill_prompt(&mut conn, &adventure, &uncovered).await?;
@@ -95,7 +99,6 @@ impl<D: MemoryDistiller> MemoryManager<D> {
     ) -> Result<(), MemoryManagerError> {
         let mut tx = conn.begin().await.map_err(PersistenceError::from)?;
 
-        // TODO: move these convertions to Distilled structs
         let facts = Self::to_facts(adventure.id, act.id, &distilled.facts);
         insert_facts(&mut tx, &facts).await?;
 

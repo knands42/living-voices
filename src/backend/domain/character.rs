@@ -2,7 +2,6 @@ use std::{collections::HashMap, fmt::Display};
 
 use uuid::Uuid;
 
-// TODO: Characters are immutable, so this should be in a different table
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CharacterStatus {
     Present,

@@ -42,6 +42,11 @@ impl Director {
         candidates: &'a [&Character],
         incoming: &Message,
     ) -> Option<&'a Character> {
+        if candidates.is_empty() {
+            return None;
+        }
+
+        // Most turns go to whoever the incoming message aimed at.
         let roll = rand::random::<f32>();
         if roll < self.director_settings.targeted_pick_chance {
             let targeted = self.targeted_character(candidates, incoming)?;
