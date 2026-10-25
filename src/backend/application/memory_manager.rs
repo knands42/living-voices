@@ -95,6 +95,7 @@ impl<D: MemoryDistiller> MemoryManager<D> {
     ) -> Result<(), MemoryManagerError> {
         let mut tx = conn.begin().await.map_err(PersistenceError::from)?;
 
+        // TODO: move these convertions to Distilled structs
         let facts = Self::to_facts(adventure.id, act.id, &distilled.facts);
         insert_facts(&mut tx, &facts).await?;
 

@@ -1,5 +1,3 @@
-use sqlx::sqlite::SqlitePool;
-
 use crate::backend::application::helper::setup_db;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
