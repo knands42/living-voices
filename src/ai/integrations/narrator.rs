@@ -42,6 +42,7 @@ impl NarratorHandler for Narrator {
                 &prompt,
                 self.config.temperature,
                 None,
+                super::keep_alive(&self.config),
             )
             .await
             .map_err(|e| ChatResponseError::Provider(e.to_string()))?;

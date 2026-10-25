@@ -11,6 +11,7 @@ fn chat() -> Chat {
         model: CHAT_MODEL.to_string(),
         temperature: 0.5,
         request_timeout_secs: 120,
+        keep_alive: "5m".to_string(),
     })
 }
 

@@ -54,13 +54,13 @@ impl ChatHandler for Chat {
             .map(ChatMessage::from)
             .collect::<Vec<ChatMessage>>();
 
-        // TODO: add keep_alive for caching tokens
         let reply = client
             .send(
                 self.config.model.as_str(),
                 &prompt,
                 self.config.temperature,
                 None,
+                super::keep_alive(&self.config),
             )
             .await
             .map_err(|e| ChatResponseError::Provider(e.to_string()))?;
@@ -89,6 +89,7 @@ impl ChatHandler for Chat {
                 &prompt,
                 self.config.temperature,
                 Some(format),
+                super::keep_alive(&self.config),
             )
             .await
             .map_err(|e| ChatResponseError::Provider(e.to_string()))?;

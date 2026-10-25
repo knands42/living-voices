@@ -80,6 +80,7 @@ impl MemoryUpdate {
         model: &str,
         temperature: f32,
         prompt: &[ChatMessage],
+        keep_alive: Option<&str>,
     ) -> Result<MemoryUpdate, AiError> {
         let mut messages = Vec::with_capacity(prompt.len() + 1);
         messages.extend_from_slice(prompt);
@@ -89,7 +90,7 @@ impl MemoryUpdate {
         };
 
         let reply = client
-            .send(model, &messages, temperature, Some(format))
+            .send(model, &messages, temperature, Some(format), keep_alive)
             .await?;
 
         MemoryUpdate::from_reply(&reply)
@@ -114,6 +115,7 @@ impl MemoryDistiller for MemoryUpdate {
             &self.config.model,
             self.config.temperature,
             &prompt,
+            super::keep_alive(&self.config),
         )
         .await
         .map_err(|e| DistillError::Provider(e.to_string()))?;

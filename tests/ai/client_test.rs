@@ -20,7 +20,7 @@ async fn chat_model_answers_a_prompt() {
     )];
 
     let reply = client()
-        .send(CHAT_MODEL, &messages, CHAT_TEMPERATURE, None)
+        .send(CHAT_MODEL, &messages, CHAT_TEMPERATURE, None, None)
         .await
         .expect("request");
 
@@ -49,7 +49,7 @@ async fn request_json_returns_a_single_schema_shaped_object() {
         json_schema: &schema,
     };
     let reply = client()
-        .send(CHAT_MODEL, &messages, CHAT_TEMPERATURE, Some(format))
+        .send(CHAT_MODEL, &messages, CHAT_TEMPERATURE, Some(format), None)
         .await
         .expect("request_json");
 
@@ -74,7 +74,7 @@ async fn memory_model_returns_a_memory_record() {
     ];
 
     let update =
-        memory::MemoryUpdate::distill(&client(), MEMORY_MODEL, MEMORY_TEMPERATURE, &history)
+        memory::MemoryUpdate::distill(&client(), MEMORY_MODEL, MEMORY_TEMPERATURE, &history, None)
             .await
             .expect("distill");
 

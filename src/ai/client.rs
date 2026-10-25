@@ -45,6 +45,7 @@ impl OpenAiCompatibleClient {
         messages: &[ChatMessage],
         temperature: f32,
         response_format: Option<ResponseFormat<'_>>,
+        keep_alive: Option<&str>,
     ) -> Result<String, AiError> {
         let url = self.chat_completions_url();
         let body = ChatRequest {
@@ -53,6 +54,7 @@ impl OpenAiCompatibleClient {
             temperature,
             stream: false,
             response_format,
+            keep_alive,
         };
 
         let response = self
@@ -97,6 +99,8 @@ struct ChatRequest<'a> {
     stream: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     response_format: Option<ResponseFormat<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    keep_alive: Option<&'a str>,
 }
 
 /// Serialises to the OpenAI `response_format` wire shape.

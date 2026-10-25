@@ -13,6 +13,7 @@ const DEFAULT_IMAGE_MODEL_URL: &str = "http://localhost:8188";
 const DEFAULT_CHAT_TEMPERATURE: f32 = 0.5;
 const DEFAULT_MEMORY_TEMPERATURE: f32 = 0.1;
 const DEFAULT_REQUEST_TIMEOUT_SECS: u16 = 120;
+const DEFAULT_KEEP_ALIVE: &str = "5m";
 
 const DEFAULT_COMPRESS_AFTER_THRESHOLD: u8 = 70;
 const DEFAULT_COMPRESS_LAST_MESSAGES: u8 = 50;
@@ -59,6 +60,9 @@ pub struct TextModel {
     pub model: String,
     pub temperature: f32,
     pub request_timeout_secs: u16,
+    /// Ollama's `keep_alive`, e.g. "5m", "1h", "0" to unload, "-1" to
+    /// keep forever.
+    pub keep_alive: String,
 }
 
 impl TextModel {
@@ -84,6 +88,7 @@ impl Default for TextModel {
             model: String::new(),
             temperature: DEFAULT_CHAT_TEMPERATURE,
             request_timeout_secs: DEFAULT_REQUEST_TIMEOUT_SECS,
+            keep_alive: DEFAULT_KEEP_ALIVE.to_string(),
         }
     }
 }
