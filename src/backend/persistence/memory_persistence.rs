@@ -1,9 +1,9 @@
-use sqlx::{Row, SqliteConnection};
+use sqlx::{QueryBuilder, Row, SqliteConnection};
 use uuid::Uuid;
 
-use crate::backend::persistence::db::parse_json_array;
+use crate::backend::persistence::db::{from_timestamp_to_str, parse_json_array, to_json_array};
 use crate::backend::{
-    domain::memory::{Act, ActStatus, State},
+    domain::memory::{Act, ActStatus, Fact, State},
     persistence::{
         db::{from_str_to_timestamp, from_str_to_uuid},
         error::PersistenceError,
@@ -39,15 +39,16 @@ impl StateRow {
 struct ActRow {
     id: String,
     adventure_id: String,
-    ordinal: i64,
+    ordinal: u16,
     goal: String,
     trigger: Option<String>,
     status: String,
     index_line: Option<String>,
     digest: Option<String>,
     running_digest: Option<String>,
-    from_seq: Option<i64>,
-    to_seq: Option<i64>,
+    digest_to_seq: Option<u16>,
+    from_seq: Option<u16>,
+    to_seq: Option<u16>,
     created_at: String,
     updated_at: String,
 }
@@ -57,15 +58,16 @@ impl ActRow {
         Self {
             id: row.get("id"),
             adventure_id: row.get("adventure_id"),
-            ordinal: row.get::<i64, _>("ordinal"),
+            ordinal: row.get::<u16, _>("ordinal"),
             goal: row.get("goal"),
             trigger: row.get("trigger"),
             status: row.get("status"),
             index_line: row.get("index_line"),
             digest: row.get("digest"),
             running_digest: row.get("running_digest"),
-            from_seq: row.get::<Option<i64>, _>("from_seq"),
-            to_seq: row.get::<Option<i64>, _>("to_seq"),
+            digest_to_seq: row.get::<Option<u16>, _>("digest_to_seq"),
+            from_seq: row.get::<Option<u16>, _>("from_seq"),
+            to_seq: row.get::<Option<u16>, _>("to_seq"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         }
@@ -118,9 +120,9 @@ pub async fn get_state(
          FROM state
          WHERE adventure_id = ?1",
     )
-        .bind(adventure_id.to_string())
-        .fetch_optional(&mut *conn)
-        .await?;
+    .bind(adventure_id.to_string())
+    .fetch_optional(&mut *conn)
+    .await?;
 
     row.as_ref()
         .map(StateRow::decode)
@@ -133,7 +135,7 @@ pub async fn get_act(
     adventure_id: Uuid,
 ) -> Result<Vec<Act>, PersistenceError> {
     let row = sqlx::query(
-        "SELECT id, adventure_id, ordinal, goal, trigger, status, index_line, digest, running_digest, from_seq, to_seq, created_at, updated_at
+        "SELECT id, adventure_id, ordinal, goal, trigger, status, index_line, digest, running_digest, digest_to_seq, from_seq, to_seq, created_at, updated_at
          FROM act
          WHERE adventure_id = ?1",
     )
@@ -146,6 +148,109 @@ pub async fn get_act(
         .map(ActRow::decode)
         .map(Act::try_from)
         .collect()
+}
+
+pub async fn get_active_act(
+    conn: &mut SqliteConnection,
+    adventure_id: Uuid,
+) -> Result<Option<Act>, PersistenceError> {
+    let row = sqlx::query(
+        "SELECT id, adventure_id, ordinal, goal, trigger, status, index_line, digest,
+                running_digest, digest_to_seq, from_seq, to_seq, created_at, updated_at
+         FROM act
+         WHERE adventure_id = ?1 AND status = 'active'
+         ORDER BY ordinal DESC
+         LIMIT 1",
+    )
+    .bind(adventure_id.to_string())
+    .fetch_optional(&mut *conn)
+    .await?;
+
+    row.as_ref()
+        .map(ActRow::decode)
+        .map(Act::try_from)
+        .transpose()
+}
+
+pub async fn upsert_state(
+    conn: &mut SqliteConnection,
+    state: &State,
+) -> Result<(), PersistenceError> {
+    let characters_present = to_json_array(&state.characters_present)?;
+    let open_threads = to_json_array(&state.open_threads)?;
+    let conditions = to_json_array(&state.conditions)?;
+
+    sqlx::query(
+        "INSERT INTO state (id, adventure_id, day, place, characters_present,
+                            open_threads, conditions, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+         ON CONFLICT(adventure_id) DO UPDATE SET
+            day                = excluded.day,
+            place              = excluded.place,
+            characters_present = excluded.characters_present,
+            open_threads       = excluded.open_threads,
+            conditions         = excluded.conditions,
+            updated_at         = excluded.updated_at",
+    )
+    .bind(state.id.to_string())
+    .bind(state.adventure_id.to_string())
+    .bind(&state.day)
+    .bind(&state.place)
+    .bind(characters_present)
+    .bind(open_threads)
+    .bind(conditions)
+    .bind(from_timestamp_to_str(&state.updated_at))
+    .execute(&mut *conn)
+    .await?;
+
+    Ok(())
+}
+
+pub async fn insert_facts(
+    conn: &mut SqliteConnection,
+    facts: &[Fact],
+) -> Result<(), PersistenceError> {
+    if facts.is_empty() {
+        return Ok(());
+    }
+
+    let mut qb = QueryBuilder::new(
+        "INSERT INTO fact (id, adventure_id, subject, fact, act_id, permanence, created_at) ",
+    );
+
+    qb.push_values(facts, |mut row, fact| {
+        row.push_bind(fact.id.to_string())
+            .push_bind(fact.adventure_id.to_string())
+            .push_bind(&fact.subject)
+            .push_bind(&fact.fact)
+            .push_bind(fact.act_id.to_string())
+            .push_bind(fact.permanence.as_str())
+            .push_bind(from_timestamp_to_str(&fact.created_at));
+    });
+
+    qb.build().execute(&mut *conn).await?;
+    Ok(())
+}
+
+pub async fn update_act_running_digest(
+    conn: &mut SqliteConnection,
+    act_id: Uuid,
+    running_digest: &str,
+    digest_to_seq: u16,
+) -> Result<(), PersistenceError> {
+    sqlx::query(
+        "UPDATE act
+         SET running_digest = ?2,
+             digest_to_seq  = ?3
+         WHERE id = ?1",
+    )
+    .bind(act_id.to_string())
+    .bind(running_digest)
+    .bind(digest_to_seq)
+    .execute(&mut *conn)
+    .await?;
+
+    Ok(())
 }
 
 impl TryFrom<StateRow> for State {
@@ -164,7 +269,6 @@ impl TryFrom<StateRow> for State {
         })
     }
 }
-
 
 impl TryFrom<ActRow> for Act {
     type Error = PersistenceError;
@@ -186,8 +290,9 @@ impl TryFrom<ActRow> for Act {
             index_line: row.index_line,
             digest: row.digest,
             running_digest: row.running_digest,
-            from_seq: row.from_seq.map(|seq| seq as u64),
-            to_seq: row.to_seq.map(|seq| seq as u64),
+            digest_to_seq: row.digest_to_seq.map(|seq| seq as u16),
+            from_seq: row.from_seq.map(|seq| seq as u16),
+            to_seq: row.to_seq.map(|seq| seq as u16),
             created_at: from_str_to_timestamp(&row.created_at)?,
             updated_at: from_str_to_timestamp(&row.updated_at)?,
         })

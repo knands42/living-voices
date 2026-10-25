@@ -66,3 +66,10 @@ pub fn parse_json_array(value: Option<&str>) -> Result<Vec<String>, PersistenceE
         Some(text) => serde_json::from_str(text).map_err(PersistenceError::ParsingError),
     }
 }
+
+pub fn to_json_array(values: &[String]) -> Result<Option<String>, PersistenceError> {
+    if values.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(serde_json::to_string(values)?))
+}

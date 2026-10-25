@@ -29,14 +29,13 @@ A job queue (background workers) orchestrates these so the chat LLM only ever co
 
 ```
 ┌──────────────────────────────┐
-│  Slint UI (Rust frontend)    │
+│  Slint UI / RatatUI          │
 │  chat · characters · world   │
 └──────────────┬───────────────┘
                │ messages/events (async channels)
 ┌──────────────┴───────────────┐
 │  Core (Rust)                 │
-│  session state · story clock │
-│  event store (append-only)   │
+│  session state               │
 └──────┬───────┬───────┬───────┘
        │       │       │
 ┌──────┴─┐ ┌───┴───┐ ┌─┴────────┐
@@ -66,29 +65,21 @@ cargo run
 2. Start a conversation — solo, or a group scene.
 3. Talk with `Say`, act with `Do`, keep secrets with `Think`, share one-on-one with `Whisper`.
 
-## Roadmap
-
-- [ ] MVP: solo + group chat, Say/Do/Think/Whisper grammar
-- [ ] Narrator with interrupt events
-- [ ] Memory extraction + context compression pipeline
-- [ ] Scene snapshot generation (image job)
-- [ ] Story clock + time advance
-- [ ] Rewind / what-if branches (event-sourced)
 
 ## Non-goals
 
-No long-form novel editing, no RPG rules engine, no cloud dependency — the chat is the product and it runs on your machine.
+No long-form novel editing, no RPG rules engine, no cloud dependency. The chat is the final goal, and it runs on your machine only.
 
 ## AI usage in this project
 
 No vibecoding, any bug this project has, it's entirely my fault. AI is used deliberately for:
 
 - Getting unstuck on specific implementations (still learning Rust)
-- Troubleshooting (tons of UI wiring and state management)
-- Writing tests (with my review)
-- Complex layouts (SLint is a new UI library for me)
-- Initial UI mockups — a starting point
+- Troubleshooting (tons of UI wiring and state management on both SLintUI and RatatUI)
+- Writing/Improving tests
+- UI layouts
+- Boilerplate
 
 ## Status
 
-Early stage. Rust + Slint, design system and view specs live in [`docs/`](docs/).
+Early stage with some [`docs`](docs/) available.

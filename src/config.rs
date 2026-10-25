@@ -12,7 +12,7 @@ const DEFAULT_IMAGE_MODEL_URL: &str = "http://localhost:8188";
 
 const DEFAULT_CHAT_TEMPERATURE: f32 = 0.5;
 const DEFAULT_MEMORY_TEMPERATURE: f32 = 0.1;
-const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 120;
+const DEFAULT_REQUEST_TIMEOUT_SECS: u16 = 120;
 
 const DEFAULT_COMPRESS_AFTER_THRESHOLD: u8 = 70;
 const DEFAULT_COMPRESS_LAST_MESSAGES: u8 = 50;
@@ -58,7 +58,7 @@ pub struct TextModel {
     pub base_url: String,
     pub model: String,
     pub temperature: f32,
-    pub request_timeout_secs: u64,
+    pub request_timeout_secs: u16,
 }
 
 impl TextModel {

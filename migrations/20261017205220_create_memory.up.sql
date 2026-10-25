@@ -10,6 +10,7 @@ CREATE TABLE act (
   index_line  TEXT,                 -- immutable: "ACT 1 Crown: tavern lead, cave trail, vault guardian — crown recovered"
   digest      TEXT,                 -- ~120 words, prose, written at act close
   running_digest TEXT,              -- dont append, only override
+  digest_to_seq  INTEGER,           -- mutable watermark: last message seq folded into running_digest
   from_seq    INTEGER,              -- first message seq covered
   to_seq      INTEGER,              -- last message seq covered
   created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -34,7 +35,7 @@ BEGIN
     WHERE id = OLD.id;
 END;
 
--- fact are rows, not prose
+-- facts are rows, not prose
 CREATE TABLE fact (
   id             TEXT NOT NULL PRIMARY KEY,
   adventure_id   TEXT NOT NULL REFERENCES adventure (id) ON DELETE CASCADE,
@@ -42,7 +43,6 @@ CREATE TABLE fact (
   fact           TEXT NOT NULL,
   act_id         TEXT NOT NULL REFERENCES act (id) ON DELETE SET NULL,
   permanence     TEXT NOT NULL,     -- permanent | plot
-  superseded_by  TEXT NULL REFERENCES fact (id) ON DELETE SET NULL,
   created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 
   CONSTRAINT fact_id_is_uuid CHECK (length(id) = 36),

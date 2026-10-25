@@ -49,7 +49,7 @@ async fn load_adventure(pool: &SqlitePool, adventure: &Adventure) -> MemoryManag
     MemoryManager::new(state, pool.clone(), distiller())
 }
 
-async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: u64) -> Vec<i64> {
+async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: u16) -> Vec<u16> {
     let mut conn = pool.acquire().await.expect("acquire");
     let mut seqs = Vec::new();
     for i in 1..=count {
@@ -63,7 +63,7 @@ async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: u64) -> Vec
         let stored = insert_message(&mut conn, &message)
             .await
             .expect("insert message");
-        seqs.push(stored.seq.expect("assigned seq") as i64);
+        seqs.push(stored.seq.expect("assigned seq") as u16);
     }
     seqs
 }
@@ -90,12 +90,12 @@ async fn compress_persists_summary_and_facts_for_uncovered_messages() {
         .await
         .expect("summary row");
 
-    assert_eq!(row.get::<i64, _>("from_seq"), seqs[0]);
-    assert_eq!(row.get::<i64, _>("to_seq"), *seqs.last().expect("last seq"));
+    assert_eq!(row.get::<u16, _>("from_seq"), seqs[0]);
+    assert_eq!(row.get::<u16, _>("to_seq"), *seqs.last().expect("last seq"));
     assert!(!row.get::<String, _>("text").trim().is_empty());
 
     let summary_id: String = row.get("id");
-    let fact_count: i64 = query_scalar("SELECT COUNT(*) FROM fact WHERE source_summary_id = ?1")
+    let fact_count: u16 = query_scalar("SELECT COUNT(*) FROM fact WHERE source_summary_id = ?1")
         .bind(&summary_id)
         .fetch_one(&mut *conn)
         .await
@@ -115,8 +115,8 @@ async fn compress_resumes_after_the_last_covered_seq() {
     let earlier = Summary::new(
         adventure.id,
         "Earlier summary".into(),
-        seqs[0] as u64,
-        seqs[0] as u64,
+        seqs[0] as u16,
+        seqs[0] as u16,
     );
     insert_summary(&mut conn, &earlier)
         .await
@@ -132,7 +132,7 @@ async fn compress_resumes_after_the_last_covered_seq() {
     let mut conn = pool.acquire().await.expect("acquire");
     assert_eq!(
         last_covered(&mut conn, adventure.id).await,
-        Some(*seqs.last().expect("last seq") as u64)
+        Some(*seqs.last().expect("last seq") as u16)
     );
 
     let rows =
@@ -142,9 +142,9 @@ async fn compress_resumes_after_the_last_covered_seq() {
             .await
             .expect("summary rows");
     assert_eq!(rows.len(), 2);
-    assert_eq!(rows[1].get::<i64, _>("from_seq"), seqs[1]);
+    assert_eq!(rows[1].get::<u16, _>("from_seq"), seqs[1]);
     assert_eq!(
-        rows[1].get::<i64, _>("to_seq"),
+        rows[1].get::<u16, _>("to_seq"),
         *seqs.last().expect("last seq")
     );
 }
@@ -162,7 +162,7 @@ async fn compress_is_a_noop_without_a_current_adventure() {
     // Then it succeeds without touching the database
     assert!(result.is_ok());
     let mut conn = pool.acquire().await.expect("acquire");
-    let count: i64 = query_scalar("SELECT COUNT(*) FROM summary")
+    let count: u16 = query_scalar("SELECT COUNT(*) FROM summary")
         .fetch_one(&mut *conn)
         .await
         .expect("count summaries");
@@ -181,8 +181,8 @@ async fn compress_is_a_noop_when_every_message_is_covered() {
     let earlier = Summary::new(
         adventure.id,
         "Earlier summary".into(),
-        seqs[0] as u64,
-        seqs[1] as u64,
+        seqs[0] as u16,
+        seqs[1] as u16,
     );
     insert_summary(&mut conn, &earlier)
         .await

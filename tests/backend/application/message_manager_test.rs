@@ -125,7 +125,7 @@ async fn send_message_persists_incoming_and_reply_and_returns_the_stored_reply()
 
     // And both the incoming line and the reply are stored
     let mut conn = pool.acquire().await.expect("acquire");
-    let count: i64 = query_scalar("SELECT COUNT(*) FROM message WHERE adventure_id = ?1")
+    let count: u16 = query_scalar("SELECT COUNT(*) FROM message WHERE adventure_id = ?1")
         .bind(adventure.id.to_string())
         .fetch_one(&mut *conn)
         .await
@@ -187,7 +187,7 @@ async fn send_message_carries_prior_turns_into_the_next_turn() {
     // Then four messages are stored (two player lines + two replies)
     assert!(reply.seq.is_some());
     let mut conn = pool.acquire().await.expect("acquire");
-    let count: i64 = query_scalar("SELECT COUNT(*) FROM message WHERE adventure_id = ?1")
+    let count: u16 = query_scalar("SELECT COUNT(*) FROM message WHERE adventure_id = ?1")
         .bind(adventure.id.to_string())
         .fetch_one(&mut *conn)
         .await
@@ -218,7 +218,7 @@ async fn send_message_errors_without_a_current_adventure() {
     // Then it fails with NoAdventure and nothing is persisted
     assert!(matches!(result, Err(MessageManagerError::NoAdventure)));
     let mut conn = pool.acquire().await.expect("acquire");
-    let count: i64 = query_scalar("SELECT COUNT(*) FROM message")
+    let count: u16 = query_scalar("SELECT COUNT(*) FROM message")
         .fetch_one(&mut *conn)
         .await
         .expect("count messages");

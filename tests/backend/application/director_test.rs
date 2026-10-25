@@ -28,7 +28,7 @@ fn line(kind: MessageKind, target: Option<&str>) -> Message {
 /// Build director settings with explicit, extreme chances so every assertion
 /// is deterministic regardless of the internal random roll:
 /// `roll < 0.0` is never true, `roll < 1.0` is always true for roll in [0,1).
-fn director(targeted_pick_chance: f32, narrator_change_if_ooc: f32, ramp: (u64, u64)) -> Director {
+fn director(targeted_pick_chance: f32, narrator_change_if_ooc: f32, ramp: (u16, u16)) -> Director {
     Director::new(DirectorSettings {
         targeted_pick_chance,
         narrator_change_if_ooc,

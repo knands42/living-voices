@@ -5,11 +5,13 @@ use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, ActStatus};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::error::PersistenceError;
-use crate::backend::persistence::memory_persistence::{count_uncovered_per_act, get_act, get_state};
+use crate::backend::persistence::memory_persistence::{
+    count_uncovered_per_act, get_act, get_state,
+};
 use crate::backend::persistence::message_persistence::fetch_last_n;
 use sqlx::SqliteConnection;
 
-const AUTONOMOUS_HISTORY_WINDOW: i64 = 50;
+const AUTONOMOUS_HISTORY_WINDOW: u16 = 50;
 
 const AUTONOMOUS_CHAT_PROMPT: &str = "You write one beat of an interactive roleplay at a time: one character speaks and/or acts, or you narrate the world around the player";
 const AUTONOMOUS_CHAT_HEADER_INSTRUCTION: &str = r#"## HEADER — the first line of every reply, nothing before it
@@ -96,7 +98,7 @@ Reconcile the two. Produce the memory record as it should stand NOW — not a re
 of only the new turns, and not a copy of the old one. Return JSON only, with exactly
 three fields:
 
-- "facts": the facts that are true now. For each one decide:
+- "facts": the facts that are true now (at the current moment of the adventure). For each one decide:
     - KEEP an existing fact unchanged if the conversation neither changed nor
       contradicted it, and it still matters.
     - OVERRIDE a fact when the conversation changes it: emit the new version with

@@ -1,4 +1,4 @@
-use crate::backend::application::port::chat_port::PromptTurn;
+use crate::backend::{application::port::chat_port::PromptTurn, domain::memory::Fact};
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

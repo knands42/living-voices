@@ -27,7 +27,7 @@ async fn setup_adventure(pool: &SqlitePool) -> Adventure {
 }
 
 /// Insert `count` plain Say messages and return their assigned seqs.
-async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: u64) -> Vec<u64> {
+async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: u16) -> Vec<u16> {
     let mut conn = pool.acquire().await.expect("acquire");
     let mut seqs = Vec::new();
     for i in 1..=count {

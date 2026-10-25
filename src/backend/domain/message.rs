@@ -5,7 +5,7 @@ use uuid::Uuid;
 /// Append-only entry in an adventure's conversation log, holding ready-formatted text.
 #[derive(Clone, Debug)]
 pub struct Message {
-    pub seq: Option<u64>,
+    pub seq: Option<u16>,
     pub adventure_id: Uuid,
     pub character_id: Option<Uuid>,
     pub narrator_id: Option<Uuid>,

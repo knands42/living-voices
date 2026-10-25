@@ -8,7 +8,7 @@ use crate::backend::{
 };
 
 struct MessageRow {
-    seq: u64,
+    seq: u16,
     adventure_id: String,
     narrator_id: Option<String>,
     character_id: Option<String>,
@@ -52,14 +52,14 @@ pub async fn insert_message(
     .bind(&msg.speaker_name)
     .bind(&msg.text)
     .bind(targeted_ids)
-    .bind(msg.ooc as i64)
+    .bind(msg.ooc as u16)
     .bind(from_timestamp_to_str(&msg.created_at))
     .fetch_one(&mut *conn)
     .await?;
 
-    let seq: i64 = row.get("seq");
+    let seq = row.get::<u16, _>("seq");
     Ok(Message {
-        seq: Some(seq as u64),
+        seq: Some(seq),
         ..msg.clone()
     })
 }
@@ -67,7 +67,7 @@ pub async fn insert_message(
 pub async fn fetch_since(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
-    after_seq: u64,
+    after_seq: u16,
 ) -> Result<Vec<Message>, PersistenceError> {
     let rows = sqlx::query(
         "SELECT seq, adventure_id, character_id, narrator_id, speaker_name, text, ooc, created_at
@@ -76,7 +76,7 @@ pub async fn fetch_since(
          ORDER BY seq ASC",
     )
     .bind(adventure_id.to_string())
-    .bind(after_seq as i64)
+    .bind(after_seq as u16)
     .fetch_all(&mut *conn)
     .await?;
 
@@ -89,7 +89,7 @@ pub async fn fetch_since(
 pub async fn fetch_last_n(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
-    limit: i64,
+    limit: u16,
 ) -> Result<Vec<Message>, PersistenceError> {
     let rows = sqlx::query(
         "SELECT seq, adventure_id, character_id, narrator_id, speaker_name, text, ooc, created_at

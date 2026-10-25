@@ -43,7 +43,6 @@ pub struct Fact {
     pub fact: String,
     pub act_id: Uuid,
     pub permanence: Permanence,
-    pub superseded_by: Option<Uuid>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -62,17 +61,8 @@ impl Fact {
             fact: fact.into(),
             act_id,
             permanence,
-            superseded_by: None,
             created_at: Utc::now(),
         }
-    }
-
-    pub fn superseded_by(&self) -> Option<Uuid> {
-        self.superseded_by
-    }
-
-    pub fn is_live(&self) -> bool {
-        self.superseded_by.is_none()
     }
 
     pub fn render(facts: &[Fact]) -> Option<String> {

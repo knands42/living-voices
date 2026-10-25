@@ -51,21 +51,23 @@ impl Display for ActStatus {
 pub struct Act {
     pub id: Uuid,
     pub adventure_id: Uuid,
-    pub ordinal: i64,
+    pub ordinal: u16,
     pub goal: String,
     pub trigger: Option<String>,
     pub status: ActStatus,
     pub index_line: Option<String>,
     pub digest: Option<String>,
     pub running_digest: Option<String>,
-    pub from_seq: Option<u64>,
-    pub to_seq: Option<u64>,
+    /// the last message seq folded into `running_digest`.
+    pub digest_to_seq: Option<u16>,
+    pub from_seq: Option<u16>,
+    pub to_seq: Option<u16>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
 impl Act {
-    pub fn new(adventure_id: Uuid, ordinal: i64, goal: impl Into<String>) -> Self {
+    pub fn new(adventure_id: Uuid, ordinal: u16, goal: impl Into<String>) -> Self {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4(),
@@ -77,6 +79,7 @@ impl Act {
             index_line: None,
             digest: None,
             running_digest: None,
+            digest_to_seq: None,
             from_seq: None,
             to_seq: None,
             created_at: now,
@@ -98,8 +101,8 @@ impl Act {
         &mut self,
         index_line: impl Into<String>,
         digest: impl Into<String>,
-        from_seq: u64,
-        to_seq: u64,
+        from_seq: u16,
+        to_seq: u16,
     ) {
         self.index_line = Some(index_line.into());
         self.digest = Some(digest.into());

@@ -105,7 +105,7 @@ async fn create_character_persists_character_to_database() {
 
     manager.create_character(character.clone()).await.unwrap();
 
-    let (count, name): (i64, String) =
+    let (count, name): (u16, String) =
         sqlx::query_as("SELECT COUNT(*), name FROM character WHERE id = ?1")
             .bind(character.id.to_string())
             .fetch_one(&pool)
@@ -131,7 +131,7 @@ async fn create_character_persists_traits_in_order() {
 
     manager.create_character(character.clone()).await.unwrap();
 
-    let rows: Vec<(i64, String)> = sqlx::query_as(
+    let rows: Vec<(u16, String)> = sqlx::query_as(
         "SELECT position, value FROM character_trait WHERE character_id = ?1 ORDER BY position",
     )
     .bind(character.id.to_string())

@@ -31,7 +31,7 @@ pub async fn insert_character(
 
     // Traits are an ordered list, so position is part of the identity
     for (position, trait_) in character.traits.iter().enumerate() {
-        insert_trait(conn, character.id, position as i64, trait_).await?;
+        insert_trait(conn, character.id, position as u16, trait_).await?;
     }
 
     for tag in &character.tags {
@@ -45,7 +45,7 @@ pub async fn insert_character(
 pub async fn insert_trait(
     conn: &mut SqliteConnection,
     character_id: Uuid,
-    position: i64,
+    position: u16,
     trait_: &str,
 ) -> Result<(), PersistenceError> {
     sqlx::query("INSERT INTO character_trait (character_id, position, value) VALUES (?1, ?2, ?3)")
