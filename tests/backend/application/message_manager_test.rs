@@ -90,8 +90,20 @@ fn autonomous_director() -> Director {
 // ---------------------------------------------------------------- fixtures
 
 async fn setup_adventure(pool: &SqlitePool, characters: &[&str]) -> Adventure {
-    let specs: Vec<CharacterSpec> = characters.iter().map(|n| CharacterSpec::npc(n)).collect();
-    create_adventure(pool, &specs).await
+    // The human player is always a cast member (an `is_player` character), so
+    // every adventure carries one. The NPCs keep their leading positions
+    // (`characters[0]`, `[1]`, ...), with the player appended last.
+    let mut chars: Vec<CharacterSpec> = characters.iter().map(|n| CharacterSpec::npc(n)).collect();
+    chars.push(CharacterSpec::player("You"));
+    create_adventure(pool, &chars).await
+}
+
+fn player_character(adventure: &Adventure) -> &Character {
+    adventure
+        .characters
+        .iter()
+        .find(|c| c.is_player)
+        .expect("fixture has a player character")
 }
 
 /// Mark which cast members are present, so `get_active_candidates` can route to
@@ -146,12 +158,13 @@ fn load_adventure(
     )
 }
 
-fn player_line(adventure_id: Uuid, text: &str) -> Message {
+fn player_line(adventure: &Adventure, text: &str) -> Message {
+    let player = player_character(adventure);
     Message::new(
-        adventure_id,
+        adventure.id,
+        Some(player.id),
         None,
-        None,
-        "Player".into(),
+        player.name.clone(),
         text,
         false,
         vec![],
@@ -159,12 +172,13 @@ fn player_line(adventure_id: Uuid, text: &str) -> Message {
 }
 
 /// A player line explicitly aimed at one cast member.
-fn targeted_line(adventure_id: Uuid, text: &str, target: &Character) -> Message {
+fn targeted_line(adventure: &Adventure, text: &str, target: &Character) -> Message {
+    let player = player_character(adventure);
     Message::new(
-        adventure_id,
+        adventure.id,
+        Some(player.id),
         None,
-        None,
-        "Player".into(),
+        player.name.clone(),
         text,
         false,
         vec![target.clone()],
@@ -213,7 +227,7 @@ async fn full_pipeline_sends_a_turn_and_triggers_background_distillation() {
     create_messages(&pool, adventure.id, &vec![None; threshold]).await;
 
     // When sending one more player turn (targeted so a character answers deterministically)
-    let incoming = targeted_line(adventure.id, "What now?", &adventure.characters[0]);
+    let incoming = targeted_line(&adventure, "What now?", &adventure.characters[0]);
     let reply = manager.send_message(incoming).await.expect("send succeeds");
 
     // Then the reply is persisted...
@@ -264,7 +278,7 @@ async fn send_message_routes_to_the_narrator() {
     let manager = load_adventure(&pool, &adventure, narrator_director());
 
     let reply = manager
-        .send_message(player_line(adventure.id, "Is anyone there?"))
+        .send_message(player_line(&adventure, "Is anyone there?"))
         .await
         .expect("send succeeds");
 
@@ -289,7 +303,7 @@ async fn send_message_routes_to_a_random_cast_member() {
     let manager = load_adventure(&pool, &adventure, autonomous_director());
 
     let reply = manager
-        .send_message(player_line(adventure.id, "Someone say something."))
+        .send_message(player_line(&adventure, "Someone say something."))
         .await
         .expect("send succeeds");
 
@@ -321,7 +335,7 @@ async fn send_message_routes_to_a_specific_targeted_character() {
     // The player aims the line at Kael specifically.
     let kael = adventure.characters[1].clone();
     let reply = manager
-        .send_message(targeted_line(adventure.id, "Kael, what do you see?", &kael))
+        .send_message(targeted_line(&adventure, "Kael, what do you see?", &kael))
         .await
         .expect("send succeeds");
 
