@@ -86,7 +86,7 @@ pub async fn count_uncovered_per_act(
          FROM message
          WHERE adventure_id = ?1
            AND seq >= COALESCE(
-               (SELECT from_seq FROM acts WHERE adventure_id = ?1 AND status = 'active'),
+               (SELECT from_seq FROM act WHERE adventure_id = ?1 AND status = 'active'),
                0
            )",
     )
@@ -101,7 +101,7 @@ pub async fn get_active_candidates(
     conn: &mut SqliteConnection,
     adventure_id: &str,
 ) -> Result<Vec<String>, PersistenceError> {
-    let row = sqlx::query("SELECT characters_present AS c FROM state WHERE adventure_id = ?1")
+    let row = sqlx::query("SELECT characters_present FROM state WHERE adventure_id = ?1")
         .bind(adventure_id)
         .fetch_one(&mut *conn)
         .await?;
