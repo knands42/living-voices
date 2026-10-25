@@ -1,4 +1,4 @@
-use living_voices::ai::jobs::memory;
+use living_voices::ai::integrations::memory;
 use living_voices::ai::{ChatMessage, JsonSchema, OpenAiCompatibleClient, ResponseFormat};
 use serde_json::json;
 

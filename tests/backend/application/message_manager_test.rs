@@ -7,8 +7,8 @@ use crate::backend::application::helper::{
     CharacterSpec, create_adventure, create_messages, setup_db,
 };
 use living_voices::ai::MemoryUpdate;
-use living_voices::ai::jobs::chat::Chat;
-use living_voices::ai::jobs::narrator::Narrator;
+use living_voices::ai::integrations::chat::Chat;
+use living_voices::ai::integrations::narrator::Narrator;
 use living_voices::backend::application::director::Director;
 use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::message_manager::MessageManager;

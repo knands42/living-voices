@@ -1,8 +1,8 @@
 use sqlx::SqlitePool;
 
 use crate::ai::MemoryUpdate;
-use crate::ai::jobs::chat::Chat;
-use crate::ai::jobs::narrator::Narrator;
+use crate::ai::integrations::chat::Chat;
+use crate::ai::integrations::narrator::Narrator;
 use crate::backend::application::director::Director;
 use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
 use crate::backend::application::port::memory_port::MemoryDistiller;
