@@ -5,7 +5,7 @@ use crate::app::AppContext;
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::{Character, CharacterStatus};
 use crate::backend::domain::message::Message;
-use crate::cli::draw::avatar::{Avatar, GlyphAvatar};
+use crate::cli::draw::avatar::{Avatar, AvatarKind};
 use crate::cli::draw::theme::{
     CARD_EDGE, EMBER, GOLD, GOLD_FADED, INK, dim, ink, muted, speaker_color,
 };
@@ -133,8 +133,7 @@ fn render_cast_row(frame: &mut Frame, area: Rect, character: &Character, active:
         width: 3,
         height: 2,
     };
-    // TODO: Make this a profile pic
-    let mut avatar = GlyphAvatar::from_name(&character.name);
+    let mut avatar = AvatarKind::glyph(&character.name);
     let buf = frame.buffer_mut();
     avatar.render(avatar_area, buf);
 

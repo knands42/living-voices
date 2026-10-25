@@ -12,6 +12,31 @@ pub trait Avatar {
     fn render(&mut self, area: Rect, buf: &mut Buffer);
 }
 
+pub enum AvatarKind {
+    Glyph(GlyphAvatar),
+    Image(ImageAvatar),
+}
+
+impl AvatarKind {
+    pub fn glyph(name: &str) -> Self {
+        AvatarKind::Glyph(GlyphAvatar::from_name(name))
+    }
+
+    #[allow(dead_code)] // wired once portrait loading exists
+    pub fn image(protocol: StatefulProtocol) -> Self {
+        AvatarKind::Image(ImageAvatar::new(protocol))
+    }
+}
+
+impl Avatar for AvatarKind {
+    fn render(&mut self, area: Rect, buf: &mut Buffer) {
+        match self {
+            AvatarKind::Glyph(a) => a.render(area, buf),
+            AvatarKind::Image(a) => a.render(area, buf),
+        }
+    }
+}
+
 // ---------- GlyphAvatar: the always-works default ----------
 
 #[derive(Clone, Copy, Debug)]
@@ -75,7 +100,7 @@ impl Avatar for GlyphAvatar {
 
 // ---------- ImageAvatar: wire a picture when the terminal supports it ----------
 
-#[allow(dead_code)] // seam: wired by callers once character portraits exist
+#[allow(dead_code)]
 pub struct ImageAvatar {
     protocol: StatefulProtocol,
 }
