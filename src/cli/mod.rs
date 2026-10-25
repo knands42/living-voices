@@ -1,5 +1,5 @@
 mod draw;
-mod event_handler;
+mod events;
 pub mod init;
 mod state;
 

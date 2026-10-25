@@ -45,6 +45,7 @@ pub struct Character {
     pub description: String,
     pub status: CharacterStatus,
     pub backstory: String,
+    pub portrait_path: Option<String>,
     pub is_player: bool,
     pub traits: Vec<String>, // Speaks only in tidal registers, ...
     pub tags: Vec<String>,   // Protagonist, Brave ...
@@ -60,6 +61,7 @@ impl Character {
             description,
             backstory: String::new(),
             status: CharacterStatus::default(),
+            portrait_path: None,
             is_player: false,
             traits: Vec::new(),
             tags: Vec::new(),
@@ -74,6 +76,11 @@ impl Character {
 
     pub fn with_status(mut self, status: CharacterStatus) -> Self {
         self.status = status;
+        self
+    }
+
+    pub fn with_portrait(mut self, portrait_path: impl Into<String>) -> Self {
+        self.portrait_path = Some(portrait_path.into());
         self
     }
 

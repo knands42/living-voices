@@ -2,7 +2,7 @@ use crate::ai::MemoryUpdate;
 use crate::ai::integrations::chat::Chat;
 use crate::ai::integrations::narrator::Narrator;
 use crate::app::{App, AppContext};
-use crate::cli::event_handler::{Flow, handle_key};
+use crate::cli::events::event_handler::{Flow, handle_key};
 use crate::cli::state::CliState;
 use crate::cli::{Tui, draw};
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture, Event};
