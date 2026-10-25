@@ -66,13 +66,12 @@ impl Fact {
     }
 
     pub fn render(facts: &[Fact]) -> Option<String> {
-        let live: Vec<&Fact> = facts.iter().filter(|f| f.is_live()).collect();
-        if live.is_empty() {
+        if facts.is_empty() {
             return None;
         }
 
         let mut block = String::from("\nKnown facts:");
-        for fact in live {
+        for fact in facts {
             block.push_str(&format!("\n- {}: {}", fact.subject, fact.fact));
         }
         Some(block)

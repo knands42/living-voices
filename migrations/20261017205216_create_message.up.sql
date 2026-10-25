@@ -8,7 +8,7 @@ CREATE TABLE message
     narrator_id           TEXT    NULL REFERENCES narrator (id) ON DELETE SET NULL,
     speaker_name          TEXT    NOT NULL,
     text                  TEXT    NOT NULL,
-    targeted_characters   TEXT    NULL,   -- json: ["<character-uuid>", ...]
+    targeted_characters   TEXT    NOT NULL DEFAULT "[]",   -- json: ["<character-uuid>", ...]
     ooc                   INTEGER NOT NULL DEFAULT 0,
     created_at            TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 

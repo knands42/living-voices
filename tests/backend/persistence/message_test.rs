@@ -2,7 +2,7 @@ use sqlx::sqlite::SqlitePool;
 
 use crate::backend::application::helper::setup_db;
 use living_voices::backend::domain::adventure::Adventure;
-use living_voices::backend::domain::message::{Message, MessageKind, MessagePart, MessageParts};
+use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::persistence::message_persistence::{fetch_since, insert_message};
 
@@ -21,62 +21,70 @@ async fn setup_adventure(pool: &SqlitePool) -> Adventure {
 }
 
 #[tokio::test]
-async fn insert_and_fetch_round_trip_keeps_both_parts() {
+async fn insert_and_fetch_round_trip_keeps_the_message() {
     // Given a migrated database with an adventure
     let (pool, _db) = setup_db().await;
     let adventure = setup_adventure(&pool).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
-    // When inserting a message with two targeted parts
+    // When inserting a player message
     let message = Message::new(
         adventure.id,
         None,
         None,
         "Alice".to_string(),
-        MessageParts::two(
-            MessagePart::new(MessageKind::Say, "come here").with_target("Bob"),
-            MessagePart::new(MessageKind::Do, "raise the drawing").with_target("Bob"),
-        ),
+        "come here",
+        false,
+        vec![],
     );
-    insert_message(&mut conn, &message)
+    let stored = insert_message(&mut conn, &message)
         .await
         .expect("insert message");
 
-    // Then reading it back restores both parts with their own text and target
+    // Then a seq is assigned on insert
+    assert!(stored.seq.is_some());
+
+    // And reading it back restores the text, speaker and ooc flag
     let messages = fetch_since(&mut conn, adventure.id, 0)
         .await
         .expect("fetch messages");
     assert_eq!(messages.len(), 1);
-
-    let parts: Vec<&MessagePart> = messages[0].parts.iter().collect();
-    assert_eq!(parts.len(), 2);
-    assert_eq!(parts[0].kind, MessageKind::Say);
-    assert_eq!(parts[0].text, "come here");
-    assert_eq!(parts[0].target_name.as_deref(), Some("Bob"));
-    assert_eq!(parts[1].kind, MessageKind::Do);
-    assert_eq!(parts[1].text, "raise the drawing");
-    assert_eq!(parts[1].target_name.as_deref(), Some("Bob"));
+    assert_eq!(messages[0].speaker_name, "Alice");
+    assert_eq!(messages[0].text, "come here");
+    assert!(!messages[0].ooc);
 }
 
 #[tokio::test]
-async fn insert_rejects_target_on_kind_without_target() {
-    // Given a migrated database with an adventure
+async fn fetch_since_excludes_messages_at_or_below_the_cursor() {
+    // Given three stored messages
     let (pool, _db) = setup_db().await;
     let adventure = setup_adventure(&pool).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
-    // When inserting a think part addressed to someone
-    let message = Message::new(
-        adventure.id,
-        None,
-        None,
-        "Alice".to_string(),
-        MessageParts::one(
-            MessagePart::new(MessageKind::Think, "what is he doing").with_target("Bob"),
-        ),
-    );
-    let result = insert_message(&mut conn, &message).await;
+    let mut seqs = Vec::new();
+    for i in 1..=3 {
+        let message = Message::new(
+            adventure.id,
+            None,
+            None,
+            format!("Speaker {i}"),
+            format!("line {i}"),
+            false,
+            vec![],
+        );
+        let stored = insert_message(&mut conn, &message)
+            .await
+            .expect("insert message");
+        seqs.push(stored.seq.expect("assigned seq"));
+    }
 
-    // Then the DB CHECK rejects it: only say/whisper/do take a target
-    assert!(result.is_err());
+    // When fetching after the first message's seq
+    let messages = fetch_since(&mut conn, adventure.id, seqs[0])
+        .await
+        .expect("fetch messages");
+
+    // Then only the later two messages come back, in order
+    assert_eq!(messages.len(), 2);
+    assert_eq!(messages[0].text, "line 2");
+    assert_eq!(messages[1].text, "line 3");
 }

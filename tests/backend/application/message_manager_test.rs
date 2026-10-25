@@ -11,7 +11,7 @@ use living_voices::backend::application::message_manager::{MessageManager, Messa
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::Character;
-use living_voices::backend::domain::message::{Message, MessageKind, MessagePart, MessageParts};
+use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::persistence::characters_persistence::insert_character;
 use living_voices::backend::persistence::narrator_persistence::insert_narrator;
@@ -101,7 +101,9 @@ fn player_line(adventure_id: uuid::Uuid, speaker: &str, text: &str) -> Message {
         None,
         None,
         speaker.to_string(),
-        MessageParts::one(MessagePart::new(MessageKind::Say, text)),
+        text,
+        false,
+        vec![],
     )
 }
 
@@ -121,7 +123,7 @@ async fn send_message_persists_incoming_and_reply_and_returns_the_stored_reply()
 
     // Then a reply is persisted with an assigned seq and non-empty text
     assert!(reply.seq.is_some());
-    assert!(!reply.parts.primary().text.trim().is_empty());
+    assert!(!reply.text.trim().is_empty());
 
     // And both the incoming line and the reply are stored
     let mut conn = pool.acquire().await.expect("acquire");
@@ -150,12 +152,10 @@ async fn send_message_attributes_the_reply_to_a_cast_member_or_the_narrator() {
         (Some(character_id), None) => {
             assert_eq!(character_id, adventure.characters[0].id);
             assert_eq!(reply.speaker_name, "Mira");
-            assert_eq!(reply.parts.primary().kind, MessageKind::Say);
         }
         (None, Some(narrator_id)) => {
             assert_eq!(narrator_id, adventure.narrator.id);
             assert_eq!(reply.speaker_name, Message::NARRATOR_SPEAKER_NAME);
-            assert_eq!(reply.parts.primary().kind, MessageKind::Narration);
         }
         other => panic!("reply must be a character XOR the narrator, got {other:?}"),
     }

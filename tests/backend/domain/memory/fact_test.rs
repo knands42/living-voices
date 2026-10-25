@@ -11,7 +11,7 @@ fn permanence_round_trips_through_str() {
 }
 
 #[test]
-fn fact_new_is_live_with_no_provenance() {
+fn fact_new_populates_every_field() {
     let adv = Uuid::new_v4();
     let act = Uuid::new_v4();
     let fact = Fact::new(adv, "elara", "fears deep water", act, Permanence::Permanent);
@@ -21,18 +21,21 @@ fn fact_new_is_live_with_no_provenance() {
     assert_eq!(fact.fact, "fears deep water");
     assert_eq!(fact.act_id, act);
     assert_eq!(fact.permanence, Permanence::Permanent);
-    assert!(fact.is_live());
 }
 
 #[test]
-fn fact_render_skips_superseded_facts() {
+fn fact_render_lists_every_fact() {
     let adv = Uuid::new_v4();
     let act = Uuid::new_v4();
-    let live = Fact::new(adv, "elara", "fears deep water", act, Permanence::Permanent);
-    let mut stale = Fact::new(adv, "the lighthouse", "is abandoned", act, Permanence::Plot);
-    stale.superseded_by = Some(Uuid::new_v4());
-    let rendered = Fact::render(&[live, stale]).expect("some output");
+    let first = Fact::new(adv, "elara", "fears deep water", act, Permanence::Permanent);
+    let second = Fact::new(adv, "the lighthouse", "is abandoned", act, Permanence::Plot);
+    let rendered = Fact::render(&[first, second]).expect("some output");
     assert!(rendered.starts_with("\nKnown facts:"));
     assert!(rendered.contains("\n- elara: fears deep water"));
-    assert!(!rendered.contains("lighthouse"));
+    assert!(rendered.contains("\n- the lighthouse: is abandoned"));
+}
+
+#[test]
+fn fact_render_is_none_when_empty() {
+    assert!(Fact::render(&[]).is_none());
 }

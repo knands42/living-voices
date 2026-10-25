@@ -3,14 +3,12 @@ use sqlx::{Row, query, query_scalar};
 use uuid::Uuid;
 
 use crate::backend::application::helper::setup_db;
-use living_voices::ai::{ChatMessage, MemoryUpdate};
+use living_voices::ai::MemoryUpdate;
 use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
-use living_voices::backend::domain::memory::Summary;
-use living_voices::backend::domain::message::{Message, MessageKind, MessagePart, MessageParts};
+use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
-use living_voices::backend::persistence::memory_persistence::{insert_summary, last_covered};
 use living_voices::backend::persistence::message_persistence::insert_message;
 use living_voices::config::{Config, TextModel};
 
@@ -40,7 +38,28 @@ async fn setup_adventure(pool: &SqlitePool) -> Adventure {
     adventure
 }
 
-async fn load_adventure(pool: &SqlitePool, adventure: &Adventure) -> MemoryManager<MemoryUpdate> {
+/// Seed an active act with an optional digest watermark and return its id.
+async fn seed_active_act(
+    pool: &SqlitePool,
+    adventure_id: Uuid,
+    digest_to_seq: Option<u16>,
+) -> Uuid {
+    let act_id = Uuid::new_v4();
+    let mut conn = pool.acquire().await.expect("acquire");
+    query(
+        "INSERT INTO act (id, adventure_id, ordinal, goal, status, digest_to_seq)
+         VALUES (?1, ?2, 1, 'reach the surface', 'active', ?3)",
+    )
+    .bind(act_id.to_string())
+    .bind(adventure_id.to_string())
+    .bind(digest_to_seq.map(|s| s as i64))
+    .execute(&mut *conn)
+    .await
+    .expect("insert act");
+    act_id
+}
+
+async fn load_manager(pool: &SqlitePool, adventure: &Adventure) -> MemoryManager<MemoryUpdate> {
     let state = SharedState::new();
     state
         .write()
@@ -58,194 +77,160 @@ async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: u16) -> Vec
             None,
             None,
             format!("Speaker {i}"),
-            MessageParts::one(MessagePart::new(MessageKind::Say, &format!("line {i}"))),
+            format!("line {i}"),
+            false,
+            vec![],
         );
         let stored = insert_message(&mut conn, &message)
             .await
             .expect("insert message");
-        seqs.push(stored.seq.expect("assigned seq") as u16);
+        seqs.push(stored.seq.expect("assigned seq"));
     }
     seqs
 }
 
-// ---------------------------------------------------------------- tests
+// ---------------------------------------------------------------- no-op paths (no model call)
 
 #[tokio::test]
-#[ignore = "requires a running Ollama server"]
-async fn compress_persists_summary_and_facts_for_uncovered_messages() {
-    // Given an adventure with two messages and no summary yet
-    let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool).await;
-    let seqs = seed_messages(&pool, adventure.id, 2).await;
-    let manager = load_adventure(&pool, &adventure).await;
-
-    // When compressing through the real memory model
-    manager.compress().await.expect("compress succeeds");
-
-    // Then one summary covers both messages and has facts linked to it
-    let mut conn = pool.acquire().await.expect("acquire");
-    let row = query("SELECT id, text, from_seq, to_seq FROM summary WHERE adventure_id = ?1")
-        .bind(adventure.id.to_string())
-        .fetch_one(&mut *conn)
-        .await
-        .expect("summary row");
-
-    assert_eq!(row.get::<u16, _>("from_seq"), seqs[0]);
-    assert_eq!(row.get::<u16, _>("to_seq"), *seqs.last().expect("last seq"));
-    assert!(!row.get::<String, _>("text").trim().is_empty());
-
-    let summary_id: String = row.get("id");
-    let fact_count: u16 = query_scalar("SELECT COUNT(*) FROM fact WHERE source_summary_id = ?1")
-        .bind(&summary_id)
-        .fetch_one(&mut *conn)
-        .await
-        .expect("fact count");
-    assert!(fact_count >= 1, "expected at least one fact");
-}
-
-#[tokio::test]
-#[ignore = "requires a running Ollama server"]
-async fn compress_resumes_after_the_last_covered_seq() {
-    // Given three messages where the first one is already covered
-    let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool).await;
-    let seqs = seed_messages(&pool, adventure.id, 3).await;
-
-    let mut conn = pool.acquire().await.expect("acquire");
-    let earlier = Summary::new(
-        adventure.id,
-        "Earlier summary".into(),
-        seqs[0] as u16,
-        seqs[0] as u16,
-    );
-    insert_summary(&mut conn, &earlier)
-        .await
-        .expect("insert summary");
-    drop(conn);
-
-    let manager = load_adventure(&pool, &adventure).await;
-
-    // When compressing
-    manager.compress().await.expect("compress succeeds");
-
-    // Then only the uncovered tail is summarized and the cursor moves to the last seq
-    let mut conn = pool.acquire().await.expect("acquire");
-    assert_eq!(
-        last_covered(&mut conn, adventure.id).await,
-        Some(*seqs.last().expect("last seq") as u16)
-    );
-
-    let rows =
-        query("SELECT from_seq, to_seq FROM summary WHERE adventure_id = ?1 ORDER BY from_seq")
-            .bind(adventure.id.to_string())
-            .fetch_all(&mut *conn)
-            .await
-            .expect("summary rows");
-    assert_eq!(rows.len(), 2);
-    assert_eq!(rows[1].get::<u16, _>("from_seq"), seqs[1]);
-    assert_eq!(
-        rows[1].get::<u16, _>("to_seq"),
-        *seqs.last().expect("last seq")
-    );
-}
-
-#[tokio::test]
-#[ignore = "requires a running Ollama server"]
 async fn compress_is_a_noop_without_a_current_adventure() {
     // Given a migrated database and no adventure loaded in the state
     let (pool, _db) = setup_db().await;
     let manager = MemoryManager::new(SharedState::new(), pool.clone(), distiller());
 
     // When compressing
-    let result = manager.compress().await;
+    let result = manager.compress_and_update().await;
 
     // Then it succeeds without touching the database
     assert!(result.is_ok());
     let mut conn = pool.acquire().await.expect("acquire");
-    let count: u16 = query_scalar("SELECT COUNT(*) FROM summary")
+    let facts: u16 = query_scalar("SELECT COUNT(*) FROM fact")
         .fetch_one(&mut *conn)
         .await
-        .expect("count summaries");
-    assert_eq!(count, 0);
+        .expect("count facts");
+    assert_eq!(facts, 0);
+}
+
+#[tokio::test]
+async fn compress_is_a_noop_without_an_active_act() {
+    // Given an adventure with messages but no active act
+    let (pool, _db) = setup_db().await;
+    let adventure = setup_adventure(&pool).await;
+    seed_messages(&pool, adventure.id, 2).await;
+    let manager = load_manager(&pool, &adventure).await;
+
+    // When compressing
+    let result = manager.compress_and_update().await;
+
+    // Then it succeeds without calling the model or writing memory
+    assert!(result.is_ok());
+    let mut conn = pool.acquire().await.expect("acquire");
+    let facts: u16 = query_scalar("SELECT COUNT(*) FROM fact")
+        .fetch_one(&mut *conn)
+        .await
+        .expect("count facts");
+    assert_eq!(facts, 0);
+}
+
+#[tokio::test]
+async fn compress_is_a_noop_when_every_message_is_already_covered() {
+    // Given two messages whose seqs are already below the act watermark
+    let (pool, _db) = setup_db().await;
+    let adventure = setup_adventure(&pool).await;
+    let seqs = seed_messages(&pool, adventure.id, 2).await;
+    let act_id = seed_active_act(&pool, adventure.id, Some(*seqs.last().expect("last"))).await;
+    let manager = load_manager(&pool, &adventure).await;
+
+    // When compressing
+    let result = manager.compress_and_update().await;
+
+    // Then it succeeds without advancing the watermark or writing facts
+    assert!(result.is_ok());
+    let mut conn = pool.acquire().await.expect("acquire");
+    let watermark: Option<i64> = query_scalar("SELECT digest_to_seq FROM act WHERE id = ?1")
+        .bind(act_id.to_string())
+        .fetch_one(&mut *conn)
+        .await
+        .expect("read watermark");
+    assert_eq!(watermark, Some(*seqs.last().expect("last") as i64));
+    let facts: u16 = query_scalar("SELECT COUNT(*) FROM fact")
+        .fetch_one(&mut *conn)
+        .await
+        .expect("count facts");
+    assert_eq!(facts, 0);
+}
+
+// ---------------------------------------------------------------- real model path
+
+#[tokio::test]
+#[ignore = "requires a running Ollama server"]
+async fn compress_persists_facts_state_and_advances_the_watermark() {
+    // Given an active act with two uncovered messages
+    let (pool, _db) = setup_db().await;
+    let adventure = setup_adventure(&pool).await;
+    let seqs = seed_messages(&pool, adventure.id, 2).await;
+    let act_id = seed_active_act(&pool, adventure.id, None).await;
+    let manager = load_manager(&pool, &adventure).await;
+
+    // When compressing through the real memory model
+    manager
+        .compress_and_update()
+        .await
+        .expect("compress succeeds");
+
+    // Then the act watermark advanced to the last covered seq and a running digest exists
+    let mut conn = pool.acquire().await.expect("acquire");
+    let row = query("SELECT digest_to_seq, running_digest FROM act WHERE id = ?1")
+        .bind(act_id.to_string())
+        .fetch_one(&mut *conn)
+        .await
+        .expect("act row");
+    assert_eq!(
+        row.get::<Option<i64>, _>("digest_to_seq"),
+        Some(*seqs.last().expect("last seq") as i64)
+    );
+    assert!(
+        !row.get::<String, _>("running_digest").trim().is_empty(),
+        "running digest should be written"
+    );
+
+    // And at least one fact is linked to the act, and a single state row exists
+    let fact_count: u16 = query_scalar("SELECT COUNT(*) FROM fact WHERE act_id = ?1")
+        .bind(act_id.to_string())
+        .fetch_one(&mut *conn)
+        .await
+        .expect("fact count");
+    assert!(fact_count >= 1, "expected at least one fact");
+
+    let state_count: u16 = query_scalar("SELECT COUNT(*) FROM state WHERE adventure_id = ?1")
+        .bind(adventure.id.to_string())
+        .fetch_one(&mut *conn)
+        .await
+        .expect("state count");
+    assert_eq!(state_count, 1);
 }
 
 #[tokio::test]
 #[ignore = "requires a running Ollama server"]
-async fn compress_is_a_noop_when_every_message_is_covered() {
-    // Given two messages already covered by an existing summary
+async fn compress_resumes_after_the_watermark() {
+    // Given three messages where the first is already covered by the watermark
     let (pool, _db) = setup_db().await;
     let adventure = setup_adventure(&pool).await;
-    let seqs = seed_messages(&pool, adventure.id, 2).await;
-
-    let mut conn = pool.acquire().await.expect("acquire");
-    let earlier = Summary::new(
-        adventure.id,
-        "Earlier summary".into(),
-        seqs[0] as u16,
-        seqs[1] as u16,
-    );
-    insert_summary(&mut conn, &earlier)
-        .await
-        .expect("insert summary");
-    drop(conn);
-
-    let manager = load_adventure(&pool, &adventure).await;
+    let seqs = seed_messages(&pool, adventure.id, 3).await;
+    let act_id = seed_active_act(&pool, adventure.id, Some(seqs[0])).await;
+    let manager = load_manager(&pool, &adventure).await;
 
     // When compressing
-    let result = manager.compress().await;
-
-    // Then it succeeds without calling the model and the summary is left untouched
-    assert!(result.is_ok());
-    let mut conn = pool.acquire().await.expect("acquire");
-    let rows = query("SELECT id FROM summary WHERE adventure_id = ?1")
-        .bind(adventure.id.to_string())
-        .fetch_all(&mut *conn)
+    manager
+        .compress_and_update()
         .await
-        .expect("summary rows");
-    assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].get::<String, _>("id"), earlier.id.to_string());
-}
+        .expect("compress succeeds");
 
-// ---------------------------------------------------------------- formatting
-
-#[test]
-fn chat_message_from_single_part_formats_speaker_kind_and_target() {
-    // Given a message with one targeted part
-    let message = Message::new(
-        Uuid::new_v4(),
-        None,
-        None,
-        "Alice".to_string(),
-        MessageParts::one(MessagePart::new(MessageKind::Say, "Open the door").with_target("Bob")),
-    );
-
-    // When rendering it for the memory model
-    let chat = ChatMessage::from(&message);
-
-    // Then the line reads `[<character> say] to [<target>]: <message>`
-    assert_eq!(chat.content, "[Alice say] to [Bob]: Open the door");
-}
-
-#[test]
-fn chat_message_from_two_parts_joins_segments() {
-    // Given a message that speaks to a target while doing something
-    let message = Message::new(
-        Uuid::new_v4(),
-        None,
-        None,
-        "Alice".to_string(),
-        MessageParts::two(
-            MessagePart::new(MessageKind::Say, "come here, drawing my sword").with_target("Bob"),
-            MessagePart::new(MessageKind::Do, "raise the paper").with_target("Bob"),
-        ),
-    );
-
-    // When rendering it for the memory model
-    let chat = ChatMessage::from(&message);
-
-    // Then both actions appear, each segment with its own text, joined with ` + `
-    assert_eq!(
-        chat.content,
-        "[Alice say] to [Bob]: come here, drawing my sword + [Alice do] to [Bob]: raise the paper"
-    );
+    // Then the watermark moves to the last seq (only the uncovered tail was distilled)
+    let mut conn = pool.acquire().await.expect("acquire");
+    let watermark: Option<i64> = query_scalar("SELECT digest_to_seq FROM act WHERE id = ?1")
+        .bind(act_id.to_string())
+        .fetch_one(&mut *conn)
+        .await
+        .expect("read watermark");
+    assert_eq!(watermark, Some(*seqs.last().expect("last seq") as i64));
 }

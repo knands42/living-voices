@@ -229,7 +229,7 @@ fn build_domain_message(
         speaker.to_string(),
         body,
         false,
-        None,
+        vec![],
     )
 }
 

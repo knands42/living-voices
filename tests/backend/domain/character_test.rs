@@ -104,3 +104,39 @@ fn add_relation_replaces_existing_relationship_for_same_entity() {
 fn new_generates_unique_ids() {
     assert_ne!(new_character().id, new_character().id);
 }
+
+#[test]
+fn new_is_not_a_player_by_default() {
+    assert!(!new_character().is_player);
+}
+
+#[test]
+fn set_as_player_marks_the_character() {
+    let character = new_character().set_as_player();
+    assert!(character.is_player);
+}
+
+#[test]
+fn render_includes_name_description_backstory_and_traits() {
+    let mut character =
+        new_character().with_backstory("Kept the lamp lit for forty years.".to_string());
+    character.add_trait("speaks softly".to_string());
+    character.add_trait("never sleeps".to_string());
+
+    let rendered = character.render();
+
+    assert!(rendered.contains("Maren."));
+    assert!(rendered.contains("A lighthouse keeper"));
+    assert!(rendered.contains("Backstory: Kept the lamp lit for forty years."));
+    assert!(rendered.contains("Traits: speaks softly, never sleeps."));
+}
+
+#[test]
+fn render_omits_empty_sections() {
+    let rendered = new_character().render();
+
+    assert!(rendered.contains("Maren."));
+    assert!(rendered.contains("A lighthouse keeper"));
+    assert!(!rendered.contains("Backstory:"));
+    assert!(!rendered.contains("Traits:"));
+}

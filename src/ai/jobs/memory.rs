@@ -106,7 +106,7 @@ impl MemoryDistiller for MemoryUpdate {
 
         let client = OpenAiCompatibleClient::with_timeout(
             &self.config.base_url,
-            std::time::Duration::from_secs(self.config.request_timeout_secs),
+            std::time::Duration::from_secs(self.config.request_timeout_secs as u64),
         )
         .map_err(|e| DistillError::Provider(e.to_string()))?;
         let update = MemoryUpdate::distill(

@@ -20,7 +20,7 @@ impl Narrator {
     fn client(&self) -> Result<OpenAiCompatibleClient, ChatResponseError> {
         OpenAiCompatibleClient::with_timeout(
             &self.config.base_url,
-            std::time::Duration::from_secs(self.config.request_timeout_secs),
+            std::time::Duration::from_secs(self.config.request_timeout_secs as u64),
         )
         .map_err(|e| ChatResponseError::Provider(e.to_string()))
     }

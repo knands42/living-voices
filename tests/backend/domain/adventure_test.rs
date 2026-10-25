@@ -84,6 +84,36 @@ fn find_character_returns_none_for_unknown_name() {
 }
 
 #[test]
+fn active_characters_returns_only_present_names() {
+    // Given an adventure with three cast members
+    let mut adventure = new_adventure();
+    for name in ["Mira", "Kael", "Otho"] {
+        let character = Character::new(name.to_string(), Some(adventure.id), "A diver".to_string());
+        adventure.characters.push(character);
+    }
+
+    // When filtering to two present names
+    let present = vec!["Mira".to_string(), "Otho".to_string()];
+    let active = adventure.active_characters(&present);
+
+    // Then only the present cast members come back
+    let names: Vec<&str> = active.iter().map(|c| c.name.as_str()).collect();
+    assert_eq!(names, vec!["Mira", "Otho"]);
+}
+
+#[test]
+fn active_characters_ignores_names_not_in_the_cast() {
+    // Given an adventure with one cast member
+    let (adventure, _mira) = adventure_with_character("Mira");
+
+    // When a present name is not in the cast
+    let active = adventure.active_characters(&["Ghost".to_string()]);
+
+    // Then no character is returned
+    assert!(active.is_empty());
+}
+
+#[test]
 fn message_from_reply_builds_a_character_say_when_replier_is_in_the_cast() {
     // Given an adventure whose cast includes "Mira"
     let (adventure, mira) = adventure_with_character("Mira");

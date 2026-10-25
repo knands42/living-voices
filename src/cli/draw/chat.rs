@@ -190,7 +190,7 @@ fn render_transcript(frame: &mut Frame, area: Rect, adventure: Option<&Adventure
             a.characters.iter().next().unwrap().name.clone(),
             "This is a test".to_string(),
             false,
-            Some(vec![]),
+            vec![],
         ))],
         None => vec![Line::from(Span::styled(
             "open a tale to begin the scene",

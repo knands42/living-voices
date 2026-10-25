@@ -82,7 +82,10 @@ impl Director {
         candidates: &'a [&Character],
         incoming: &Message,
     ) -> Option<&'a Character> {
-        let targeted = incoming.targeted_characters.as_ref()?;
+        let targeted = &incoming.targeted_characters;
+        if targeted.is_empty() {
+            return None;
+        }
 
         let in_cast: Vec<&'a Character> = candidates
             .iter()

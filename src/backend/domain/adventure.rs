@@ -70,7 +70,7 @@ impl Adventure {
             speaker_name,
             text,
             false,
-            None,
+            vec![],
         )
     }
 }

@@ -49,8 +49,7 @@ CREATE TABLE fact (
   CONSTRAINT fact_subject_not_blank CHECK (length(trim(subject)) > 0),
   CONSTRAINT fact_fact_not_blank CHECK (length(trim(fact)) > 0),
   CONSTRAINT fact_permanence_known
-      CHECK (permanence IN ('permanent', 'plot', 'scene')),
-  CONSTRAINT fact_not_self_superseded CHECK (superseded_by IS NULL OR superseded_by <> id)
+      CHECK (permanence IN ('permanent', 'plot'))
 );
 
 CREATE INDEX fact_adventure_subject_idx ON fact (adventure_id, subject);

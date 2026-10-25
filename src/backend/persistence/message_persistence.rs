@@ -130,12 +130,13 @@ pub async fn count_since_last_narration(
     Ok(row.get::<u8, _>("c"))
 }
 
-/// The log stores targets as their character ids; whole Character rows live in
-/// the character table, so reads do not rehydrate them here.
-fn encode_targets(msg: &Message) -> Option<String> {
-    let targets = msg.targeted_characters.as_ref()?;
-    let ids: Vec<String> = targets.iter().map(|c| c.id.to_string()).collect();
-    serde_json::to_string(&ids).ok()
+fn encode_targets(msg: &Message) -> String {
+    let ids: Vec<String> = msg
+        .targeted_characters
+        .iter()
+        .map(|c| c.id.to_string())
+        .collect();
+    serde_json::to_string(&ids).unwrap_or_else(|_| "[]".to_string())
 }
 
 impl TryFrom<MessageRow> for Message {
@@ -162,7 +163,7 @@ impl TryFrom<MessageRow> for Message {
             narrator_id,
             speaker_name: row.speaker_name,
             text: row.text,
-            targeted_characters: None,
+            targeted_characters: vec![],
             ooc: row.ooc,
             created_at,
         })
