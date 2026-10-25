@@ -1,5 +1,4 @@
 use crate::backend::domain::adventure::Adventure;
-use ratatui::DefaultTerminal;
 
 pub enum Page {
     Main,

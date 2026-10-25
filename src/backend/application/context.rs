@@ -418,8 +418,8 @@ impl ContextBuilder {
     }
 
     async fn build_relevant_memories(
-        conn: &mut SqliteConnection,
-        adventure: &Adventure,
+        _conn: &mut SqliteConnection,
+        _adventure: &Adventure,
     ) -> Result<String, PersistenceError> {
         // TODO: retrieve the live facts for the acts
         Ok(String::new())

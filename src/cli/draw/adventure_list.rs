@@ -5,8 +5,8 @@ use crate::app::AppContext;
 use crate::cli::state::CliState;
 
 pub fn render(
-    frame: &mut ratatui::Frame,
-    state: &CliState,
-    ctx: &AppContext<Chat, Narrator, MemoryUpdate>,
+    _frame: &mut ratatui::Frame,
+    _state: &CliState,
+    _ctx: &AppContext<Chat, Narrator, MemoryUpdate>,
 ) {
 }

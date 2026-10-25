@@ -5,7 +5,7 @@ import "../assets/fonts/EBGaramond-Italic.ttf";
 import "../assets/fonts/Cinzel.ttf";
 
 export global AppTheme {
-    // --- Colors ---
+    // ------ Colors ------
 
     // Backgrounds
     in property <color> bg-deepest: #1a120b;        // window background
@@ -26,6 +26,11 @@ export global AppTheme {
     in property <color> gold-bright: #f0c060;      // hover, focus ring
     in property <color> amber-glow: #ff9d3f;       // candle accents, icons
     in property <color> bronze: #8a6a3a;           // borders, secondary buttons
+    in property <color> rose: #b06a9c;
+    in property <color> rose-soft: rgba(176, 106, 156, 0.28);
+    in property <color> ribbon: #8c2f2a;            // "Last visited" ribbon
+    in property <color> ribbon-edge: #5e1d1a;
+    in property <color> dust: rgba(255, 205, 140, 0.35); // floating dust motes
 
     // Text
     in property <color> text-light: #f3e6c8;       // on dark panels
@@ -61,14 +66,7 @@ export global AppTheme {
     in property <color> glow-active: rgba(240, 192, 96, 0.32); // active card outer glow
     in property <color> scroll-rod: #4a2c14;        // wooden scroll rod bars
 
-    // Accents specific to home page chips / NSFW toggle
-    in property <color> rose: #b06a9c;              // NSFW flame icon, ON fill
-    in property <color> rose-soft: rgba(176, 106, 156, 0.28);
-    in property <color> ribbon: #8c2f2a;            // "Last visited" ribbon
-    in property <color> ribbon-edge: #5e1d1a;
-    in property <color> dust: rgba(255, 205, 140, 0.35); // floating dust motes
-
-    // --- Typography ---
+    // ------ Typography ------
     in property <string> font-body: "Noto Sans";      // humanist sans, chat body + labels
     in property <string> font-display: "EB Garamond"; // serif, headers / card titles
     in property <string> font-brand: "Cinzel";        // small-caps serif, brand + nav + tags
@@ -79,30 +77,19 @@ export global AppTheme {
     in property <length> font-label: 12px;      // nav labels, badges
     in property <length> font-tiny: 10px;       // small caps tags
 
-    // --- Metrics ---
-    in property <length> pad-outer: 12px;       // 12px outer padding (top bar internals)
-    in property <length> pad-page: 32px;        // generous margin around the main area
-    in property <length> pad-card: 24px;        // 24px grid padding (card internals)
-    in property <length> pad-grid: 16px;        // ~16px grid gaps
-    in property <length> gap-panel: 8px;         // 8-10px between panels
-
-    in property <length> control-h: 32px;        // pill button height
-    in property <length> chip-h: 24px;           // category sigil chip
-
+    // ------ Metrics ------
     in property <length> avatar-sm: 24px;        // card avatar row
     in property <length> avatar-md: 40px;
-
-    in property <length> hero-h: 90px;           // hero banner (home)
 
     in property <length> adventure-card-min-w: 260px;
     in property <length> adventure-card-min-h: 160px;
 
-    // --- Radii ---
+    // ------ Radii ------
     in property <length> radius-card: 8px;
     in property <length> radius-pill: 999px;
     in property <length> radius-circle: 999px;
 
-    // --- Motion ---
+    // ------ Motion ------
     in property <duration> hover-dur: 150ms;
     in property <duration> candle-dur: 4s;
 }
