@@ -7,8 +7,6 @@ use super::theme::{CARD_EDGE, EMBER, GOLD, INK, INK_DIM, MOSS, RUST};
 
 /// A rounded "pill" chip: ` label ` painted on the given tint.
 pub fn pill(label: &str, tint: Color) -> Span<'static> {
-    // Owning the label keeps callers free to pass `&format!(..)` temporaries;
-    // pills are called a handful of times per frame, not in a hot loop.
     Span::styled(
         format!(" {label} "),
         Style::default()

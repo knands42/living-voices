@@ -278,8 +278,6 @@ fn render_composer(frame: &mut Frame, area: Rect, input: &str, adventure: Option
     );
 
     let line = Line::from(vec![
-        pill("say", EMBER),
-        Span::raw(" "),
         Span::styled("→ ", dim()),
         Span::styled(target, ink().add_modifier(Modifier::BOLD)),
         Span::raw("  "),
@@ -292,15 +290,6 @@ fn render_composer(frame: &mut Frame, area: Rect, input: &str, adventure: Option
 // ---------- Hints ----------
 
 fn render_hints(frame: &mut Frame, area: Rect) {
-    let bar = hints(&[
-        ("1", "say"),
-        ("2", "do"),
-        ("3", "think"),
-        ("4", "be away"),
-        ("enter", "send"),
-        ("tab", "cycle kind"),
-        ("@", "target"),
-        ("esc", "back"),
-    ]);
+    let bar = hints(&[("enter", "send"), ("esc", "back"), ("q", "quit")]);
     frame.render_widget(bar, area);
 }
