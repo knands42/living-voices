@@ -173,7 +173,7 @@ const SINGLE_CHARACTER_CHAT_RULES_INSTRUCTION: &str = r#"## RULES
 
 const SINGLE_CHARACTER_CHAT_EXAMPLES_INSTRUCTION: &str = r#"## EXAMPLES
 Example — speech, then action
-\"The gate won't open for us again. Not tonight, not with that horn still ringing.\"
+"The gate won't open for us again. Not tonight, not with that horn still ringing."
 *leans in the doorway, arms folded, waiting for someone to argue*
 
 Example — action and thought, no speech
@@ -181,8 +181,8 @@ Example — action and thought, no speech
 ((this is past herbs))
 
 Example — aimed at someone
-(lowers her voice, eyes on Kaelen) \"If the barkeep sold us once, he'll sell us again.
-We leave before dawn.\"" },
+(lowers her voice, eyes on Kaelen) "If the barkeep sold us once, he'll sell us again.
+We leave before dawn."
 "#;
 
 const NARRATOR_CHAT_PROMPT: &str = "You are the narrator of an interactive roleplay. This beat belongs to the narrator: no character speaks.";

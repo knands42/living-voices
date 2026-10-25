@@ -220,7 +220,6 @@ async fn full_pipeline_sends_a_turn_and_triggers_background_distillation() {
     assert!(reply.seq.is_some());
     assert!(!reply.text.trim().is_empty());
 
-    // ...and the background distillation thread eventually advances the act's watermark
     // and writes a running digest. maybe_compress_memory spawns it, so poll briefly.
     let mut digested = false;
     for _ in 0..20 {
