@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use slint::PlatformError;
 use uuid::Uuid;
 
 /// The single live snapshot of an adventure: exactly one row per adventure.
@@ -6,8 +7,8 @@ use uuid::Uuid;
 pub struct State {
     pub id: Uuid,
     pub adventure_id: Uuid,
-    pub day: Option<String>,
-    pub place: Option<String>,
+    pub day: String,
+    pub place: String,
     pub characters_present: Vec<String>,
     pub open_threads: Vec<String>,
     pub conditions: Vec<String>,
@@ -19,8 +20,8 @@ impl State {
         Self {
             id: Uuid::new_v4(),
             adventure_id,
-            day: None,
-            place: None,
+            day: String::from("unknown"),
+            place: String::from("unknown"),
             characters_present: Vec::new(),
             open_threads: Vec::new(),
             conditions: Vec::new(),
@@ -28,14 +29,36 @@ impl State {
         }
     }
 
+    pub fn with_day(mut self, day: String) -> Self {
+        self.day = day;
+        self
+    }
+
+    pub fn with_place(mut self, place: String) -> Self {
+        self.place = place;
+        self
+    }
+
+    pub fn with_conditions(mut self, conditions: Vec<String>) -> Self {
+        self.conditions = conditions;
+        self
+    }
+
+    pub fn with_characters_present(mut self, characters_present: Vec<String>) -> Self {
+        self.characters_present = characters_present;
+        self
+    }
+
+    pub fn with_open_threads(mut self, open_threads: Vec<String>) -> Self {
+        self.open_threads = open_threads;
+        self
+    }
+
     pub fn render(&self) -> Option<String> {
         let mut lines: Vec<String> = Vec::new();
-        if let Some(day) = &self.day {
-            lines.push(format!("Day: {day}"));
-        }
-        if let Some(place) = &self.place {
-            lines.push(format!("Place: {place}"));
-        }
+        lines.push(format!("Day: {}", self.day));
+        lines.push(format!("Place: {}", self.place));
+
         if !self.characters_present.is_empty() {
             lines.push(format!("Present: {}", self.characters_present.join(", ")));
         }

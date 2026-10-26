@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS adventure_create_initial_narrator

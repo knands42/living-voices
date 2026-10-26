@@ -2,7 +2,7 @@ use living_voices::backend::domain::narrator::Narrator;
 use uuid::Uuid;
 
 fn new_narrator() -> Narrator {
-    Narrator::new("The Chronicler".to_string(), None)
+    Narrator::new("The Chronicler".to_string())
 }
 
 #[test]
@@ -10,15 +10,15 @@ fn new_sets_name_and_leaves_tone_unset() {
     let narrator = new_narrator();
 
     assert_eq!(narrator.name, "The Chronicler");
-    assert!(narrator.tone.is_none());
+    assert!(!narrator.tone.is_empty());
     assert_ne!(narrator.id, Uuid::nil());
 }
 
 #[test]
 fn new_keeps_the_given_tone() {
-    let narrator = Narrator::new("The Chronicler".to_string(), Some("grim".to_string()));
+    let narrator = Narrator::new("The Chronicler".to_string()).with_tone("grim");
 
-    assert_eq!(narrator.tone.as_deref(), Some("grim"));
+    assert_eq!(narrator.tone, String::from("grim"));
 }
 
 #[test]

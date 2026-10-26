@@ -22,8 +22,8 @@ fn parses_the_schema_shaped_object() {
     assert_eq!(update.facts[0].subject, "Mara");
     assert_eq!(update.facts[0].fact, "Mara hates the sea.");
     assert_eq!(update.facts[0].permanence, Permanence::Permanent);
-    assert_eq!(update.state.day.as_deref(), Some("Day 1, noon"));
-    assert_eq!(update.state.place.as_deref(), Some("the drowned quarter"));
+    assert_eq!(update.state.day, String::from("Day 1, noon"));
+    assert_eq!(update.state.place, String::from("the drowned quarter"));
     assert_eq!(update.state.characters_present, vec!["Mara".to_string()]);
     assert!(update.running_digest.contains("drowned quarter"));
 }
@@ -36,8 +36,8 @@ fn tolerates_leading_and_trailing_whitespace_and_empty_collections() {
     let update = MemoryUpdate::from_reply(reply).expect("parse");
 
     assert!(update.facts.is_empty());
-    assert!(update.state.day.is_none());
-    assert!(update.state.place.is_none());
+    assert_eq!(update.state.day, String::from("unknown"));
+    assert_eq!(update.state.place, String::from("unknown"));
     assert!(update.state.characters_present.is_empty());
     assert!(update.state.open_threads.is_empty());
     assert!(update.state.conditions.is_empty());

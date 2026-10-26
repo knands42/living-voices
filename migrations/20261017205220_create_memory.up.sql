@@ -59,11 +59,11 @@ CREATE INDEX fact_act_idx ON fact (act_id);
 CREATE TABLE state (
   id            TEXT NOT NULL PRIMARY KEY,
   adventure_id  TEXT NOT NULL UNIQUE REFERENCES adventure (id) ON DELETE CASCADE,
-  day           TEXT,               -- "Day 2, dusk"
-  place         TEXT,               -- "cave mouth"
-  characters_present       TEXT,               -- json: ["kaelen","elara"]
-  open_threads  TEXT,               -- json: ["crown trail","blood on the stones"]
-  conditions        TEXT,               -- json: ["kaelen: left arm, minor", "mood: tense","storm approaching"]
+  day           TEXT NOT NULL DEFAULT "unknown",               -- "Day 2, dusk"
+  place         TEXT NOT NULL DEFAULT "unknown",               -- "cave mouth"
+  characters_present       TEXT NOT NULL DEFAULT "[]",               -- json: ["kaelen","elara"]
+  open_threads  TEXT NOT NULL DEFAULT "[]",               -- json: ["crown trail","blood on the stones"]
+  conditions        TEXT NOT NULL DEFAULT "[]",               -- json: ["kaelen: left arm, minor", "mood: tense","storm approaching"]
   updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 
   CONSTRAINT state_id_is_uuid CHECK (length(id) = 36)

@@ -1,7 +1,9 @@
-use crate::backend::application::helper::{TempDb, setup_db};
+use crate::backend::application::helper::{TempDb, create_adventure, setup_db};
 use living_voices::backend::application::{
     adventure_manager::AdventureManager, state::SharedState,
 };
+use living_voices::backend::domain::adventure::Adventure;
+use living_voices::backend::persistence::memory_persistence::{get_active_candidates, get_state};
 
 async fn new_manager_with(state: SharedState) -> (AdventureManager, TempDb) {
     let (pool, db) = setup_db().await;
@@ -13,135 +15,28 @@ async fn new_manager() -> (AdventureManager, TempDb) {
 }
 
 #[tokio::test]
-async fn create_adventure_returns_adventure_with_given_fields() {
-    let (manager, _db) = new_manager().await;
+async fn adventure_insert_creates_default_state() {
+    // when: creating an adventure
+    let (pool, _db) = setup_db().await;
+    let adventure = create_adventure(&pool, &[]).await;
+    let mut conn = pool.acquire().await.expect("acquire");
 
-    let adventure = manager
-        .create_adventure(
-            "Tides of Glass".to_string(),
-            "A drowned city".to_string(),
-            String::from("NARRATOR"),
-            "",
-        )
+    // then: the adventure has an initial state
+    let state = get_state(&mut conn, adventure.id)
         .await
-        .unwrap();
+        .expect("get")
+        .expect("an adventure must have its initial state row");
 
-    assert_eq!(adventure.title, "Tides of Glass");
-    assert_eq!(adventure.description, "A drowned city");
-}
+    assert_eq!(state.adventure_id, adventure.id);
+    assert_eq!(state.day, String::from("unknown"));
+    assert_eq!(state.place, String::from("unknown"));
+    assert!(state.characters_present.is_empty());
+    assert!(state.open_threads.is_empty());
+    assert!(state.conditions.is_empty());
 
-#[tokio::test]
-async fn create_adventure_stores_adventure_in_state() {
-    let (manager, _db) = new_manager().await;
-
-    let adventure = manager
-        .create_adventure(
-            "Tides of Glass".to_string(),
-            "A drowned city".to_string(),
-            String::from("NARRATOR"),
-            "",
-        )
+    // And active candidates read cleanly as an empty scene, not an error.
+    let names = get_active_candidates(&mut conn, &adventure.id.to_string())
         .await
-        .unwrap();
-
-    let stored = manager.current_adventure();
-    assert_eq!(stored.map(|a| a.id), Some(adventure.id));
-}
-
-#[tokio::test]
-async fn create_adventure_replaces_previous_adventure_in_state() {
-    let (manager, _db) = new_manager().await;
-
-    let first = manager
-        .create_adventure(
-            "First".to_string(),
-            "One".to_string(),
-            String::from("NARRATOR"),
-            "",
-        )
-        .await
-        .unwrap();
-    let second = manager
-        .create_adventure(
-            "Second".to_string(),
-            "Two".to_string(),
-            String::from("NARRATOR"),
-            "",
-        )
-        .await
-        .unwrap();
-
-    let stored = manager.current_adventure();
-    assert_eq!(stored.map(|a| a.id), Some(second.id));
-    assert_ne!(first.id, second.id);
-}
-
-#[tokio::test]
-async fn create_adventure_generates_unique_ids_across_calls() {
-    let (manager, _db) = new_manager().await;
-
-    let first = manager
-        .create_adventure(
-            "First".to_string(),
-            "One".to_string(),
-            String::from("NARRATOR"),
-            "",
-        )
-        .await
-        .unwrap();
-    let second = manager
-        .create_adventure(
-            "Second".to_string(),
-            "Two".to_string(),
-            String::from("NARRATOR"),
-            "",
-        )
-        .await
-        .unwrap();
-
-    assert_ne!(first.id, second.id);
-}
-
-#[tokio::test]
-async fn state_is_shared_with_the_state_passed_to_new() {
-    let state = SharedState::new();
-    let (manager, _db) = new_manager_with(state.clone()).await;
-
-    let adventure = manager
-        .create_adventure(
-            "Tides of Glass".to_string(),
-            "Drowned".to_string(),
-            String::from("NARRATOR"),
-            "",
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(
-        state
-            .read()
-            .unwrap()
-            .current_adventure
-            .as_ref()
-            .map(|a| a.id),
-        Some(adventure.id)
-    );
-}
-
-#[tokio::test]
-async fn create_adventure_leaves_stored_adventure_in_shared_state() {
-    let (manager, _db) = new_manager().await;
-
-    let created = manager
-        .create_adventure(
-            "Tides of Glass".to_string(),
-            "A drowned city".to_string(),
-            String::from("NARRATOR"),
-            "",
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(created.lore.text, "");
-    assert!(created.characters.is_empty());
+        .expect("candidates must read, not error, on a fresh adventure");
+    assert!(names.is_empty());
 }

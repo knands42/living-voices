@@ -3,8 +3,8 @@ CREATE TABLE narrator
 (
     id           TEXT    NOT NULL PRIMARY KEY,
     adventure_id TEXT    NOT NULL UNIQUE REFERENCES adventure (id) ON DELETE CASCADE,
-    name         TEXT    NOT NULL,
-    tone         TEXT    NULL,
+    name         TEXT    NOT NULL DEFAULT "Narrator",
+    tone         TEXT    NOT NULL DEFAULT "Keep the tone casual and straightforward—clear, relaxed narration that stays out of the way and lets the story breathe",
     created_at   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     updated_at   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 

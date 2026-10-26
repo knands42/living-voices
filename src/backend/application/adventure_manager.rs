@@ -1,11 +1,13 @@
 use sqlx::SqlitePool;
 use thiserror::Error;
 
+use crate::backend::domain::memory::State;
+use crate::backend::persistence::memory_persistence::upsert_state;
 use crate::backend::{
     PersistenceError,
     application::state::{SharedState, StateError},
     domain::adventure::Adventure,
-    persistence::{adventure_persistence::insert_adventure, narrator_persistence::insert_narrator},
+    persistence::{adventure_persistence::insert_adventure, narrator_persistence::upsert_narrator},
 };
 
 #[derive(Error, Debug)]
@@ -42,7 +44,8 @@ impl AdventureManager {
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         insert_adventure(&mut conn, &adventure).await?;
-        insert_narrator(&mut conn, adventure.id, &adventure.narrator).await?;
+        upsert_narrator(&mut conn, adventure.id, &adventure.narrator).await?;
+        upsert_state(&mut conn, &State::new(adventure.id)).await?;
         Ok(adventure)
     }
 

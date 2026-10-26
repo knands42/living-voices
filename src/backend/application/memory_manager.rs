@@ -132,13 +132,12 @@ impl<D: MemoryDistiller> MemoryManager<D> {
     }
 
     fn to_state(adventure_id: uuid::Uuid, snapshot: &DistilledState) -> State {
-        let mut state = State::new(adventure_id);
-        state.day = snapshot.day.clone();
-        state.place = snapshot.place.clone();
-        state.characters_present = snapshot.characters_present.clone();
-        state.open_threads = snapshot.open_threads.clone();
-        state.conditions = snapshot.conditions.clone();
-        state
+        State::new(adventure_id)
+            .with_conditions(snapshot.conditions.clone())
+            .with_characters_present(snapshot.characters_present.clone())
+            .with_open_threads(snapshot.open_threads.clone())
+            .with_day(snapshot.day.clone())
+            .with_place(snapshot.place.clone())
     }
 
     fn map_permanence(permanence: FactPermanence) -> Permanence {

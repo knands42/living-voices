@@ -27,7 +27,7 @@ impl Adventure {
             id: Uuid::new_v4(),
             title,
             description,
-            narrator: Narrator::new(String::from(narrator_name), None),
+            narrator: Narrator::new(String::from(narrator_name)),
             lore: Lore::new(),
             characters: Vec::new(),
             genre: None,

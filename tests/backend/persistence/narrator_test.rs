@@ -3,7 +3,7 @@ use sqlx::sqlite::SqlitePool;
 use crate::backend::application::helper::setup_db;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
-use living_voices::backend::persistence::narrator_persistence::insert_narrator;
+use living_voices::backend::persistence::narrator_persistence::upsert_narrator;
 
 async fn setup_adventure(pool: &SqlitePool) -> Adventure {
     let adventure = Adventure::new("A".into(), "B".into(), "The Chronicler".into(), "");
@@ -20,7 +20,7 @@ async fn insert_narrator_persists_name_and_links_to_adventure() {
     let adventure = setup_adventure(&pool).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
-    insert_narrator(&mut conn, adventure.id, &adventure.narrator)
+    upsert_narrator(&mut conn, adventure.id, &adventure.narrator)
         .await
         .expect("insert narrator");
 

@@ -9,7 +9,7 @@ use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::persistence::characters_persistence::insert_character;
 use living_voices::backend::persistence::message_persistence::insert_message;
-use living_voices::backend::persistence::narrator_persistence::insert_narrator;
+use living_voices::backend::persistence::narrator_persistence::upsert_narrator;
 
 pub struct TempDb(pub PathBuf);
 impl Drop for TempDb {
@@ -96,7 +96,6 @@ pub async fn create_characters(
 }
 
 /// Persist a full adventure: the adventure row, its narrator, and the given cast.
-/// Returns the `Adventure` carrying the persisted characters.
 pub async fn create_adventure(pool: &SqlitePool, specs: &[CharacterSpec]) -> Adventure {
     let mut adventure = Adventure::new(
         "Test adventure".into(),
@@ -110,9 +109,6 @@ pub async fn create_adventure(pool: &SqlitePool, specs: &[CharacterSpec]) -> Adv
     insert_adventure(&mut conn, &adventure)
         .await
         .expect("insert adventure");
-    insert_narrator(&mut conn, adventure.id, &adventure.narrator)
-        .await
-        .expect("insert narrator");
     for character in &adventure.characters {
         insert_character(&mut conn, Some(adventure.id), character)
             .await

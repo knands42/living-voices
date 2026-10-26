@@ -26,8 +26,8 @@ pub struct DistilledFact {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct DistilledState {
-    pub day: Option<String>,
-    pub place: Option<String>,
+    pub day: String,
+    pub place: String,
     pub characters_present: Vec<String>,
     pub open_threads: Vec<String>,
     pub conditions: Vec<String>,
@@ -37,8 +37,6 @@ pub struct DistilledState {
 pub struct DistilledMemory {
     pub facts: Vec<DistilledFact>,
     pub state: DistilledState,
-    /// A fresh prose summary of the whole act so far, overriding
-    /// `acts.running_digest` (the "THIS ACT SO FAR" section).
     pub running_digest: String,
 }
 

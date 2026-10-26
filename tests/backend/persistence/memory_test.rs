@@ -70,20 +70,6 @@ async fn seed_message(pool: &SqlitePool, adventure_id: Uuid, text: &str) -> u16 
 // ---------------------------------------------------------------- state
 
 #[tokio::test]
-async fn get_state_is_none_before_any_upsert() {
-    let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool).await;
-    let mut conn = pool.acquire().await.expect("acquire");
-
-    assert!(
-        get_state(&mut conn, adventure.id)
-            .await
-            .expect("get")
-            .is_none()
-    );
-}
-
-#[tokio::test]
 async fn upsert_state_inserts_then_updates_the_single_row() {
     let (pool, _db) = setup_db().await;
     let adventure = setup_adventure(&pool).await;
@@ -91,8 +77,8 @@ async fn upsert_state_inserts_then_updates_the_single_row() {
 
     // Insert
     let mut state = State::new(adventure.id);
-    state.day = Some("Day 1".into());
-    state.place = Some("the shore".into());
+    state.day = "Day 1".into();
+    state.place = "the shore".into();
     state.characters_present = vec!["Mira".into()];
     upsert_state(&mut conn, &state).await.expect("insert state");
 
@@ -100,13 +86,13 @@ async fn upsert_state_inserts_then_updates_the_single_row() {
         .await
         .expect("get")
         .expect("some state");
-    assert_eq!(loaded.day.as_deref(), Some("Day 1"));
-    assert_eq!(loaded.place.as_deref(), Some("the shore"));
+    assert_eq!(loaded.day, String::from("Day 1"));
+    assert_eq!(loaded.place, String::from("the shore"));
     assert_eq!(loaded.characters_present, vec!["Mira".to_string()]);
 
     // Update in place (same adventure_id => conflict path)
     let mut next = State::new(adventure.id);
-    next.day = Some("Day 2".into());
+    next.day = "Day 2".into();
     next.characters_present = vec!["Mira".into(), "Kael".into()];
     upsert_state(&mut conn, &next).await.expect("update state");
 
@@ -114,8 +100,8 @@ async fn upsert_state_inserts_then_updates_the_single_row() {
         .await
         .expect("get")
         .expect("some state");
-    assert_eq!(loaded.day.as_deref(), Some("Day 2"));
-    assert_eq!(loaded.place, None);
+    assert_eq!(loaded.day, String::from("Day 2"));
+    assert_eq!(loaded.place, String::new());
     assert_eq!(
         loaded.characters_present,
         vec!["Mira".to_string(), "Kael".to_string()]

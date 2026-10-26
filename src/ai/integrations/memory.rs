@@ -38,9 +38,9 @@ pub struct Fact {
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct StateSnapshot {
     #[serde(default)]
-    pub day: Option<String>,
+    pub day: String,
     #[serde(default)]
-    pub place: Option<String>,
+    pub place: String,
     #[serde(default)]
     pub characters_present: Vec<String>,
     #[serde(default)]
@@ -177,19 +177,28 @@ fn schema() -> JsonSchema {
                 "state": {
                     "type": "object",
                     "properties": {
-                        "day": { "type": ["string", "null"] },
-                        "place": { "type": ["string", "null"] },
+                        "day": {
+                            "type": ["string"],
+                            "default": ""
+                        },
+                        "place": {
+                            "type": ["string"],
+                            "default": ""
+                        },
                         "characters_present": {
                             "type": "array",
-                            "items": { "type": "string" }
+                            "items": { "type": "string" },
+                            "default": []
                         },
                         "open_threads": {
                             "type": "array",
-                            "items": { "type": "string" }
+                            "items": { "type": "string" },
+                            "default": []
                         },
                         "conditions": {
                             "type": "array",
-                            "items": { "type": "string" }
+                            "items": { "type": "string" },
+                            "default": []
                         }
                     },
                     "required": [

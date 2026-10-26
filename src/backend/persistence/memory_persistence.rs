@@ -13,11 +13,11 @@ use crate::backend::{
 struct StateRow {
     id: String,
     adventure_id: String,
-    day: Option<String>,
-    place: Option<String>,
-    characters_present: Option<String>,
-    open_threads: Option<String>,
-    conditions: Option<String>,
+    day: String,
+    place: String,
+    characters_present: String,
+    open_threads: String,
+    conditions: String,
     updated_at: String,
 }
 
@@ -262,9 +262,9 @@ impl TryFrom<StateRow> for State {
             adventure_id: from_str_to_uuid(&row.adventure_id)?,
             day: row.day,
             place: row.place,
-            characters_present: parse_json_array(row.characters_present.as_deref())?,
-            open_threads: parse_json_array(row.open_threads.as_deref())?,
-            conditions: parse_json_array(row.conditions.as_deref())?,
+            characters_present: parse_json_array(Some(&row.characters_present))?,
+            open_threads: parse_json_array(Some(&row.open_threads))?,
+            conditions: parse_json_array(Some(&row.conditions))?,
             updated_at: from_str_to_timestamp(&row.updated_at)?,
         })
     }
