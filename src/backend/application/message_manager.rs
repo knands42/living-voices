@@ -1,11 +1,11 @@
 use crate::backend::PersistenceError;
 use crate::backend::application::context::ContextBuilder;
 use crate::backend::application::director::Director;
-use crate::backend::application::memory_manager::MemoryManager;
+use crate::backend::application::memory_manager::{MemoryManager, MemoryManagerError};
 use crate::backend::application::port::chat_port::{
     ChatHandler, ChatReply, ChatResponseError, NarratorHandler,
 };
-use crate::backend::application::port::memory_port::MemoryDistiller;
+use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
 use crate::backend::application::state::{SharedState, StateError};
 use crate::backend::domain::character::Character;
 use crate::backend::domain::message::Message;
@@ -27,6 +27,8 @@ pub enum MessageManagerError {
     DatabaseError(#[from] PersistenceError),
     #[error("chat provider failed: {0}")]
     Chat(#[from] ChatResponseError),
+    #[error("memory error: {0}")]
+    Memory(#[from] MemoryManagerError),
     #[error("no adventure is currently loaded")]
     NoAdventure,
     #[error("no character is available to respond")]
@@ -34,18 +36,22 @@ pub enum MessageManagerError {
 }
 
 #[derive(Clone, Debug)]
-pub struct MessageManager<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller> {
+pub struct MessageManager<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller, C: ActCloser> {
     state: SharedState,
     pool: SqlitePool,
     chat_handler: D,
     narrator_handler: N,
     director: Director,
-    memory: MemoryManager<M>,
+    memory: MemoryManager<M, C>,
     memory_settings: MemorySettings,
 }
 
-impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
-    MessageManager<D, N, M>
+impl<
+    D: ChatHandler,
+    N: NarratorHandler,
+    M: MemoryDistiller + Clone + 'static,
+    C: ActCloser + Clone + 'static,
+> MessageManager<D, N, M, C>
 {
     pub fn new(
         state: SharedState,
@@ -53,7 +59,7 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
         chat_handler: D,
         narrator_handler: N,
         director: Director,
-        memory: MemoryManager<M>,
+        memory: MemoryManager<M, C>,
         memory_settings: MemorySettings,
     ) -> Self {
         Self {
@@ -107,12 +113,14 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
         if let Some(score) = chat_reply.act_closure {
             let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
             update_active_act_last_closure_score(&mut conn, adventure.id, score as u16).await?;
-        }
+            drop(conn);
 
-        // TODO: when last_closure_score reaches 5, run the act-close path
-        // (distill act N, freeze its digest, open act N+1, narrate the transition).
-        // TODO: promote NPCs the distill pass names in state.characters_present but
-        // that are absent from the characters table.
+            if score >= 5 {
+                // TODO: narrate the act transition (new narrator prompt) after close.
+                self.memory.close_current_act().await?;
+                return Ok(stored_reply);
+            }
+        }
 
         self.maybe_compress_memory().await;
 

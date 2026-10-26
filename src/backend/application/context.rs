@@ -141,6 +141,26 @@ Record only what the existing memory or the conversation establishes. Never inve
 anything. Prefer a few sharp facts over many vague ones. The "running_digest" is the
 only prose; "facts" and "state" are structured. Return JSON only."#;
 
+const ACT_CLOSE_PROMPT: &str = r#"## ACT CLOSE
+The CURRENT ACT has reached its end. Using the act's goal (from CURRENT ACT),
+its THIS ACT SO FAR digest, and the latest turns, write the act's permanent
+closing record. Return JSON only, with exactly three fields:
+
+- "index_line": one dense line naming this act and how it turned out, in the
+  shape "ACT <n> <short title>: <the beats that mattered> — <outcome>".
+  This is immutable; it becomes the act's entry in PAST ACTS. Keep names and
+  numbers verbatim.
+- "digest": a few tight paragraphs, past tense, folding THIS ACT SO FAR and the
+  latest turns into the final story of this act — who did what, how threads
+  resolved, what changed for good. Cover only this act, not earlier ones.
+- "status": how the act ended, one of:
+    "resolved"  the act's goal was met.
+    "failed"    the act ended with its goal lost or made impossible.
+    "bypassed"  the story moved on and the goal stopped mattering.
+  Judge against the act's goal, not the mood. Do not default to "resolved".
+
+Return JSON only."#;
+
 const SINGLE_CHARACTER_CHAT_PROMPT: &str = "You write one beat of an interactive roleplay. The turn belongs to one character, named below — continue it.";
 
 const SINGLE_CHARACTER_CHAT_BODY_INSTRUCTION: &str = r#"## BODY
@@ -351,7 +371,11 @@ impl ContextBuilder {
         let current = acts.iter().find(|act| act.status == ActStatus::Active);
         let past: Vec<&Act> = acts
             .iter()
-            .filter(|act| act.status != ActStatus::Active && act.digest.is_some())
+            .filter(|act| {
+                act.status != ActStatus::Active
+                    && act.status != ActStatus::Unstarted
+                    && act.digest.is_some()
+            })
             .collect();
 
         let mut sections = Vec::new();
@@ -478,6 +502,25 @@ impl ContextBuilder {
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let mut turns = Vec::with_capacity(messages.len() + 2);
         turns.push(PromptTurn::system(DISTILL_PROMPT.to_string()));
+
+        turns.push(PromptTurn::system(
+            ContextBuilder::build_static_context(conn, adventure).await?,
+        ));
+
+        turns.extend(messages.iter().map(|message| {
+            PromptTurn::player(format!("{}: {}", message.speaker_name, message.text))
+        }));
+
+        Ok(turns)
+    }
+
+    pub async fn build_act_close_prompt(
+        conn: &mut SqliteConnection,
+        adventure: &Adventure,
+        messages: &[Message],
+    ) -> Result<Vec<PromptTurn>, PersistenceError> {
+        let mut turns = Vec::with_capacity(messages.len() + 2);
+        turns.push(PromptTurn::system(ACT_CLOSE_PROMPT.to_string()));
 
         turns.push(PromptTurn::system(
             ContextBuilder::build_static_context(conn, adventure).await?,

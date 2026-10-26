@@ -1,6 +1,6 @@
-use crate::ai::MemoryUpdate;
 use crate::ai::integrations::chat::Chat;
 use crate::ai::integrations::narrator::Narrator;
+use crate::ai::{ActClose, MemoryUpdate};
 use crate::app::{App, AppContext};
 use crate::cli::events::event_handler::{Flow, handle_key};
 use crate::cli::state::CliState;
@@ -16,7 +16,7 @@ use std::io;
 use std::time::Duration;
 use tokio::runtime::Handle;
 
-pub fn run(app: &App<Chat, Narrator, MemoryUpdate>) -> io::Result<()> {
+pub fn run(app: &App<Chat, Narrator, MemoryUpdate, ActClose>) -> io::Result<()> {
     let mut terminal = setup_terminal()?;
     let mut state = CliState::default();
     let runtime = tokio::runtime::Handle::current();
@@ -28,7 +28,7 @@ pub fn run(app: &App<Chat, Narrator, MemoryUpdate>) -> io::Result<()> {
 fn event_loop(
     terminal: &mut Tui,
     state: &mut CliState,
-    ctx: &AppContext<Chat, Narrator, MemoryUpdate>,
+    ctx: &AppContext<Chat, Narrator, MemoryUpdate, ActClose>,
     runtime: &Handle,
 ) -> io::Result<()> {
     loop {

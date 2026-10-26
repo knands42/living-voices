@@ -104,11 +104,13 @@ impl Act {
         &mut self,
         index_line: impl Into<String>,
         digest: impl Into<String>,
+        status: ActStatus,
         from_seq: u16,
         to_seq: u16,
     ) {
         self.index_line = Some(index_line.into());
         self.digest = Some(digest.into());
+        self.status = status;
         self.from_seq = from_seq;
         self.to_seq = to_seq;
     }

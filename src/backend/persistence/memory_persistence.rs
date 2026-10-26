@@ -274,6 +274,51 @@ pub async fn update_active_act_last_closure_score(
     Ok(())
 }
 
+pub async fn insert_act(conn: &mut SqliteConnection, act: &Act) -> Result<(), PersistenceError> {
+    sqlx::query(
+        "INSERT INTO act (id, adventure_id, ordinal, goal, trigger, status, from_seq)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+    )
+    .bind(act.id.to_string())
+    .bind(act.adventure_id.to_string())
+    .bind(act.ordinal)
+    .bind(&act.goal)
+    .bind(act.trigger.as_deref())
+    .bind(act.status.to_string())
+    .bind(act.from_seq)
+    .execute(&mut *conn)
+    .await?;
+
+    Ok(())
+}
+
+pub async fn close_act(
+    conn: &mut SqliteConnection,
+    act_id: Uuid,
+    index_line: &str,
+    digest: &str,
+    status: &str,
+    to_seq: u16,
+) -> Result<(), PersistenceError> {
+    sqlx::query(
+        "UPDATE act
+         SET index_line = ?2,
+             digest     = ?3,
+             status     = ?4,
+             to_seq     = ?5
+         WHERE id = ?1",
+    )
+    .bind(act_id.to_string())
+    .bind(index_line)
+    .bind(digest)
+    .bind(status)
+    .bind(to_seq)
+    .execute(&mut *conn)
+    .await?;
+
+    Ok(())
+}
+
 impl TryFrom<StateRow> for State {
     type Error = PersistenceError;
 

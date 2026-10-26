@@ -8,7 +8,8 @@ use crate::ai::{
 };
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::application::port::memory_port::{
-    DistillError, DistilledFact, DistilledMemory, DistilledState, FactPermanence, MemoryDistiller,
+    ActCloser, ClosedAct, ClosedActError, ClosedActStatus, DistillError, DistilledFact,
+    DistilledMemory, DistilledState, FactPermanence, MemoryDistiller,
 };
 use crate::config::TextModel;
 
@@ -225,6 +226,110 @@ fn schema() -> JsonSchema {
                 "running_digest": { "type": "string" }
             },
             "required": ["facts", "state", "running_digest"],
+            "additionalProperties": false
+        }),
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ClosedStatus {
+    Resolved,
+    Failed,
+    Bypassed,
+}
+
+impl From<ClosedStatus> for ClosedActStatus {
+    fn from(value: ClosedStatus) -> Self {
+        match value {
+            ClosedStatus::Resolved => ClosedActStatus::Resolved,
+            ClosedStatus::Failed => ClosedActStatus::Failed,
+            ClosedStatus::Bypassed => ClosedActStatus::Bypassed,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ActCloseReply {
+    pub index_line: String,
+    pub digest: String,
+    pub status: ClosedStatus,
+}
+
+impl ActCloseReply {
+    fn from_reply(reply: &str) -> Result<Self, AiError> {
+        serde_json::from_str(reply).map_err(|_| AiError::MalformedMemory {
+            reply: reply.to_string(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ActClose {
+    #[serde(skip)]
+    config: TextModel,
+}
+
+impl ActClose {
+    pub fn new(config: TextModel) -> Self {
+        Self { config }
+    }
+}
+
+impl ActCloser for ActClose {
+    async fn close_act(&self, context: &[PromptTurn]) -> Result<ClosedAct, ClosedActError> {
+        let prompt = context
+            .iter()
+            .cloned()
+            .map(ChatMessage::from)
+            .collect::<Vec<ChatMessage>>();
+
+        let client = OpenAiCompatibleClient::with_timeout(
+            &self.config.base_url,
+            std::time::Duration::from_secs(self.config.request_timeout_secs as u64),
+        )
+        .map_err(|e| ClosedActError::Provider(e.to_string()))?;
+
+        let format = crate::ai::client::ResponseFormat::JsonSchema {
+            json_schema: &act_close_schema(),
+        };
+
+        let reply = client
+            .send(
+                &self.config.model,
+                &prompt,
+                self.config.temperature,
+                Some(format),
+                super::keep_alive(&self.config),
+            )
+            .await
+            .map_err(|e| ClosedActError::Provider(e.to_string()))?;
+
+        let parsed = ActCloseReply::from_reply(&reply)
+            .map_err(|e| ClosedActError::Provider(e.to_string()))?;
+
+        Ok(ClosedAct {
+            index_line: parsed.index_line,
+            digest: parsed.digest,
+            status: parsed.status.into(),
+        })
+    }
+}
+
+fn act_close_schema() -> JsonSchema {
+    JsonSchema {
+        name: "act_close".to_string(),
+        schema: json!({
+            "type": "object",
+            "properties": {
+                "index_line": { "type": "string" },
+                "digest": { "type": "string" },
+                "status": {
+                    "type": "string",
+                    "enum": ["resolved", "failed", "bypassed"]
+                }
+            },
+            "required": ["index_line", "digest", "status"],
             "additionalProperties": false
         }),
     }

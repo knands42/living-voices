@@ -19,9 +19,16 @@ fn act_new_starts_unstarted_with_no_span() {
 #[test]
 fn act_close_records_index_digest_and_span() {
     let mut act = Act::new(Uuid::new_v4(), 1, "recover the crown");
-    act.close("ACT 1 Crown: recovered", "They found the crown.", 1, 420);
+    act.close(
+        "ACT 1 Crown: recovered",
+        "They found the crown.",
+        ActStatus::Resolved,
+        1,
+        420,
+    );
     assert_eq!(act.index_line.as_deref(), Some("ACT 1 Crown: recovered"));
     assert_eq!(act.digest.as_deref(), Some("They found the crown."));
+    assert_eq!(act.status, ActStatus::Resolved);
     assert_eq!(act.from_seq, 1);
     assert_eq!(act.to_seq, 420);
 }
@@ -56,7 +63,13 @@ fn render_index_without_a_summary_shows_goal_and_status() {
 #[test]
 fn render_index_includes_the_summary_once_closed() {
     let mut act = Act::new(Uuid::new_v4(), 2, "cross the pass");
-    act.close("ACT 2: crossed", "They crossed.", 1, 10);
+    act.close(
+        "ACT 2: crossed",
+        "They crossed.",
+        ActStatus::Resolved,
+        1,
+        10,
+    );
     let rendered = act.render_index();
     assert!(rendered.contains("summary: ACT 2: crossed"));
 }
@@ -73,7 +86,13 @@ fn render_running_digest_is_empty_until_set() {
 fn render_digest_lists_only_closed_acts() {
     let adv = Uuid::new_v4();
     let mut first = Act::new(adv, 1, "escape");
-    first.close("ACT 1: escaped", "They escaped the keep.", 1, 100);
+    first.close(
+        "ACT 1: escaped",
+        "They escaped the keep.",
+        ActStatus::Resolved,
+        1,
+        100,
+    );
     let open = Act::new(adv, 2, "regroup").with_status(ActStatus::Active);
 
     let rendered = Act::render_digest(&[&first, &open]);

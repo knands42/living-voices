@@ -4,16 +4,20 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-use crate::ai::MemoryUpdate;
 use crate::ai::integrations::chat::Chat;
 use crate::ai::integrations::narrator::Narrator;
+use crate::ai::{ActClose, MemoryUpdate};
 use crate::app::AppContext;
 use crate::backend::domain::adventure::Adventure;
 use crate::cli::draw::theme::{EMBER, GOLD, INK, INK_DIM, MOSS, dim, ink, muted};
 use crate::cli::draw::widgets::{banner, card, hints, pill};
 use crate::cli::state::CliState;
 
-pub fn render(frame: &mut Frame, state: &CliState, ctx: &AppContext<Chat, Narrator, MemoryUpdate>) {
+pub fn render(
+    frame: &mut Frame,
+    state: &CliState,
+    ctx: &AppContext<Chat, Narrator, MemoryUpdate, ActClose>,
+) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)

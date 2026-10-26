@@ -1,8 +1,8 @@
 use tokio::runtime::Handle;
 
-use crate::ai::MemoryUpdate;
 use crate::ai::integrations::chat::Chat;
 use crate::ai::integrations::narrator::Narrator;
+use crate::ai::{ActClose, MemoryUpdate};
 use crate::app::AppContext;
 use crate::backend::domain::message::Message;
 use crate::cli::events::event_handler::Flow;
@@ -14,7 +14,7 @@ const DEFAULT_PLAYER_NAME: &str = "You";
 pub fn handle_chat(
     key: KeyEvent,
     state: &mut CliState,
-    ctx: &AppContext<Chat, Narrator, MemoryUpdate>,
+    ctx: &AppContext<Chat, Narrator, MemoryUpdate, ActClose>,
     runtime: &Handle,
 ) -> Flow {
     let Page::Chat { input } = &mut state.page else {
@@ -41,7 +41,7 @@ pub fn handle_chat(
 
 fn send_current_input(
     state: &mut CliState,
-    ctx: &AppContext<Chat, Narrator, MemoryUpdate>,
+    ctx: &AppContext<Chat, Narrator, MemoryUpdate, ActClose>,
     runtime: &Handle,
 ) {
     let text = {

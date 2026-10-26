@@ -54,6 +54,7 @@ impl AdventureManager {
             insert_character(&mut conn, Some(adventure.id), character).await?;
         }
         // TODO: Create default act
+        // TODO: Create default optional messages
         Ok(adventure)
     }
 

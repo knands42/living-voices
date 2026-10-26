@@ -1,4 +1,4 @@
-use crate::backend::{application::port::chat_port::PromptTurn, domain::memory::Fact};
+use crate::backend::application::port::chat_port::PromptTurn;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,4 +51,31 @@ pub trait MemoryDistiller: Send + Sync {
         &self,
         context: &[PromptTurn],
     ) -> impl Future<Output = Result<DistilledMemory, DistillError>> + Send;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClosedActStatus {
+    Resolved,
+    Failed,
+    Bypassed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClosedAct {
+    pub index_line: String,
+    pub digest: String,
+    pub status: ClosedActStatus,
+}
+
+#[derive(Error, Debug)]
+pub enum ClosedActError {
+    #[error("the act closer failed: {0}")]
+    Provider(String),
+}
+
+pub trait ActCloser: Send + Sync {
+    fn close_act(
+        &self,
+        context: &[PromptTurn],
+    ) -> impl Future<Output = Result<ClosedAct, ClosedActError>> + Send;
 }

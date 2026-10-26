@@ -1,6 +1,6 @@
-use crate::ai::MemoryUpdate;
 use crate::ai::integrations::chat::Chat;
 use crate::ai::integrations::narrator::Narrator;
+use crate::ai::{ActClose, MemoryUpdate};
 use crate::app::AppContext;
 use crate::cli::events::event_handler::Flow;
 use crate::cli::state::{CliState, Page};
@@ -10,7 +10,7 @@ use tokio::runtime::Handle;
 pub fn handle_main(
     key: KeyEvent,
     state: &mut CliState,
-    ctx: &AppContext<Chat, Narrator, MemoryUpdate>,
+    ctx: &AppContext<Chat, Narrator, MemoryUpdate, ActClose>,
     runtime: &Handle,
 ) -> Flow {
     match key.code {

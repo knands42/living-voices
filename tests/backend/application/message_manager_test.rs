@@ -6,9 +6,9 @@ use uuid::Uuid;
 use crate::backend::application::helper::{
     CharacterSpec, create_adventure, create_messages, setup_db,
 };
-use living_voices::ai::MemoryUpdate;
 use living_voices::ai::integrations::chat::Chat;
 use living_voices::ai::integrations::narrator::Narrator;
+use living_voices::ai::{ActClose, MemoryUpdate};
 use living_voices::backend::application::director::Director;
 use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::message_manager::MessageManager;
@@ -34,9 +34,11 @@ fn narrator_handler() -> Narrator {
     Narrator::new(chat_model())
 }
 
-fn memory_manager(state: SharedState, pool: &SqlitePool) -> MemoryManager<MemoryUpdate> {
-    let distiller = MemoryUpdate::new(Config::new().expect("load config").settings.models.memory);
-    MemoryManager::new(state, pool.clone(), distiller)
+fn memory_manager(state: SharedState, pool: &SqlitePool) -> MemoryManager<MemoryUpdate, ActClose> {
+    let memory_model = Config::new().expect("load config").settings.models.memory;
+    let distiller = MemoryUpdate::new(memory_model.clone());
+    let closer = ActClose::new(memory_model);
+    MemoryManager::new(state, pool.clone(), distiller, closer)
 }
 
 fn memory_settings() -> MemorySettings {
@@ -140,7 +142,7 @@ fn load_adventure(
     pool: &SqlitePool,
     adventure: &Adventure,
     director: Director,
-) -> MessageManager<Chat, Narrator, MemoryUpdate> {
+) -> MessageManager<Chat, Narrator, MemoryUpdate, ActClose> {
     let state = SharedState::new();
     state
         .write()

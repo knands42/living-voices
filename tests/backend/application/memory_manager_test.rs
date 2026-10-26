@@ -3,7 +3,7 @@ use sqlx::{Row, query, query_scalar};
 use uuid::Uuid;
 
 use crate::backend::application::helper::{create_adventure, create_messages, setup_db};
-use living_voices::ai::MemoryUpdate;
+use living_voices::ai::{ActClose, MemoryUpdate};
 use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
@@ -19,6 +19,11 @@ fn memory_model() -> TextModel {
 /// Build the distiller the app wires in, from the configured memory model.
 fn distiller() -> MemoryUpdate {
     MemoryUpdate::new(memory_model())
+}
+
+/// Build the act closer the app wires in, from the configured memory model.
+fn closer() -> ActClose {
+    ActClose::new(memory_model())
 }
 
 /// Seed an active act with an optional digest watermark and return its id.
@@ -42,13 +47,16 @@ async fn seed_active_act(
     act_id
 }
 
-async fn load_manager(pool: &SqlitePool, adventure: &Adventure) -> MemoryManager<MemoryUpdate> {
+async fn load_manager(
+    pool: &SqlitePool,
+    adventure: &Adventure,
+) -> MemoryManager<MemoryUpdate, ActClose> {
     let state = SharedState::new();
     state
         .write()
         .expect("lock")
         .set_adventure(adventure.clone());
-    MemoryManager::new(state, pool.clone(), distiller())
+    MemoryManager::new(state, pool.clone(), distiller(), closer())
 }
 
 async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: u16) -> Vec<u16> {
@@ -62,7 +70,7 @@ async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: u16) -> Vec
 async fn compress_is_a_noop_without_a_current_adventure() {
     // Given a migrated database and no adventure loaded in the state
     let (pool, _db) = setup_db().await;
-    let manager = MemoryManager::new(SharedState::new(), pool.clone(), distiller());
+    let manager = MemoryManager::new(SharedState::new(), pool.clone(), distiller(), closer());
 
     // When compressing
     let result = manager.compress_and_update().await;
