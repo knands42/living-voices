@@ -37,16 +37,28 @@ pub struct Fact {
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct StateSnapshot {
-    #[serde(default)]
+    #[serde(default = "unknown", deserialize_with = "or_unknown")]
     pub day: String,
-    #[serde(default)]
+    #[serde(default = "unknown", deserialize_with = "or_unknown")]
     pub place: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "or_empty")]
     pub characters_present: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "or_empty")]
     pub open_threads: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "or_empty")]
     pub conditions: Vec<String>,
+}
+
+fn unknown() -> String {
+    String::from("unknown")
+}
+
+fn or_unknown<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
+    Ok(Option::<String>::deserialize(deserializer)?.unwrap_or_else(unknown))
+}
+
+fn or_empty<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Vec<String>, D::Error> {
+    Ok(Option::<Vec<String>>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

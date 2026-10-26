@@ -40,3 +40,24 @@ async fn adventure_insert_creates_default_state() {
         .expect("candidates must read, not error, on a fresh adventure");
     assert!(names.is_empty());
 }
+
+#[tokio::test]
+async fn adventure_insert_creates_default_narrator() {
+    // when: creating an adventure
+    let (pool, _db) = setup_db().await;
+    let adventure = create_adventure(&pool, &[]).await;
+
+    // then: exactly one narrator exists for it, with the default voice
+    let (name, tone, count): (String, String, u16) = sqlx::query_as(
+        "SELECT name, tone, (SELECT COUNT(*) FROM narrator WHERE adventure_id = ?1)
+         FROM narrator WHERE adventure_id = ?1",
+    )
+    .bind(adventure.id.to_string())
+    .fetch_one(&pool)
+    .await
+    .expect("an adventure must have its default narrator row");
+
+    assert_eq!(count, 1);
+    assert_eq!(name, "Narrator");
+    assert!(!tone.trim().is_empty());
+}

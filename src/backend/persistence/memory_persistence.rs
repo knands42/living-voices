@@ -176,9 +176,10 @@ pub async fn upsert_state(
     conn: &mut SqliteConnection,
     state: &State,
 ) -> Result<(), PersistenceError> {
-    let characters_present = to_json_array(&state.characters_present)?;
-    let open_threads = to_json_array(&state.open_threads)?;
-    let conditions = to_json_array(&state.conditions)?;
+    let characters_present =
+        to_json_array(&state.characters_present)?.unwrap_or_else(|| "[]".into());
+    let open_threads = to_json_array(&state.open_threads)?.unwrap_or_else(|| "[]".into());
+    let conditions = to_json_array(&state.conditions)?.unwrap_or_else(|| "[]".into());
 
     sqlx::query(
         "INSERT INTO state (id, adventure_id, day, place, characters_present,

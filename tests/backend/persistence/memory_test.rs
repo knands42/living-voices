@@ -101,7 +101,7 @@ async fn upsert_state_inserts_then_updates_the_single_row() {
         .expect("get")
         .expect("some state");
     assert_eq!(loaded.day, String::from("Day 2"));
-    assert_eq!(loaded.place, String::new());
+    assert_eq!(loaded.place, String::from("unknown"));
     assert_eq!(
         loaded.characters_present,
         vec!["Mira".to_string(), "Kael".to_string()]
