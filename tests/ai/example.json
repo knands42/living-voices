@@ -291,6 +291,32 @@
     }
   ],
   "stream": false,
+  "format": {
+    "type": "object",
+    "properties": {
+      "replier": { "type": "string" },
+      "reply": { "type": "string" },
+      "act_closure": { "type": ["integer", "null"], "minimum": 0, "maximum": 5 }
+    },
+    "required": ["replier", "reply", "act_closure"],
+    "additionalProperties": false
+  },
+  "response_format": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "chat_reply",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "replier": { "type": "string" },
+          "reply": { "type": "string" },
+          "act_closure": { "type": ["integer", "null"], "minimum": 0, "maximum": 5 }
+        },
+        "required": ["replier", "reply", "act_closure"],
+        "additionalProperties": false
+      }
+    }
+  },
   "options": {
     "num_ctx": 28672,
     "temperature": 0.3,

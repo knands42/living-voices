@@ -11,6 +11,10 @@ Not a novel editor. Not a VTT. The chat is the product.
 - **Scene images** — a local image model occasionally renders the current situation, giving a visual heartbeat to the story.
 - **Time & world** — a story clock and location changes.
 
+## Preview
+
+![Preview](./docs/chat-preview.png)
+
 ## Architecture
 
 Everything runs locally. The app is a Rust binary with two front-ends over a

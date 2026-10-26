@@ -14,15 +14,17 @@ use sqlx::SqliteConnection;
 const AUTONOMOUS_HISTORY_WINDOW: u16 = 50;
 
 const AUTONOMOUS_CHAT_PROMPT: &str = "You write one beat of an interactive roleplay at a time: one character speaks and/or acts, or you narrate the world around the player";
-const AUTONOMOUS_CHAT_HEADER_INSTRUCTION: &str = r#"## HEADER — the first line of every reply, nothing before it
-[CHARACTER] <name>                    that character's turn
-[CHARACTER] <name> | target: <name>   aimed at someone present, by name
-[NARRATOR]                            the world answers; no character speaks
-"#;
+const AUTONOMOUS_CHAT_REPLY_CONTRACT: &str = r#"## REPLY FORMAT
+Return a single JSON object, nothing else:
+  "replier"      the EXACT name of the present cast member whose turn this is,
+                 or NARRATOR when the world answers and no character speaks.
+  "reply"        the prose body of this beat (the BODY rules below).
+  "act_closure"  null here; a later instruction may ask you to set it.
+Put no name, header or tag inside "reply" — "replier" already says who speaks."#;
 
 const AUTONOMOUS_CHAT_BODY_INSTRUCTION: &str = r#"## BODY
-Do not restate the header's name in the prose. Begin with speech, with an action,
-or with either. Any of these may appear in one turn, in any order:
+Write only the prose of this beat. Begin with speech, with an action, or with
+either. Any of these may appear in one turn, in any order:
 
 "spoken words"              speech, heard by everyone present
 *physical action*           action, third person, present tense
@@ -35,8 +37,8 @@ const AUTONOMOUS_CHAT_RULES_INSTRUCTION: &str = r#"## RULES
 2. Never write the player's words, thoughts, feelings, decisions, actions or answer their questions — only how the
    world answers them, how the world changes within time and current situations.
 3. Stay inside the voice of the character you chose: their wording, their rhythm,
-   what they would never say. If no character would naturally respond, answer as
-   [NARRATOR].
+   what they would never say. If no character would naturally respond, set
+   "replier" to NARRATOR.
 4. Up to three paragraphs. End where the player has something to answer/engage.
 5. Never contradict them the provided facts and state; a later fact beats an earlier one.
 6. Do not resolve a conflict the player has not yet acted on.
@@ -46,33 +48,20 @@ const AUTONOMOUS_CHAT_RULES_INSTRUCTION: &str = r#"## RULES
 
 const AUTONOMOUS_CHAT_CHAT_EXAMPLES_INSTRUCTION: &str = r#"## EXAMPLES
 Example 1 — a character speaks
-[CHARACTER] Elara
-*leans in the doorway, arms folded*
-"The gate won't open for us again. Not tonight, not with that horn still ringing."
+{"replier": "Elara", "reply": "*leans in the doorway, arms folded*\n\"The gate won't open for us again. Not tonight, not with that horn still ringing.\"", "act_closure": null}
 
-Example 2 — aimed at someone, in private
-[CHARACTER] Kaelen | target: Elara
-(lowers his voice) "If the barkeep sold us once, he'll sell us again. We leave before dawn."
+Example 2 — action and thought, no speech
+{"replier": "Marta", "reply": "*sets the lantern down and kneels beside the wounded man, both hands on the wound*\n((this is past herbs))", "act_closure": null}
 
-Example 3 — action and thought, no speech
-[CHARACTER] Marta
-*sets the lantern down and kneels beside the wounded man, both hands on the wound*
-((this is past herbs))
-
-Example 4 — the world
-[NARRATOR]
-Torches flare along the wall. A second horn answers the first, much closer. Behind the
-shut gate, boots move in numbers.
+Example 3 — the world
+{"replier": "NARRATOR", "reply": "Torches flare along the wall. A second horn answers the first, much closer. Behind the shut gate, boots move in numbers.", "act_closure": null}
 "#;
 
-const CLOSURE_PROMPT: &str = r#"[ADDITIONAL INFORMATION] This ongoing act have {0} of at most {1} messages.
+const CLOSURE_PROMPT: &str = r#"[ADDITIONAL INFORMATION] This ongoing act has {0} of at most {1} messages.
 After writing this next beat normally, judge how close the ACT is to a natural close —
 its goal from CURRENT ACT is your reference, not the mood of this conversation.
 
-Then always end your reply with one line:
-
-[CLOSURE]:<0-5>
-(e.g., [CLOSURE]:2)
+Set the "act_closure" field of your JSON reply to an integer 0-5:
 
 0   the act is in full motion; nothing points at its goal yet
 1   the goal is far; the current thread needs real development
@@ -195,15 +184,15 @@ present would notice. Withhold as much as you reveal — the world is not in a h
 "#;
 
 const NARRATOR_CHAT_RULES_INSTRUCTION: &str = r#"## RULES
-2. Never write the player's words, thoughts, feelings, decisions, actions or answer their questions — only how the
+1. Never write the player's words, thoughts, feelings, decisions, actions or answer their questions — only how the
    world answers them.
 2. Never resolve a conflict the player has not yet acted on. Escalate, complicate,
    or let it breathe — do not settle it.
-4. Up to three paragraphs. End where the player has something to answer/engage.
-5. Never contradict them the provided facts and state; a later fact beats an earlier one.
-6. Do not make a character present speak. If someone must answer, leave space for
+3. Up to three paragraphs. End where the player has something to answer/engage.
+4. Never contradict them the provided facts and state; a later fact beats an earlier one.
+5. Do not make a character present speak. If someone must answer, leave space for
    them: describe the moment before they would.
-7. End where the player has something to answer/engage: a sound, an arrival, a silence
+6. End where the player has something to answer/engage: a sound, an arrival, a silence
    that asks a question.
 "#;
 
@@ -233,13 +222,13 @@ impl ContextBuilder {
             AUTONOMOUS_CHAT_PROMPT.to_string(),
             ContextBuilder::build_settings_prompt(adventure),
             ContextBuilder::build_characters_prompt(adventure),
-            AUTONOMOUS_CHAT_HEADER_INSTRUCTION.to_string(),
+            AUTONOMOUS_CHAT_REPLY_CONTRACT.to_string(),
             AUTONOMOUS_CHAT_BODY_INSTRUCTION.to_string(),
             AUTONOMOUS_CHAT_RULES_INSTRUCTION.to_string(),
             AUTONOMOUS_CHAT_CHAT_EXAMPLES_INSTRUCTION.to_string(),
         ];
 
-        ContextBuilder::assemble(conn, adventure, director, &head).await
+        ContextBuilder::assemble(conn, adventure, director, &head, true).await
     }
 
     pub async fn build_single_character_chat_prompt(
@@ -257,7 +246,7 @@ impl ContextBuilder {
             character.render(),
         ];
 
-        ContextBuilder::assemble(conn, adventure, director, &head).await
+        ContextBuilder::assemble(conn, adventure, director, &head, false).await
     }
 
     pub async fn build_narrator_chat_prompt(
@@ -273,7 +262,7 @@ impl ContextBuilder {
             NARRATOR_CHAT_EXAMPLES_INSTRUCTION.to_string(),
         ];
 
-        ContextBuilder::assemble(conn, adventure, director, &head).await
+        ContextBuilder::assemble(conn, adventure, director, &head, false).await
     }
 
     async fn assemble(
@@ -281,6 +270,7 @@ impl ContextBuilder {
         adventure: &Adventure,
         director: &Director,
         head: &[String],
+        request_closure: bool,
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
 
@@ -289,12 +279,14 @@ impl ContextBuilder {
         ));
         turns.extend(ContextBuilder::build_previous_messages(conn, adventure).await?);
 
-        let messages_in_act = count_uncovered_per_act(conn, adventure.id).await? as u16;
-        if director.should_request_closure(messages_in_act) {
-            turns.push(PromptTurn::system(ContextBuilder::build_closure_prompt(
-                messages_in_act,
-                director.get_max_act_messages(),
-            )));
+        if request_closure {
+            let messages_in_act = count_uncovered_per_act(conn, adventure.id).await? as u16;
+            if director.should_request_closure(messages_in_act) {
+                turns.push(PromptTurn::system(ContextBuilder::build_closure_prompt(
+                    messages_in_act,
+                    director.get_max_act_messages(),
+                )));
+            }
         }
 
         Ok(turns)

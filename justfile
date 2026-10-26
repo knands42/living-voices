@@ -36,6 +36,6 @@ db-reset:
 
 # -------------------- testing -------------------- #
 send-message:
-    curl -s http://localhost:11434/api/chat \
+    time curl -s http://localhost:11434/v1/chat/completions \
         -H 'Content-Type: application/json' \
-        --data-binary @./tests/ai/example.json | jq -r .message.content
+        --data-binary @./tests/ai/example.json | jq -r .choices[0].message.content

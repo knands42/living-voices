@@ -3,7 +3,6 @@ use serde_json::json;
 
 use crate::ai::{
     client::{JsonSchema, OpenAiCompatibleClient, ResponseFormat},
-    error::AiError,
     types::ChatMessage,
 };
 use crate::backend::application::port::chat_port::{
@@ -18,16 +17,32 @@ pub struct Chat {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct ChatCompletion {
-    replier: String,
-    reply: String,
+pub struct ChatCompletion {
+    pub replier: String,
+    pub reply: String,
+    #[serde(default)]
+    pub act_closure: Option<u8>,
 }
 
 impl ChatCompletion {
-    fn from_reply(raw: &str) -> Result<Self, AiError> {
-        serde_json::from_str(raw).map_err(|_| AiError::MalformedMemory {
-            reply: raw.to_string(),
-        })
+    pub fn from_reply(raw: &str) -> Result<Self, ChatResponseError> {
+        serde_json::from_str(raw).map_err(|e| ChatResponseError::Provider(e.to_string()))
+    }
+}
+
+pub fn chat_reply_schema() -> JsonSchema {
+    JsonSchema {
+        name: "chat_reply".to_string(),
+        schema: json!({
+            "type": "object",
+            "properties": {
+                "replier": { "type": "string" },
+                "reply": { "type": "string" },
+                "act_closure": { "type": ["integer", "null"], "minimum": 0, "maximum": 5 }
+            },
+            "required": ["replier", "reply", "act_closure"],
+            "additionalProperties": false
+        }),
     }
 }
 
@@ -80,7 +95,7 @@ impl ChatHandler for Chat {
             .collect::<Vec<ChatMessage>>();
 
         let format = ResponseFormat::JsonSchema {
-            json_schema: &schema(),
+            json_schema: &chat_reply_schema(),
         };
 
         let raw = client
@@ -94,27 +109,12 @@ impl ChatHandler for Chat {
             .await
             .map_err(|e| ChatResponseError::Provider(e.to_string()))?;
 
-        let completion = ChatCompletion::from_reply(&raw)
-            .map_err(|e| ChatResponseError::Provider(e.to_string()))?;
+        let completion = ChatCompletion::from_reply(&raw)?;
 
         Ok(ChatReply {
             replier: completion.replier,
             reply: completion.reply,
+            act_closure: completion.act_closure,
         })
-    }
-}
-
-fn schema() -> JsonSchema {
-    JsonSchema {
-        name: "chat_reply".to_string(),
-        schema: json!({
-            "type": "object",
-            "properties": {
-                "replier": { "type": "string" },
-                "reply": { "type": "string" }
-            },
-            "required": ["replier", "reply"],
-            "additionalProperties": false
-        }),
     }
 }

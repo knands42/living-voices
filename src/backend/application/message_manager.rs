@@ -102,6 +102,11 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
         let reply_message = adventure.message_from_reply(&chat_reply.replier, &chat_reply.reply);
         let stored_reply = self.create_message(reply_message).await?;
 
+        // TODO: act_closure (chat_reply.act_closure) is parsed but not yet acted on —
+        // wire it to close the current act when it reaches 5.
+        // TODO: promote NPCs the distill pass names in state.characters_present but
+        // that are absent from the characters table.
+
         self.maybe_compress_memory().await;
 
         Ok(stored_reply)
@@ -126,6 +131,7 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
             return Ok(ChatReply {
                 replier: Message::NARRATOR_SPEAKER_NAME.to_string(),
                 reply,
+                act_closure: None,
             });
         }
 
@@ -141,6 +147,7 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
             return Ok(ChatReply {
                 replier: character.name.clone(),
                 reply,
+                act_closure: None,
             });
         }
 

@@ -50,7 +50,7 @@ fn build_settings_prompt_omits_unset_optional_fields() {
 fn build_closure_prompt_substitutes_counts() {
     let prompt = ContextBuilder::build_closure_prompt(120, 200);
     assert!(prompt.contains("120 of at most 200 messages"));
-    assert!(prompt.contains("[CLOSURE]:<0-5>"));
+    assert!(prompt.contains("\"act_closure\""));
 }
 
 // ---------------------------------------------------------------- DB fixtures
@@ -258,7 +258,7 @@ async fn closure_prompt_appears_only_once_the_gate_opens() {
     let turns = ContextBuilder::build_autonomous_chat_prompt(&mut conn, &adventure, &eager)
         .await
         .expect("build prompt");
-    let has_closure = turns.iter().any(|t| t.text.contains("[CLOSURE]:<0-5>"));
+    let has_closure = turns.iter().any(|t| t.text.contains("of at most"));
     assert!(
         has_closure,
         "closure prompt should be present once the gate opens"
@@ -272,7 +272,7 @@ async fn closure_prompt_appears_only_once_the_gate_opens() {
     )
     .await
     .expect("build prompt");
-    let has_closure = turns.iter().any(|t| t.text.contains("[CLOSURE]:<0-5>"));
+    let has_closure = turns.iter().any(|t| t.text.contains("of at most"));
     assert!(
         !has_closure,
         "closure prompt should be absent while the gate is shut"

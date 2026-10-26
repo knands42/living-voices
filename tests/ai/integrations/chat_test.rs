@@ -44,8 +44,8 @@ async fn character_respond_returns_a_non_empty_reply() {
 #[tokio::test]
 #[ignore = "requires a running Ollama server"]
 async fn autonomous_respond_returns_a_replier_and_a_reply() {
-    // The autonomous call is schema-constrained to `{ replier, reply }`; the
-    // handler parses that JSON into a ChatReply, so both fields must be present.
+    // The autonomous call is schema-constrained to `{ replier, reply, act_closure }`;
+    // the handler parses that JSON into a ChatReply, so replier and reply must be present.
     let reply = chat()
         .autonomous_respond(&prompt())
         .await

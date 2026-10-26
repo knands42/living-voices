@@ -40,6 +40,7 @@ impl PromptTurn {
 pub struct ChatReply {
     pub replier: String,
     pub reply: String,
+    pub act_closure: Option<u8>,
 }
 
 #[derive(Error, Debug)]
