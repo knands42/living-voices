@@ -13,7 +13,7 @@ use crate::cli::draw::widgets::{StatusKind, card, hints, pill, status_dot};
 use crate::cli::state::{CliState, Page};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph, Wrap};
 
@@ -102,8 +102,12 @@ fn render_cast(frame: &mut Frame, area: Rect, adventure: Option<&Adventure>) {
 
     let mut row_top = inner.top();
 
+    // The player is always listed first, then the rest in their stored order.
+    let mut cast: Vec<&Character> = adventure.characters.iter().collect();
+    cast.sort_by_key(|c| !c.is_player);
+
     // Row is 3 lines tall: [avatar+name] [role+status] [spacer]
-    for (i, character) in adventure.characters.iter().enumerate() {
+    for character in cast {
         let row_h: u16 = 3;
         if row_top + row_h > inner.bottom() {
             break;
@@ -226,15 +230,95 @@ fn message_line<'a>(message: &Message) -> Line<'a> {
     let hue = speaker_color(&message.speaker_name);
     let gutter = Span::styled("▌ ", Style::default().fg(hue));
 
-    Line::from(vec![
+    let mut spans = vec![
         gutter,
         Span::styled(
             message.speaker_name.clone(),
             Style::default().fg(hue).add_modifier(Modifier::BOLD),
         ),
         Span::styled(" · ", dim()),
-        Span::styled(message.text.clone(), ink()),
-    ])
+    ];
+    spans.extend(format_body(&message.text, hue));
+
+    Line::from(spans)
+}
+
+enum Marker {
+    Speech,
+    Action,
+    Thought,
+}
+
+impl Marker {
+    fn open(c: char, next: Option<char>) -> Option<(Marker, &'static str)> {
+        match c {
+            '"' => Some((Marker::Speech, "\"")),
+            '*' => Some((Marker::Action, "*")),
+            '(' if next == Some('(') => Some((Marker::Thought, "))")),
+            _ => None,
+        }
+    }
+
+    fn style(&self, hue: Color) -> Style {
+        match self {
+            Marker::Speech => Style::default().fg(hue),
+            Marker::Action => muted(),
+            Marker::Thought => dim().add_modifier(Modifier::ITALIC),
+        }
+    }
+}
+
+fn format_body<'a>(text: &str, hue: Color) -> Vec<Span<'a>> {
+    let mut spans: Vec<Span> = Vec::new();
+    let mut plain = String::new();
+    let chars: Vec<char> = text.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        let c = chars[i];
+        let next = chars.get(i + 1).copied();
+
+        if let Some((marker, close)) = Marker::open(c, next) {
+            let open_len = if matches!(marker, Marker::Thought) {
+                2
+            } else {
+                1
+            };
+            let body_start = i + open_len;
+
+            if let Some(end) = find_close_char(&chars, body_start, close) {
+                // Flush the plain run that preceded this marker.
+                if !plain.is_empty() {
+                    spans.push(Span::styled(std::mem::take(&mut plain), ink()));
+                }
+
+                let segment: String = chars[i..end + close.chars().count()].iter().collect();
+                spans.push(Span::styled(segment, marker.style(hue)));
+                i = end + close.chars().count();
+                continue;
+            }
+        }
+
+        plain.push(c);
+        i += 1;
+    }
+
+    if !plain.is_empty() {
+        spans.push(Span::styled(plain, ink()));
+    }
+    if spans.is_empty() {
+        spans.push(Span::styled(String::new(), ink()));
+    }
+    spans
+}
+
+fn find_close_char(chars: &[char], from: usize, close: &str) -> Option<usize> {
+    let close: Vec<char> = close.chars().collect();
+    if close.is_empty() || from >= chars.len() {
+        return None;
+    }
+    let last = chars.len().checked_sub(close.len())?;
+    (from..=last).find(|&start| chars[start..start + close.len()] == close[..])
 }
 
 // ---------- Meta rail (right) ----------

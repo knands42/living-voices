@@ -144,3 +144,61 @@ fn message_from_reply_falls_through_to_the_narrator_for_an_unknown_replier() {
     assert_eq!(message.speaker_name, "NARRATOR");
     assert_eq!(message.text, "The city holds its breath.");
 }
+
+#[test]
+fn message_from_reply_strips_a_character_header_before_matching() {
+    // Given an adventure whose cast includes "Mira"
+    let (adventure, mira) = adventure_with_character("Mira");
+
+    // When the replier arrives wrapped in the model's header noise
+    let message = adventure.message_from_reply("[CHARACTER] Mira", "The tide is turning.");
+
+    // Then it still resolves to the character rather than collapsing to the narrator
+    assert_eq!(message.character_id, Some(mira.id));
+    assert!(message.narrator_id.is_none());
+    assert_eq!(message.speaker_name, "Mira");
+}
+
+#[test]
+fn message_from_reply_strips_a_trailing_target_qualifier() {
+    let (adventure, mira) = adventure_with_character("Mira");
+
+    let message = adventure.message_from_reply("[CHARACTER] Mira | target: Kael", "Over here.");
+
+    assert_eq!(message.character_id, Some(mira.id));
+    assert_eq!(message.speaker_name, "Mira");
+}
+
+#[test]
+fn message_from_reply_matches_a_character_case_insensitively() {
+    let (adventure, mira) = adventure_with_character("Mira");
+
+    let message = adventure.message_from_reply("  mira  ", "The gate is shut.");
+
+    assert_eq!(message.character_id, Some(mira.id));
+    assert_eq!(message.speaker_name, "Mira");
+}
+
+#[test]
+fn message_from_reply_routes_an_explicit_narrator_header_to_the_narrator() {
+    // Given an adventure whose cast includes "Mira"
+    let (adventure, _mira) = adventure_with_character("Mira");
+
+    // When the reply is explicitly the narrator's
+    let message = adventure.message_from_reply("[NARRATOR]", "Torches flare along the wall.");
+
+    // Then it is attributed to the narrator
+    assert!(message.character_id.is_none());
+    assert_eq!(message.narrator_id, Some(adventure.narrator.id));
+    assert_eq!(message.speaker_name, "NARRATOR");
+}
+
+#[test]
+fn message_from_reply_routes_a_bare_narrator_name_to_the_narrator() {
+    let (adventure, _mira) = adventure_with_character("Mira");
+
+    let message = adventure.message_from_reply("NARRATOR", "The sea keeps its own ledger.");
+
+    assert!(message.character_id.is_none());
+    assert_eq!(message.narrator_id, Some(adventure.narrator.id));
+}

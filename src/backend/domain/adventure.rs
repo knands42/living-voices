@@ -46,6 +46,42 @@ impl Adventure {
         self.characters.iter().find(|c| c.name == name)
     }
 
+    fn resolve_replier(&self, replier: &str) -> Option<&Character> {
+        let cleaned = Adventure::clean_replier(replier);
+        if cleaned.is_empty() {
+            return None;
+        }
+        self.characters
+            .iter()
+            .find(|c| c.name.eq_ignore_ascii_case(&cleaned))
+    }
+
+    fn clean_replier(replier: &str) -> String {
+        let mut s = replier.trim();
+
+        // Drop a leading header tag like `[CHARACTER]` or `[NARRATOR]`.
+        if let Some(end) = s.find(']') {
+            if s.starts_with('[') {
+                s = s[end + 1..].trim_start();
+            }
+        }
+
+        // Drop a trailing `| target: ...` or any trailing `|`/`:` qualifier.
+        if let Some(idx) = s.find('|') {
+            s = s[..idx].trim_end();
+        }
+        if let Some(idx) = s.find(':') {
+            s = s[..idx].trim_end();
+        }
+
+        s.to_string()
+    }
+
+    fn is_narrator_reply(replier: &str) -> bool {
+        let cleaned = Adventure::clean_replier(replier);
+        cleaned.is_empty() || cleaned.eq_ignore_ascii_case(Message::NARRATOR_SPEAKER_NAME)
+    }
+
     pub fn active_characters(&self, present_names: &[String]) -> Vec<&Character> {
         self.characters
             .iter()
@@ -54,7 +90,13 @@ impl Adventure {
     }
 
     pub fn message_from_reply(&self, replier: &str, text: &str) -> Message {
-        let (character_id, narrator_id, speaker_name) = match self.find_character(replier) {
+        let character = if Adventure::is_narrator_reply(replier) {
+            None
+        } else {
+            self.resolve_replier(replier)
+        };
+
+        let (character_id, narrator_id, speaker_name) = match character {
             Some(character) => (Some(character.id), None, character.name.clone()),
             None => (
                 None,
@@ -70,7 +112,7 @@ impl Adventure {
             speaker_name,
             text,
             false,
-            vec![],
+            vec![], // TODO: Get targeted characters
         )
     }
 }

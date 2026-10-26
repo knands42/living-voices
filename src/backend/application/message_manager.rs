@@ -88,7 +88,7 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
         let active_characters = adventure.active_characters(&present_names);
         let messages_since_narration = count_since_last_narration(&mut conn, adventure.id).await?;
 
-        let reply = self
+        let chat_reply = self
             .send(
                 &mut conn,
                 &adventure,
@@ -99,7 +99,7 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
             .await?;
         drop(conn);
 
-        let reply_message = adventure.message_from_reply(&reply.replier, &reply.reply);
+        let reply_message = adventure.message_from_reply(&chat_reply.replier, &chat_reply.reply);
         let stored_reply = self.create_message(reply_message).await?;
 
         self.maybe_compress_memory().await;
