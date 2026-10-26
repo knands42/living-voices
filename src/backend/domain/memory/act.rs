@@ -60,7 +60,7 @@ pub struct Act {
     pub running_digest: Option<String>,
     /// the last message seq folded into `running_digest`.
     pub digest_to_seq: Option<u16>,
-    pub from_seq: Option<u16>,
+    pub from_seq: u16,
     pub to_seq: Option<u16>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -80,7 +80,7 @@ impl Act {
             digest: None,
             running_digest: None,
             digest_to_seq: None,
-            from_seq: None,
+            from_seq: 0,
             to_seq: None,
             created_at: now,
             updated_at: now,
@@ -106,7 +106,7 @@ impl Act {
     ) {
         self.index_line = Some(index_line.into());
         self.digest = Some(digest.into());
-        self.from_seq = Some(from_seq);
+        self.from_seq = from_seq;
         self.to_seq = Some(to_seq);
     }
 

@@ -89,6 +89,18 @@ impl<D: MemoryDistiller> MemoryManager<D> {
             .await
     }
 
+    pub async fn update_act(&self) -> Result<(), MemoryManagerError> {
+        let adventure = {
+            let guard = self.state.read()?;
+            let Some(adventure) = guard.current_adventure.as_ref() else {
+                return Ok(());
+            };
+            adventure.clone()
+        };
+
+        todo!()
+    }
+
     async fn persist(
         &self,
         conn: &mut sqlx::SqliteConnection,

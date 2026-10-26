@@ -104,7 +104,6 @@ impl ChatHandler for Chat {
     }
 }
 
-/// JSON schema forcing `{ replier, reply }` for the autonomous call.
 fn schema() -> JsonSchema {
     JsonSchema {
         name: "chat_reply".to_string(),

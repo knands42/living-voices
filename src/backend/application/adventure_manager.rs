@@ -53,6 +53,7 @@ impl AdventureManager {
         for character in &adventure.characters {
             insert_character(&mut conn, Some(adventure.id), character).await?;
         }
+        // TODO: Create default act
         Ok(adventure)
     }
 

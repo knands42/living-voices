@@ -23,10 +23,7 @@ impl Director {
             return true;
         }
 
-        // Scene-setting turns are the narrator's.
-        if incoming.narrator_id.is_some() {
-            return true;
-        }
+        // TODO: if narrator spoke last message, wait for at least 10 messages
 
         let roll = rand::random::<f32>();
         // If the incoming message is OOC, the narrator has a chance to speak.

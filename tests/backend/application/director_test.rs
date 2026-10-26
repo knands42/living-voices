@@ -62,13 +62,6 @@ fn narrator_speaks_when_there_is_no_cast() {
 }
 
 #[test]
-fn narration_always_goes_to_the_narrator() {
-    let d = director(1.0, 0.0, (255, 255));
-    let cast = cast(&["Mira"]);
-    assert!(d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), &narration(), 0));
-}
-
-#[test]
 fn ooc_goes_to_the_narrator_only_when_its_chance_is_certain() {
     let cast = cast(&["Mira"]);
     let ooc = line(&[], true);

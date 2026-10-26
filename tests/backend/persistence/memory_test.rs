@@ -246,7 +246,7 @@ async fn update_act_running_digest_sets_digest_and_watermark() {
     assert_eq!(act.running_digest.as_deref(), Some("They fled north."));
     assert_eq!(act.digest_to_seq, Some(42));
     // The immutable span is untouched.
-    assert!(act.from_seq.is_none());
+    assert_eq!(act.from_seq, 0);
     assert!(act.to_seq.is_none());
 }
 
