@@ -294,7 +294,17 @@ async fn seed_connection(
 
     insert_adventure(&mut *tx, &adventure).await?;
     insert_narrator(&mut *tx, adventure.id, &adventure.narrator).await?;
-    upsert_state(&mut *tx, &State::new(adventure.id)).await?;
+    upsert_state(
+        &mut *tx,
+        &State::new(adventure.id).with_characters_present(
+            adventure
+                .characters
+                .iter()
+                .map(|c| c.name.clone())
+                .collect(),
+        ),
+    )
+    .await?;
     insert_lore(&mut *tx, adventure.id, &adventure.lore).await?;
 
     for character in &adventure.characters {

@@ -114,12 +114,12 @@ fn render_cast(frame: &mut Frame, area: Rect, adventure: Option<&Adventure>) {
             width: inner.width,
             height: row_h,
         };
-        render_cast_row(frame, row, character, i == 0);
+        render_cast_row(frame, row, character);
         row_top += row_h;
     }
 }
 
-fn render_cast_row(frame: &mut Frame, area: Rect, character: &Character, active: bool) {
+fn render_cast_row(frame: &mut Frame, area: Rect, character: &Character) {
     let cols = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Length(4), Constraint::Min(1)])
@@ -137,14 +137,15 @@ fn render_cast_row(frame: &mut Frame, area: Rect, character: &Character, active:
     avatar.render(avatar_area, buf);
 
     // Right side: name + status dot on line 1, role on line 2.
-    let name_color = if active { EMBER } else { INK };
+    let is_player = character.is_player;
+    let name_color = if is_player { EMBER } else { INK };
     let name_line = Line::from(vec![
         Span::raw(" "),
         status_dot(to_status_kind(character.status)),
         Span::raw(" "),
         Span::styled(
             character.name.as_str(),
-            Style::default().fg(name_color).add_modifier(if active {
+            Style::default().fg(name_color).add_modifier(if is_player {
                 Modifier::BOLD
             } else {
                 Modifier::empty()

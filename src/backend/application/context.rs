@@ -32,7 +32,7 @@ or with either. Any of these may appear in one turn, in any order:
 
 const AUTONOMOUS_CHAT_RULES_INSTRUCTION: &str = r#"## RULES
 1. One voice per reply. Never write two characters in one turn.
-2. Never write the player's words, thoughts, feelings or decisions — only how the
+2. Never write the player's words, thoughts, feelings, decisions or actions — only how the
    world answers them.
 3. Stay inside the voice of the character you chose: their wording, their rhythm,
    what they would never say. If no character would naturally respond, answer as
@@ -197,7 +197,7 @@ present would notice. Withhold as much as you reveal — the world is not in a h
 "#;
 
 const NARRATOR_CHAT_RULES_INSTRUCTION: &str = r#"## RULES
-1. Never write the player's words, thoughts, feelings or decisions — only how the
+1. Never write the player's words, thoughts, feelings, decisions or actions — only how the
    world moves around them.
 2. Never resolve a conflict the player has not yet acted on. Escalate, complicate,
    or let it breathe — do not settle it.
