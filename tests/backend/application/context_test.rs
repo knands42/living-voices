@@ -190,6 +190,32 @@ async fn previous_messages_classify_player_and_cast_turns() {
 }
 
 #[tokio::test]
+async fn the_player_characters_line_is_a_player_turn() {
+    // A message authored by the is_player character classifies as a player (user) turn.
+    let (pool, _db) = setup_db().await;
+    let adventure = setup_adventure(&pool, &[("Hero", true), ("Mira", false)]).await;
+    seed_active_act(&pool, adventure.id, None).await;
+
+    let player = adventure.characters[0].clone();
+    seed_player_message(&pool, &adventure, &player, "I stare at the sky.").await;
+
+    let mut conn = pool.acquire().await.expect("acquire");
+    let turns = ContextBuilder::build_autonomous_chat_prompt(
+        &mut conn,
+        &adventure,
+        &low_closure_director(),
+    )
+    .await
+    .expect("build prompt");
+
+    let player_turn = turns
+        .iter()
+        .find(|t| t.speaker == Speaker::Player)
+        .expect("the player character's line must be a player turn");
+    assert_eq!(player_turn.text, "I stare at the sky.");
+}
+
+#[tokio::test]
 async fn static_context_carries_the_running_digest_of_the_active_act() {
     let (pool, _db) = setup_db().await;
     let adventure = setup_adventure(&pool, &[("Mira", false)]).await;

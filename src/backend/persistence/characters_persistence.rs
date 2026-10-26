@@ -17,8 +17,8 @@ pub async fn insert_character(
     character: &Character,
 ) -> Result<(), PersistenceError> {
     sqlx::query(
-        "INSERT INTO character (id, adventure_id, name, description, backstory, status, portrait_path)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        "INSERT INTO character (id, adventure_id, name, description, backstory, status, portrait_path, is_player)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
     )
     .bind(character.id.to_string())
     .bind(adventure_id.map(|id| id.to_string()))
@@ -27,6 +27,7 @@ pub async fn insert_character(
     .bind(&character.backstory)
     .bind(&character.status.as_str())
     .bind(character.portrait_path.as_deref())
+    .bind(character.is_player)
     .execute(&mut *conn)
     .await?;
 

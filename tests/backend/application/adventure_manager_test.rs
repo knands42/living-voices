@@ -61,3 +61,43 @@ async fn adventure_insert_creates_default_narrator() {
     assert_eq!(id, adventure.narrator.id.to_string());
     assert_eq!(name, adventure.narrator.name);
 }
+
+#[tokio::test]
+async fn create_adventure_creates_a_default_player_character() {
+    let (pool, _db) = setup_db().await;
+    let manager = AdventureManager::new(SharedState::new(), pool.clone());
+
+    let adventure = manager
+        .create_adventure(
+            "Tides".into(),
+            "A drowned city".into(),
+            "Guide".into(),
+            "tense",
+        )
+        .await
+        .expect("create adventure");
+
+    // The returned adventure carries exactly one player character.
+    let players: Vec<_> = adventure
+        .characters
+        .iter()
+        .filter(|c| c.is_player)
+        .collect();
+    assert_eq!(players.len(), 1);
+    assert_eq!(players[0].name, "You");
+
+    // And it is persisted and flagged as the player in the DB.
+    let (name, is_player, count): (String, bool, u16) = sqlx::query_as(
+        "SELECT name, is_player,
+                (SELECT COUNT(*) FROM character WHERE adventure_id = ?1 AND is_player = 1)
+         FROM character WHERE adventure_id = ?1 AND is_player = 1",
+    )
+    .bind(adventure.id.to_string())
+    .fetch_one(&pool)
+    .await
+    .expect("a persisted player character must exist");
+
+    assert_eq!(count, 1);
+    assert!(is_player);
+    assert_eq!(name, "You");
+}

@@ -53,6 +53,8 @@ pub struct Character {
 }
 
 impl Character {
+    pub const DEFAULT_PLAYER_NAME: &'static str = "You";
+
     pub fn new(name: String, adventure_id: Option<Uuid>, description: String) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -87,6 +89,15 @@ impl Character {
     pub fn set_as_player(mut self) -> Self {
         self.is_player = true;
         self
+    }
+
+    pub fn player(adventure_id: Uuid) -> Self {
+        Self::new(
+            String::from(Self::DEFAULT_PLAYER_NAME),
+            Some(adventure_id),
+            String::new(),
+        )
+        .set_as_player()
     }
 
     pub fn add_tags(&mut self, tag: String) {

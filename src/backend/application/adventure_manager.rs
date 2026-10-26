@@ -6,8 +6,11 @@ use crate::backend::persistence::memory_persistence::upsert_state;
 use crate::backend::{
     PersistenceError,
     application::state::{SharedState, StateError},
-    domain::adventure::Adventure,
-    persistence::{adventure_persistence::insert_adventure, narrator_persistence::insert_narrator},
+    domain::{adventure::Adventure, character::Character},
+    persistence::{
+        adventure_persistence::insert_adventure, characters_persistence::insert_character,
+        narrator_persistence::insert_narrator,
+    },
 };
 
 #[derive(Error, Debug)]
@@ -36,7 +39,8 @@ impl AdventureManager {
         narrator_name: String,
         adventure_tone: &str,
     ) -> Result<Adventure, AdventureManagerError> {
-        let adventure = Adventure::new(title, description, narrator_name, adventure_tone);
+        let mut adventure = Adventure::new(title, description, narrator_name, adventure_tone);
+        adventure.characters.push(Character::player(adventure.id));
         {
             let mut guard = self.state.write()?;
             guard.set_adventure(adventure.clone());
@@ -46,6 +50,9 @@ impl AdventureManager {
         insert_adventure(&mut conn, &adventure).await?;
         insert_narrator(&mut conn, adventure.id, &adventure.narrator).await?;
         upsert_state(&mut conn, &State::new(adventure.id)).await?;
+        for character in &adventure.characters {
+            insert_character(&mut conn, Some(adventure.id), character).await?;
+        }
         Ok(adventure)
     }
 
