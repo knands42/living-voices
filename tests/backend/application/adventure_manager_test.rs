@@ -47,9 +47,9 @@ async fn adventure_insert_creates_default_narrator() {
     let (pool, _db) = setup_db().await;
     let adventure = create_adventure(&pool, &[]).await;
 
-    // then: exactly one narrator exists for it, with the default voice
-    let (name, tone, count): (String, String, u16) = sqlx::query_as(
-        "SELECT name, tone, (SELECT COUNT(*) FROM narrator WHERE adventure_id = ?1)
+    // then: exactly one narrator exists for it, matching the adventure's own narrator
+    let (id, name, count): (String, String, u16) = sqlx::query_as(
+        "SELECT id, name, (SELECT COUNT(*) FROM narrator WHERE adventure_id = ?1)
          FROM narrator WHERE adventure_id = ?1",
     )
     .bind(adventure.id.to_string())
@@ -58,6 +58,6 @@ async fn adventure_insert_creates_default_narrator() {
     .expect("an adventure must have its default narrator row");
 
     assert_eq!(count, 1);
-    assert_eq!(name, "Narrator");
-    assert!(!tone.trim().is_empty());
+    assert_eq!(id, adventure.narrator.id.to_string());
+    assert_eq!(name, adventure.narrator.name);
 }

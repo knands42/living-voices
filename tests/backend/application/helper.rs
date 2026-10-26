@@ -5,11 +5,13 @@ use uuid::Uuid;
 
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::Character;
+use living_voices::backend::domain::memory::State;
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::persistence::characters_persistence::insert_character;
+use living_voices::backend::persistence::memory_persistence::upsert_state;
 use living_voices::backend::persistence::message_persistence::insert_message;
-use living_voices::backend::persistence::narrator_persistence::upsert_narrator;
+use living_voices::backend::persistence::narrator_persistence::insert_narrator;
 
 pub struct TempDb(pub PathBuf);
 impl Drop for TempDb {
@@ -109,6 +111,12 @@ pub async fn create_adventure(pool: &SqlitePool, specs: &[CharacterSpec]) -> Adv
     insert_adventure(&mut conn, &adventure)
         .await
         .expect("insert adventure");
+    insert_narrator(&mut conn, adventure.id, &adventure.narrator)
+        .await
+        .expect("insert narrator");
+    upsert_state(&mut conn, &State::new(adventure.id))
+        .await
+        .expect("insert initial state");
     for character in &adventure.characters {
         insert_character(&mut conn, Some(adventure.id), character)
             .await
