@@ -5,9 +5,7 @@ use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, ActStatus};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::error::PersistenceError;
-use crate::backend::persistence::memory_persistence::{
-    count_uncovered_per_act, get_act, get_state,
-};
+use crate::backend::persistence::memory_persistence::{count_messages_per_act, get_act, get_state};
 use crate::backend::persistence::message_persistence::fetch_last_n;
 use sqlx::SqliteConnection;
 
@@ -57,7 +55,7 @@ Example 3 — the world
 {"replier": "NARRATOR", "reply": "Torches flare along the wall. A second horn answers the first, much closer. Behind the shut gate, boots move in numbers.", "act_closure": null}
 "#;
 
-const CLOSURE_PROMPT: &str = r#"[ADDITIONAL INFORMATION] This ongoing act has {0} of at most {1} messages.
+const CLOSURE_PROMPT: &str = r#"## CLOSURE INFORMATION
 After writing this next beat normally, judge how close the ACT is to a natural close —
 its goal from CURRENT ACT is your reference, not the mood of this conversation.
 
@@ -75,6 +73,17 @@ Set the "act_closure" field of your JSON reply to an integer 0-5:
 Judge the fiction, not your own prose. A loud argument is not a close; a quiet
 moment after it, where the story would naturally turn, is. Do not inflate the
 number to be helpful — most beats are 1 or 2."#;
+
+const PACING_PROMPT: &str = r#"## PACING
+This act is at message {0} of about {1} — {2}% of its length.
+Pace the story against that budget, not just the mood of the moment.
+If the act's length is running low and its goal from CURRENT ACT is still
+far off, bend the next beats toward that goal: prefer NARRATOR or a character
+who can move the story forward over one who would stall it. Do not rush a goal
+that is already near — an act can also close early, well before its length runs
+out, once its goal is genuinely met."#;
+// TODO: when the last act_closure score is persisted on the act, add a
+// "Goal progress last judged: N of 5." line to PACING_PROMPT.
 
 // TODO: Improve this prompt
 const DISTILL_PROMPT: &str = r#"## DISTILL
@@ -228,7 +237,7 @@ impl ContextBuilder {
             AUTONOMOUS_CHAT_CHAT_EXAMPLES_INSTRUCTION.to_string(),
         ];
 
-        ContextBuilder::assemble(conn, adventure, director, &head, true).await
+        ContextBuilder::assemble(conn, adventure, director, &head).await
     }
 
     pub async fn build_single_character_chat_prompt(
@@ -246,7 +255,7 @@ impl ContextBuilder {
             character.render(),
         ];
 
-        ContextBuilder::assemble(conn, adventure, director, &head, false).await
+        ContextBuilder::assemble(conn, adventure, director, &head).await
     }
 
     pub async fn build_narrator_chat_prompt(
@@ -262,7 +271,7 @@ impl ContextBuilder {
             NARRATOR_CHAT_EXAMPLES_INSTRUCTION.to_string(),
         ];
 
-        ContextBuilder::assemble(conn, adventure, director, &head, false).await
+        ContextBuilder::assemble(conn, adventure, director, &head).await
     }
 
     async fn assemble(
@@ -270,7 +279,6 @@ impl ContextBuilder {
         adventure: &Adventure,
         director: &Director,
         head: &[String],
-        request_closure: bool,
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
 
@@ -279,14 +287,21 @@ impl ContextBuilder {
         ));
         turns.extend(ContextBuilder::build_previous_messages(conn, adventure).await?);
 
-        if request_closure {
-            let messages_in_act = count_uncovered_per_act(conn, adventure.id).await? as u16;
-            if director.should_request_closure(messages_in_act) {
-                turns.push(PromptTurn::system(ContextBuilder::build_closure_prompt(
-                    messages_in_act,
-                    director.get_max_act_messages(),
-                )));
-            }
+        let messages_in_act = count_messages_per_act(conn, adventure.id).await? as u16;
+        let max_messages = director.get_max_act_messages();
+
+        if director.should_request_pacing_prompt(messages_in_act) {
+            turns.push(PromptTurn::system(ContextBuilder::build_pacing_prompt(
+                messages_in_act,
+                max_messages,
+            )));
+        }
+
+        if director.should_request_closure_prompt(messages_in_act) {
+            turns.push(PromptTurn::system(ContextBuilder::build_closure_prompt(
+                messages_in_act,
+                max_messages,
+            )));
         }
 
         Ok(turns)
@@ -437,6 +452,23 @@ impl ContextBuilder {
         CLOSURE_PROMPT
             .replace("{0}", &current_number_of_messages.to_string())
             .replace("{1}", &current_act_messages_max_threshold.to_string())
+    }
+
+    pub fn build_pacing_prompt(
+        current_number_of_messages: u16,
+        current_act_messages_max_threshold: u16,
+    ) -> String {
+        let percent = if current_act_messages_max_threshold == 0 {
+            0
+        } else {
+            (current_number_of_messages as u32 * 100 / current_act_messages_max_threshold as u32)
+                as u16
+        };
+
+        PACING_PROMPT
+            .replace("{0}", &current_number_of_messages.to_string())
+            .replace("{1}", &current_act_messages_max_threshold.to_string())
+            .replace("{2}", &percent.to_string())
     }
 
     pub async fn build_distill_prompt(

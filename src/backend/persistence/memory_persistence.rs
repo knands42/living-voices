@@ -48,7 +48,8 @@ struct ActRow {
     running_digest: Option<String>,
     digest_to_seq: Option<u16>,
     from_seq: u16,
-    to_seq: Option<u16>,
+    to_seq: u16,
+    last_closure_score: u16,
     created_at: String,
     updated_at: String,
 }
@@ -67,7 +68,8 @@ impl ActRow {
             running_digest: row.get("running_digest"),
             digest_to_seq: row.get::<Option<u16>, _>("digest_to_seq"),
             from_seq: row.get::<u16, _>("from_seq"),
-            to_seq: row.get::<Option<u16>, _>("to_seq"),
+            to_seq: row.get::<u16, _>("to_seq"),
+            last_closure_score: row.get::<u16, _>("last_closure_score"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         }
@@ -75,7 +77,7 @@ impl ActRow {
 }
 
 /// How many messages sit inside the adventure's active act.
-pub async fn count_uncovered_per_act(
+pub async fn count_messages_per_act(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
 ) -> Result<u16, PersistenceError> {
@@ -135,7 +137,7 @@ pub async fn get_act(
     adventure_id: Uuid,
 ) -> Result<Vec<Act>, PersistenceError> {
     let row = sqlx::query(
-        "SELECT id, adventure_id, ordinal, goal, trigger, status, index_line, digest, running_digest, digest_to_seq, from_seq, to_seq, created_at, updated_at
+        "SELECT id, adventure_id, ordinal, goal, trigger, status, index_line, digest, running_digest, digest_to_seq, from_seq, to_seq, last_closure_score, created_at, updated_at
          FROM act
          WHERE adventure_id = ?1",
     )
@@ -156,7 +158,7 @@ pub async fn get_active_act(
 ) -> Result<Option<Act>, PersistenceError> {
     let row = sqlx::query(
         "SELECT id, adventure_id, ordinal, goal, trigger, status, index_line, digest,
-                running_digest, digest_to_seq, from_seq, to_seq, created_at, updated_at
+                running_digest, digest_to_seq, from_seq, to_seq, last_closure_score, created_at, updated_at
          FROM act
          WHERE adventure_id = ?1 AND status = 'active'
          ORDER BY ordinal DESC
@@ -254,6 +256,24 @@ pub async fn update_act_running_digest(
     Ok(())
 }
 
+pub async fn update_active_act_last_closure_score(
+    conn: &mut SqliteConnection,
+    adventure_id: Uuid,
+    score: u16,
+) -> Result<(), PersistenceError> {
+    sqlx::query(
+        "UPDATE act
+         SET last_closure_score = ?2
+         WHERE adventure_id = ?1 AND status = 'active'",
+    )
+    .bind(adventure_id.to_string())
+    .bind(score)
+    .execute(&mut *conn)
+    .await?;
+
+    Ok(())
+}
+
 impl TryFrom<StateRow> for State {
     type Error = PersistenceError;
 
@@ -293,7 +313,8 @@ impl TryFrom<ActRow> for Act {
             running_digest: row.running_digest,
             digest_to_seq: row.digest_to_seq.map(|seq| seq),
             from_seq: row.from_seq,
-            to_seq: row.to_seq.map(|seq| seq as u16),
+            to_seq: row.to_seq,
+            last_closure_score: row.last_closure_score,
             created_at: from_str_to_timestamp(&row.created_at)?,
             updated_at: from_str_to_timestamp(&row.updated_at)?,
         })

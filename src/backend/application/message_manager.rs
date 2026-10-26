@@ -9,7 +9,9 @@ use crate::backend::application::port::memory_port::MemoryDistiller;
 use crate::backend::application::state::{SharedState, StateError};
 use crate::backend::domain::character::Character;
 use crate::backend::domain::message::Message;
-use crate::backend::persistence::memory_persistence::get_active_candidates;
+use crate::backend::persistence::memory_persistence::{
+    get_active_candidates, update_active_act_last_closure_score,
+};
 use crate::backend::persistence::message_persistence::{
     count_since_last_narration, insert_message,
 };
@@ -102,12 +104,19 @@ impl<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller + Clone + 'static>
         let reply_message = adventure.message_from_reply(&chat_reply.replier, &chat_reply.reply);
         let stored_reply = self.create_message(reply_message).await?;
 
-        // TODO: act_closure (chat_reply.act_closure) is parsed but not yet acted on —
-        // wire it to close the current act when it reaches 5.
+        if let Some(score) = chat_reply.act_closure {
+            let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+            update_active_act_last_closure_score(&mut conn, adventure.id, score as u16).await?;
+        }
+
+        // TODO: when last_closure_score reaches 5, run the act-close path
+        // (distill act N, freeze its digest, open act N+1, narrate the transition).
         // TODO: promote NPCs the distill pass names in state.characters_present but
         // that are absent from the characters table.
 
         self.maybe_compress_memory().await;
+
+        // TODO: check if make sense to call for another llm message (multiple characters talk per turn)
 
         Ok(stored_reply)
     }

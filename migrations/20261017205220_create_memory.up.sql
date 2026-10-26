@@ -2,26 +2,31 @@
 -- An act lasts roughly 200-600 messages.
 CREATE TABLE act
 (
-    id             TEXT    NOT NULL PRIMARY KEY,
-    adventure_id   TEXT    NOT NULL REFERENCES adventure (id) ON DELETE CASCADE,
-    ordinal        INTEGER NOT NULL,
-    goal           TEXT    NOT NULL,           -- "recover the crown"
-    trigger        TEXT,                       -- optional authored entry condition
-    status         TEXT    NOT NULL,           -- unstarted|active|resolved|failed|bypassed
-    index_line     TEXT,                       -- immutable: "ACT 1 Crown: tavern lead, cave trail, vault guardian — crown recovered"
-    digest         TEXT,                       -- ~120 words, prose, written at act close
-    running_digest TEXT,                       -- dont append, only override
-    digest_to_seq  INTEGER,                    -- mutable watermark: last message seq folded into running_digest
-    from_seq       INTEGER          DEFAULT 0, -- first message seq covered
-    to_seq         INTEGER,                    -- last message seq covered
-    created_at     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-    updated_at     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    id               TEXT    NOT NULL PRIMARY KEY,
+    adventure_id     TEXT    NOT NULL REFERENCES adventure (id) ON DELETE CASCADE,
+    ordinal          INTEGER NOT NULL,
+    goal             TEXT    NOT NULL,           -- "recover the crown"
+    trigger          TEXT,                       -- optional authored entry condition
+    status           TEXT    NOT NULL,           -- unstarted|active|resolved|failed|bypassed
+    index_line       TEXT,                       -- immutable: "ACT 1 Crown: tavern lead, cave trail, vault guardian — crown recovered"
+    digest           TEXT,                       -- ~120 words, prose, written at act close
+    from_seq         INTEGER          DEFAULT 0, -- first message seq covered
+    to_seq           INTEGER          DEFAULT 0, -- last message seq covered
+
+    running_digest   TEXT,                       -- live act progress: dont append, only override
+    digest_to_seq    INTEGER,                    -- live act progress: last message seq folded into running_digest
+    last_closure_score INTEGER        NOT NULL DEFAULT 0, -- live act progress: most recent act_closure score (0-5) the autonomous model judged
+
+    created_at       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
     CONSTRAINT act_id_is_uuid CHECK (length(id) = 36),
     CONSTRAINT act_goal_not_blank CHECK (length(trim(goal)) > 0),
     CONSTRAINT act_status_known
         CHECK (status IN ('unstarted', 'active', 'resolved', 'failed', 'bypassed')),
-    CONSTRAINT act_span_ordered CHECK (from_seq IS NULL OR to_seq IS NULL OR to_seq >= from_seq)
+    CONSTRAINT act_span_ordered CHECK (to_seq = 0 OR to_seq >= from_seq),
+    CONSTRAINT act_last_closure_range
+        CHECK (last_closure_score >= 0 AND last_closure_score <= 5)
 );
 
 CREATE INDEX act_adventure_ordinal_idx ON act (adventure_id, ordinal);

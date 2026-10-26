@@ -54,8 +54,12 @@ impl Director {
         // TODO: Implement logic for picking a character when the roll is not for the targeted character.
     }
 
-    pub fn should_request_closure(&self, messages_in_act: u16) -> bool {
-        messages_in_act >= self.director_settings.act_max_messages / 2
+    pub fn should_request_pacing_prompt(&self, messages_in_act: u16) -> bool {
+        messages_in_act >= self.director_settings.act_max_messages / 3
+    }
+
+    pub fn should_request_closure_prompt(&self, messages_in_act: u16) -> bool {
+        messages_in_act >= self.director_settings.act_max_messages / 3
     }
 
     pub fn get_max_act_messages(&self) -> u16 {

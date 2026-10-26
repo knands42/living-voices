@@ -8,7 +8,7 @@ use living_voices::backend::domain::memory::{Fact, Permanence, State};
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::persistence::memory_persistence::{
-    count_uncovered_per_act, get_act, get_active_act, get_active_candidates, get_state,
+    count_messages_per_act, get_act, get_active_act, get_active_candidates, get_state,
     insert_facts, update_act_running_digest, upsert_state,
 };
 use living_voices::backend::persistence::message_persistence::insert_message;
@@ -247,7 +247,7 @@ async fn update_act_running_digest_sets_digest_and_watermark() {
     assert_eq!(act.digest_to_seq, Some(42));
     // The immutable span is untouched.
     assert_eq!(act.from_seq, 0);
-    assert!(act.to_seq.is_none());
+    assert_eq!(act.to_seq, 0);
 }
 
 // ---------------------------------------------------------------- counts
@@ -264,7 +264,7 @@ async fn count_uncovered_per_act_counts_messages_from_the_active_act_start() {
     seed_act(&pool, adventure.id, 1, "active", Some(first + 1), None).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
-    let count = count_uncovered_per_act(&mut conn, adventure.id)
+    let count = count_messages_per_act(&mut conn, adventure.id)
         .await
         .expect("count");
     assert_eq!(count, 2);
