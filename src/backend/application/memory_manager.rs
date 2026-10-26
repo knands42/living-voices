@@ -11,7 +11,8 @@ use crate::backend::application::state::{SharedState, StateError};
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::memory::{Act, ActStatus, Fact, Permanence, State};
 use crate::backend::persistence::memory_persistence::{
-    close_act, get_active_act, insert_act, insert_facts, update_act_running_digest, upsert_state,
+    activate_next_act, close_act, get_active_act, insert_act, insert_facts,
+    update_act_running_digest, upsert_state,
 };
 use crate::backend::persistence::message_persistence::{count_since_last_narration, fetch_since};
 
@@ -169,16 +170,7 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
             to_seq,
         )
         .await?;
-
-        let next = Act::new(
-            adventure.id,
-            act.ordinal + 1,
-            "TODO: author the next act's goal",
-        )
-        .with_status(ActStatus::Active);
-        let mut next = next;
-        next.from_seq = to_seq + 1;
-        insert_act(&mut tx, &next).await?;
+        activate_next_act(&mut tx, adventure.id).await?;
 
         tx.commit().await.map_err(PersistenceError::from)?;
         Ok(())
@@ -207,6 +199,7 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
         Ok(())
     }
 
+    // TODO: Move to distilledfact struct
     fn to_facts(
         adventure_id: uuid::Uuid,
         act_id: uuid::Uuid,

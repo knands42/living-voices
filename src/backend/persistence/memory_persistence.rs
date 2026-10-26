@@ -319,6 +319,29 @@ pub async fn close_act(
     Ok(())
 }
 
+pub async fn activate_next_act(
+    conn: &mut SqliteConnection,
+    adventure_id: Uuid,
+) -> Result<(), PersistenceError> {
+    sqlx::query(
+        r#"
+        UPDATE act
+        SET status = 'active'
+        WHERE adventure_id = ?1 AND ordinal = (
+            SELECT ordinal + 1
+            FROM act
+            WHERE adventure_id = ?1 AND status = 'closed'
+            ORDER BY ordinal DESC
+            LIMIT 1
+        )"#,
+    )
+    .bind(adventure_id.to_string())
+    .execute(&mut *conn)
+    .await?;
+
+    Ok(())
+}
+
 impl TryFrom<StateRow> for State {
     type Error = PersistenceError;
 
