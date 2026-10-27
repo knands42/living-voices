@@ -16,17 +16,13 @@ fn memory_model() -> TextModel {
     config.settings.models.memory
 }
 
-/// Build the distiller the app wires in, from the configured memory model.
 fn distiller() -> MemoryUpdate {
     MemoryUpdate::new(memory_model())
 }
-
-/// Build the act closer the app wires in, from the configured memory model.
 fn closer() -> ActClose {
     ActClose::new(memory_model())
 }
 
-/// Seed an active act with an optional digest watermark and return its id.
 async fn seed_active_act(
     pool: &SqlitePool,
     adventure_id: Uuid,

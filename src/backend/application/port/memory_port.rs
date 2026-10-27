@@ -1,5 +1,7 @@
 use crate::backend::application::port::chat_port::PromptTurn;
+use crate::backend::domain::memory::{ActStatus, Fact, Permanence, State};
 use thiserror::Error;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FactPermanence {
@@ -16,12 +18,40 @@ impl FactPermanence {
     }
 }
 
+impl From<FactPermanence> for Permanence {
+    fn from(value: FactPermanence) -> Self {
+        match value {
+            FactPermanence::Permanent => Permanence::Permanent,
+            FactPermanence::Plot => Permanence::Plot,
+        }
+    }
+}
+
 /// One atomic fact destined for a `facts` row.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DistilledFact {
     pub subject: String,
     pub fact: String,
     pub permanence: FactPermanence,
+}
+
+impl DistilledFact {
+    pub fn into_facts(adventure_id: Uuid, act_id: Uuid, facts: Vec<Self>) -> Vec<Fact> {
+        facts
+            .into_iter()
+            .map(|fact| fact.into_fact(adventure_id, act_id))
+            .collect()
+    }
+
+    fn into_fact(self, adventure_id: Uuid, act_id: Uuid) -> Fact {
+        Fact::new(
+            adventure_id,
+            self.subject.clone(),
+            self.fact.clone(),
+            act_id,
+            Permanence::from(self.permanence),
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -31,6 +61,17 @@ pub struct DistilledState {
     pub characters_present: Vec<String>,
     pub open_threads: Vec<String>,
     pub conditions: Vec<String>,
+}
+
+impl DistilledState {
+    pub fn into_state(self, adventure_id: Uuid) -> State {
+        State::new(adventure_id)
+            .with_conditions(self.conditions.clone())
+            .with_characters_present(self.characters_present.clone())
+            .with_open_threads(self.open_threads.clone())
+            .with_day(self.day.clone())
+            .with_place(self.place.clone())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,6 +99,16 @@ pub enum ClosedActStatus {
     Resolved,
     Failed,
     Bypassed,
+}
+
+impl From<ClosedActStatus> for ActStatus {
+    fn from(value: ClosedActStatus) -> Self {
+        match value {
+            ClosedActStatus::Resolved => ActStatus::Resolved,
+            ClosedActStatus::Failed => ActStatus::Failed,
+            ClosedActStatus::Bypassed => ActStatus::Bypassed,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

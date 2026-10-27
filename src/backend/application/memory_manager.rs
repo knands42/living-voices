@@ -1,18 +1,20 @@
-use sqlx::{Acquire, SqlitePool};
+use sqlx::{Acquire, SqliteConnection, SqlitePool};
 use thiserror::Error;
+use uuid::Uuid;
 
 use crate::backend::PersistenceError;
 use crate::backend::application::context::ContextBuilder;
 use crate::backend::application::port::memory_port::{
-    ActCloser, ClosedAct, ClosedActError, ClosedActStatus, DistillError, DistilledFact,
-    DistilledMemory, DistilledState, FactPermanence, MemoryDistiller,
+    ActCloser, ClosedAct, ClosedActError, DistillError, DistilledFact, DistilledMemory,
+    MemoryDistiller,
 };
 use crate::backend::application::state::{SharedState, StateError};
 use crate::backend::domain::adventure::Adventure;
-use crate::backend::domain::memory::{Act, ActStatus, Fact, Permanence, State};
+use crate::backend::domain::memory::{Act, ActStatus};
+use crate::backend::domain::message::Message;
 use crate::backend::persistence::memory_persistence::{
-    activate_next_act, close_act, get_active_act, insert_act, insert_facts,
-    update_act_running_digest, upsert_state,
+    activate_next_act, close_act, get_active_act, insert_facts, update_act_running_digest,
+    upsert_state,
 };
 use crate::backend::persistence::message_persistence::{count_since_last_narration, fetch_since};
 
@@ -73,18 +75,11 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
         };
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let Some(act) = get_active_act(&mut conn, adventure.id).await? else {
+        let Some((act, uncovered, digest_to_seq)) =
+            self.load_uncovered(&mut conn, adventure.id).await?
+        else {
             return Ok(());
         };
-
-        let after_seq = act.digest_to_seq.unwrap_or(0);
-        let uncovered = fetch_since(&mut conn, adventure.id, after_seq + 1).await?;
-        let Some(last) = uncovered.last() else {
-            return Ok(());
-        };
-        let digest_to_seq = last
-            .seq
-            .ok_or_else(|| MemoryManagerError::MissingSequence(last.text.clone()))?;
 
         let prompt =
             ContextBuilder::build_distill_prompt(&mut conn, &adventure, &uncovered).await?;
@@ -104,20 +99,13 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
         };
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let Some(act) = get_active_act(&mut conn, adventure.id).await? else {
+        let Some((act, uncovered, digest_to_seq)) =
+            self.load_uncovered(&mut conn, adventure.id).await?
+        else {
             return Ok(());
         };
 
-        let after_seq = act.digest_to_seq.unwrap_or(0);
-        let uncovered = fetch_since(&mut conn, adventure.id, after_seq + 1).await?;
-        let Some(last) = uncovered.last() else {
-            return Ok(());
-        };
-        let digest_to_seq = last
-            .seq
-            .ok_or_else(|| MemoryManagerError::MissingSequence(last.text.clone()))?;
-
-        // TODO: Do I really need to distill here?
+        // Distill first so facts/state can be up to date
         let distilled = {
             let prompt =
                 ContextBuilder::build_distill_prompt(&mut conn, &adventure, &uncovered).await?;
@@ -152,21 +140,20 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
     ) -> Result<(), MemoryManagerError> {
         let mut tx = conn.begin().await.map_err(PersistenceError::from)?;
 
-        let facts = Self::to_facts(adventure.id, act.id, &distilled.facts);
+        let facts = DistilledFact::into_facts(adventure.id, act.id, distilled.facts);
         insert_facts(&mut tx, &facts).await?;
 
-        let state = Self::to_state(adventure.id, &distilled.state);
+        let state = distilled.state.into_state(adventure.id);
         upsert_state(&mut tx, &state).await?;
 
         update_act_running_digest(&mut tx, act.id, &distilled.running_digest, to_seq).await?;
-        let e = ClosedActStatus::from(closed.status);
 
         close_act(
             &mut tx,
             act.id,
             &closed.index_line,
             &closed.digest,
-            &Self::map_status(closed.status).to_string(),
+            &ActStatus::from(closed.status).to_string(),
             to_seq,
         )
         .await?;
@@ -186,10 +173,10 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
     ) -> Result<(), MemoryManagerError> {
         let mut tx = conn.begin().await.map_err(PersistenceError::from)?;
 
-        let facts = Self::to_facts(adventure.id, act.id, &distilled.facts);
+        let facts = DistilledFact::into_facts(adventure.id, act.id, distilled.facts);
         insert_facts(&mut tx, &facts).await?;
 
-        let state = Self::to_state(adventure.id, &distilled.state);
+        let state = distilled.state.into_state(adventure.id);
         upsert_state(&mut tx, &state).await?;
 
         update_act_running_digest(&mut tx, act.id, &distilled.running_digest, digest_to_seq)
@@ -199,47 +186,25 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
         Ok(())
     }
 
-    // TODO: Move to distilledfact struct
-    fn to_facts(
-        adventure_id: uuid::Uuid,
-        act_id: uuid::Uuid,
-        facts: &[DistilledFact],
-    ) -> Vec<Fact> {
-        facts
-            .iter()
-            .map(|f| {
-                Fact::new(
-                    adventure_id,
-                    f.subject.clone(),
-                    f.fact.clone(),
-                    act_id,
-                    Self::map_permanence(f.permanence),
-                )
-            })
-            .collect()
-    }
+    async fn load_uncovered(
+        &self,
+        conn: &mut SqliteConnection,
+        adventure_id: Uuid,
+    ) -> Result<Option<(Act, Vec<Message>, u16)>, MemoryManagerError> {
+        let Some(act) = get_active_act(conn, adventure_id).await? else {
+            return Ok(None);
+        };
 
-    fn to_state(adventure_id: uuid::Uuid, snapshot: &DistilledState) -> State {
-        State::new(adventure_id)
-            .with_conditions(snapshot.conditions.clone())
-            .with_characters_present(snapshot.characters_present.clone())
-            .with_open_threads(snapshot.open_threads.clone())
-            .with_day(snapshot.day.clone())
-            .with_place(snapshot.place.clone())
-    }
+        let after_seq = act.digest_to_seq.unwrap_or(0);
+        let uncovered = fetch_since(conn, adventure_id, after_seq + 1).await?;
+        let Some(last) = uncovered.last() else {
+            return Ok(None);
+        };
 
-    fn map_permanence(permanence: FactPermanence) -> Permanence {
-        match permanence {
-            FactPermanence::Permanent => Permanence::Permanent,
-            FactPermanence::Plot => Permanence::Plot,
-        }
-    }
+        let digest_to_seq = last
+            .seq
+            .ok_or_else(|| MemoryManagerError::MissingSequence(last.text.clone()))?;
 
-    fn map_status(status: ClosedActStatus) -> ActStatus {
-        match status {
-            ClosedActStatus::Resolved => ActStatus::Resolved,
-            ClosedActStatus::Failed => ActStatus::Failed,
-            ClosedActStatus::Bypassed => ActStatus::Bypassed,
-        }
+        Ok(Some((act, uncovered, digest_to_seq)))
     }
 }
