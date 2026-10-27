@@ -117,6 +117,23 @@ fn set_as_player_marks_the_character() {
 }
 
 #[test]
+fn player_builds_the_default_player_character() {
+    let adventure_id = Uuid::new_v4();
+    let player = Character::player(adventure_id);
+
+    assert!(player.is_player);
+    assert_eq!(player.name, Character::DEFAULT_PLAYER_NAME);
+    assert_eq!(player.adventure_id, Some(adventure_id));
+}
+
+#[test]
+fn status_as_str_covers_every_variant() {
+    assert_eq!(CharacterStatus::Present.as_str(), "present");
+    assert_eq!(CharacterStatus::Away.as_str(), "away");
+    assert_eq!(CharacterStatus::Unavailable.as_str(), "unavailable");
+}
+
+#[test]
 fn render_includes_name_description_backstory_and_traits() {
     let mut character =
         new_character().with_backstory("Kept the lamp lit for forty years.".to_string());
