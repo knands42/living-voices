@@ -2,7 +2,7 @@ mod adventure_manager_test;
 
 mod character_manager_test;
 
-mod context_test;
+mod context;
 
 mod director_test;
 

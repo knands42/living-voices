@@ -12,54 +12,7 @@ use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::message_persistence::insert_message;
 use living_voices::config::DirectorSettings;
 
-// ---------------------------------------------------------------- pure helpers
-
-#[test]
-fn build_settings_prompt_includes_set_fields_and_omits_empty_ones() {
-    let mut adventure = Adventure::new(
-        "Tides of Glass".into(),
-        "A drowned city".into(),
-        "The Chronicler".into(),
-        "tense",
-    );
-    adventure.genre = Some("mystery".into());
-    adventure.lore = adventure.lore.with_text("The sea remembers.".into());
-
-    let prompt = ContextBuilder::build_settings_prompt(&adventure);
-    assert!(prompt.contains("## SETTINGS"));
-    assert!(prompt.contains("Title: Tides of Glass"));
-    assert!(prompt.contains("Premise: A drowned city"));
-    assert!(prompt.contains("Genre: mystery"));
-    assert!(prompt.contains("Tone: tense"));
-    assert!(prompt.contains("Lore: The sea remembers."));
-    assert!(prompt.contains("Narrator: The Chronicler"));
-}
-
-#[test]
-fn build_settings_prompt_omits_unset_optional_fields() {
-    let adventure = Adventure::new("A".into(), String::new(), "Guide".into(), "");
-    let prompt = ContextBuilder::build_settings_prompt(&adventure);
-    assert!(prompt.contains("Title: A"));
-    assert!(!prompt.contains("Premise:"));
-    assert!(!prompt.contains("Genre:"));
-    assert!(!prompt.contains("Tone:"));
-    assert!(!prompt.contains("Lore:"));
-}
-
-#[test]
-fn build_closure_prompt_asks_for_the_act_closure_field() {
-    let prompt = ContextBuilder::build_closure_prompt(120, 200);
-    assert!(prompt.contains("\"act_closure\""));
-}
-
-#[test]
-fn build_pacing_prompt_substitutes_counts_and_percent() {
-    let prompt = ContextBuilder::build_pacing_prompt(120, 200);
-    assert!(prompt.contains("message 120 of about 200"));
-    assert!(prompt.contains("60%"));
-}
-
-// ---------------------------------------------------------------- DB fixtures
+// region DB fixtures
 
 async fn setup_adventure(pool: &SqlitePool, characters: &[(&str, bool)]) -> Adventure {
     let specs: Vec<CharacterSpec> = characters
@@ -138,7 +91,9 @@ fn low_closure_director() -> Director {
     })
 }
 
-// ---------------------------------------------------------------- autonomous prompt
+// endregion
+
+// region Autonomous prompt
 
 #[tokio::test]
 async fn autonomous_prompt_opens_with_system_turns_and_the_full_cast() {
@@ -160,6 +115,63 @@ async fn autonomous_prompt_opens_with_system_turns_and_the_full_cast() {
     assert!(turns[0].text.contains("## CHARACTERS CAST"));
     assert!(turns[0].text.contains("Mira."));
     assert!(turns[0].text.contains("Kael."));
+}
+
+#[tokio::test]
+async fn system_head_renders_the_adventure_settings() {
+    let (pool, _db) = setup_db().await;
+    let mut adventure = setup_adventure(&pool, &[("Mira", false)]).await;
+    adventure.title = "Tides of Glass".into();
+    adventure.description = "A drowned city".into();
+    adventure.genre = Some("mystery".into());
+    adventure.tone = "tense".into();
+    adventure.lore = adventure.lore.with_text("The sea remembers.".into());
+    seed_active_act(&pool, adventure.id, None).await;
+    let mut conn = pool.acquire().await.expect("acquire");
+
+    let turns = ContextBuilder::build_autonomous_chat_prompt(
+        &mut conn,
+        &adventure,
+        &low_closure_director(),
+    )
+    .await
+    .expect("build prompt");
+
+    let head = &turns[0].text;
+    assert!(head.contains("## SETTINGS"));
+    assert!(head.contains("Title: Tides of Glass"));
+    assert!(head.contains("Premise: A drowned city"));
+    assert!(head.contains("Genre: mystery"));
+    assert!(head.contains("Tone: tense"));
+    assert!(head.contains("Lore: The sea remembers."));
+}
+
+#[tokio::test]
+async fn pacing_prompt_appears_with_counts_once_the_gate_opens() {
+    let (pool, _db) = setup_db().await;
+    let adventure = setup_adventure(&pool, &[("Mira", false)]).await;
+    seed_active_act(&pool, adventure.id, None).await;
+    let author = adventure.characters[0].clone();
+    for i in 0..3 {
+        seed_player_message(&pool, &adventure, &author, &format!("line {i}")).await;
+    }
+
+    let mut conn = pool.acquire().await.expect("acquire");
+    // A small cap opens the pacing gate; 3 of ~5 messages is 60%.
+    let eager = Director::new(DirectorSettings {
+        act_max_messages: 5,
+        ..Default::default()
+    });
+    let turns = ContextBuilder::build_autonomous_chat_prompt(&mut conn, &adventure, &eager)
+        .await
+        .expect("build prompt");
+
+    let pacing = turns
+        .iter()
+        .find(|t| t.text.contains("## PACING"))
+        .expect("a pacing turn once the gate opens");
+    assert!(pacing.text.contains("message 3 of about 5"));
+    assert!(pacing.text.contains("60%"));
 }
 
 #[tokio::test]
@@ -271,6 +283,12 @@ async fn closure_prompt_appears_only_once_the_gate_opens() {
         has_closure,
         "closure prompt should be present once the gate opens"
     );
+    // The closure instruction asks the model to set the act_closure field.
+    let closure = turns
+        .iter()
+        .find(|t| t.text.contains("## CLOSURE INFORMATION"))
+        .expect("a closure turn");
+    assert!(closure.text.contains("\"act_closure\""));
 
     // A huge cap keeps the gate shut.
     let turns = ContextBuilder::build_autonomous_chat_prompt(
@@ -289,7 +307,9 @@ async fn closure_prompt_appears_only_once_the_gate_opens() {
     );
 }
 
-// ---------------------------------------------------------------- distill prompt
+// endregion
+
+// region Distill prompt
 
 #[tokio::test]
 async fn distill_prompt_leads_with_the_distill_instruction_and_the_turns() {
@@ -334,3 +354,4 @@ async fn distill_prompt_leads_with_the_distill_instruction_and_the_turns() {
     assert!(joined.contains("Hero: We fled."));
     assert!(joined.contains("Mira: They followed."));
 }
+// endregion
