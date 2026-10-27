@@ -35,30 +35,35 @@ pub enum MessageManagerError {
 }
 
 #[derive(Clone, Debug)]
-pub struct MessageManager<D: ChatHandler, N: NarratorHandler, M: MemoryDistiller, C: ActCloser> {
+pub struct MessageManager<
+    CHAT: ChatHandler,
+    NARRATOR: NarratorHandler,
+    MEMORY: MemoryDistiller,
+    ACT: ActCloser,
+> {
     state: SharedState,
     pool: SqlitePool,
-    chat_handler: D,
-    narrator_handler: N,
+    chat_handler: CHAT,
+    narrator_handler: NARRATOR,
     director: Director,
-    memory: MemoryManager<M, C>,
+    memory: MemoryManager<MEMORY, ACT>,
     memory_settings: MemorySettings,
 }
 
 impl<
-    D: ChatHandler,
-    N: NarratorHandler,
-    M: MemoryDistiller + Clone + 'static,
-    C: ActCloser + Clone + 'static,
-> MessageManager<D, N, M, C>
+    CHAT: ChatHandler,
+    NARRATOR: NarratorHandler,
+    MEMORY: MemoryDistiller + Clone + 'static,
+    ACT: ActCloser + Clone + 'static,
+> MessageManager<CHAT, NARRATOR, MEMORY, ACT>
 {
     pub fn new(
         state: SharedState,
         pool: SqlitePool,
-        chat_handler: D,
-        narrator_handler: N,
+        chat_handler: CHAT,
+        narrator_handler: NARRATOR,
         director: Director,
-        memory: MemoryManager<M, C>,
+        memory: MemoryManager<MEMORY, ACT>,
         memory_settings: MemorySettings,
     ) -> Self {
         Self {
@@ -70,12 +75,6 @@ impl<
             memory,
             memory_settings,
         }
-    }
-
-    async fn create_message(&self, message: Message) -> Result<Message, MessageManagerError> {
-        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let stored = insert_message(&mut conn, &message).await?;
-        Ok(stored)
     }
 
     pub async fn send_message(&self, incoming: Message) -> Result<Message, MessageManagerError> {
@@ -126,6 +125,20 @@ impl<
         // TODO: check if make sense to call for another llm message (multiple characters talk per turn)
 
         Ok(stored_reply)
+    }
+}
+
+impl<
+    CHAT: ChatHandler,
+    NARRATOR: NarratorHandler,
+    MEMORY: MemoryDistiller + Clone + 'static,
+    ACT: ActCloser + Clone + 'static,
+> MessageManager<CHAT, NARRATOR, MEMORY, ACT>
+{
+    async fn create_message(&self, message: Message) -> Result<Message, MessageManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        let stored = insert_message(&mut conn, &message).await?;
+        Ok(stored)
     }
 
     async fn send(
