@@ -1,6 +1,9 @@
-mod adventure_test;
-mod characters_test;
+mod act_persistence_test;
+mod adventure_persistence_test;
+mod characters_persistence_test;
 mod db_test;
-mod memory_test;
-mod message_test;
-mod narrator_test;
+mod fact_persistence_test;
+mod helper;
+mod message_persistence_test;
+mod narrator_persistence_test;
+mod state_persistence_test;

@@ -3,7 +3,7 @@ use living_voices::backend::application::{
     adventure_manager::AdventureManager, state::SharedState,
 };
 use living_voices::backend::domain::adventure::Adventure;
-use living_voices::backend::persistence::memory_persistence::{get_active_candidates, get_state};
+use living_voices::backend::persistence::state_persistence::{get_active_candidates, get_state};
 
 async fn new_manager_with(state: SharedState) -> (AdventureManager, TempDb) {
     let (pool, db) = setup_db().await;

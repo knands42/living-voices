@@ -12,11 +12,12 @@ use crate::backend::application::state::{SharedState, StateError};
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::memory::{Act, ActStatus};
 use crate::backend::domain::message::Message;
-use crate::backend::persistence::memory_persistence::{
-    activate_next_act, close_act, get_active_act, insert_facts, update_act_running_digest,
-    upsert_state,
+use crate::backend::persistence::act_persistence::{
+    activate_next_act, close_act, get_active_act, update_act_running_digest,
 };
+use crate::backend::persistence::fact_persistence::insert_facts;
 use crate::backend::persistence::message_persistence::{count_since_last_narration, fetch_since};
+use crate::backend::persistence::state_persistence::upsert_state;
 
 #[derive(Error, Debug)]
 pub enum MemoryManagerError {

@@ -16,8 +16,8 @@ use crate::backend::{
         db::open_pool,
         error::PersistenceError,
         lore::insert_lore,
-        memory_persistence::upsert_state,
         narrator_persistence::insert_narrator,
+        state_persistence::upsert_state,
     },
 };
 

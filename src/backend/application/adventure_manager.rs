@@ -2,7 +2,7 @@ use sqlx::SqlitePool;
 use thiserror::Error;
 
 use crate::backend::domain::memory::State;
-use crate::backend::persistence::memory_persistence::upsert_state;
+use crate::backend::persistence::state_persistence::upsert_state;
 use crate::backend::{
     PersistenceError,
     application::state::{SharedState, StateError},

@@ -4,9 +4,10 @@ use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, ActStatus};
 use crate::backend::domain::message::Message;
+use crate::backend::persistence::act_persistence::{count_messages_per_act, get_act};
 use crate::backend::persistence::error::PersistenceError;
-use crate::backend::persistence::memory_persistence::{count_messages_per_act, get_act, get_state};
 use crate::backend::persistence::message_persistence::fetch_last_n;
+use crate::backend::persistence::state_persistence::get_state;
 use sqlx::SqliteConnection;
 
 const AUTONOMOUS_HISTORY_WINDOW: u16 = 50;

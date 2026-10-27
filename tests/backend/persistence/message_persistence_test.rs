@@ -1,30 +1,13 @@
-use sqlx::sqlite::SqlitePool;
-
 use crate::backend::application::helper::setup_db;
-use living_voices::backend::domain::adventure::Adventure;
+use crate::backend::persistence::helper::seed_adventure;
 use living_voices::backend::domain::message::Message;
-use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::persistence::message_persistence::{fetch_since, insert_message};
-
-async fn setup_adventure(pool: &SqlitePool) -> Adventure {
-    let adventure = Adventure::new(
-        "Test adventure".into(),
-        "Description".into(),
-        "Guide".into(),
-        "",
-    );
-    let mut conn = pool.acquire().await.expect("acquire");
-    insert_adventure(&mut conn, &adventure)
-        .await
-        .expect("insert adventure");
-    adventure
-}
 
 #[tokio::test]
 async fn insert_and_fetch_round_trip_keeps_the_message() {
     // Given a migrated database with an adventure
     let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool).await;
+    let adventure = seed_adventure(&pool).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
     // When inserting a player message
@@ -58,7 +41,7 @@ async fn insert_and_fetch_round_trip_keeps_the_message() {
 async fn fetch_since_excludes_messages_at_or_below_the_cursor() {
     // Given three stored messages
     let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool).await;
+    let adventure = seed_adventure(&pool).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
     let mut seqs = Vec::new();

@@ -53,9 +53,18 @@ Each model has one job:
 
 ## Getting started
 
+### Prerequisites
+- Rust (stable)
+- A local LLM runtime (Ollama or llama.cpp server)
+- `just` command line for running tasks
+
 ```bash
-# prerequisites: Rust (stable), a local LLM runtime (Ollama or llama.cpp server)
-cargo run
+just install-requirements
+```
+
+### Execute the App
+```bash
+just run-debug
 ```
 
 1. Create a character (name and short description → persona), or load one from a world.

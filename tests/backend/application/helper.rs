@@ -9,9 +9,9 @@ use living_voices::backend::domain::memory::State;
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::persistence::characters_persistence::insert_character;
-use living_voices::backend::persistence::memory_persistence::upsert_state;
 use living_voices::backend::persistence::message_persistence::insert_message;
 use living_voices::backend::persistence::narrator_persistence::insert_narrator;
+use living_voices::backend::persistence::state_persistence::upsert_state;
 
 pub struct TempDb(pub PathBuf);
 impl Drop for TempDb {

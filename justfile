@@ -39,3 +39,20 @@ send-message:
     time curl -s http://localhost:11434/v1/chat/completions \
         -H 'Content-Type: application/json' \
         --data-binary @./tests/ai/example.json | jq -r .choices[0].message.content
+
+
+# -------------------- coverage -------------------- #
+cov_ignore := '(src/ui/|src/cli/|app\.rs)'
+
+install-requirements:
+    rustup component add llvm-tools-preview
+    cargo install cargo-llvm-cov
+
+coverage:
+    cargo llvm-cov --summary-only --ignore-filename-regex '{{cov_ignore}}'
+
+coverage-html:
+    cargo llvm-cov --html --open --ignore-filename-regex '{{cov_ignore}}'
+
+coverage-all:
+    cargo llvm-cov --ignore-filename-regex '{{cov_ignore}}' -- --include-ignored

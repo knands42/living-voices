@@ -9,12 +9,11 @@ use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller}
 use crate::backend::application::state::{SharedState, StateError};
 use crate::backend::domain::character::Character;
 use crate::backend::domain::message::Message;
-use crate::backend::persistence::memory_persistence::{
-    get_active_candidates, update_active_act_last_closure_score,
-};
+use crate::backend::persistence::act_persistence::update_active_act_last_closure_score;
 use crate::backend::persistence::message_persistence::{
     count_since_last_narration, insert_message,
 };
+use crate::backend::persistence::state_persistence::get_active_candidates;
 use crate::config::MemorySettings;
 use sqlx::{SqliteConnection, SqlitePool};
 use thiserror::Error;
