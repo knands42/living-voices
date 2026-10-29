@@ -2,7 +2,7 @@ use crate::backend::application::helper::setup_db;
 use crate::backend::persistence::helper::{seed_act, seed_adventure, seed_message};
 use living_voices::backend::domain::memory::{Act, ActStatus};
 use living_voices::backend::persistence::act_persistence::{
-    activate_next_act, close_act, count_messages_per_act, get_act, get_active_act, insert_act,
+    activate_next_act, close_act, count_messages_per_act, get_active_act, get_acts, insert_act,
     update_act_running_digest, update_active_act_last_closure_score,
 };
 
@@ -63,7 +63,7 @@ async fn get_act_returns_every_act() {
     seed_act(&pool, adventure.id, 2, "active", None, None).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
-    let acts = get_act(&mut conn, adventure.id).await.expect("get acts");
+    let acts = get_acts(&mut conn, adventure.id).await.expect("get acts");
     assert_eq!(acts.len(), 2);
 }
 
@@ -83,7 +83,7 @@ async fn update_act_running_digest_sets_digest_and_watermark() {
         .expect("get")
         .expect("active");
     assert_eq!(act.running_digest.as_deref(), Some("They fled north."));
-    assert_eq!(act.digest_to_seq, Some(42));
+    assert_eq!(act.digest_to_seq, 42);
     // The immutable span is untouched.
     assert_eq!(act.from_seq, 0);
     assert_eq!(act.to_seq, 0);

@@ -76,7 +76,7 @@ pub async fn fetch_since(
          ORDER BY seq ASC",
     )
     .bind(adventure_id.to_string())
-    .bind(after_seq as u16)
+    .bind(after_seq)
     .fetch_all(&mut *conn)
     .await?;
 

@@ -16,7 +16,7 @@ struct ActRow {
     index_line: Option<String>,
     digest: Option<String>,
     running_digest: Option<String>,
-    digest_to_seq: Option<u16>,
+    digest_to_seq: u16,
     from_seq: u16,
     to_seq: u16,
     last_closure_score: u16,
@@ -36,7 +36,7 @@ impl ActRow {
             index_line: row.get("index_line"),
             digest: row.get("digest"),
             running_digest: row.get("running_digest"),
-            digest_to_seq: row.get::<Option<u16>, _>("digest_to_seq"),
+            digest_to_seq: row.get::<u16, _>("digest_to_seq"),
             from_seq: row.get::<u16, _>("from_seq"),
             to_seq: row.get::<u16, _>("to_seq"),
             last_closure_score: row.get::<u16, _>("last_closure_score"),
@@ -69,7 +69,7 @@ pub async fn count_messages_per_act(
     Ok(row.get::<u16, _>("count"))
 }
 
-pub async fn get_act(
+pub async fn get_acts(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
 ) -> Result<Vec<Act>, PersistenceError> {

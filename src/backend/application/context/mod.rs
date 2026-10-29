@@ -7,7 +7,7 @@ use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, ActStatus};
 use crate::backend::domain::message::Message;
-use crate::backend::persistence::act_persistence::{count_messages_per_act, get_act};
+use crate::backend::persistence::act_persistence::{count_messages_per_act, get_acts};
 use crate::backend::persistence::error::PersistenceError;
 use crate::backend::persistence::message_persistence::fetch_last_n;
 use crate::backend::persistence::state_persistence::get_state;
@@ -86,12 +86,21 @@ impl ContextBuilder {
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         Self::build_memory_prompt(conn, adventure, messages, ACT_CLOSE_PROMPT).await
     }
+
+    pub async fn build_act_transition_prompt(
+        conn: &mut SqliteConnection,
+        adventure: &Adventure,
+        messages: &[Message],
+    ) -> Result<Vec<PromptTurn>, PersistenceError> {
+        Self::build_memory_prompt(conn, adventure, messages, ACT_TRANSITION_PROMPT).await
+    }
 }
 
 // ----------------------------------------------------------------------------
 // Private assembly internals
 // ----------------------------------------------------------------------------
 impl ContextBuilder {
+    // TODO: provide messages here already, instead of fetching it
     async fn assemble(
         conn: &mut SqliteConnection,
         adventure: &Adventure,
@@ -209,7 +218,7 @@ impl ContextBuilder {
         conn: &mut SqliteConnection,
         adventure: &Adventure,
     ) -> Result<String, PersistenceError> {
-        let acts = get_act(conn, adventure.id).await?;
+        let acts = get_acts(conn, adventure.id).await?;
 
         let current = acts.iter().find(|act| act.status == ActStatus::Active);
         let past: Vec<&Act> = acts

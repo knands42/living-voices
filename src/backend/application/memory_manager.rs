@@ -90,7 +90,11 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
             .await
     }
 
-    pub async fn close_current_act(&self) -> Result<(), MemoryManagerError> {
+    pub async fn close_current_act(
+        &self,
+        act: &Act,
+        uncovered_messages: &[Message],
+    ) -> Result<(), MemoryManagerError> {
         let adventure = {
             let guard = self.state.read()?;
             let Some(adventure) = guard.current_adventure.as_ref() else {
@@ -100,23 +104,27 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
         };
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let Some((act, uncovered, digest_to_seq)) =
-            self.load_uncovered(&mut conn, adventure.id).await?
-        else {
-            return Ok(());
-        };
 
         // Distill first so facts/state can be up to date
         let distilled = {
             let prompt =
-                ContextBuilder::build_distill_prompt(&mut conn, &adventure, &uncovered).await?;
+                ContextBuilder::build_distill_prompt(&mut conn, &adventure, &uncovered_messages)
+                    .await?;
             self.distiller.distill(&prompt).await?
         };
 
         let closed = {
             let prompt =
-                ContextBuilder::build_act_close_prompt(&mut conn, &adventure, &uncovered).await?;
+                ContextBuilder::build_act_close_prompt(&mut conn, &adventure, &uncovered_messages)
+                    .await?;
             self.closer.close_act(&prompt).await?
+        };
+
+        let digest_to_seq = if let Some(last) = uncovered_messages.last() {
+            last.seq
+                .ok_or_else(|| MemoryManagerError::MissingSequence(last.text.clone()))?
+        } else {
+            0
         };
 
         self.persist_close(
@@ -196,8 +204,7 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
             return Ok(None);
         };
 
-        let after_seq = act.digest_to_seq.unwrap_or(0);
-        let uncovered = fetch_since(conn, adventure_id, after_seq + 1).await?;
+        let uncovered = fetch_since(conn, adventure_id, act.digest_to_seq).await?;
         let Some(last) = uncovered.last() else {
             return Ok(None);
         };

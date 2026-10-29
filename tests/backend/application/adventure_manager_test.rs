@@ -2,7 +2,8 @@ use crate::backend::application::helper::{TempDb, create_adventure, setup_db};
 use living_voices::backend::application::{
     adventure_manager::AdventureManager, state::SharedState,
 };
-use living_voices::backend::domain::adventure::Adventure;
+use living_voices::backend::domain::memory::ActStatus;
+use living_voices::backend::persistence::act_persistence::get_acts;
 use living_voices::backend::persistence::state_persistence::{get_active_candidates, get_state};
 
 async fn new_manager_with(state: SharedState) -> (AdventureManager, TempDb) {
@@ -71,6 +72,7 @@ async fn create_adventure_creates_a_default_player_character() {
         .create_adventure(
             "Tides".into(),
             "A drowned city".into(),
+            "Find Atlanta".into(),
             "Guide".into(),
             "tense",
         )
@@ -100,4 +102,31 @@ async fn create_adventure_creates_a_default_player_character() {
     assert_eq!(count, 1);
     assert!(is_player);
     assert_eq!(name, "You");
+}
+
+#[tokio::test]
+async fn create_adventure_creates_initial_act() {
+    let (pool, _db) = setup_db().await;
+    let manager = AdventureManager::new(SharedState::new(), pool.clone());
+
+    let goal = "Find Atlanta";
+    let adventure = manager
+        .create_adventure(
+            "Tides".into(),
+            "A drowned city".into(),
+            goal.into(),
+            "Guide".into(),
+            "tense",
+        )
+        .await
+        .expect("create adventure");
+
+    // Then: exactly one act exists with ordinal 0 and the provided goal.
+    let mut conn = pool.acquire().await.expect("acquire");
+    let acts = get_acts(&mut conn, adventure.id).await.expect("get acts");
+
+    assert_eq!(acts.len(), 1);
+    assert_eq!(acts[0].ordinal, 0);
+    assert_eq!(acts[0].goal, goal);
+    assert_eq!(acts[0].status, ActStatus::Active);
 }

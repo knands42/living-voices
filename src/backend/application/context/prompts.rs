@@ -156,6 +156,9 @@ closing record. Return JSON only, with exactly three fields:
 
 Return JSON only."#;
 
+pub(crate) const ACT_TRANSITION_PROMPT: &str = r#"ACT TRANSITION
+"#;
+
 pub(crate) const SINGLE_CHARACTER_CHAT_PROMPT: &str = "You write one beat of an interactive roleplay. The turn belongs to one character, named below — continue it.";
 
 pub(crate) const SINGLE_CHARACTER_CHAT_BODY_INSTRUCTION: &str = r#"## BODY

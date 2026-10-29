@@ -7,11 +7,14 @@ use crate::backend::application::port::chat_port::{
 };
 use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
 use crate::backend::application::state::{SharedState, StateError};
+use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::Character;
 use crate::backend::domain::message::Message;
-use crate::backend::persistence::act_persistence::update_active_act_last_closure_score;
+use crate::backend::persistence::act_persistence::{
+    get_active_act, get_acts, update_active_act_last_closure_score,
+};
 use crate::backend::persistence::message_persistence::{
-    count_since_last_narration, insert_message,
+    count_since_last_narration, fetch_since, insert_message,
 };
 use crate::backend::persistence::state_persistence::get_active_candidates;
 use crate::config::MemorySettings;
@@ -108,19 +111,9 @@ impl<
         let reply_message = adventure.message_from_reply(&chat_reply.replier, &chat_reply.reply);
         let stored_reply = self.create_message(reply_message).await?;
 
-        if let Some(score) = chat_reply.act_closure {
-            let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-            update_active_act_last_closure_score(&mut conn, adventure.id, score as u16).await?;
-            drop(conn);
-
-            if score >= 5 {
-                // TODO: narrate the act transition (new narrator prompt) after close.
-                self.memory.close_current_act().await?;
-                return Ok(stored_reply);
-            }
-        }
-
-        self.maybe_compress_memory().await;
+        self.check_and_update_current_act(chat_reply, &adventure)
+            .await?;
+        self.check_and_compress_memory().await;
 
         // TODO: check if make sense to call for another llm message (multiple characters talk per turn)
 
@@ -185,7 +178,7 @@ impl<
         Ok(self.chat_handler.autonomous_respond(&context).await?)
     }
 
-    async fn maybe_compress_memory(&self) {
+    async fn check_and_compress_memory(&self) {
         match self
             .memory
             .needs_compression(self.memory_settings.compress_after_threshold)
@@ -202,5 +195,40 @@ impl<
             }
             Err(err) => eprintln!("memory compression check failed: {err}"),
         }
+    }
+
+    async fn check_and_update_current_act(
+        &self,
+        chat_reply: ChatReply,
+        adventure: &Adventure,
+    ) -> Result<(), MessageManagerError> {
+        if let Some(score) = chat_reply.act_closure {
+            let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+            update_active_act_last_closure_score(&mut conn, adventure.id, score as u16).await?;
+
+            if score >= 5 {
+                let current_act = get_active_act(&mut conn, adventure.id).await?;
+                if let Some(act) = current_act {
+                    let uncovered_messages =
+                        fetch_since(&mut conn, adventure.id, act.digest_to_seq).await?;
+                    ContextBuilder::build_act_transition_prompt(
+                        &mut conn,
+                        adventure,
+                        &uncovered_messages,
+                    )
+                    .await?;
+
+                    self.memory
+                        .close_current_act(&act, &uncovered_messages)
+                        .await?;
+                } else {
+                    log::error!("No active act found for adventure {}", adventure.id);
+                }
+            }
+
+            drop(conn);
+        }
+
+        Ok(())
     }
 }

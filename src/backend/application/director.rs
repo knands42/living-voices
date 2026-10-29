@@ -43,6 +43,10 @@ impl Director {
             return None;
         }
 
+        if candidates.len() == 1 {
+            return Some(candidates[0]);
+        }
+
         // Most turns go to whoever the incoming message aimed at.
         let roll = rand::random::<f32>();
         if roll < self.director_settings.targeted_pick_chance {
@@ -51,7 +55,7 @@ impl Director {
         } else {
             None
         }
-        // TODO: Implement logic for picking a character when the roll is not for the targeted character.
+        // TODO: Implement logic for picking a character when the roll is not for the targeted character. CPU Embedding
     }
 
     pub fn should_request_pacing_prompt(&self, messages_in_act: u16) -> bool {

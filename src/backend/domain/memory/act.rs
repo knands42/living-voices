@@ -59,7 +59,7 @@ pub struct Act {
     pub digest: Option<String>,
     pub running_digest: Option<String>,
     /// the last message seq folded into `running_digest`.
-    pub digest_to_seq: Option<u16>,
+    pub digest_to_seq: u16,
     pub from_seq: u16,
     pub to_seq: u16,
     /// the most recent act_closure score (0-5) the autonomous model judged.
@@ -81,7 +81,7 @@ impl Act {
             index_line: None,
             digest: None,
             running_digest: None,
-            digest_to_seq: None,
+            digest_to_seq: 0,
             from_seq: 0,
             to_seq: 0,
             last_closure_score: 0,

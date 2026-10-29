@@ -33,6 +33,7 @@ pub fn handle_main(
             let res = runtime.block_on(ctx.adventures.create_adventure(
                 "New Tale".into(),
                 String::new(),
+                String::new(),
                 "Narrator".into(),
                 "neutral",
             ));
