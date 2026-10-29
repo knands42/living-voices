@@ -47,8 +47,7 @@ fn memory_settings() -> MemorySettings {
 
 // ---------------------------------------------------------------- director tuning
 
-/// A director that always routes to the NARRATOR: the ramp reaches 1.0 at any
-/// message count (min == max == 0, so `messages_since_narration >= max`).
+/// Always routes to the narrator (ramp hits 1.0 at any message count).
 fn narrator_director() -> Director {
     Director::new(DirectorSettings {
         targeted_pick_chance: 1.0,
@@ -61,8 +60,7 @@ fn narrator_director() -> Director {
     })
 }
 
-/// A director that never narrates and always honours an explicit target, so a
-/// targeted message routes to that specific character.
+/// Never narrates, always honours an explicit target -> the targeted character answers.
 fn specific_character_director() -> Director {
     Director::new(DirectorSettings {
         targeted_pick_chance: 1.0,
@@ -75,13 +73,25 @@ fn specific_character_director() -> Director {
     })
 }
 
-/// A director that never narrates and never honours a target, so the choice of
-/// voice is deferred to the model (the autonomous path picks any cast member).
+/// Never narrates, never honours a target -> the model picks the voice (autonomous path).
 fn autonomous_director() -> Director {
     Director::new(DirectorSettings {
         targeted_pick_chance: 0.0,
         narrator_change_if_ooc: 0.0,
         act_max_messages: 10_000,
+        narrator_pick_chance_after_message_threshold_range: MessageThresholdRange {
+            min: 255,
+            max: 255,
+        },
+    })
+}
+
+/// Autonomous path with a tiny act budget, pushing the model toward an act close.
+fn autonomous_and_transition_act_director() -> Director {
+    Director::new(DirectorSettings {
+        targeted_pick_chance: 0.0,
+        narrator_change_if_ooc: 0.0,
+        act_max_messages: 2,
         narrator_pick_chance_after_message_threshold_range: MessageThresholdRange {
             min: 255,
             max: 255,
@@ -125,17 +135,19 @@ async fn seed_present_state(pool: &SqlitePool, adventure_id: Uuid, present: &[&s
     .expect("insert state");
 }
 
-async fn seed_active_act(pool: &SqlitePool, adventure_id: Uuid) {
+async fn seed_active_act(pool: &SqlitePool, adventure_id: Uuid) -> Uuid {
+    let id = Uuid::new_v4();
     let mut conn = pool.acquire().await.expect("acquire");
     query(
         "INSERT INTO act (id, adventure_id, ordinal, goal, status)
          VALUES (?1, ?2, 1, 'reach the surface', 'active')",
     )
-    .bind(Uuid::new_v4().to_string())
+    .bind(id.to_string())
     .bind(adventure_id.to_string())
     .execute(&mut *conn)
     .await
     .expect("insert act");
+    id
 }
 
 fn load_adventure(
@@ -196,48 +208,8 @@ async fn message_count(pool: &SqlitePool, adventure_id: Uuid) -> u16 {
         .expect("count")
 }
 
-// ---------------------------------------------------------------- 1. full pipeline (distill)
-
-#[tokio::test]
-#[ignore = "requires a running Ollama server"]
-async fn full_pipeline_sends_a_turn_and_triggers_background_distillation() {
-    // Given an adventure already carrying enough messages that one more crosses the
-    // compression threshold, plus an active act for the distiller to fold into.
-    let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool, &["Mira"]).await;
-    seed_present_state(&pool, adventure.id, &["Mira"]).await;
-    let act_id = {
-        // Capture the act id for the post-distill assertions.
-        let id = Uuid::new_v4();
-        let mut conn = pool.acquire().await.expect("acquire");
-        query(
-            "INSERT INTO act (id, adventure_id, ordinal, goal, status)
-             VALUES (?1, ?2, 1, 'reach the surface', 'active')",
-        )
-        .bind(id.to_string())
-        .bind(adventure.id.to_string())
-        .execute(&mut *conn)
-        .await
-        .expect("insert act");
-        id
-    };
-
-    let threshold = memory_settings().compress_after_threshold as usize;
-    let manager = load_adventure(&pool, &adventure, specific_character_director());
-
-    // Pre-load the log so the NEXT send crosses the threshold inside maybe_compress_memory.
-    create_messages(&pool, adventure.id, &vec![None; threshold]).await;
-
-    // When sending one more player turn (targeted so a character answers deterministically)
-    let incoming = targeted_line(&adventure, "What now?", &adventure.characters[0]);
-    let reply = manager.send_message(incoming).await.expect("send succeeds");
-
-    // Then the reply is persisted...
-    assert!(reply.seq.is_some());
-    assert!(!reply.text.trim().is_empty());
-
-    // and writes a running digest. maybe_compress_memory spawns it, so poll briefly.
-    let mut digested = false;
+/// Poll briefly for the spawned distillation to stamp the act's watermark.
+async fn poll_watermark_set(pool: &SqlitePool, act_id: Uuid) -> bool {
     for _ in 0..20 {
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         let mut conn = pool.acquire().await.expect("acquire");
@@ -247,25 +219,89 @@ async fn full_pipeline_sends_a_turn_and_triggers_background_distillation() {
             .await
             .expect("read watermark");
         if watermark.is_some() {
-            digested = true;
-            break;
+            return true;
         }
     }
-    assert!(
-        digested,
-        "background distillation should advance the act watermark"
-    );
+    false
+}
 
+async fn fact_count(pool: &SqlitePool, act_id: Uuid) -> u16 {
     let mut conn = pool.acquire().await.expect("acquire");
-    let fact_count: u16 = query_scalar("SELECT COUNT(*) FROM fact WHERE act_id = ?1")
+    query_scalar("SELECT COUNT(*) FROM fact WHERE act_id = ?1")
         .bind(act_id.to_string())
         .fetch_one(&mut *conn)
         .await
-        .expect("fact count");
+        .expect("fact count")
+}
+
+/// The `to_seq` of the most recent terminal act, or `None` if none closed.
+async fn closed_act_to_seq(pool: &SqlitePool, adventure_id: Uuid) -> Option<i64> {
+    let mut conn = pool.acquire().await.expect("acquire");
+    query_scalar(
+        "SELECT to_seq FROM act
+         WHERE adventure_id = ?1 AND status IN ('resolved', 'failed', 'bypassed')
+         ORDER BY ordinal DESC LIMIT 1",
+    )
+    .bind(adventure_id.to_string())
+    .fetch_optional(&mut *conn)
+    .await
+    .expect("read closed act")
+}
+
+async fn message_is_narrator(pool: &SqlitePool, adventure_id: Uuid, seq: i64) -> bool {
+    let mut conn = pool.acquire().await.expect("acquire");
+    let narrator_id: Option<String> =
+        query_scalar("SELECT narrator_id FROM message WHERE adventure_id = ?1 AND seq = ?2")
+            .bind(adventure_id.to_string())
+            .bind(seq)
+            .fetch_one(&mut *conn)
+            .await
+            .expect("read message");
+    narrator_id.is_some()
+}
+
+// ---------------------------------------------------------------- 1. full pipeline (distill)
+
+#[tokio::test]
+#[ignore = "requires a running Ollama server"]
+async fn full_pipeline_sends_a_turn_and_triggers_background_distillation() {
+    // given: an act preloaded to the compression threshold, one more turn away
+    let (pool, _db) = setup_db().await;
+    let adventure = setup_adventure(&pool, &["Mira"]).await;
+    seed_present_state(&pool, adventure.id, &["Mira"]).await;
+    let act_id = seed_active_act(&pool, adventure.id).await;
+
+    let threshold = memory_settings().compress_after_threshold as usize;
+    let manager = load_adventure(&pool, &adventure, autonomous_and_transition_act_director());
+    create_messages(&pool, adventure.id, &vec![None; threshold]).await;
+
+    // when: the player sends the turn that crosses the threshold
+    let incoming = targeted_line(&adventure, "What now?", &adventure.characters[0]);
+    let reply = manager.send_message(incoming).await.expect("send succeeds");
+
+    // then: the reply is persisted
+    assert!(reply.seq.is_some());
+    assert!(!reply.text.trim().is_empty());
+
+    // and: background distillation advances the act watermark
     assert!(
-        fact_count >= 1,
+        poll_watermark_set(&pool, act_id).await,
+        "background distillation should advance the act watermark"
+    );
+
+    // and: it writes at least one fact
+    assert!(
+        fact_count(&pool, act_id).await >= 1,
         "distillation should write at least one fact"
     );
+
+    // and: if the beat closed the act, its final message is the narrator's
+    if let Some(to_seq) = closed_act_to_seq(&pool, adventure.id).await {
+        assert!(
+            message_is_narrator(&pool, adventure.id, to_seq).await,
+            "the completed act should end on the narrator's closing line"
+        );
+    }
 }
 
 // ---------------------------------------------------------------- 2. narrator is picked
@@ -273,18 +309,20 @@ async fn full_pipeline_sends_a_turn_and_triggers_background_distillation() {
 #[tokio::test]
 #[ignore = "requires a running Ollama server"]
 async fn send_message_routes_to_the_narrator() {
+    // given: an active act and a director that always narrates
     let (pool, _db) = setup_db().await;
     let adventure = setup_adventure(&pool, &["Mira"]).await;
     seed_present_state(&pool, adventure.id, &["Mira"]).await;
     seed_active_act(&pool, adventure.id).await;
     let manager = load_adventure(&pool, &adventure, narrator_director());
 
+    // when: the player speaks
     let reply = manager
         .send_message(player_line(&adventure, "Is anyone there?"))
         .await
         .expect("send succeeds");
 
-    // The narrator answered: narrator id set, no character id, narrator speaker name.
+    // then: the narrator answers (narrator id, no character id)
     assert_eq!(reply.narrator_id, Some(adventure.narrator.id));
     assert!(reply.character_id.is_none());
     assert_eq!(reply.speaker_name, Message::NARRATOR_SPEAKER_NAME);
@@ -296,20 +334,20 @@ async fn send_message_routes_to_the_narrator() {
 #[tokio::test]
 #[ignore = "requires a running Ollama server"]
 async fn send_message_routes_to_a_random_cast_member() {
-    // Two present characters, narrator suppressed, no explicit target: the model
-    // picks a voice on the autonomous path.
+    // given: two present characters and a director that defers the voice to the model
     let (pool, _db) = setup_db().await;
     let adventure = setup_adventure(&pool, &["Mira", "Kael"]).await;
     seed_present_state(&pool, adventure.id, &["Mira", "Kael"]).await;
     seed_active_act(&pool, adventure.id).await;
     let manager = load_adventure(&pool, &adventure, autonomous_director());
 
+    // when: the player invites anyone to speak
     let reply = manager
         .send_message(player_line(&adventure, "Someone say something."))
         .await
         .expect("send succeeds");
 
-    // A cast member answered (not the narrator); the speaker is one of the present cast.
+    // then: a present cast member answers, not the narrator
     assert!(
         reply.narrator_id.is_none(),
         "a character, not the narrator, should answer"
@@ -328,20 +366,21 @@ async fn send_message_routes_to_a_random_cast_member() {
 #[tokio::test]
 #[ignore = "requires a running Ollama server"]
 async fn send_message_routes_to_a_specific_targeted_character() {
+    // given: two present characters and a director that honours an explicit target
     let (pool, _db) = setup_db().await;
     let adventure = setup_adventure(&pool, &["Mira", "Kael"]).await;
     seed_present_state(&pool, adventure.id, &["Mira", "Kael"]).await;
     seed_active_act(&pool, adventure.id).await;
     let manager = load_adventure(&pool, &adventure, specific_character_director());
 
-    // The player aims the line at Kael specifically.
+    // when: the player aims the line at Kael
     let kael = adventure.characters[1].clone();
     let reply = manager
         .send_message(targeted_line(&adventure, "Kael, what do you see?", &kael))
         .await
         .expect("send succeeds");
 
-    // Kael answered: his character id and name, no narrator.
+    // then: Kael answers, not the narrator
     assert_eq!(reply.character_id, Some(kael.id));
     assert_eq!(reply.speaker_name, "Kael");
     assert!(reply.narrator_id.is_none());

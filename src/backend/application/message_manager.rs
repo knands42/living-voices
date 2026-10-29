@@ -202,32 +202,44 @@ impl<
         chat_reply: ChatReply,
         adventure: &Adventure,
     ) -> Result<(), MessageManagerError> {
-        if let Some(score) = chat_reply.act_closure {
-            let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-            update_active_act_last_closure_score(&mut conn, adventure.id, score as u16).await?;
+        let Some(score) = chat_reply.act_closure else {
+            return Ok(());
+        };
 
-            if score >= 5 {
-                let current_act = get_active_act(&mut conn, adventure.id).await?;
-                if let Some(act) = current_act {
-                    let uncovered_messages =
-                        fetch_since(&mut conn, adventure.id, act.digest_to_seq).await?;
-                    ContextBuilder::build_act_transition_prompt(
-                        &mut conn,
-                        adventure,
-                        &uncovered_messages,
-                    )
-                    .await?;
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        update_active_act_last_closure_score(&mut conn, adventure.id, score as u16).await?;
 
-                    self.memory
-                        .close_current_act(&act, &uncovered_messages)
-                        .await?;
-                } else {
-                    log::error!("No active act found for adventure {}", adventure.id);
-                }
-            }
-
-            drop(conn);
+        if score >= 5 {
+            self.close_current_act(&mut conn, adventure).await?;
         }
+
+        Ok(())
+    }
+
+    async fn close_current_act(
+        &self,
+        conn: &mut SqliteConnection,
+        adventure: &Adventure,
+    ) -> Result<(), MessageManagerError> {
+        let Some(act) = get_active_act(conn, adventure.id).await? else {
+            log::error!("No active act found for adventure {}", adventure.id);
+            return Ok(());
+        };
+
+        let mut uncovered_messages = fetch_since(conn, adventure.id, act.digest_to_seq).await?;
+        let prompt =
+            ContextBuilder::build_act_transition_prompt(conn, adventure, &uncovered_messages)
+                .await?;
+
+        let narration = self.narrator_handler.narrator_respond(&prompt).await?;
+        let narration_message =
+            adventure.message_from_reply(Message::NARRATOR_SPEAKER_NAME, &narration);
+        let stored = insert_message(conn, &narration_message).await?;
+        uncovered_messages.push(stored);
+
+        self.memory
+            .close_current_act(&act, &uncovered_messages)
+            .await?;
 
         Ok(())
     }
