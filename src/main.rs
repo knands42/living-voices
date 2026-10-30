@@ -20,7 +20,7 @@ impl Frontend {
                 _ => {}
             }
         }
-        Frontend::Cli
+        Frontend::Ui
     }
 }
 
