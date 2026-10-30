@@ -18,6 +18,7 @@ pub fn handle_main(
         KeyCode::Char('c') => {
             state.page = Page::Chat {
                 input: String::new(),
+                cursor: 0,
             };
             Flow::Continue
         }

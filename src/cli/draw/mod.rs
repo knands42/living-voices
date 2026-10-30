@@ -14,7 +14,7 @@ mod widgets;
 
 pub fn draw(
     frame: &mut Frame,
-    state: &CliState,
+    state: &mut CliState,
     ctx: &AppContext<Chat, Narrator, MemoryUpdate, ActClose>,
 ) {
     match &state.page {

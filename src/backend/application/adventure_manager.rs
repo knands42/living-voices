@@ -79,6 +79,7 @@ impl AdventureManager {
 
     pub fn current_adventure(&self) -> Option<Adventure> {
         self.state.read().ok()?.current_adventure.clone()
+        // TODO: Should I set the state for it as well?
     }
 
     pub fn set_current_adventure(&self, adventure: Adventure) -> Result<(), AdventureManagerError> {

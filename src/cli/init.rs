@@ -2,10 +2,14 @@ use crate::ai::integrations::chat::Chat;
 use crate::ai::integrations::narrator::Narrator;
 use crate::ai::{ActClose, MemoryUpdate};
 use crate::app::{App, AppContext};
+use crate::cli::events::chat::handle_mouse;
 use crate::cli::events::event_handler::{Flow, handle_key};
 use crate::cli::state::CliState;
 use crate::cli::{Tui, draw};
-use crossterm::event::{DisableMouseCapture, EnableMouseCapture, Event};
+use crossterm::event::{
+    DisableMouseCapture, EnableMouseCapture, Event, KeyboardEnhancementFlags,
+    PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
+};
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
@@ -36,11 +40,16 @@ fn event_loop(
 
         terminal.draw(|f| draw::draw(f, state, ctx))?;
 
-        if event::poll(Duration::from_millis(250))?
-            && let Event::Key(key) = event::read()?
-            && matches!(handle_key(key, state, ctx, runtime), Flow::Quit)
-        {
-            return Ok(());
+        if event::poll(Duration::from_millis(250))? {
+            match event::read()? {
+                Event::Key(key) => {
+                    if matches!(handle_key(key, state, ctx, runtime), Flow::Quit) {
+                        return Ok(());
+                    }
+                }
+                Event::Mouse(mouse) => handle_mouse(mouse, state, ctx),
+                _ => {}
+            }
         }
     }
 }
@@ -64,10 +73,21 @@ fn setup_terminal() -> io::Result<Tui> {
     let mut stdout = io::stdout();
     enable_raw_mode()?;
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+
+    if supports_keyboard_enhancement() {
+        let _ = execute!(
+            stdout,
+            PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
+        );
+    }
+
     Terminal::new(CrosstermBackend::new(stdout))
 }
 
 fn restore_terminal(terminal: &mut Tui) -> io::Result<()> {
+    if supports_keyboard_enhancement() {
+        let _ = execute!(terminal.backend_mut(), PopKeyboardEnhancementFlags);
+    }
     disable_raw_mode()?;
     execute!(
         terminal.backend_mut(),
@@ -76,4 +96,8 @@ fn restore_terminal(terminal: &mut Tui) -> io::Result<()> {
     )?;
     terminal.show_cursor()?;
     Ok(())
+}
+
+fn supports_keyboard_enhancement() -> bool {
+    crossterm::terminal::supports_keyboard_enhancement().unwrap_or(false)
 }

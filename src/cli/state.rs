@@ -1,3 +1,4 @@
+use ratatui::layout::Rect;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::backend::domain::adventure::Adventure;
@@ -6,7 +7,7 @@ use crate::backend::domain::message::Message;
 pub enum Page {
     Main,
     AdventureList,
-    Chat { input: String },
+    Chat { input: String, cursor: usize },
 }
 
 pub struct CliState {
@@ -14,6 +15,8 @@ pub struct CliState {
     pub adventures: Vec<Adventure>,
     pub status: Option<String>,
     pub messages: Vec<Message>,
+    pub hovered_character: Option<usize>,
+    pub cast_row_hitboxes: Vec<Rect>,
     pub reply_rx: UnboundedReceiver<ChatEvent>,
     pub reply_tx: UnboundedSender<ChatEvent>,
 }
@@ -31,6 +34,8 @@ impl Default for CliState {
             adventures: vec![],
             status: None,
             messages: Vec::new(),
+            hovered_character: None,
+            cast_row_hitboxes: Vec::new(),
             reply_rx,
             reply_tx,
         }

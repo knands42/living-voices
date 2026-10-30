@@ -6,19 +6,34 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
 use crate::backend::domain::message::Message;
-use crate::cli::draw::theme::{dim, ink, muted, speaker_color};
+use crate::cli::draw::theme::{GOLD, dim, ink, muted, speaker_color};
 
 pub(super) fn message_line<'a>(message: &Message) -> Line<'a> {
-    let hue = speaker_color(&message.speaker_name);
-    let gutter = Span::styled("▌ ", Style::default().fg(hue));
+    // The narrator speaks in the voice of the world, not a cast member — give it
+    // its own gold sigil and italic name so it reads as scene, not dialogue.
+    let is_narrator = message.narrator_id.is_some();
+    let hue = if is_narrator {
+        GOLD
+    } else {
+        speaker_color(&message.speaker_name)
+    };
+
+    let gutter_glyph = if is_narrator { "❧ " } else { "▍ " };
+    let gutter = Span::styled(gutter_glyph, Style::default().fg(hue));
+
+    let name_modifier = if is_narrator {
+        Modifier::BOLD | Modifier::ITALIC
+    } else {
+        Modifier::BOLD
+    };
 
     let mut spans = vec![
         gutter,
         Span::styled(
             message.speaker_name.clone(),
-            Style::default().fg(hue).add_modifier(Modifier::BOLD),
+            Style::default().fg(hue).add_modifier(name_modifier),
         ),
-        Span::styled(" · ", dim()),
+        Span::styled(" ❯ ", dim()),
     ];
     spans.extend(format_body(&message.text, hue));
 

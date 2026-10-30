@@ -1,7 +1,7 @@
 use ratatui::layout::Alignment;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::widgets::{Block, BorderType, Borders, Paragraph};
 
 use super::theme::{CARD_EDGE, EMBER, GOLD, INK, INK_DIM, MOSS, RUST};
 
@@ -56,13 +56,14 @@ pub fn banner() -> Paragraph<'static> {
     Paragraph::new(lines).alignment(Alignment::Center)
 }
 
-/// A card: double-bordered block with a titled header. Caller fills body.
+/// A card: a rounded, rune-marked panel with a titled header. Caller fills body.
 pub fn card<'a>(title: &'a str) -> Block<'a> {
     Block::default()
         .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(CARD_EDGE))
         .title(Span::styled(
-            format!(" {title} "),
+            format!(" ◈ {title} "),
             Style::default().fg(EMBER).add_modifier(Modifier::BOLD),
         ))
 }
