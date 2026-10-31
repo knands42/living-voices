@@ -18,8 +18,15 @@ pub fn run<
 ) -> Result<(), slint::PlatformError> {
     let ui = RootWindow::new()?;
 
-    let session = ctx.adventures.current_adventure();
-    window::fill_root_window_inputs(&ui, session.as_ref());
+    let summaries = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(ctx.adventures.get_adventures_summaries())
+    })
+    .unwrap_or_else(|err| {
+        log::error!("Could not load adventure summaries: {err}");
+        Vec::new()
+    });
+
+    window::fill_root_window_inputs(&ui, &summaries);
     callbacks::register_callbacks(&ui, &ctx);
 
     ui.run()

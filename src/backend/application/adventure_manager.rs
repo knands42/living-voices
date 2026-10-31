@@ -1,6 +1,3 @@
-use sqlx::SqlitePool;
-use thiserror::Error;
-
 use crate::backend::domain::memory::{Act, ActStatus, State};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::act_persistence::insert_act;
@@ -9,12 +6,19 @@ use crate::backend::persistence::state_persistence::upsert_state;
 use crate::backend::{
     PersistenceError,
     application::state::{SharedState, StateError},
-    domain::{adventure::Adventure, character::Character},
+    domain::{
+        adventure::{Adventure, AdventureSummary},
+        character::Character,
+    },
     persistence::{
-        adventure_persistence::insert_adventure, characters_persistence::insert_character,
-        narrator_persistence::insert_narrator,
+        adventure_persistence::{get_adventures, insert_adventure},
+        characters_persistence::insert_character,
+        narrator_persistence::insert_default_narrator,
     },
 };
+use sqlx::SqlitePool;
+use thiserror::Error;
+use uuid::Uuid;
 
 #[derive(Error, Debug)]
 pub enum AdventureManagerError {
@@ -38,31 +42,41 @@ impl AdventureManager {
     pub async fn create_adventure(
         &self,
         title: String,
-        description: String,
-        goal: String,
-        narrator_name: String,
-        adventure_tone: &str,
+        headline: String,
+        tone: String,
     ) -> Result<Adventure, AdventureManagerError> {
-        let mut adventure = Adventure::new(title, description, narrator_name, adventure_tone);
-        adventure.characters.push(Character::player(adventure.id));
-        {
-            let mut guard = self.state.write()?;
-            guard.set_adventure(adventure.clone());
-        }
-
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        insert_adventure(&mut conn, &adventure).await?;
-        insert_narrator(&mut conn, adventure.id, &adventure.narrator).await?;
+
+        let adventure_id = Uuid::new_v4();
+        let adventure_summary = insert_adventure(
+            &mut conn,
+            adventure_id,
+            title.as_str(),
+            headline.as_str(),
+            tone.as_str(),
+            vec![],
+        )
+        .await?;
+
+        let narrator_id = Uuid::new_v4();
+        insert_default_narrator(&mut conn, narrator_id, adventure_id).await?;
+
+
         upsert_state(&mut conn, &State::new(adventure.id)).await?;
-        for character in &adventure.characters {
-            insert_character(&mut conn, Some(adventure.id), character).await?;
-        }
+        // default character: player
+        insert_character(&mut conn, Some(adventure.id), character).await?;
         insert_act(
             &mut conn,
             &Act::new(adventure.id, 0, goal.as_str()).with_status(ActStatus::Active),
         )
         .await?;
-        Ok(adventure)
+
+        {
+            let mut guard = self.state.write()?;
+            guard.set_adventure(adventure.clone());
+        }
+
+        Ok(created_adventure)
     }
 
     pub async fn create_initial_messages(
@@ -75,6 +89,11 @@ impl AdventureManager {
         }
 
         Ok(())
+    }
+
+    pub async fn get_adventures_summaries(&self) -> Result<Vec<Adventure>, AdventureManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        Ok(get_adventures(&mut conn).await?)
     }
 
     pub fn current_adventure(&self) -> Option<Adventure> {

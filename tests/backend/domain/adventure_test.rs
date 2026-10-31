@@ -22,7 +22,7 @@ fn new_sets_title_description_and_empty_collections() {
     let adventure = new_adventure();
 
     assert_eq!(adventure.title, "Tides of Glass");
-    assert_eq!(adventure.description, "A drowned city");
+    assert_eq!(adventure.headline, "A drowned city");
     assert!(adventure.characters.is_empty());
     assert!(adventure.tags.is_empty());
     assert_eq!(adventure.lore.text, "");

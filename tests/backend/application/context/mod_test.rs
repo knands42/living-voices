@@ -122,7 +122,7 @@ async fn system_head_renders_the_adventure_settings() {
     let (pool, _db) = setup_db().await;
     let mut adventure = setup_adventure(&pool, &[("Mira", false)]).await;
     adventure.title = "Tides of Glass".into();
-    adventure.description = "A drowned city".into();
+    adventure.headline = "A drowned city".into();
     adventure.genre = Some("mystery".into());
     adventure.tone = "tense".into();
     adventure.lore = adventure.lore.with_text("The sea remembers.".into());

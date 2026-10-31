@@ -1,4 +1,8 @@
 import { AppTheme } from "theme.slint";
+import { MainPage, AdventureSummary } from "main.slint";
+import { ChatPage } from "chat.slint";
+
+export { AdventureSummary }
 
 export component RootWindow inherits Window {
     title: "Living Voices";
@@ -10,4 +14,28 @@ export component RootWindow inherits Window {
     default-font-family: AppTheme.font-body;
     default-font-size: 14px;
     default-font-weight: 400;
+
+    // Data from Rust
+    in property <[AdventureSummary]> adventures;
+
+    // Notifies Rust when the user picks an adventure
+    callback adventure-selected(string);
+
+    // Simple SPA router: "main" or "chat"
+    property <string> current-page: "main";
+    property <string> active-adventure;
+
+    if current-page == "main": MainPage {
+        adventures: root.adventures;
+        adventure-selected(id) => {
+            root.active-adventure = id;
+            root.current-page = "chat";
+            root.adventure-selected(id);
+        }
+    }
+
+    if current-page == "chat": ChatPage {
+        adventure-id: root.active-adventure;
+        back-requested => { root.current-page = "main"; }
+    }
 }

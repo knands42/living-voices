@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use sqlx::SqliteConnection;
+use sqlx::{Row, SqliteConnection};
 use uuid::Uuid;
 
 use crate::backend::{
@@ -10,10 +10,11 @@ use crate::backend::{
         tags::{ensure_tag, normalize},
     },
 };
+use crate::backend::domain::adventure::{Adventure, AdventureSummary};
 
 pub async fn insert_character(
     conn: &mut SqliteConnection,
-    adventure_id: Option<Uuid>,
+    adventure_id: Uuid,
     character: &Character,
 ) -> Result<(), PersistenceError> {
     sqlx::query(
@@ -21,7 +22,7 @@ pub async fn insert_character(
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
     )
     .bind(character.id.to_string())
-    .bind(adventure_id.map(|id| id.to_string()))
+    .bind(adventure_id.to_string())
     .bind(&character.name)
     .bind(&character.description)
     .bind(&character.backstory)

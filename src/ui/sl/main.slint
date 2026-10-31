@@ -1,1 +1,67 @@
 import { AppTheme } from "theme.slint";
+
+export struct AdventureSummary {
+    id: string,
+    title: string,
+    description: string,
+}
+
+export component MainPage inherits Rectangle {
+    in property <[AdventureSummary]> adventures;
+    callback adventure-selected(string);
+
+    background: AppTheme.bg-deepest;
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 16px;
+        padding: 32px;
+
+        Text {
+            text: "Choose your adventure";
+            color: AppTheme.gold;
+            font-family: AppTheme.font-brand;
+            font-size: AppTheme.font-title;
+            horizontal-alignment: center;
+        }
+
+        if root.adventures.length == 0: Text {
+            text: "No adventures yet.";
+            color: AppTheme.text-muted;
+            font-family: AppTheme.font-body;
+            horizontal-alignment: center;
+        }
+
+        for adventure in root.adventures: TouchArea {
+            height: 72px;
+            clicked => { root.adventure-selected(adventure.id); }
+
+            Rectangle {
+                background: parent.has-hover ? AppTheme.bg-panel-alt : AppTheme.bg-panel;
+                border-radius: AppTheme.radius-card;
+                border-width: 1px;
+                border-color: AppTheme.bronze;
+
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 4px;
+
+                    Text {
+                        text: adventure.title;
+                        color: AppTheme.text-light;
+                        font-family: AppTheme.font-display;
+                        font-size: AppTheme.font-card-title;
+                    }
+
+                    Text {
+                        text: adventure.description;
+                        color: AppTheme.text-muted;
+                        font-family: AppTheme.font-body;
+                        font-size: AppTheme.font-label;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+        }
+    }
+}

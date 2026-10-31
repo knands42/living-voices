@@ -16,7 +16,7 @@ use crate::backend::{
         db::open_pool,
         error::PersistenceError,
         lore::insert_lore,
-        narrator_persistence::insert_narrator,
+        narrator_persistence::insert_default_narrator,
         state_persistence::upsert_state,
     },
 };
@@ -293,7 +293,7 @@ async fn seed_connection(
     adventure.characters.push(Character::player(adventure.id));
 
     insert_adventure(&mut *tx, &adventure).await?;
-    insert_narrator(&mut *tx, adventure.id, &adventure.narrator).await?;
+    insert_default_narrator(&mut *tx, adventure.id, &adventure.narrator).await?;
     upsert_state(
         &mut *tx,
         &State::new(adventure.id).with_characters_present(

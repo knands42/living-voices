@@ -46,8 +46,8 @@ fn with_status_replaces_status() {
 #[test]
 fn add_tag_appends_tag() {
     let mut character = new_character();
-    character.add_tags("protagonist".to_string());
-    character.add_tags("brave".to_string());
+    character.add_tag("protagonist".to_string());
+    character.add_tag("brave".to_string());
 
     assert_eq!(character.tags, vec!["protagonist", "brave"]);
 }
@@ -55,9 +55,9 @@ fn add_tag_appends_tag() {
 #[test]
 fn remove_tag_drops_every_matching_entry() {
     let mut character = new_character();
-    character.add_tags("brave".to_string());
-    character.add_tags("brave".to_string());
-    character.add_tags("lonely".to_string());
+    character.add_tag("brave".to_string());
+    character.add_tag("brave".to_string());
+    character.add_tag("lonely".to_string());
 
     character.remove_tag("brave".to_string());
 

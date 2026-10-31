@@ -154,8 +154,8 @@ async fn create_character_persists_tags() {
         Some(adventure_id),
         "A tide-singer".to_string(),
     );
-    character.add_tags("Protagonist".to_string());
-    character.add_tags("Brave".to_string());
+    character.add_tag("Protagonist".to_string());
+    character.add_tag("Brave".to_string());
 
     manager.create_character(character.clone()).await.unwrap();
 

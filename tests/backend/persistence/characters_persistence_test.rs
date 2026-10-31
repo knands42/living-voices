@@ -75,7 +75,7 @@ async fn insert_character_normalizes_tags() {
     let mut conn = pool.acquire().await.expect("acquire");
 
     let mut character = Character::new("Mara".into(), Some(adventure_id), "A tide-singer".into());
-    character.add_tags("Protagonist".into());
+    character.add_tag("Protagonist".into());
     insert_character(&mut conn, Some(adventure_id), &character)
         .await
         .expect("insert");
