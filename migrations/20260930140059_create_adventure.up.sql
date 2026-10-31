@@ -3,8 +3,7 @@ CREATE TABLE adventure
 (
     id             TEXT NOT NULL PRIMARY KEY,
     title          TEXT NOT NULL,
-    description    TEXT NOT NULL DEFAULT '',
-    genre          TEXT,
+    headline       TEXT NOT NULL DEFAULT '',
     tone           TEXT,
     created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -15,7 +14,6 @@ CREATE TABLE adventure
 );
 
 CREATE INDEX adventure_recent_idx ON adventure (updated_at DESC);
-CREATE INDEX adventure_genre_idx ON adventure (genre);
 
 -- AdventureMetadata.tags: many-to-many against the shared tag vocabulary, so
 -- the same tag can be carried by any number of adventures.
@@ -29,17 +27,21 @@ CREATE TABLE adventure_tag
 
 -- Adding a tag the adventure already carries is a no-op rather than an error.
 CREATE TRIGGER adventure_tag_ignore_duplicate_insert
-    BEFORE INSERT ON adventure_tag
+    BEFORE INSERT
+    ON adventure_tag
     FOR EACH ROW
-    WHEN EXISTS (SELECT 1 FROM adventure_tag
-                 WHERE adventure_id = NEW.adventure_id AND tag = NEW.tag)
+    WHEN EXISTS (SELECT 1
+                 FROM adventure_tag
+                 WHERE adventure_id = NEW.adventure_id
+                   AND tag = NEW.tag)
 BEGIN
     SELECT RAISE(IGNORE);
 END;
 
 
 CREATE TRIGGER adventure_touch_updated_at
-    AFTER UPDATE ON adventure
+    AFTER UPDATE
+    ON adventure
     FOR EACH ROW
     WHEN NEW.updated_at = OLD.updated_at
 BEGIN

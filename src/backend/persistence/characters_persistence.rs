@@ -1,8 +1,12 @@
 use std::collections::HashMap;
 
-use sqlx::SqliteConnection;
+use sqlx::sqlite::SqliteRow;
+use sqlx::{Error, FromRow, Row, SqliteConnection};
 use uuid::Uuid;
 
+use crate::backend::domain::adventure::{Adventure, AdventureSummary};
+use crate::backend::domain::character::CharacterStatus;
+use crate::backend::persistence::db::from_str_to_uuid;
 use crate::backend::{
     domain::character::Character,
     persistence::{
@@ -11,19 +15,62 @@ use crate::backend::{
     },
 };
 
+struct CharacterRow {
+    id: String,
+    adventure_id: String,
+    name: String,
+    headline: String,
+    backstory: String,
+    status: String,
+    portrait_path: Option<String>,
+    is_player: bool,
+}
+
+impl FromRow<'_, SqliteRow> for CharacterRow {
+    fn from_row(row: &'_ SqliteRow) -> Result<Self, sqlx::Error> {
+        Ok(Self {
+            id: row.get("id"),
+            adventure_id: row.get("adventure_id"),
+            name: row.get("name"),
+            headline: row.get("headline"),
+            backstory: row.get("backstory"),
+            status: row.get("status"),
+            portrait_path: row.get("portrait_path"),
+            is_player: row.get("is_player"),
+        })
+    }
+}
+
+impl TryFrom<CharacterRow> for Character {
+    type Error = PersistenceError;
+    fn try_from(value: CharacterRow) -> Result<Self, PersistenceError> {
+        let character_id = from_str_to_uuid(value.id.as_str())?;
+        let adventure_id = from_str_to_uuid(value.adventure_id.as_str())?;
+        Ok(Character::new(
+            character_id,
+            value.name,
+            adventure_id,
+            value.headline,
+            value.backstory,
+            CharacterStatus::from_str(value.status.as_str()),
+            value.is_player,
+        ))
+    }
+}
+
 pub async fn insert_character(
     conn: &mut SqliteConnection,
-    adventure_id: Option<Uuid>,
+    adventure_id: Uuid,
     character: &Character,
 ) -> Result<(), PersistenceError> {
     sqlx::query(
-        "INSERT INTO character (id, adventure_id, name, description, backstory, status, portrait_path, is_player)
+        "INSERT INTO character (id, adventure_id, name, headline, backstory, status, portrait_path, is_player)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
     )
     .bind(character.id.to_string())
-    .bind(adventure_id.map(|id| id.to_string()))
+    .bind(adventure_id.to_string())
     .bind(&character.name)
-    .bind(&character.description)
+    .bind(&character.headline)
     .bind(&character.backstory)
     .bind(&character.status.as_str())
     .bind(character.portrait_path.as_deref())
@@ -42,6 +89,27 @@ pub async fn insert_character(
     }
 
     Ok(())
+}
+
+pub async fn insert_default_player_character(
+    conn: &mut SqliteConnection,
+    character_id: Uuid,
+    adventure_id: Uuid,
+) -> Result<Character, PersistenceError> {
+    const DEFAULT_NAME: &str = "You";
+    let row = sqlx::query_as::<_, CharacterRow>(
+        "INSERT INTO character (id, adventure_id, name, is_player)
+         VALUES (?1, ?2, ?3, ?4)
+         RETURNING *",
+    )
+    .bind(character_id.to_string())
+    .bind(adventure_id.to_string())
+    .bind(DEFAULT_NAME)
+    .bind(true)
+    .fetch_one(&mut *conn)
+    .await?;
+
+    Character::try_from(row)
 }
 
 pub async fn insert_trait(

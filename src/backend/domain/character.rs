@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, vec};
 
 use uuid::Uuid;
 
@@ -23,6 +23,26 @@ impl CharacterStatus {
             CharacterStatus::Unavailable => "unavailable",
         }
     }
+
+    pub fn from_str(value: &str) -> Self {
+        match value {
+            "away" => CharacterStatus::Away,
+            "present" => CharacterStatus::Present,
+            "unavailable" => CharacterStatus::Unavailable,
+            _ => CharacterStatus::Present,
+        }
+    }
+}
+
+impl From<String> for CharacterStatus {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "away" => CharacterStatus::Away,
+            "present" => CharacterStatus::Present,
+            "unavailable" => CharacterStatus::Unavailable,
+            _ => CharacterStatus::Present,
+        }
+    }
 }
 
 impl Display for CharacterStatus {
@@ -40,45 +60,43 @@ impl Default for CharacterStatus {
 #[derive(Clone, Debug)]
 pub struct Character {
     pub id: Uuid,
-    pub adventure_id: Option<Uuid>,
+    pub adventure_id: Uuid,
     pub name: String,
-    pub description: String,
+    pub headline: String,
     pub status: CharacterStatus,
     pub backstory: String,
     pub portrait_path: Option<String>,
     pub is_player: bool,
-    pub traits: Vec<String>, // Speaks only in tidal registers, ...
-    pub tags: Vec<String>,   // Protagonist, Brave ...
-    pub relations: HashMap<Uuid, String>, // Mother, Father ...
+    pub traits: Vec<String>,    // Speaks only in tidal registers, ...
+    pub tags: Vec<String>,      // Protagonist, Brave ...
+    pub relations: Vec<String>, // Son of Dragoon
 }
 
 impl Character {
     pub const DEFAULT_PLAYER_NAME: &'static str = "You";
 
-    pub fn new(name: String, adventure_id: Option<Uuid>, description: String) -> Self {
+    pub fn new(
+        id: Uuid,
+        name: String,
+        adventure_id: Uuid,
+        headline: impl Into<String>,
+        backstory: impl Into<String>,
+        status: CharacterStatus,
+        is_player: bool,
+    ) -> Self {
         Self {
-            id: Uuid::new_v4(),
+            id,
             adventure_id,
             name,
-            description,
-            backstory: String::new(),
-            status: CharacterStatus::default(),
+            headline: headline.into(),
+            backstory: backstory.into(),
+            status,
             portrait_path: None,
-            is_player: false,
-            traits: Vec::new(),
-            tags: Vec::new(),
-            relations: HashMap::new(),
+            is_player,
+            traits: vec![],
+            tags: vec![],
+            relations: vec![],
         }
-    }
-
-    pub fn with_backstory(mut self, backstory: String) -> Self {
-        self.backstory = backstory;
-        self
-    }
-
-    pub fn with_status(mut self, status: CharacterStatus) -> Self {
-        self.status = status;
-        self
     }
 
     pub fn with_portrait(mut self, portrait_path: impl Into<String>) -> Self {
@@ -86,21 +104,7 @@ impl Character {
         self
     }
 
-    pub fn set_as_player(mut self) -> Self {
-        self.is_player = true;
-        self
-    }
-
-    pub fn player(adventure_id: Uuid) -> Self {
-        Self::new(
-            String::from(Self::DEFAULT_PLAYER_NAME),
-            Some(adventure_id),
-            String::new(),
-        )
-        .set_as_player()
-    }
-
-    pub fn add_tags(&mut self, tag: String) {
+    pub fn add_tag(&mut self, tag: String) {
         self.tags.push(tag);
     }
 
@@ -112,14 +116,14 @@ impl Character {
         self.tags.retain(|t| t != &tag);
     }
 
-    pub fn add_relation(&mut self, entity_id: Uuid, relation: String) {
-        self.relations.insert(entity_id, relation);
+    pub fn add_relation(&mut self, relation: String) {
+        self.relations.push(relation);
     }
 
     pub fn render(&self) -> String {
         let mut parts = vec![format!("{}.", self.name)];
-        if !self.description.trim().is_empty() {
-            parts.push(self.description.clone());
+        if !self.headline.trim().is_empty() {
+            parts.push(self.headline.clone());
         }
         if !self.backstory.trim().is_empty() {
             parts.push(format!("Backstory: {}", self.backstory));

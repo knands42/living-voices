@@ -69,13 +69,7 @@ async fn create_adventure_creates_a_default_player_character() {
     let manager = AdventureManager::new(SharedState::new(), pool.clone());
 
     let adventure = manager
-        .create_adventure(
-            "Tides".into(),
-            "A drowned city".into(),
-            "Find Atlanta".into(),
-            "Guide".into(),
-            "tense",
-        )
+        .create_adventure("Tides".into(), "A drowned city".into(), "tense".into())
         .await
         .expect("create adventure");
 
@@ -109,15 +103,9 @@ async fn create_adventure_creates_initial_act() {
     let (pool, _db) = setup_db().await;
     let manager = AdventureManager::new(SharedState::new(), pool.clone());
 
-    let goal = "Find Atlanta";
+    let goal = "PENDING GOAL";
     let adventure = manager
-        .create_adventure(
-            "Tides".into(),
-            "A drowned city".into(),
-            goal.into(),
-            "Guide".into(),
-            "tense",
-        )
+        .create_adventure("Tides".into(), "A drowned city".into(), "tense".into())
         .await
         .expect("create adventure");
 
@@ -128,5 +116,5 @@ async fn create_adventure_creates_initial_act() {
     assert_eq!(acts.len(), 1);
     assert_eq!(acts[0].ordinal, 0);
     assert_eq!(acts[0].goal, goal);
-    assert_eq!(acts[0].status, ActStatus::Active);
+    assert_eq!(acts[0].status, ActStatus::Unstarted);
 }

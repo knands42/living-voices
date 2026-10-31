@@ -47,6 +47,7 @@ cov_ignore := '(src/ui/|src/cli/|app\.rs)'
 install-requirements:
     rustup component add llvm-tools-preview
     cargo install cargo-llvm-cov
+    curl -LsSf https://llama.app/install.sh | sh
 
 coverage:
     cargo llvm-cov --summary-only --ignore-filename-regex '{{cov_ignore}}'

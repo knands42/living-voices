@@ -9,14 +9,15 @@ use crate::backend::{
         character::{Character, CharacterStatus},
         lore::Lore,
         memory::State,
+        narrator::Narrator,
     },
     persistence::{
         adventure_persistence::insert_adventure,
         characters_persistence::{insert_character, insert_relations},
         db::open_pool,
         error::PersistenceError,
-        lore::insert_lore,
-        narrator_persistence::insert_narrator,
+        lore_persistence::insert_lore,
+        narrator_persistence::insert_default_narrator,
         state_persistence::upsert_state,
     },
 };
@@ -237,35 +238,49 @@ async fn seed_connection(
     tx: &mut sqlx::Transaction<'static, Sqlite>,
     seed: &SeedAdventure,
 ) -> Result<Adventure, PersistenceError> {
-    let mut adventure = Adventure::new(
-        seed.title.to_string(),
-        seed.description.to_string(),
-        String::from("NARRATOR"),
+    let adventure_id = Uuid::new_v4();
+    let tags: Vec<String> = seed.tags.iter().map(|t| t.to_string()).collect();
+    let adventure_summary = insert_adventure(
+        &mut *tx,
+        adventure_id,
+        seed.title,
+        seed.description,
         seed.tone.unwrap_or_default(),
-    );
-    adventure.genre = seed.genre.map(str::to_string);
-    adventure.lore = Lore::new().with_text(seed.lore.to_string());
-    adventure.add_tags(seed.tags.iter().map(|tag| tag.to_string()).collect());
+        tags,
+    )
+    .await?;
+
+    let narrator_id = Uuid::new_v4();
+    insert_default_narrator(&mut *tx, narrator_id, adventure_summary.id).await?;
+
+    let lore_id = Uuid::new_v4();
+    let lore = Lore::new(lore_id, seed.lore);
+    insert_lore(&mut *tx, adventure_summary.id, &lore).await?;
 
     let mut ids_by_name: HashMap<&str, Uuid> = HashMap::with_capacity(seed.characters.len());
+    let mut characters: Vec<Character> = Vec::with_capacity(seed.characters.len() + 1);
+
     for seed_character in seed.characters {
+        let character_id = Uuid::new_v4();
         let mut character = Character::new(
+            character_id,
             seed_character.name.to_string(),
-            Some(adventure.id),
-            seed_character.description.to_string(),
-        )
-        .with_backstory(seed_character.backstory.to_string())
-        .with_status(CharacterStatus::Present);
+            adventure_summary.id,
+            seed_character.description,
+            seed_character.backstory,
+            CharacterStatus::Present,
+            false,
+        );
 
         for trait_ in seed_character.traits {
             character.add_trait((*trait_).to_string());
         }
         for tag in seed_character.tags {
-            character.add_tags((*tag).to_string());
+            character.add_tag((*tag).to_string());
         }
 
         if ids_by_name
-            .insert(seed_character.name, character.id)
+            .insert(seed_character.name, character_id)
             .is_some()
         {
             return Err(PersistenceError::invalid_seed(
@@ -277,42 +292,57 @@ async fn seed_connection(
             ));
         }
 
-        adventure.characters.push(character);
+        characters.push(character);
     }
 
-    for (seed_character, character) in seed.characters.iter().zip(adventure.characters.iter_mut()) {
+    let player = Character::new(
+        Uuid::new_v4(),
+        Character::DEFAULT_PLAYER_NAME.to_string(),
+        adventure_summary.id,
+        "",
+        "",
+        CharacterStatus::Present,
+        true,
+    );
+    characters.push(player);
+
+    for character in &characters {
+        insert_character(&mut *tx, adventure_summary.id, character).await?;
+    }
+
+    for (seed_character, character) in seed.characters.iter().zip(characters.iter_mut()) {
+        let mut relations = HashMap::new();
         for (target_name, relation) in seed_character.relations {
             let target_id = *ids_by_name
                 .get(*target_name)
                 .ok_or_else(|| PersistenceError::unknown_seed_character(seed, target_name))?;
 
-            character.add_relation(target_id, (*relation).to_string());
+            relations.insert(target_id, (*relation).to_string());
+            character.add_relation(format!("{relation}: {target_name}"));
+        }
+        if !relations.is_empty() {
+            insert_relations(&mut *tx, character.id, &relations).await?;
         }
     }
 
-    adventure.characters.push(Character::player(adventure.id));
+    let state = State::new(Uuid::new_v4(), adventure_summary.id)
+        .with_characters_present(characters.iter().map(|c| c.name.clone()).collect());
+    upsert_state(&mut *tx, &state).await?;
 
-    insert_adventure(&mut *tx, &adventure).await?;
-    insert_narrator(&mut *tx, adventure.id, &adventure.narrator).await?;
-    upsert_state(
-        &mut *tx,
-        &State::new(adventure.id).with_characters_present(
-            adventure
-                .characters
-                .iter()
-                .map(|c| c.name.clone())
-                .collect(),
-        ),
-    )
-    .await?;
-    insert_lore(&mut *tx, adventure.id, &adventure.lore).await?;
-
-    for character in &adventure.characters {
-        insert_character(&mut *tx, Some(adventure.id), character).await?;
-    }
-
-    for character in &adventure.characters {
-        insert_relations(&mut *tx, character.id, &character.relations).await?;
+    let narrator = Narrator::new(narrator_id, "NARRATOR", "");
+    let mut adventure = Adventure::new(
+        adventure_summary.id,
+        adventure_summary.title,
+        adventure_summary.headline,
+        narrator,
+        adventure_summary.tone,
+        lore,
+        adventure_summary.created_at,
+        adventure_summary.updated_at,
+    );
+    adventure.add_tags(seed.tags.iter().map(|t| t.to_string()).collect());
+    for character in characters {
+        adventure.add_character(character);
     }
 
     Ok(adventure)

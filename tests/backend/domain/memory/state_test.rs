@@ -5,7 +5,7 @@ use living_voices::backend::domain::memory::State;
 #[test]
 fn state_new_starts_empty() {
     let adv = Uuid::new_v4();
-    let state = State::new(adv);
+    let state = State::new(Uuid::new_v4(), adv);
     assert_ne!(state.id, Uuid::nil());
     assert_eq!(state.adventure_id, adv);
     assert_eq!(state.day, String::from("unknown"));
@@ -13,12 +13,12 @@ fn state_new_starts_empty() {
     assert!(state.characters_present.is_empty());
     assert!(state.open_threads.is_empty());
     assert!(state.conditions.is_empty());
-    assert!(State::new(adv).render().is_some());
+    assert!(State::new(Uuid::new_v4(), adv).render().is_some());
 }
 
 #[test]
 fn state_builders_set_every_field() {
-    let state = State::new(Uuid::new_v4())
+    let state = State::new(Uuid::new_v4(), Uuid::new_v4())
         .with_day("Day 3".to_string())
         .with_place("the vault".to_string())
         .with_characters_present(vec!["Mira".to_string()])
@@ -34,7 +34,7 @@ fn state_builders_set_every_field() {
 
 #[test]
 fn state_render_lists_set_fields() {
-    let mut state = State::new(Uuid::new_v4());
+    let mut state = State::new(Uuid::new_v4(), Uuid::new_v4());
     state.day = "Day 2, dusk".to_string();
     state.place = "cave mouth".to_string();
     state.characters_present = vec!["kaelen".to_string(), "elara".to_string()];

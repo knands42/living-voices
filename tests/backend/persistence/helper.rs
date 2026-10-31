@@ -4,18 +4,16 @@ use sqlx::query;
 use sqlx::sqlite::SqlitePool;
 use uuid::Uuid;
 
-use living_voices::backend::domain::adventure::Adventure;
+use living_voices::backend::domain::adventure::AdventureSummary;
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::persistence::message_persistence::insert_message;
 
-pub async fn seed_adventure(pool: &SqlitePool) -> Adventure {
-    let adventure = Adventure::new("A".into(), "B".into(), "Guide".into(), "");
+pub async fn seed_adventure(pool: &SqlitePool) -> AdventureSummary {
     let mut conn = pool.acquire().await.expect("acquire");
-    insert_adventure(&mut conn, &adventure)
+    insert_adventure(&mut conn, Uuid::new_v4(), "A", "B", "", vec![])
         .await
-        .expect("insert adventure");
-    adventure
+        .expect("insert adventure")
 }
 
 pub async fn seed_act(

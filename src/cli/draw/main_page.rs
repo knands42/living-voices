@@ -79,10 +79,10 @@ fn render_tale_card(frame: &mut Frame, area: Rect, adventure: Option<&Adventure>
         pill(&format!("narrator: {narrator}"), GOLD),
     ]);
 
-    let desc_text = if adventure.description.trim().is_empty() {
+    let desc_text = if adventure.headline.trim().is_empty() {
         "An untold story waits for its first word.".to_string()
     } else {
-        adventure.description.clone()
+        adventure.headline.clone()
     };
 
     let body = Paragraph::new(vec![

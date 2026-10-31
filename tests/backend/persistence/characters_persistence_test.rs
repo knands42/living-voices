@@ -4,7 +4,6 @@ use sqlx::sqlite::SqlitePool;
 use uuid::Uuid;
 
 use crate::backend::application::helper::setup_db;
-use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::{Character, CharacterStatus};
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::persistence::characters_persistence::{
@@ -12,12 +11,11 @@ use living_voices::backend::persistence::characters_persistence::{
 };
 
 async fn setup_adventure(pool: &SqlitePool) -> Uuid {
-    let adventure = Adventure::new("A".into(), "B".into(), "Guide".into(), "");
     let mut conn = pool.acquire().await.expect("acquire");
-    insert_adventure(&mut conn, &adventure)
+    insert_adventure(&mut conn, Uuid::new_v4(), "A", "B", "", vec![])
         .await
-        .expect("insert adventure");
-    adventure.id
+        .expect("insert adventure")
+        .id
 }
 
 #[tokio::test]
@@ -26,10 +24,16 @@ async fn insert_character_persists_core_columns() {
     let adventure_id = setup_adventure(&pool).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
-    let character = Character::new("Mara".into(), Some(adventure_id), "A tide-singer".into())
-        .with_backstory("Raised in the drowned quarter".into())
-        .with_status(CharacterStatus::Away);
-    insert_character(&mut conn, Some(adventure_id), &character)
+    let character = Character::new(
+        Uuid::new_v4(),
+        "Mara".into(),
+        adventure_id,
+        "A tide-singer",
+        "Raised in the drowned quarter",
+        CharacterStatus::Away,
+        false,
+    );
+    insert_character(&mut conn, adventure_id, &character)
         .await
         .expect("insert");
 
@@ -50,10 +54,18 @@ async fn insert_character_persists_traits_in_order() {
     let adventure_id = setup_adventure(&pool).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
-    let mut character = Character::new("Mara".into(), Some(adventure_id), "A tide-singer".into());
+    let mut character = Character::new(
+        Uuid::new_v4(),
+        "Mara".into(),
+        adventure_id,
+        "A tide-singer",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
     character.add_trait("speaks in tidal registers".into());
     character.add_trait("hums before speaking".into());
-    insert_character(&mut conn, Some(adventure_id), &character)
+    insert_character(&mut conn, adventure_id, &character)
         .await
         .expect("insert");
 
@@ -74,9 +86,17 @@ async fn insert_character_normalizes_tags() {
     let adventure_id = setup_adventure(&pool).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
-    let mut character = Character::new("Mara".into(), Some(adventure_id), "A tide-singer".into());
-    character.add_tags("Protagonist".into());
-    insert_character(&mut conn, Some(adventure_id), &character)
+    let mut character = Character::new(
+        Uuid::new_v4(),
+        "Mara".into(),
+        adventure_id,
+        "A tide-singer",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
+    character.add_tag("Protagonist".into());
+    insert_character(&mut conn, adventure_id, &character)
         .await
         .expect("insert");
 
@@ -95,12 +115,28 @@ async fn insert_relations_links_characters() {
     let adventure_id = setup_adventure(&pool).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
-    let mara = Character::new("Mara".into(), Some(adventure_id), "singer".into());
-    let otho = Character::new("Otho".into(), Some(adventure_id), "diver".into());
-    insert_character(&mut conn, Some(adventure_id), &mara)
+    let mara = Character::new(
+        Uuid::new_v4(),
+        "Mara".into(),
+        adventure_id,
+        "singer",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
+    let otho = Character::new(
+        Uuid::new_v4(),
+        "Otho".into(),
+        adventure_id,
+        "diver",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
+    insert_character(&mut conn, adventure_id, &mara)
         .await
         .expect("insert mara");
-    insert_character(&mut conn, Some(adventure_id), &otho)
+    insert_character(&mut conn, adventure_id, &otho)
         .await
         .expect("insert otho");
 

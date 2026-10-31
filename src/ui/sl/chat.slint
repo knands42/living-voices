@@ -1,1 +1,41 @@
 import { AppTheme } from "theme.slint";
+
+export component ChatPage inherits Rectangle {
+    in property <string> adventure-id;
+    callback back-requested();
+
+    background: AppTheme.bg-deepest;
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 16px;
+        padding: 32px;
+
+        Text {
+            text: "Chat — " + root.adventure-id;
+            color: AppTheme.gold;
+            font-family: AppTheme.font-brand;
+            font-size: AppTheme.font-title;
+            horizontal-alignment: center;
+        }
+
+        TouchArea {
+            height: 40px;
+            clicked => { root.back-requested(); }
+
+            Rectangle {
+                background: parent.has-hover ? AppTheme.bg-panel-alt : AppTheme.bg-panel;
+                border-radius: AppTheme.radius-pill;
+                border-width: 1px;
+                border-color: AppTheme.bronze;
+
+                Text {
+                    text: "← Back";
+                    color: AppTheme.text-light;
+                    font-family: AppTheme.font-body;
+                    font-size: AppTheme.font-label;
+                }
+            }
+        }
+    }
+}

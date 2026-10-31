@@ -16,9 +16,9 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(adventure_id: Uuid) -> Self {
+    pub fn new(id: Uuid, adventure_id: Uuid) -> Self {
         Self {
-            id: Uuid::new_v4(),
+            id,
             adventure_id,
             day: String::from("unknown"),
             place: String::from("unknown"),

@@ -168,6 +168,29 @@ pub async fn insert_act(conn: &mut SqliteConnection, act: &Act) -> Result<(), Pe
     Ok(())
 }
 
+pub async fn insert_default_act(
+    conn: &mut SqliteConnection,
+    id: Uuid,
+    adventure_id: Uuid,
+    ordinal: u16,
+    goal: &str,
+    status: &str,
+) -> Result<(), PersistenceError> {
+    sqlx::query(
+        "INSERT INTO act (id, adventure_id, ordinal, goal, status)
+         VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(id) DO NOTHING",
+    )
+    .bind(id.to_string())
+    .bind(adventure_id.to_string())
+    .bind(ordinal)
+    .bind(goal)
+    .bind(status.to_string())
+    .execute(&mut *conn)
+    .await?;
+
+    Ok(())
+}
+
 pub async fn close_act(
     conn: &mut SqliteConnection,
     act_id: Uuid,
@@ -189,6 +212,22 @@ pub async fn close_act(
     .bind(digest)
     .bind(status)
     .bind(to_seq)
+    .execute(&mut *conn)
+    .await?;
+
+    Ok(())
+}
+
+pub async fn activate_first_act(
+    conn: &mut SqliteConnection,
+    adventure_id: Uuid,
+) -> Result<(), PersistenceError> {
+    sqlx::query(
+        "UPDATE act
+         SET status = 'active'
+         WHERE adventure_id = ?1 AND ordinal = 0",
+    )
+    .bind(adventure_id.to_string())
     .execute(&mut *conn)
     .await?;
 

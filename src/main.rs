@@ -65,7 +65,7 @@ async fn main() {
             Ok(adventures) => {
                 log::info!("Seeded {} adventures", adventures.len());
                 if let Some(first) = adventures.into_iter().next() {
-                    if let Err(err) = app.load_adventure(first) {
+                    if let Err(err) = app.load_adventure(first).await {
                         eprintln!("Could not open seeded adventure: {err}");
                         std::process::exit(1);
                     }

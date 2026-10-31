@@ -32,6 +32,16 @@ impl ActStatus {
             _ => None,
         }
     }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ActStatus::Unstarted => "unstarted",
+            ActStatus::Active => "active",
+            ActStatus::Resolved => "resolved",
+            ActStatus::Failed => "failed",
+            ActStatus::Bypassed => "bypassed",
+        }
+    }
 }
 
 impl Display for ActStatus {

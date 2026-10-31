@@ -1,12 +1,20 @@
+use chrono::Utc;
 use living_voices::backend::application::state::{AppState, SharedState, StateError};
 use living_voices::backend::domain::adventure::Adventure;
+use living_voices::backend::domain::lore::Lore;
+use living_voices::backend::domain::narrator::Narrator;
+use uuid::Uuid;
 
 fn new_adventure() -> Adventure {
     Adventure::new(
-        "Tides of Glass".to_string(),
-        "A drowned city".to_string(),
-        String::from("NARRATOR"),
+        Uuid::new_v4(),
+        "Tides of Glass",
+        "A drowned city",
+        Narrator::new(Uuid::new_v4(), "NARRATOR", ""),
         "",
+        Lore::new(Uuid::new_v4(), ""),
+        Utc::now(),
+        Utc::now(),
     )
 }
 

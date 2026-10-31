@@ -4,13 +4,15 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 use living_voices::backend::domain::adventure::Adventure;
-use living_voices::backend::domain::character::Character;
+use living_voices::backend::domain::character::{Character, CharacterStatus};
+use living_voices::backend::domain::lore::Lore;
 use living_voices::backend::domain::memory::State;
 use living_voices::backend::domain::message::Message;
+use living_voices::backend::domain::narrator::Narrator;
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::persistence::characters_persistence::insert_character;
 use living_voices::backend::persistence::message_persistence::insert_message;
-use living_voices::backend::persistence::narrator_persistence::insert_narrator;
+use living_voices::backend::persistence::narrator_persistence::insert_default_narrator;
 use living_voices::backend::persistence::state_persistence::upsert_state;
 
 pub struct TempDb(pub PathBuf);
@@ -71,12 +73,15 @@ pub fn build_characters(adventure_id: Uuid, specs: &[CharacterSpec]) -> Vec<Char
     specs
         .iter()
         .map(|spec| {
-            let character = Character::new(spec.name.clone(), Some(adventure_id), "A diver".into());
-            if spec.is_player {
-                character.set_as_player()
-            } else {
-                character
-            }
+            Character::new(
+                Uuid::new_v4(),
+                spec.name.clone(),
+                adventure_id,
+                "A diver",
+                "",
+                CharacterStatus::Present,
+                spec.is_player,
+            )
         })
         .collect()
 }
@@ -90,7 +95,7 @@ pub async fn create_characters(
     let characters = build_characters(adventure_id, specs);
     let mut conn = pool.acquire().await.expect("acquire");
     for character in &characters {
-        insert_character(&mut conn, Some(adventure_id), character)
+        insert_character(&mut conn, adventure_id, character)
             .await
             .expect("insert character");
     }
@@ -99,28 +104,50 @@ pub async fn create_characters(
 
 /// Persist a full adventure: the adventure row, its narrator, and the given cast.
 pub async fn create_adventure(pool: &SqlitePool, specs: &[CharacterSpec]) -> Adventure {
-    let mut adventure = Adventure::new(
-        "Test adventure".into(),
-        "A drowned city".into(),
-        "Guide".into(),
-        "tense",
-    );
-    adventure.characters = build_characters(adventure.id, specs);
-
     let mut conn = pool.acquire().await.expect("acquire");
-    insert_adventure(&mut conn, &adventure)
-        .await
-        .expect("insert adventure");
-    insert_narrator(&mut conn, adventure.id, &adventure.narrator)
+
+    let adventure_id = Uuid::new_v4();
+    let adventure_summary = insert_adventure(
+        &mut conn,
+        adventure_id,
+        "Test adventure",
+        "A drowned city",
+        "tense",
+        vec![],
+    )
+    .await
+    .expect("insert adventure");
+
+    let narrator_id = Uuid::new_v4();
+    insert_default_narrator(&mut conn, narrator_id, adventure_summary.id)
         .await
         .expect("insert narrator");
-    upsert_state(&mut conn, &State::new(adventure.id))
-        .await
-        .expect("insert initial state");
-    for character in &adventure.characters {
-        insert_character(&mut conn, Some(adventure.id), character)
+
+    let characters = build_characters(adventure_summary.id, specs);
+    for character in &characters {
+        insert_character(&mut conn, adventure_summary.id, character)
             .await
             .expect("insert character");
+    }
+
+    upsert_state(&mut conn, &State::new(Uuid::new_v4(), adventure_summary.id))
+        .await
+        .expect("insert initial state");
+
+    let narrator = Narrator::new(narrator_id, "Narrator", "");
+    let lore = Lore::new(Uuid::new_v4(), "");
+    let mut adventure = Adventure::new(
+        adventure_summary.id,
+        adventure_summary.title,
+        adventure_summary.headline,
+        narrator,
+        adventure_summary.tone,
+        lore,
+        adventure_summary.created_at,
+        adventure_summary.updated_at,
+    );
+    for character in characters {
+        adventure.add_character(character);
     }
     adventure
 }

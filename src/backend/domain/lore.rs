@@ -7,10 +7,10 @@ pub struct Lore {
 }
 
 impl Lore {
-    pub fn new() -> Self {
+    pub fn new(id: Uuid, text: impl Into<String>) -> Self {
         Lore {
-            id: Uuid::new_v4(),
-            text: String::new(),
+            id,
+            text: text.into(),
         }
     }
 

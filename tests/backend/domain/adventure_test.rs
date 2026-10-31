@@ -1,19 +1,36 @@
+use chrono::Utc;
 use living_voices::backend::domain::adventure::Adventure;
-use living_voices::backend::domain::character::Character;
+use living_voices::backend::domain::character::{Character, CharacterStatus};
+use living_voices::backend::domain::lore::Lore;
+use living_voices::backend::domain::narrator::Narrator;
+use uuid::Uuid;
 
 fn new_adventure() -> Adventure {
+    let now = Utc::now();
     Adventure::new(
-        "Tides of Glass".to_string(),
-        "A drowned city".to_string(),
-        String::from("NARRATOR"),
+        Uuid::new_v4(),
+        "Tides of Glass",
+        "A drowned city",
+        Narrator::new(Uuid::new_v4(), "NARRATOR", ""),
         "",
+        Lore::new(Uuid::new_v4(), ""),
+        now,
+        now,
     )
 }
 
 fn adventure_with_character(name: &str) -> (Adventure, Character) {
     let mut adventure = new_adventure();
-    let character = Character::new(name.to_string(), Some(adventure.id), "A diver".to_string());
-    adventure.characters.push(character.clone());
+    let character = Character::new(
+        Uuid::new_v4(),
+        name.to_string(),
+        adventure.id,
+        "A diver",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
+    adventure.add_character(character.clone());
     (adventure, character)
 }
 
@@ -22,17 +39,16 @@ fn new_sets_title_description_and_empty_collections() {
     let adventure = new_adventure();
 
     assert_eq!(adventure.title, "Tides of Glass");
-    assert_eq!(adventure.description, "A drowned city");
+    assert_eq!(adventure.headline, "A drowned city");
     assert!(adventure.characters.is_empty());
     assert!(adventure.tags.is_empty());
     assert_eq!(adventure.lore.text, "");
 }
 
 #[test]
-fn new_defaults_optional_metadata_to_none() {
+fn new_defaults_tone_to_empty() {
     let adventure = new_adventure();
 
-    assert!(adventure.genre.is_none());
     assert!(adventure.tone.is_empty());
 }
 
@@ -88,8 +104,16 @@ fn active_characters_returns_only_present_names() {
     // Given an adventure with three cast members
     let mut adventure = new_adventure();
     for name in ["Mira", "Kael", "Otho"] {
-        let character = Character::new(name.to_string(), Some(adventure.id), "A diver".to_string());
-        adventure.characters.push(character);
+        let character = Character::new(
+            Uuid::new_v4(),
+            name.to_string(),
+            adventure.id,
+            "A diver",
+            "",
+            CharacterStatus::Present,
+            false,
+        );
+        adventure.add_character(character);
     }
 
     // When filtering to two present names

@@ -1,5 +1,5 @@
 use living_voices::backend::application::director::Director;
-use living_voices::backend::domain::character::Character;
+use living_voices::backend::domain::character::{Character, CharacterStatus};
 use living_voices::backend::domain::message::Message;
 use living_voices::config::{DirectorSettings, MessageThresholdRange};
 use uuid::Uuid;
@@ -7,7 +7,17 @@ use uuid::Uuid;
 fn cast(names: &[&str]) -> Vec<Character> {
     names
         .iter()
-        .map(|n| Character::new((*n).to_string(), None, "a diver".into()))
+        .map(|n| {
+            Character::new(
+                Uuid::new_v4(),
+                (*n).to_string(),
+                Uuid::new_v4(),
+                "a diver",
+                "",
+                CharacterStatus::Present,
+                false,
+            )
+        })
         .collect()
 }
 
@@ -146,7 +156,15 @@ fn a_target_not_in_the_cast_defers() {
     // given: a line aimed at someone absent from the cast
     let d = director(1.0, 0.0, (20, 30));
     let cast = cast(&["Mira", "Laura"]);
-    let outsider = Character::new("Nobody".to_string(), None, "a stranger".into());
+    let outsider = Character::new(
+        Uuid::new_v4(),
+        "Nobody".to_string(),
+        Uuid::new_v4(),
+        "a stranger",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
     let incoming = line(&[&outsider], false);
     // when/then: the pick is deferred
     assert!(
@@ -160,7 +178,15 @@ fn a_target_is_always_selected_if_only_one() {
     // given: a line aimed at someone
     let d = director(1.0, 0.0, (20, 30));
     let cast = cast(&["Mira"]);
-    let outsider = Character::new("Nobody".to_string(), None, "a stranger".into());
+    let outsider = Character::new(
+        Uuid::new_v4(),
+        "Nobody".to_string(),
+        Uuid::new_v4(),
+        "a stranger",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
     let incoming = line(&[&outsider], false);
     // when/then: Mira is picked even the target character does not belong to the cast
     assert_eq!(

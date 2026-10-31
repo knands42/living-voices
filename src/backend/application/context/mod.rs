@@ -138,11 +138,8 @@ impl ContextBuilder {
         let mut lines = vec!["## SETTINGS".to_string()];
 
         lines.push(format!("Title: {}", adventure.title));
-        if !adventure.description.trim().is_empty() {
-            lines.push(format!("Premise: {}", adventure.description));
-        }
-        if let Some(genre) = adventure.genre.as_deref().filter(|g| !g.trim().is_empty()) {
-            lines.push(format!("Genre: {genre}"));
+        if !adventure.headline.trim().is_empty() {
+            lines.push(format!("Premise: {}", adventure.headline));
         }
         if !adventure.tone.trim().is_empty() {
             lines.push(format!("Tone: {}", adventure.tone));

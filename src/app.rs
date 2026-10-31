@@ -91,11 +91,13 @@ impl<
 > App<C, N, M, A>
 {
     #[cfg(debug_assertions)]
-    pub fn load_adventure(
+    pub async fn load_adventure(
         &self,
         adventure: crate::backend::domain::adventure::Adventure,
     ) -> Result<(), crate::backend::application::adventure_manager::AdventureManagerError> {
-        self.ctx.adventures.set_current_adventure(adventure)
+        self.ctx.adventures.start_adventure(adventure).await?;
+
+        Ok(())
     }
 
     pub fn run(&self) -> Result<(), slint::PlatformError> {

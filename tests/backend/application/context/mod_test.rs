@@ -1,11 +1,12 @@
 use sqlx::query;
 use sqlx::sqlite::SqlitePool;
-use uuid::Uuid;
 
-use crate::backend::application::helper::{CharacterSpec, create_adventure, setup_db};
+use crate::backend::application::helper::{CharacterSpec, create_characters, setup_db};
+use living_voices::backend::application::adventure_manager::AdventureManager;
 use living_voices::backend::application::context::ContextBuilder;
 use living_voices::backend::application::director::Director;
 use living_voices::backend::application::port::chat_port::Speaker;
+use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::Character;
 use living_voices::backend::domain::message::Message;
@@ -14,34 +15,40 @@ use living_voices::config::DirectorSettings;
 
 // region DB fixtures
 
-async fn setup_adventure(pool: &SqlitePool, characters: &[(&str, bool)]) -> Adventure {
-    let specs: Vec<CharacterSpec> = characters
-        .iter()
-        .map(|(name, is_player)| {
-            if *is_player {
-                CharacterSpec::player(name)
-            } else {
-                CharacterSpec::npc(name)
-            }
-        })
-        .collect();
-    create_adventure(pool, &specs).await
-}
+async fn setup_adventure(
+    pool: &SqlitePool,
+    characters: &[(&str, bool)],
+) -> (SharedState, Adventure) {
+    let state = SharedState::new();
+    let mgr = AdventureManager::new(state.clone(), pool.clone());
+    let mut adventure = mgr
+        .create_adventure(
+            "Test adventure".into(),
+            "A drowned city".into(),
+            "tense".into(),
+        )
+        .await
+        .expect("create adventure");
+    let adventure_id = adventure.id;
+    mgr.start_adventure(adventure.clone())
+        .await
+        .expect("start adventure");
 
-async fn seed_active_act(pool: &SqlitePool, adventure_id: Uuid, running: Option<&str>) -> Uuid {
-    let act_id = Uuid::new_v4();
-    let mut conn = pool.acquire().await.expect("acquire");
-    query(
-        "INSERT INTO act (id, adventure_id, ordinal, goal, status, running_digest)
-         VALUES (?1, ?2, 1, 'reach the surface', 'active', ?3)",
-    )
-    .bind(act_id.to_string())
-    .bind(adventure_id.to_string())
-    .bind(running)
-    .execute(&mut *conn)
-    .await
-    .expect("insert act");
-    act_id
+    // Seed any additional NPCs beyond the default player character created by AdventureManager.
+    // Player specs are ignored because AdventureManager already creates the player.
+    let npc_specs: Vec<CharacterSpec> = characters
+        .iter()
+        .filter(|(_, is_player)| !*is_player)
+        .map(|(name, _)| CharacterSpec::npc(name))
+        .collect();
+    if !npc_specs.is_empty() {
+        let new_chars = create_characters(pool, adventure_id, &npc_specs).await;
+        for c in new_chars {
+            adventure.add_character(c);
+        }
+    }
+
+    (state, adventure)
 }
 
 /// Insert a player-authored line (character_id of a cast member flagged is_player).
@@ -98,8 +105,7 @@ fn low_closure_director() -> Director {
 #[tokio::test]
 async fn autonomous_prompt_opens_with_system_turns_and_the_full_cast() {
     let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool, &[("Mira", false), ("Kael", false)]).await;
-    seed_active_act(&pool, adventure.id, None).await;
+    let (_state, adventure) = setup_adventure(&pool, &[("Mira", false), ("Kael", false)]).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
     let turns = ContextBuilder::build_autonomous_chat_prompt(
@@ -120,13 +126,11 @@ async fn autonomous_prompt_opens_with_system_turns_and_the_full_cast() {
 #[tokio::test]
 async fn system_head_renders_the_adventure_settings() {
     let (pool, _db) = setup_db().await;
-    let mut adventure = setup_adventure(&pool, &[("Mira", false)]).await;
+    let (_state, mut adventure) = setup_adventure(&pool, &[("Mira", false)]).await;
     adventure.title = "Tides of Glass".into();
-    adventure.description = "A drowned city".into();
-    adventure.genre = Some("mystery".into());
+    adventure.headline = "A drowned city".into();
     adventure.tone = "tense".into();
     adventure.lore = adventure.lore.with_text("The sea remembers.".into());
-    seed_active_act(&pool, adventure.id, None).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
     let turns = ContextBuilder::build_autonomous_chat_prompt(
@@ -141,7 +145,6 @@ async fn system_head_renders_the_adventure_settings() {
     assert!(head.contains("## SETTINGS"));
     assert!(head.contains("Title: Tides of Glass"));
     assert!(head.contains("Premise: A drowned city"));
-    assert!(head.contains("Genre: mystery"));
     assert!(head.contains("Tone: tense"));
     assert!(head.contains("Lore: The sea remembers."));
 }
@@ -149,8 +152,7 @@ async fn system_head_renders_the_adventure_settings() {
 #[tokio::test]
 async fn pacing_prompt_appears_with_counts_once_the_gate_opens() {
     let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool, &[("Mira", false)]).await;
-    seed_active_act(&pool, adventure.id, None).await;
+    let (_state, adventure) = setup_adventure(&pool, &[("Mira", false)]).await;
     let author = adventure.characters[0].clone();
     for i in 0..3 {
         seed_player_message(&pool, &adventure, &author, &format!("line {i}")).await;
@@ -177,8 +179,7 @@ async fn pacing_prompt_appears_with_counts_once_the_gate_opens() {
 #[tokio::test]
 async fn previous_messages_classify_player_and_cast_turns() {
     let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool, &[("Hero", true), ("Mira", false)]).await;
-    seed_active_act(&pool, adventure.id, None).await;
+    let (_state, adventure) = setup_adventure(&pool, &[("Hero", true), ("Mira", false)]).await;
 
     let player = adventure.characters[0].clone();
     let npc = adventure.characters[1].clone();
@@ -211,8 +212,7 @@ async fn previous_messages_classify_player_and_cast_turns() {
 async fn the_player_characters_line_is_a_player_turn() {
     // A message authored by the is_player character classifies as a player (user) turn.
     let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool, &[("Hero", true), ("Mira", false)]).await;
-    seed_active_act(&pool, adventure.id, None).await;
+    let (_state, adventure) = setup_adventure(&pool, &[("Hero", true), ("Mira", false)]).await;
 
     let player = adventure.characters[0].clone();
     seed_player_message(&pool, &adventure, &player, "I stare at the sky.").await;
@@ -236,9 +236,16 @@ async fn the_player_characters_line_is_a_player_turn() {
 #[tokio::test]
 async fn static_context_carries_the_running_digest_of_the_active_act() {
     let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool, &[("Mira", false)]).await;
-    seed_active_act(&pool, adventure.id, Some("They escaped the keep.")).await;
+    let (_state, adventure) = setup_adventure(&pool, &[("Mira", false)]).await;
+
+    // Set the running_digest on the active act created by start_adventure()
     let mut conn = pool.acquire().await.expect("acquire");
+    query("UPDATE act SET running_digest = ?2 WHERE adventure_id = ?1 AND status = 'active'")
+        .bind(adventure.id.to_string())
+        .bind("They escaped the keep.")
+        .execute(&mut *conn)
+        .await
+        .expect("update running_digest");
 
     let turns =
         ContextBuilder::build_narrator_chat_prompt(&mut conn, &adventure, &low_closure_director())
@@ -258,8 +265,7 @@ async fn static_context_carries_the_running_digest_of_the_active_act() {
 #[tokio::test]
 async fn closure_prompt_appears_only_once_the_gate_opens() {
     let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool, &[("Mira", false)]).await;
-    seed_active_act(&pool, adventure.id, None).await;
+    let (_state, adventure) = setup_adventure(&pool, &[("Mira", false)]).await;
     let author = adventure.characters[0].clone();
     // Three messages in the act.
     for i in 0..3 {
@@ -314,8 +320,7 @@ async fn closure_prompt_appears_only_once_the_gate_opens() {
 #[tokio::test]
 async fn distill_prompt_leads_with_the_distill_instruction_and_the_turns() {
     let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool, &[("Mira", false)]).await;
-    seed_active_act(&pool, adventure.id, None).await;
+    let (_state, adventure) = setup_adventure(&pool, &[("Mira", false)]).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
     let messages = vec![

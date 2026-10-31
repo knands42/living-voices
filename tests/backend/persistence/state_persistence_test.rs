@@ -4,6 +4,7 @@ use living_voices::backend::domain::memory::State;
 use living_voices::backend::persistence::state_persistence::{
     get_active_candidates, get_state, upsert_state,
 };
+use uuid::Uuid;
 
 #[tokio::test]
 async fn upsert_state_inserts_then_updates_a_single_row() {
@@ -12,7 +13,7 @@ async fn upsert_state_inserts_then_updates_a_single_row() {
     let mut conn = pool.acquire().await.expect("acquire");
 
     // First upsert inserts.
-    let mut state = State::new(adventure.id);
+    let mut state = State::new(Uuid::new_v4(), adventure.id);
     state.day = "Day 1".into();
     state.place = "the shore".into();
     state.characters_present = vec!["Mira".into()];
@@ -27,7 +28,7 @@ async fn upsert_state_inserts_then_updates_a_single_row() {
     assert_eq!(loaded.characters_present, vec!["Mira".to_string()]);
 
     // Second upsert on the same adventure takes the ON CONFLICT update path.
-    let mut next = State::new(adventure.id);
+    let mut next = State::new(Uuid::new_v4(), adventure.id);
     next.day = "Day 2".into();
     next.characters_present = vec!["Mira".into(), "Kael".into()];
     upsert_state(&mut conn, &next).await.expect("update state");
@@ -72,7 +73,7 @@ async fn get_active_candidates_reads_characters_present() {
     let adventure = seed_adventure(&pool).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
-    let mut state = State::new(adventure.id);
+    let mut state = State::new(Uuid::new_v4(), adventure.id);
     state.characters_present = vec!["Mira".into(), "Kael".into()];
     upsert_state(&mut conn, &state).await.expect("upsert");
 

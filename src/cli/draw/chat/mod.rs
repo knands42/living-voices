@@ -285,12 +285,7 @@ fn render_meta(frame: &mut Frame, area: Rect, adventure: Option<&Adventure>) {
         Line::from(spans)
     };
 
-    let genre = adventure.genre.as_deref().unwrap_or("—");
-
     let body = Paragraph::new(vec![
-        Line::from(Span::styled("Genre", dim())),
-        Line::from(Span::styled(genre, ink().add_modifier(Modifier::BOLD))),
-        Line::from(""),
         Line::from(Span::styled("Tone", dim())),
         Line::from(Span::styled(adventure.tone.as_str(), ink())),
         Line::from(""),
@@ -375,10 +370,10 @@ fn render_character_overlay(
     let inner = block.inner(panel);
     frame.render_widget(block, panel);
 
-    let description = if character.description.trim().is_empty() {
+    let description = if character.headline.trim().is_empty() {
         "no description yet"
     } else {
-        character.description.as_str()
+        character.headline.as_str()
     };
 
     let mut lines = vec![

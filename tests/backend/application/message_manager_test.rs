@@ -1,20 +1,23 @@
 use sqlx::query;
 use sqlx::query_scalar;
 use sqlx::sqlite::SqlitePool;
+use std::fmt::format;
 use uuid::Uuid;
 
 use crate::backend::application::helper::{
-    CharacterSpec, create_adventure, create_messages, setup_db,
+    CharacterSpec, create_characters, create_messages, setup_db,
 };
 use living_voices::ai::integrations::chat::Chat;
 use living_voices::ai::integrations::narrator::Narrator;
 use living_voices::ai::{ActClose, MemoryUpdate};
+use living_voices::backend::application::adventure_manager::AdventureManager;
+use living_voices::backend::application::character_manager::CharacterManager;
 use living_voices::backend::application::director::Director;
 use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::message_manager::MessageManager;
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
-use living_voices::backend::domain::character::Character;
+use living_voices::backend::domain::character::{Character, CharacterStatus};
 use living_voices::backend::domain::message::Message;
 use living_voices::config::{
     Config, DirectorSettings, MemorySettings, MessageThresholdRange, TextModel,
@@ -101,13 +104,54 @@ fn autonomous_and_transition_act_director() -> Director {
 
 // ---------------------------------------------------------------- fixtures
 
-async fn setup_adventure(pool: &SqlitePool, characters: &[&str]) -> Adventure {
+async fn setup_adventure(pool: &SqlitePool, characters: &[&str]) -> (SharedState, Adventure) {
     // The human player is always a cast member (an `is_player` character), so
     // every adventure carries one. The NPCs keep their leading positions
     // (`characters[0]`, `[1]`, ...), with the player appended last.
-    let mut chars: Vec<CharacterSpec> = characters.iter().map(|n| CharacterSpec::npc(n)).collect();
-    chars.push(CharacterSpec::player("You"));
-    create_adventure(pool, &chars).await
+    let state = SharedState::new();
+    let adventure_mgr = AdventureManager::new(state.clone(), pool.clone());
+    let adventure = adventure_mgr
+        .create_adventure(
+            "Test adventure".into(),
+            "A drowned city".into(),
+            "tense".into(),
+        )
+        .await
+        .expect("create adventure");
+    adventure_mgr
+        .start_adventure(adventure.clone())
+        .await
+        .expect("start adventure");
+
+    // Seed any additional NPCs beyond the default player character
+    let character_mgr = CharacterManager::new(state.clone(), pool.clone());
+    if !characters.is_empty() {
+        let characters_mapped = characters.iter().map(|char_name| {
+            Character::new(
+                adventure.id,
+                (*char_name).into(),
+                adventure.id,
+                format!("Character {} headline", *char_name).as_str(),
+                format!("Character {} backstory", *char_name).as_str(),
+                CharacterStatus::Present,
+                false,
+            )
+        });
+
+        for character in characters_mapped {
+            character_mgr
+                .create_character(character.clone())
+                .await
+                .expect("create character");
+        }
+    }
+
+    let updated_adventure = adventure_mgr
+        .get_adventure(adventure.id)
+        .await
+        .expect("get adventure");
+
+    (state, updated_adventure)
 }
 
 fn player_character(adventure: &Adventure) -> &Character {
@@ -123,46 +167,22 @@ fn player_character(adventure: &Adventure) -> &Character {
 async fn seed_present_state(pool: &SqlitePool, adventure_id: Uuid, present: &[&str]) {
     let present_json = serde_json::to_string(present).expect("json");
     let mut conn = pool.acquire().await.expect("acquire");
-    query(
-        "INSERT INTO state (id, adventure_id, characters_present)
-         VALUES (?1, ?2, ?3)",
-    )
-    .bind(Uuid::new_v4().to_string())
-    .bind(adventure_id.to_string())
-    .bind(present_json)
-    .execute(&mut *conn)
-    .await
-    .expect("insert state");
-}
-
-async fn seed_active_act(pool: &SqlitePool, adventure_id: Uuid) -> Uuid {
-    let id = Uuid::new_v4();
-    let mut conn = pool.acquire().await.expect("acquire");
-    query(
-        "INSERT INTO act (id, adventure_id, ordinal, goal, status)
-         VALUES (?1, ?2, 1, 'reach the surface', 'active')",
-    )
-    .bind(id.to_string())
-    .bind(adventure_id.to_string())
-    .execute(&mut *conn)
-    .await
-    .expect("insert act");
-    id
+    query("UPDATE state SET characters_present = ?1 WHERE adventure_id = ?2")
+        .bind(present_json)
+        .bind(adventure_id.to_string())
+        .execute(&mut *conn)
+        .await
+        .expect("update state");
 }
 
 fn load_adventure(
+    state: &SharedState,
     pool: &SqlitePool,
-    adventure: &Adventure,
     director: Director,
 ) -> MessageManager<Chat, Narrator, MemoryUpdate, ActClose> {
-    let state = SharedState::new();
-    state
-        .write()
-        .expect("lock")
-        .set_adventure(adventure.clone());
     let memory = memory_manager(state.clone(), pool);
     MessageManager::new(
-        state,
+        state.clone(),
         pool.clone(),
         chat_handler(),
         narrator_handler(),
@@ -267,13 +287,23 @@ async fn message_is_narrator(pool: &SqlitePool, adventure_id: Uuid, seq: i64) ->
 async fn full_pipeline_sends_a_turn_and_triggers_background_distillation() {
     // given: an act preloaded to the compression threshold, one more turn away
     let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool, &["Mira"]).await;
+    let (state, adventure) = setup_adventure(&pool, &["Mira"]).await;
     seed_present_state(&pool, adventure.id, &["Mira"]).await;
-    let act_id = seed_active_act(&pool, adventure.id).await;
 
     let threshold = memory_settings().compress_after_threshold as usize;
-    let manager = load_adventure(&pool, &adventure, autonomous_and_transition_act_director());
+    let manager = load_adventure(&state, &pool, autonomous_and_transition_act_director());
     create_messages(&pool, adventure.id, &vec![None; threshold]).await;
+
+    // Get the active act created by start_adventure()
+    let mut conn = pool.acquire().await.expect("acquire");
+    let act_id: String =
+        sqlx::query_scalar("SELECT id FROM act WHERE adventure_id = ?1 AND status = 'active'")
+            .bind(adventure.id.to_string())
+            .fetch_one(&mut *conn)
+            .await
+            .expect("active act");
+    drop(conn);
+    let act_id = uuid::Uuid::parse_str(&act_id).expect("valid act id");
 
     // when: the player sends the turn that crosses the threshold
     let incoming = targeted_line(&adventure, "What now?", &adventure.characters[0]);
@@ -311,10 +341,9 @@ async fn full_pipeline_sends_a_turn_and_triggers_background_distillation() {
 async fn send_message_routes_to_the_narrator() {
     // given: an active act and a director that always narrates
     let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool, &["Mira"]).await;
+    let (state, adventure) = setup_adventure(&pool, &["Mira"]).await;
     seed_present_state(&pool, adventure.id, &["Mira"]).await;
-    seed_active_act(&pool, adventure.id).await;
-    let manager = load_adventure(&pool, &adventure, narrator_director());
+    let manager = load_adventure(&state, &pool, narrator_director());
 
     // when: the player speaks
     let reply = manager
@@ -336,10 +365,9 @@ async fn send_message_routes_to_the_narrator() {
 async fn send_message_routes_to_a_random_cast_member() {
     // given: two present characters and a director that defers the voice to the model
     let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool, &["Mira", "Kael"]).await;
+    let (state, adventure) = setup_adventure(&pool, &["Mira", "Kael"]).await;
     seed_present_state(&pool, adventure.id, &["Mira", "Kael"]).await;
-    seed_active_act(&pool, adventure.id).await;
-    let manager = load_adventure(&pool, &adventure, autonomous_director());
+    let manager = load_adventure(&state, &pool, autonomous_director());
 
     // when: the player invites anyone to speak
     let reply = manager
@@ -368,10 +396,9 @@ async fn send_message_routes_to_a_random_cast_member() {
 async fn send_message_routes_to_a_specific_targeted_character() {
     // given: two present characters and a director that honours an explicit target
     let (pool, _db) = setup_db().await;
-    let adventure = setup_adventure(&pool, &["Mira", "Kael"]).await;
+    let (state, adventure) = setup_adventure(&pool, &["Mira", "Kael"]).await;
     seed_present_state(&pool, adventure.id, &["Mira", "Kael"]).await;
-    seed_active_act(&pool, adventure.id).await;
-    let manager = load_adventure(&pool, &adventure, specific_character_director());
+    let manager = load_adventure(&state, &pool, specific_character_director());
 
     // when: the player aims the line at Kael
     let kael = adventure.characters[1].clone();

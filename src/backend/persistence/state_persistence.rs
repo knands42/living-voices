@@ -1,4 +1,7 @@
-use sqlx::{Row, SqliteConnection};
+use crossterm::ExecutableCommand;
+use ratatui::macros::row;
+use sqlx::sqlite::SqliteRow;
+use sqlx::{Error, FromRow, Row, SqliteConnection};
 use uuid::Uuid;
 
 use crate::backend::persistence::db::{from_timestamp_to_str, parse_json_array, to_json_array};
@@ -21,9 +24,9 @@ struct StateRow {
     updated_at: String,
 }
 
-impl StateRow {
-    fn decode(row: &sqlx::sqlite::SqliteRow) -> Self {
-        Self {
+impl FromRow<'_, SqliteRow> for StateRow {
+    fn from_row(row: &SqliteRow) -> Result<StateRow, Error> {
+        Ok(Self {
             id: row.get("id"),
             adventure_id: row.get("adventure_id"),
             day: row.get("day"),
@@ -32,7 +35,7 @@ impl StateRow {
             open_threads: row.get("open_threads"),
             conditions: row.get("conditions"),
             updated_at: row.get("updated_at"),
-        }
+        })
     }
 }
 
@@ -53,7 +56,7 @@ pub async fn get_state(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
 ) -> Result<Option<State>, PersistenceError> {
-    let row = sqlx::query(
+    let row = sqlx::query_as::<_, StateRow>(
         "SELECT id, adventure_id, day, place, characters_present, open_threads,
                 conditions, updated_at
          FROM state
@@ -63,10 +66,24 @@ pub async fn get_state(
     .fetch_optional(&mut *conn)
     .await?;
 
-    row.as_ref()
-        .map(StateRow::decode)
-        .map(State::try_from)
-        .transpose()
+    row.map(State::try_from).transpose()
+}
+
+pub async fn insert_default_state(
+    conn: &mut SqliteConnection,
+    id: Uuid,
+    adventure_id: Uuid,
+) -> Result<(), PersistenceError> {
+    sqlx::query(
+        "INSERT INTO state (id, adventure_id) VALUES (?1, ?2)
+         ON CONFLICT(adventure_id) DO NOTHING",
+    )
+    .bind(id.to_string())
+    .bind(adventure_id.to_string())
+    .execute(&mut *conn)
+    .await?;
+
+    Ok(())
 }
 
 pub async fn upsert_state(

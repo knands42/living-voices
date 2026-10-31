@@ -31,13 +31,14 @@ impl CharacterManager {
         &self,
         character: Character,
     ) -> Result<(), CharacterManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        insert_character(&mut conn, character.adventure_id, &character).await?;
+
         {
             let mut guard = self.state.write()?;
             guard.set_character(character.clone());
         }
 
-        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        insert_character(&mut conn, character.adventure_id, &character).await?;
         Ok(())
     }
 }

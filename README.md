@@ -57,6 +57,7 @@ Each model has one job:
 - Rust (stable)
 - A local LLM runtime (Ollama or llama.cpp server)
 - `just` command line for running tasks
+- `comfy-cli` to setup image generation models
 
 ```bash
 just install-requirements

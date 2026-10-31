@@ -4,7 +4,7 @@ pub mod characters_persistence;
 pub mod db;
 pub mod error;
 pub mod fact_persistence;
-pub mod lore;
+pub mod lore_persistence;
 pub mod message_persistence;
 pub mod migrator;
 pub mod narrator_persistence;

@@ -65,7 +65,7 @@ pub struct DistilledState {
 
 impl DistilledState {
     pub fn into_state(self, adventure_id: Uuid) -> State {
-        State::new(adventure_id)
+        State::new(Uuid::new_v4(), adventure_id)
             .with_conditions(self.conditions.clone())
             .with_characters_present(self.characters_present.clone())
             .with_open_threads(self.open_threads.clone())
