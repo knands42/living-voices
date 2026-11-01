@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::ai::{
-    client::{JsonSchema, OpenAiCompatibleClient},
     error::AiError,
+    open_api_client::{JsonSchema, OpenAiCompatibleClient},
     types::ChatMessage,
 };
 use crate::backend::application::port::chat_port::PromptTurn;
@@ -98,7 +98,7 @@ impl MemoryUpdate {
         let mut messages = Vec::with_capacity(prompt.len() + 1);
         messages.extend_from_slice(prompt);
 
-        let format = crate::ai::client::ResponseFormat::JsonSchema {
+        let format = crate::ai::open_api_client::ResponseFormat::JsonSchema {
             json_schema: &schema(),
         };
 
@@ -290,7 +290,7 @@ impl ActCloser for ActClose {
         )
         .map_err(|e| ClosedActError::Provider(e.to_string()))?;
 
-        let format = crate::ai::client::ResponseFormat::JsonSchema {
+        let format = crate::ai::open_api_client::ResponseFormat::JsonSchema {
             json_schema: &act_close_schema(),
         };
 

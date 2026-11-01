@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::ai::{client::OpenAiCompatibleClient, types::ChatMessage};
+use crate::ai::{open_api_client::OpenAiCompatibleClient, types::ChatMessage};
 use crate::backend::application::port::chat_port::{
     ChatResponseError, NarratorHandler, PromptTurn,
 };

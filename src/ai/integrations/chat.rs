@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::ai::{
-    client::{JsonSchema, OpenAiCompatibleClient, ResponseFormat},
+    open_api_client::{JsonSchema, OpenAiCompatibleClient, ResponseFormat},
     types::ChatMessage,
 };
 use crate::backend::application::port::chat_port::{

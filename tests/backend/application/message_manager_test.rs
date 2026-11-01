@@ -7,6 +7,7 @@ use living_voices::ai::integrations::chat::Chat;
 use living_voices::ai::integrations::narrator::Narrator;
 use living_voices::ai::{ActClose, MemoryUpdate};
 use living_voices::backend::application::adventure_manager::AdventureManager;
+
 use living_voices::backend::application::character_manager::CharacterManager;
 use living_voices::backend::application::director::Director;
 use living_voices::backend::application::memory_manager::MemoryManager;
