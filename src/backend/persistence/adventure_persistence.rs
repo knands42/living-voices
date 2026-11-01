@@ -119,51 +119,63 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
     }
 }
 
+fn character_from_row(value: &CompleteAdventureRow) -> Result<Character, PersistenceError> {
+    let character_id_uuid = from_str_to_uuid(value.character_id.as_str())?;
+    let adventure_id_uuid = from_str_to_uuid(value.adventure_id.as_str())?;
+    let character_tags = parse_json_array(Some(value.character_tags.as_str()))?;
+    let character_traits = parse_json_array(Some(value.character_traits.as_str()))?;
+    let character_relations = parse_json_array(Some(value.character_relations.as_str()))?;
+
+    let mut character = Character::new(
+        character_id_uuid,
+        value.character_name.clone(),
+        adventure_id_uuid,
+        value.character_description.clone(),
+        value.character_backstory.clone(),
+        CharacterStatus::from(value.character_status.clone()),
+        value.character_is_player,
+    )
+    .with_portrait(value.character_portrait_path.clone());
+
+    character_tags
+        .iter()
+        .for_each(|tag| character.add_tag(tag.clone()));
+    character_traits
+        .iter()
+        .for_each(|trait_| character.add_trait(trait_.clone()));
+    character_relations
+        .iter()
+        .for_each(|relation| character.add_relation(relation.clone()));
+
+    Ok(character)
+}
+
 impl TryFrom<CompleteAdventureRow> for Adventure {
     type Error = PersistenceError;
     fn try_from(value: CompleteAdventureRow) -> Result<Self, Self::Error> {
         let adventure_id_uuid = from_str_to_uuid(value.adventure_id.as_str())?;
-        let character_id_uuid = from_str_to_uuid(value.character_id.as_str())?;
         let narrator_id_uuid = from_str_to_uuid(value.narrator_id.as_str())?;
         let lore_id_uuid = from_str_to_uuid(value.lore_id.as_str())?;
         let adventure_created_at_utc = from_str_to_timestamp(value.adventure_created_at.as_str())?;
         let adventure_updated_at_utc = from_str_to_timestamp(value.adventure_updated_at.as_str())?;
-        let character_tags = parse_json_array(Some(value.character_tags.as_str()))?;
-        let character_traits = parse_json_array(Some(value.character_traits.as_str()))?;
-        let character_relations = parse_json_array(Some(value.character_relations.as_str()))?;
 
-        let mut character = Character::new(
-            character_id_uuid,
-            value.character_name,
-            adventure_id_uuid,
-            value.character_description,
-            value.character_backstory,
-            CharacterStatus::from(value.character_status),
-            value.character_is_player,
-        )
-        .with_portrait(value.character_portrait_path);
+        let character = character_from_row(&value)?;
 
-        character_tags.iter().for_each(|tag| {
-            character.add_tag(tag.clone());
-        });
-        character_traits.iter().for_each(|trait_| {
-            character.add_trait(trait_.clone());
-        });
-        character_relations.iter().for_each(|relation| {
-            character.add_relation(relation.clone());
-        });
-
-        let narrator = Narrator::new(narrator_id_uuid, value.narrator_name, value.narrator_tone);
+        let narrator = Narrator::new(
+            narrator_id_uuid,
+            value.narrator_name.clone(),
+            value.narrator_tone.clone(),
+        );
 
         let lore_texts = parse_json_array(Some(value.adventure_lore.as_str()))?;
         let lore = Lore::new(lore_id_uuid, lore_texts.join("\n"));
 
         let mut new_adventure = Adventure::new(
             adventure_id_uuid,
-            value.adventure_title,
-            value.adventure_headline,
+            value.adventure_title.clone(),
+            value.adventure_headline.clone(),
             narrator,
-            value.adventure_tone,
+            value.adventure_tone.clone(),
             lore,
             adventure_created_at_utc,
             adventure_updated_at_utc,
@@ -210,7 +222,7 @@ pub async fn get_adventure(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
 ) -> Result<Adventure, PersistenceError> {
-    let row = sqlx::query_as::<_, CompleteAdventureRow>(
+    let rows = sqlx::query_as::<_, CompleteAdventureRow>(
         r#"
 SELECT a.id                      AS adventure_id,
        a.title                   AS adventure_title,
@@ -268,10 +280,18 @@ ORDER BY a.updated_at DESC, c.name DESC;
 "#,
     )
     .bind(adventure_id.to_string())
-    .fetch_one(&mut *conn)
+    .fetch_all(&mut *conn)
     .await?;
 
-    Adventure::try_from(row)
+    let mut rows = rows.into_iter();
+    let first = rows.next().ok_or(sqlx::Error::RowNotFound)?;
+
+    let mut adventure = Adventure::try_from(first)?;
+    for row in rows {
+        adventure.add_character(character_from_row(&row)?);
+    }
+
+    Ok(adventure)
 }
 
 pub async fn get_adventure_summaries(

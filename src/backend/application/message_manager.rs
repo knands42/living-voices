@@ -207,10 +207,14 @@ impl<
         };
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        update_active_act_last_closure_score(&mut conn, adventure.id, score as u16).await?;
+        let updated_act =
+            update_active_act_last_closure_score(&mut conn, adventure.id, score as u16).await?;
 
         if score >= 5 {
             self.close_current_act(&mut conn, adventure).await?;
+        } else {
+            let mut guard = self.state.write()?;
+            guard.current_act = updated_act;
         }
 
         Ok(())

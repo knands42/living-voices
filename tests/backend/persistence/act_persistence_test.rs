@@ -2,8 +2,8 @@ use crate::backend::application::helper::setup_db;
 use crate::backend::persistence::helper::{seed_act, seed_adventure, seed_message};
 use living_voices::backend::domain::memory::{Act, ActStatus};
 use living_voices::backend::persistence::act_persistence::{
-    activate_next_act, close_act, count_messages_per_act, get_active_act, get_acts, insert_act,
-    update_act_running_digest, update_active_act_last_closure_score,
+    activate_and_return_next_act, close_act, count_messages_per_act, get_active_act, get_acts,
+    insert_act, update_act_running_digest, update_active_act_last_closure_score,
 };
 
 #[tokio::test]
@@ -96,9 +96,14 @@ async fn update_active_act_last_closure_score_records_the_score() {
     let act_id = seed_act(&pool, adventure.id, 1, "active", None, None).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
-    update_active_act_last_closure_score(&mut conn, adventure.id, 4)
+    let returned = update_active_act_last_closure_score(&mut conn, adventure.id, 4)
         .await
-        .expect("update score");
+        .expect("update score")
+        .expect("an active act was updated");
+
+    // The RETURNING row carries the updated act, no extra read needed.
+    assert_eq!(returned.id, act_id);
+    assert_eq!(returned.last_closure_score, 4);
 
     let score: u16 = sqlx::query_scalar("SELECT last_closure_score FROM act WHERE id = ?1")
         .bind(act_id.to_string())
@@ -168,14 +173,11 @@ async fn activate_next_act_promotes_the_act_after_the_closed_one() {
     let next_id = seed_act(&pool, adventure.id, 2, "unstarted", None, None).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
-    activate_next_act(&mut conn, adventure.id)
+    let new_act = activate_and_return_next_act(&mut conn, adventure.id)
         .await
         .expect("activate next");
 
-    let active = get_active_act(&mut conn, adventure.id)
-        .await
-        .expect("get")
-        .expect("an active act");
+    let active = new_act.expect("an active act");
     assert_eq!(active.id, next_id);
     assert_eq!(active.ordinal, 2);
 }

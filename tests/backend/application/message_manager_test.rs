@@ -1,12 +1,8 @@
-use sqlx::query;
 use sqlx::query_scalar;
 use sqlx::sqlite::SqlitePool;
-use std::fmt::format;
 use uuid::Uuid;
 
-use crate::backend::application::helper::{
-    CharacterSpec, create_characters, create_messages, setup_db,
-};
+use crate::backend::application::helper::{create_messages, setup_db};
 use living_voices::ai::integrations::chat::Chat;
 use living_voices::ai::integrations::narrator::Narrator;
 use living_voices::ai::{ActClose, MemoryUpdate};
@@ -18,7 +14,10 @@ use living_voices::backend::application::message_manager::MessageManager;
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::{Character, CharacterStatus};
+use living_voices::backend::domain::memory::State;
 use living_voices::backend::domain::message::Message;
+use living_voices::backend::persistence::act_persistence::get_active_act;
+use living_voices::backend::persistence::state_persistence::{get_state, upsert_state};
 use living_voices::config::{
     Config, DirectorSettings, MemorySettings, MessageThresholdRange, TextModel,
 };
@@ -128,7 +127,7 @@ async fn setup_adventure(pool: &SqlitePool, characters: &[&str]) -> (SharedState
     if !characters.is_empty() {
         let characters_mapped = characters.iter().map(|char_name| {
             Character::new(
-                adventure.id,
+                Uuid::new_v4(),
                 (*char_name).into(),
                 adventure.id,
                 format!("Character {} headline", *char_name).as_str(),
@@ -165,14 +164,13 @@ fn player_character(adventure: &Adventure) -> &Character {
 /// Mark which cast members are present, so `get_active_candidates` can route to
 /// a character branch (an empty/absent state leaves the narrator the only voice).
 async fn seed_present_state(pool: &SqlitePool, adventure_id: Uuid, present: &[&str]) {
-    let present_json = serde_json::to_string(present).expect("json");
     let mut conn = pool.acquire().await.expect("acquire");
-    query("UPDATE state SET characters_present = ?1 WHERE adventure_id = ?2")
-        .bind(present_json)
-        .bind(adventure_id.to_string())
-        .execute(&mut *conn)
+    let mut state = get_state(&mut conn, adventure_id)
         .await
-        .expect("update state");
+        .expect("get state")
+        .unwrap_or_else(|| State::new(Uuid::new_v4(), adventure_id));
+    state.characters_present = present.iter().map(|s| s.to_string()).collect();
+    upsert_state(&mut conn, &state).await.expect("update state");
 }
 
 fn load_adventure(
@@ -296,14 +294,12 @@ async fn full_pipeline_sends_a_turn_and_triggers_background_distillation() {
 
     // Get the active act created by start_adventure()
     let mut conn = pool.acquire().await.expect("acquire");
-    let act_id: String =
-        sqlx::query_scalar("SELECT id FROM act WHERE adventure_id = ?1 AND status = 'active'")
-            .bind(adventure.id.to_string())
-            .fetch_one(&mut *conn)
-            .await
-            .expect("active act");
+    let act_id = get_active_act(&mut conn, adventure.id)
+        .await
+        .expect("get active act")
+        .expect("has active act")
+        .id;
     drop(conn);
-    let act_id = uuid::Uuid::parse_str(&act_id).expect("valid act id");
 
     // when: the player sends the turn that crosses the threshold
     let incoming = targeted_line(&adventure, "What now?", &adventure.characters[0]);
@@ -401,7 +397,12 @@ async fn send_message_routes_to_a_specific_targeted_character() {
     let manager = load_adventure(&state, &pool, specific_character_director());
 
     // when: the player aims the line at Kael
-    let kael = adventure.characters[1].clone();
+    let kael = adventure
+        .characters
+        .iter()
+        .find(|c| c.name == "Kael")
+        .expect("Kael is in the cast")
+        .clone();
     let reply = manager
         .send_message(targeted_line(&adventure, "Kael, what do you see?", &kael))
         .await

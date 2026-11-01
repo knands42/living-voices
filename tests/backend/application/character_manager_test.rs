@@ -1,8 +1,7 @@
 use living_voices::backend::application::{
-    character_manager::CharacterManager, state::SharedState,
+    adventure_manager::AdventureManager, character_manager::CharacterManager, state::SharedState,
 };
 use living_voices::backend::domain::character::{Character, CharacterStatus};
-use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
@@ -20,25 +19,38 @@ async fn new_manager() -> (CharacterManager, SharedState, TempDb, SqlitePool) {
     (manager, state, db, pool)
 }
 
-async fn persist_adventure(pool: &SqlitePool) -> Uuid {
-    let mut conn = pool.acquire().await.expect("acquire conn");
-    insert_adventure(
-        &mut conn,
-        Uuid::new_v4(),
-        "Tides of Glass",
-        "A drowned city",
-        "",
-        vec![],
-    )
-    .await
-    .expect("insert adventure")
-    .id
+/// Create an adventure into the given shared state so the CharacterManager
+/// (which shares that state) has a current adventure to append cast to.
+async fn persist_adventure(state: &SharedState, pool: &SqlitePool) -> Uuid {
+    let mgr = AdventureManager::new(state.clone(), pool.clone());
+    let adventure = mgr
+        .create_adventure("Tides of Glass".into(), "A drowned city".into(), "".into())
+        .await
+        .expect("create adventure");
+    adventure.id
+}
+
+/// The non-player cast currently held in shared state.
+fn stored_npcs(state: &SharedState) -> Vec<Character> {
+    state
+        .read()
+        .unwrap()
+        .current_adventure
+        .as_ref()
+        .map(|a| {
+            a.characters
+                .iter()
+                .filter(|c| !c.is_player)
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 #[tokio::test]
 async fn create_character_stores_character_in_state() {
     let (manager, state, _db, pool) = new_manager().await;
-    let adventure_id = persist_adventure(&pool).await;
+    let adventure_id = persist_adventure(&state, &pool).await;
 
     let character = Character::new(
         Uuid::new_v4(),
@@ -52,7 +64,7 @@ async fn create_character_stores_character_in_state() {
 
     manager.create_character(character.clone()).await.unwrap();
 
-    let stored = state.read().unwrap().characters.clone();
+    let stored = stored_npcs(&state);
     assert_eq!(stored.len(), 1);
     assert_eq!(stored[0].name, "Mara Venn");
     assert_eq!(stored[0].id, character.id);
@@ -61,7 +73,7 @@ async fn create_character_stores_character_in_state() {
 #[tokio::test]
 async fn create_character_appends_characters_to_state() {
     let (manager, state, _db, pool) = new_manager().await;
-    let adventure_id = persist_adventure(&pool).await;
+    let adventure_id = persist_adventure(&state, &pool).await;
 
     let first = Character::new(
         Uuid::new_v4(),
@@ -85,7 +97,7 @@ async fn create_character_appends_characters_to_state() {
     manager.create_character(first).await.unwrap();
     manager.create_character(second).await.unwrap();
 
-    let stored = state.read().unwrap().characters.clone();
+    let stored = stored_npcs(&state);
     assert_eq!(stored.len(), 2);
     assert_eq!(stored[0].name, "Mara");
     assert_eq!(stored[1].name, "Otho");
@@ -95,7 +107,7 @@ async fn create_character_appends_characters_to_state() {
 async fn state_is_shared_with_the_state_passed_to_new() {
     let state = SharedState::new();
     let (manager, _db, pool) = new_manager_with(state.clone()).await;
-    let adventure_id = persist_adventure(&pool).await;
+    let adventure_id = persist_adventure(&state, &pool).await;
 
     let character = Character::new(
         Uuid::new_v4(),
@@ -109,15 +121,15 @@ async fn state_is_shared_with_the_state_passed_to_new() {
 
     manager.create_character(character.clone()).await.unwrap();
 
-    let stored = state.read().unwrap().characters.clone();
+    let stored = stored_npcs(&state);
     assert_eq!(stored.len(), 1);
     assert_eq!(stored[0].id, character.id);
 }
 
 #[tokio::test]
 async fn create_character_persists_character_to_database() {
-    let (manager, _state, _db, pool) = new_manager().await;
-    let adventure_id = persist_adventure(&pool).await;
+    let (manager, state, _db, pool) = new_manager().await;
+    let adventure_id = persist_adventure(&state, &pool).await;
 
     let character = Character::new(
         Uuid::new_v4(),
@@ -144,8 +156,8 @@ async fn create_character_persists_character_to_database() {
 
 #[tokio::test]
 async fn create_character_persists_traits_in_order() {
-    let (manager, _state, _db, pool) = new_manager().await;
-    let adventure_id = persist_adventure(&pool).await;
+    let (manager, state, _db, pool) = new_manager().await;
+    let adventure_id = persist_adventure(&state, &pool).await;
 
     let mut character = Character::new(
         Uuid::new_v4(),
@@ -176,8 +188,8 @@ async fn create_character_persists_traits_in_order() {
 
 #[tokio::test]
 async fn create_character_persists_tags() {
-    let (manager, _state, _db, pool) = new_manager().await;
-    let adventure_id = persist_adventure(&pool).await;
+    let (manager, state, _db, pool) = new_manager().await;
+    let adventure_id = persist_adventure(&state, &pool).await;
 
     let mut character = Character::new(
         Uuid::new_v4(),
@@ -208,8 +220,8 @@ async fn create_character_persists_tags() {
 
 #[tokio::test]
 async fn create_character_persists_status_and_backstory() {
-    let (manager, _state, _db, pool) = new_manager().await;
-    let adventure_id = persist_adventure(&pool).await;
+    let (manager, state, _db, pool) = new_manager().await;
+    let adventure_id = persist_adventure(&state, &pool).await;
 
     let character = Character::new(
         Uuid::new_v4(),
@@ -237,7 +249,7 @@ async fn create_character_persists_status_and_backstory() {
 #[tokio::test]
 async fn create_character_stores_adventure_id() {
     let (manager, state, _db, pool) = new_manager().await;
-    let adventure_id = persist_adventure(&pool).await;
+    let adventure_id = persist_adventure(&state, &pool).await;
 
     let character = Character::new(
         Uuid::new_v4(),
@@ -251,7 +263,7 @@ async fn create_character_stores_adventure_id() {
 
     manager.create_character(character).await.unwrap();
 
-    let stored = state.read().unwrap().characters.clone();
+    let stored = stored_npcs(&state);
     assert_eq!(stored.len(), 1);
     assert_eq!(stored[0].name, "Orin");
     assert_eq!(stored[0].adventure_id, adventure_id);

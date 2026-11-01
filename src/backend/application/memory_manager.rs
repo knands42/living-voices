@@ -13,7 +13,7 @@ use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::memory::{Act, ActStatus};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::act_persistence::{
-    activate_next_act, close_act, get_active_act, update_act_running_digest,
+    activate_and_return_next_act, close_act, get_active_act, update_act_running_digest,
 };
 use crate::backend::persistence::fact_persistence::insert_facts;
 use crate::backend::persistence::message_persistence::{count_since_last_narration, fetch_since};
@@ -166,9 +166,16 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
             to_seq,
         )
         .await?;
-        activate_next_act(&mut tx, adventure.id).await?;
+        let next_act = activate_and_return_next_act(&mut tx, adventure.id).await?;
 
         tx.commit().await.map_err(PersistenceError::from)?;
+
+        {
+            let mut guard = self.state.write()?;
+            guard.current_act = next_act;
+            guard.current_state = Some(state);
+            guard.current_facts = facts;
+        }
         Ok(())
     }
 
@@ -192,6 +199,14 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
             .await?;
 
         tx.commit().await.map_err(PersistenceError::from)?;
+
+        let refreshed_act = get_active_act(conn, adventure.id).await?;
+        {
+            let mut guard = self.state.write()?;
+            guard.current_act = refreshed_act;
+            guard.current_state = Some(state);
+            guard.current_facts.extend(facts);
+        }
         Ok(())
     }
 

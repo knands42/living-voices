@@ -36,7 +36,9 @@ impl CharacterManager {
 
         {
             let mut guard = self.state.write()?;
-            guard.set_character(character.clone());
+            if let Some(adventure) = &mut guard.current_adventure {
+                adventure.add_character(character);
+            }
         }
 
         Ok(())

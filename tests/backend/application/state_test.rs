@@ -30,7 +30,7 @@ fn app_state_set_adventure_stores_adventure() {
     let mut state = AppState::new();
     let adventure = new_adventure();
 
-    state.set_adventure(adventure.clone());
+    state.current_adventure = Some(adventure.clone());
 
     assert_eq!(
         state.current_adventure.as_ref().map(|a| a.id),
@@ -44,8 +44,8 @@ fn set_adventure_replaces_previous_adventure() {
     let first = new_adventure();
     let second = new_adventure();
 
-    state.set_adventure(first);
-    state.set_adventure(second.clone());
+    state.current_adventure = Some(first);
+    state.current_adventure = Some(second.clone());
 
     assert_eq!(
         state.current_adventure.as_ref().map(|a| a.id),
@@ -65,7 +65,7 @@ fn shared_state_exposes_written_adventure_to_later_reads() {
     let state = SharedState::new();
     let adventure = new_adventure();
 
-    state.write().unwrap().set_adventure(adventure.clone());
+    state.write().unwrap().current_adventure = Some(adventure.clone());
 
     assert_eq!(
         state
@@ -84,7 +84,7 @@ fn shared_state_shares_one_state_across_clones() {
     let clone = state.clone();
     let adventure = new_adventure();
 
-    state.write().unwrap().set_adventure(adventure.clone());
+    state.write().unwrap().current_adventure = Some(adventure.clone());
 
     assert_eq!(
         clone

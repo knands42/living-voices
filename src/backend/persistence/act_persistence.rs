@@ -1,4 +1,5 @@
-use sqlx::{Row, SqliteConnection};
+use sqlx::sqlite::SqliteRow;
+use sqlx::{Error, FromRow, Row, SqliteConnection};
 use uuid::Uuid;
 
 use crate::backend::{
@@ -24,9 +25,9 @@ struct ActRow {
     updated_at: String,
 }
 
-impl ActRow {
-    fn decode(row: &sqlx::sqlite::SqliteRow) -> Self {
-        Self {
+impl FromRow<'_, SqliteRow> for ActRow {
+    fn from_row(row: &'_ SqliteRow) -> Result<Self, Error> {
+        Ok(Self {
             id: row.get("id"),
             adventure_id: row.get("adventure_id"),
             ordinal: row.get::<u16, _>("ordinal"),
@@ -42,7 +43,7 @@ impl ActRow {
             last_closure_score: row.get::<u16, _>("last_closure_score"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
-        }
+        })
     }
 }
 
@@ -73,7 +74,7 @@ pub async fn get_acts(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
 ) -> Result<Vec<Act>, PersistenceError> {
-    let row = sqlx::query(
+    let row = sqlx::query_as::<_, ActRow>(
         "SELECT id, adventure_id, ordinal, goal, trigger, status, index_line, digest, running_digest, digest_to_seq, from_seq, to_seq, last_closure_score, created_at, updated_at
          FROM act
          WHERE adventure_id = ?1",
@@ -82,18 +83,14 @@ pub async fn get_acts(
         .fetch_all(&mut *conn)
         .await?;
 
-    row.iter()
-        .rev()
-        .map(ActRow::decode)
-        .map(Act::try_from)
-        .collect()
+    row.into_iter().rev().map(Act::try_from).collect()
 }
 
 pub async fn get_active_act(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
 ) -> Result<Option<Act>, PersistenceError> {
-    let row = sqlx::query(
+    let row = sqlx::query_as::<_, ActRow>(
         "SELECT id, adventure_id, ordinal, goal, trigger, status, index_line, digest,
                 running_digest, digest_to_seq, from_seq, to_seq, last_closure_score, created_at, updated_at
          FROM act
@@ -105,10 +102,7 @@ pub async fn get_active_act(
     .fetch_optional(&mut *conn)
     .await?;
 
-    row.as_ref()
-        .map(ActRow::decode)
-        .map(Act::try_from)
-        .transpose()
+    row.map(Act::try_from).transpose()
 }
 
 pub async fn update_act_running_digest(
@@ -136,18 +130,21 @@ pub async fn update_active_act_last_closure_score(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
     score: u16,
-) -> Result<(), PersistenceError> {
-    sqlx::query(
+) -> Result<Option<Act>, PersistenceError> {
+    let row = sqlx::query_as::<_, ActRow>(
         "UPDATE act
          SET last_closure_score = ?2
-         WHERE adventure_id = ?1 AND status = 'active'",
+         WHERE adventure_id = ?1 AND status = 'active'
+         RETURNING id, adventure_id, ordinal, goal, trigger, status, index_line, digest,
+                   running_digest, digest_to_seq, from_seq, to_seq, last_closure_score,
+                   created_at, updated_at",
     )
     .bind(adventure_id.to_string())
     .bind(score)
-    .execute(&mut *conn)
+    .fetch_optional(&mut *conn)
     .await?;
 
-    Ok(())
+    row.map(Act::try_from).transpose()
 }
 
 pub async fn insert_act(conn: &mut SqliteConnection, act: &Act) -> Result<(), PersistenceError> {
@@ -234,11 +231,11 @@ pub async fn activate_first_act(
     Ok(())
 }
 
-pub async fn activate_next_act(
+pub async fn activate_and_return_next_act(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
-) -> Result<(), PersistenceError> {
-    sqlx::query(
+) -> Result<Option<Act>, PersistenceError> {
+    let row = sqlx::query_as::<_, ActRow>(
         r#"
         UPDATE act
         SET status = 'active'
@@ -248,13 +245,17 @@ pub async fn activate_next_act(
             WHERE adventure_id = ?1 AND status IN ('resolved', 'failed', 'bypassed')
             ORDER BY ordinal DESC
             LIMIT 1
-        )"#,
+        )
+        RETURNING *"#,
     )
     .bind(adventure_id.to_string())
-    .execute(&mut *conn)
+    .fetch_optional(&mut *conn)
     .await?;
 
-    Ok(())
+    match row {
+        Some(act) => Ok(Some(Act::try_from(act)?)),
+        None => Ok(None),
+    }
 }
 
 impl TryFrom<ActRow> for Act {

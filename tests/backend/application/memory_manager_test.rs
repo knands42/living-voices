@@ -8,8 +8,9 @@ use living_voices::backend::application::adventure_manager::AdventureManager;
 use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::memory::{Act, ActStatus};
-use living_voices::backend::persistence::act_persistence::get_active_act;
-use living_voices::backend::persistence::message_persistence::fetch_since;
+use living_voices::backend::persistence::act_persistence::{
+    get_active_act, insert_act, update_act_running_digest,
+};
 use living_voices::config::{Config, TextModel};
 
 // ---------------------------------------------------------------- helpers
@@ -39,18 +40,12 @@ async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: u16) -> Vec
 }
 
 async fn seed_unstarted_act(pool: &SqlitePool, adventure_id: Uuid, ordinal: u16) -> Uuid {
-    let act_id = Uuid::new_v4();
+    let act = Act::new(adventure_id, ordinal, "the next chapter").with_status(ActStatus::Unstarted);
+    let act_id = act.id;
     let mut conn = pool.acquire().await.expect("acquire");
-    query(
-        "INSERT INTO act (id, adventure_id, ordinal, goal, status)
-         VALUES (?1, ?2, ?3, 'the next chapter', 'unstarted')",
-    )
-    .bind(act_id.to_string())
-    .bind(adventure_id.to_string())
-    .bind(ordinal)
-    .execute(&mut *conn)
-    .await
-    .expect("insert unstarted act");
+    insert_act(&mut conn, &act)
+        .await
+        .expect("insert unstarted act");
     act_id
 }
 
@@ -145,20 +140,15 @@ async fn compress_is_a_noop_when_every_message_is_already_covered() {
 
     // Set the active act's digest_to_seq so all messages are already covered
     let mut conn = pool.acquire().await.expect("acquire");
-    let act_id: String =
-        query_scalar("SELECT id FROM act WHERE adventure_id = ?1 AND status = 'active'")
-            .bind(adventure.id.to_string())
-            .fetch_one(&mut *conn)
-            .await
-            .expect("active act");
-    query("UPDATE act SET digest_to_seq = ?2 WHERE id = ?1")
-        .bind(&act_id)
-        .bind(watermark as i64)
-        .execute(&mut *conn)
+    let active_act = get_active_act(&mut conn, adventure.id)
+        .await
+        .expect("get active act")
+        .expect("has active act");
+    update_act_running_digest(&mut conn, active_act.id, "", watermark)
         .await
         .expect("update digest_to_seq");
     drop(conn);
-    let act_id = Uuid::parse_str(&act_id).expect("valid act id");
+    let act_id = active_act.id;
 
     let manager = load_manager(&state, &pool).await;
 
@@ -196,20 +186,15 @@ async fn compress_distills_the_uncovered_tail_persists_memory_and_advances_the_w
 
     // Set the act's digest_to_seq so the first message is already covered
     let mut conn = pool.acquire().await.expect("acquire");
-    let act_id: String =
-        query_scalar("SELECT id FROM act WHERE adventure_id = ?1 AND status = 'active'")
-            .bind(adventure.id.to_string())
-            .fetch_one(&mut *conn)
-            .await
-            .expect("active act");
-    query("UPDATE act SET digest_to_seq = ?2 WHERE id = ?1")
-        .bind(&act_id)
-        .bind(seqs[0] as i64)
-        .execute(&mut *conn)
+    let active_act = get_active_act(&mut conn, adventure.id)
+        .await
+        .expect("get active act")
+        .expect("has active act");
+    update_act_running_digest(&mut conn, active_act.id, "", seqs[0])
         .await
         .expect("update digest_to_seq");
     drop(conn);
-    let act_id = Uuid::parse_str(&act_id).expect("valid act id");
+    let act_id = active_act.id;
 
     let manager = load_manager(&state, &pool).await;
 
@@ -304,9 +289,12 @@ async fn close_current_act_closes_the_act_and_activates_the_next_one() {
         .await
         .expect("read act")
         .expect("an active act");
-    let uncovered = fetch_since(&mut conn, adventure.id, act.digest_to_seq)
-        .await
-        .expect("uncovered");
+    let uncovered = {
+        use living_voices::backend::persistence::message_persistence::fetch_since;
+        fetch_since(&mut conn, adventure.id, act.digest_to_seq)
+            .await
+            .expect("uncovered")
+    };
     drop(conn);
 
     // when: closing the act through the real memory model

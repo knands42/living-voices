@@ -87,7 +87,7 @@ impl AdventureManager {
         let new_adventure = get_adventure(&mut conn, adventure_summary.id).await?;
         {
             let mut guard = self.state.write()?;
-            guard.set_adventure(new_adventure.clone());
+            guard.current_adventure = Some(new_adventure.clone());
         }
 
         Ok(new_adventure)
@@ -127,8 +127,10 @@ impl AdventureManager {
     pub async fn start_adventure(&self, adventure: Adventure) -> Result<(), AdventureManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         activate_first_act(&mut conn, adventure.id).await?;
-        let mut guard = self.state.write()?;
-        guard.set_adventure(adventure);
+        {
+            let mut guard = self.state.write()?;
+            guard.current_adventure = Some(adventure);
+        }
 
         Ok(())
     }

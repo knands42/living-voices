@@ -1,4 +1,3 @@
-use sqlx::query;
 use sqlx::sqlite::SqlitePool;
 
 use crate::backend::application::helper::{CharacterSpec, create_characters, setup_db};
@@ -10,7 +9,6 @@ use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::Character;
 use living_voices::backend::domain::message::Message;
-use living_voices::backend::persistence::message_persistence::insert_message;
 use living_voices::config::DirectorSettings;
 
 // region DB fixtures
@@ -58,6 +56,7 @@ async fn seed_player_message(
     author: &Character,
     text: &str,
 ) {
+    use living_voices::backend::persistence::message_persistence::insert_message;
     let mut conn = pool.acquire().await.expect("acquire");
     let message = Message::new(
         adventure.id,
@@ -77,6 +76,7 @@ async fn seed_cast_message(
     author: &Character,
     text: &str,
 ) {
+    use living_voices::backend::persistence::message_persistence::insert_message;
     let mut conn = pool.acquire().await.expect("acquire");
     let message = Message::new(
         adventure.id,
@@ -239,14 +239,17 @@ async fn static_context_carries_the_running_digest_of_the_active_act() {
     let (_state, adventure) = setup_adventure(&pool, &[("Mira", false)]).await;
 
     // Set the running_digest on the active act created by start_adventure()
+    use living_voices::backend::persistence::act_persistence::{
+        get_active_act, update_act_running_digest,
+    };
     let mut conn = pool.acquire().await.expect("acquire");
-    query("UPDATE act SET running_digest = ?2 WHERE adventure_id = ?1 AND status = 'active'")
-        .bind(adventure.id.to_string())
-        .bind("They escaped the keep.")
-        .execute(&mut *conn)
+    let active_act = get_active_act(&mut conn, adventure.id)
+        .await
+        .expect("get active act")
+        .expect("has active act");
+    update_act_running_digest(&mut conn, active_act.id, "They escaped the keep.", 0)
         .await
         .expect("update running_digest");
-
     let turns =
         ContextBuilder::build_narrator_chat_prompt(&mut conn, &adventure, &low_closure_director())
             .await

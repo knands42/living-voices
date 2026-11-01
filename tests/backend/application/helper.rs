@@ -3,17 +3,11 @@ use sqlx::SqlitePool;
 use std::path::PathBuf;
 use uuid::Uuid;
 
+use living_voices::backend::application::adventure_manager::AdventureManager;
+use living_voices::backend::application::character_manager::CharacterManager;
+use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::{Character, CharacterStatus};
-use living_voices::backend::domain::lore::Lore;
-use living_voices::backend::domain::memory::State;
-use living_voices::backend::domain::message::Message;
-use living_voices::backend::domain::narrator::Narrator;
-use living_voices::backend::persistence::adventure_persistence::insert_adventure;
-use living_voices::backend::persistence::characters_persistence::insert_character;
-use living_voices::backend::persistence::message_persistence::insert_message;
-use living_voices::backend::persistence::narrator_persistence::insert_default_narrator;
-use living_voices::backend::persistence::state_persistence::upsert_state;
 
 pub struct TempDb(pub PathBuf);
 impl Drop for TempDb {
@@ -86,77 +80,64 @@ pub fn build_characters(adventure_id: Uuid, specs: &[CharacterSpec]) -> Vec<Char
         .collect()
 }
 
-/// Persist a cast under `adventure_id` (the adventure row must already exist).
+/// Persist a cast under `adventure_id` using CharacterManager (the adventure row must already exist).
 pub async fn create_characters(
     pool: &SqlitePool,
     adventure_id: Uuid,
     specs: &[CharacterSpec],
 ) -> Vec<Character> {
     let characters = build_characters(adventure_id, specs);
-    let mut conn = pool.acquire().await.expect("acquire");
+    let state = SharedState::new();
+    let character_mgr = CharacterManager::new(state, pool.clone());
     for character in &characters {
-        insert_character(&mut conn, adventure_id, character)
+        character_mgr
+            .create_character(character.clone())
             .await
-            .expect("insert character");
+            .expect("create character");
     }
     characters
 }
 
-/// Persist a full adventure: the adventure row, its narrator, and the given cast.
+/// Persist a full adventure using AdventureManager, with optional NPC characters.
 pub async fn create_adventure(pool: &SqlitePool, specs: &[CharacterSpec]) -> Adventure {
-    let mut conn = pool.acquire().await.expect("acquire");
+    let state = SharedState::new();
+    let adventure_mgr = AdventureManager::new(state.clone(), pool.clone());
 
-    let adventure_id = Uuid::new_v4();
-    let adventure_summary = insert_adventure(
-        &mut conn,
-        adventure_id,
-        "Test adventure",
-        "A drowned city",
-        "tense",
-        vec![],
-    )
-    .await
-    .expect("insert adventure");
-
-    let narrator_id = Uuid::new_v4();
-    insert_default_narrator(&mut conn, narrator_id, adventure_summary.id)
+    let adventure = adventure_mgr
+        .create_adventure(
+            "Test adventure".into(),
+            "A drowned city".into(),
+            "tense".into(),
+        )
         .await
-        .expect("insert narrator");
+        .expect("create adventure");
 
-    let characters = build_characters(adventure_summary.id, specs);
+    // Seed any additional NPCs beyond the default player character.
+    let character_mgr = CharacterManager::new(state.clone(), pool.clone());
+    let characters = build_characters(adventure.id, specs);
     for character in &characters {
-        insert_character(&mut conn, adventure_summary.id, character)
+        character_mgr
+            .create_character(character.clone())
             .await
-            .expect("insert character");
+            .expect("create character");
     }
 
-    upsert_state(&mut conn, &State::new(Uuid::new_v4(), adventure_summary.id))
+    // Return the updated adventure with all characters.
+    adventure_mgr
+        .get_adventure(adventure.id)
         .await
-        .expect("insert initial state");
-
-    let narrator = Narrator::new(narrator_id, "Narrator", "");
-    let lore = Lore::new(Uuid::new_v4(), "");
-    let mut adventure = Adventure::new(
-        adventure_summary.id,
-        adventure_summary.title,
-        adventure_summary.headline,
-        narrator,
-        adventure_summary.tone,
-        lore,
-        adventure_summary.created_at,
-        adventure_summary.updated_at,
-    );
-    for character in characters {
-        adventure.add_character(character);
-    }
-    adventure
+        .expect("get adventure")
 }
 
+/// Seed raw messages via persistence; MessageManager::send_message always calls the model.
 pub async fn create_messages(
     pool: &SqlitePool,
     adventure_id: Uuid,
     authors: &[Option<Uuid>],
 ) -> Vec<u16> {
+    use living_voices::backend::domain::message::Message;
+    use living_voices::backend::persistence::message_persistence::insert_message;
+
     let mut conn = pool.acquire().await.expect("acquire");
     let mut seqs = Vec::with_capacity(authors.len());
     for (i, author) in authors.iter().enumerate() {

@@ -2,7 +2,10 @@ use std::sync::{Arc, RwLock};
 
 use thiserror::Error;
 
-use crate::backend::domain::{adventure::Adventure, character::Character};
+use crate::backend::domain::{
+    adventure::Adventure,
+    memory::{Act, Fact, State},
+};
 
 #[derive(Error, Debug)]
 pub enum StateError {
@@ -15,23 +18,19 @@ pub enum StateError {
 #[derive(Debug, Default)]
 pub struct AppState {
     pub current_adventure: Option<Adventure>,
-    pub characters: Vec<Character>,
+    pub current_act: Option<Act>,
+    pub current_state: Option<State>,
+    pub current_facts: Vec<Fact>,
 }
 
 impl AppState {
     pub fn new() -> Self {
         Self {
             current_adventure: None,
-            characters: Vec::new(),
+            current_act: None,
+            current_state: None,
+            current_facts: Vec::new(),
         }
-    }
-
-    pub fn set_adventure(&mut self, adventure: Adventure) {
-        self.current_adventure = Some(adventure)
-    }
-
-    pub fn set_character(&mut self, character: Character) {
-        self.characters.push(character);
     }
 }
 
