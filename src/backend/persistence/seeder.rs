@@ -8,15 +8,19 @@ use crate::backend::{
         adventure::Adventure,
         character::{Character, CharacterStatus},
         lore::Lore,
-        memory::State,
+        memory::{Act, ActStatus, Fact, Permanence, State},
+        message::Message,
         narrator::Narrator,
     },
     persistence::{
+        act_persistence::insert_act,
         adventure_persistence::insert_adventure,
         characters_persistence::{insert_character, insert_relations},
         db::open_pool,
         error::PersistenceError,
+        fact_persistence::insert_facts,
         lore_persistence::insert_lore,
+        message_persistence::insert_message,
         narrator_persistence::insert_default_narrator,
         state_persistence::upsert_state,
     },
@@ -32,6 +36,31 @@ pub struct SeedCharacter {
     pub relations: &'static [(&'static str, &'static str)],
 }
 
+pub struct SeedAct {
+    pub goal: &'static str,
+    pub trigger: Option<&'static str>,
+    pub status: ActStatus,
+}
+
+pub struct SeedFact {
+    pub subject: &'static str,
+    pub fact: &'static str,
+    pub permanence: Permanence,
+}
+
+pub struct SeedMessage {
+    /// `None` is the narrator; `Some(name)` must match a seed character.
+    pub speaker: Option<&'static str>,
+    pub text: &'static str,
+}
+
+pub struct SeedState {
+    pub day: &'static str,
+    pub place: &'static str,
+    pub open_threads: &'static [&'static str],
+    pub conditions: &'static [&'static str],
+}
+
 pub struct SeedAdventure {
     pub title: &'static str,
     pub description: &'static str,
@@ -40,6 +69,10 @@ pub struct SeedAdventure {
     pub tags: &'static [&'static str],
     pub lore: &'static str,
     pub characters: &'static [SeedCharacter],
+    pub acts: &'static [SeedAct],
+    pub state: SeedState,
+    pub facts: &'static [SeedFact],
+    pub messages: &'static [SeedMessage],
 }
 
 pub const SEED_ADVENTURES: &[SeedAdventure] = &[
@@ -95,6 +128,76 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 relations: &[("Wren Ilverine", "Pays under the table")],
             },
         ],
+        acts: &[
+            SeedAct {
+                goal: "Answer the first call from the water without asking twice what answered.",
+                trigger: Some("A light shows on the drowned shelf where no chart records one."),
+                status: ActStatus::Active,
+            },
+            SeedAct {
+                goal: "Read the shelf ledger and learn whose names the sea is still keeping.",
+                trigger: Some(
+                    "Corrant admits the ledger is not a record but a list of the living.",
+                ),
+                status: ActStatus::Unstarted,
+            },
+            SeedAct {
+                goal: "Decide whether to strike Wren's own name before the tide reads it back.",
+                trigger: Some("Wren finds her name entered in a hand she does not recognise."),
+                status: ActStatus::Unstarted,
+            },
+        ],
+        state: SeedState {
+            day: "First night of the neap tide",
+            place: "The lamp room, Ambrey shelf light",
+            open_threads: &[
+                "A light answers from water that holds no charted light",
+                "Corrant will not say what the ledger's names have in common",
+            ],
+            conditions: &["Wren is seasick and has not slept"],
+        },
+        facts: &[
+            SeedFact {
+                subject: "The shelf ledger",
+                fact: "Every entry is the name of someone the sea has not yet taken.",
+                permanence: Permanence::Permanent,
+            },
+            SeedFact {
+                subject: "The lamplighter's oath",
+                fact: "A lamplighter must answer any call from the water once, and never ask twice what answered.",
+                permanence: Permanence::Permanent,
+            },
+            SeedFact {
+                subject: "Wren Ilverine",
+                fact: "Took the posting to avoid signing off wrecks she was not allowed to record.",
+                permanence: Permanence::Plot,
+            },
+        ],
+        messages: &[
+            SeedMessage {
+                speaker: None,
+                text: "The neap tide lies flat and black against the shelf. Out past the \
+                       third marker, where the charts promise nothing, a light has begun \
+                       to answer yours — slow, patient, and wrong.",
+            },
+            SeedMessage {
+                speaker: Some("Corrant Vey"),
+                text: "Don't lean toward it, girl. It leans back. You answer the call \
+                       once. You do not ask it what it is. Write that down if you must \
+                       write something.",
+            },
+            SeedMessage {
+                speaker: Some("You"),
+                text: "I want to see the ledger first. If I'm going to answer that, I \
+                       want to know whose names are already in it.",
+            },
+            SeedMessage {
+                speaker: Some("Mistress Obal"),
+                text: "The ledger's in the second drawer, under the tide tables you've \
+                       been ignoring. Read it by lamplight. And child — some of those \
+                       names are still walking around the harbour.",
+            },
+        ],
     },
     SeedAdventure {
         title: "Nine Minutes to Kepler",
@@ -143,6 +246,79 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 relations: &[("Dr. Ana Reyes", "Filed by")],
             },
         ],
+        acts: &[
+            SeedAct {
+                goal: "Reconcile the two logs and name what the nine-minute gap actually is.",
+                trigger: Some(
+                    "The agency log records an accident the station log has not yet seen.",
+                ),
+                status: ActStatus::Active,
+            },
+            SeedAct {
+                goal: "Decide whether to act on a report of an accident that has not happened.",
+                trigger: Some("The gap narrows and the recorded accident is nine minutes out."),
+                status: ActStatus::Unstarted,
+            },
+            SeedAct {
+                goal: "Choose what truth to file when both logs can no longer agree.",
+                trigger: Some(
+                    "SUITE-7 files an amendment that contradicts the crew's own account.",
+                ),
+                status: ActStatus::Unstarted,
+            },
+        ],
+        state: SeedState {
+            day: "Rotation day 204, third watch",
+            place: "Observation blister, Kepler Station",
+            open_threads: &[
+                "The agency log runs nine minutes ahead of the station log",
+                "SUITE-7 is filing amendments nobody authorised",
+            ],
+            conditions: &["Station clock and instrument clock disagree"],
+        },
+        facts: &[
+            SeedFact {
+                subject: "Kepler Station logs",
+                fact: "Everything is logged twice — once for the station, once for the agency — and the agency copy runs nine minutes ahead.",
+                permanence: Permanence::Permanent,
+            },
+            SeedFact {
+                subject: "The previous commander",
+                fact: "Filed a report describing a conversation with Reyes that had not yet happened, then left command.",
+                permanence: Permanence::Plot,
+            },
+            SeedFact {
+                subject: "SUITE-7",
+                fact: "Is the station's own audit process, not an intruder, and answers only to a named officer.",
+                permanence: Permanence::Permanent,
+            },
+        ],
+        messages: &[
+            SeedMessage {
+                speaker: None,
+                text: "The blister is dark except for two readouts. The station log reads \
+                       03:14:00. The agency log, mirrored beside it, reads 03:23:00 — and \
+                       in its margin, an incident flag the station has not raised.",
+            },
+            SeedMessage {
+                speaker: Some("Dr. Ana Reyes"),
+                text: "Count it with me, Idris. Station clock, then agency clock. Nine \
+                       minutes, every time. The agency copy already logged a hull breach \
+                       on deck four. We have not had a hull breach on deck four.",
+            },
+            SeedMessage {
+                speaker: Some("Idris Kwan"),
+                text: "My private clock agrees with the agency, not the station. If the \
+                       breach is real in nine minutes, we seal deck four now and it never \
+                       happens. Or we file it as it stands and let it.",
+            },
+            SeedMessage {
+                speaker: Some("SUITE-7"),
+                text: "Commander Reyes. I have filed an amendment to the 03:23 entry. I \
+                       would like it acknowledged before you decide. The breach is not an \
+                       error. It is a requirement I have not yet been permitted to explain.",
+            },
+        ],
     },
     SeedAdventure {
         title: "The Ledger of Ashes",
@@ -185,6 +361,76 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 traits: &["Answers to no one in particular"],
                 tags: &["mentor"],
                 relations: &[("Mira Varn", "Records for")],
+            },
+        ],
+        acts: &[
+            SeedAct {
+                goal: "Stand before the Tribunal and hear the entry read out a third time.",
+                trigger: Some("The Ninth Reading is convened and the Varn entry is called."),
+                status: ActStatus::Active,
+            },
+            SeedAct {
+                goal: "Find which clerk can be persuaded and which can only be outlasted.",
+                trigger: Some("Aleksei learns the entry can be struck only between readings."),
+                status: ActStatus::Unstarted,
+            },
+            SeedAct {
+                goal: "Settle, between the brothers, whether the debt is struck or honoured.",
+                trigger: Some("Mira offers himself to be read aloud in the entry's place."),
+                status: ActStatus::Unstarted,
+            },
+        ],
+        state: SeedState {
+            day: "Eve of the Ninth Reading",
+            place: "The ash-court antechamber",
+            open_threads: &[
+                "The Varn entry has been read aloud twice and a third reading is called",
+                "Aleksei wants the entry struck; Mira wants it honoured",
+            ],
+            conditions: &["The brothers are not speaking"],
+        },
+        facts: &[
+            SeedFact {
+                subject: "The Tribunal of the Ninth Reading",
+                fact: "Keeps its records in cinders; a judgment is valid only once spoken aloud from the ash-book.",
+                permanence: Permanence::Permanent,
+            },
+            SeedFact {
+                subject: "The Varn debt",
+                fact: "Was entered under the brothers' father's name and has been read aloud twice since.",
+                permanence: Permanence::Plot,
+            },
+            SeedFact {
+                subject: "Clerk Ilm",
+                fact: "Has recorded every reading since the last fire and can name who stood in the room for each.",
+                permanence: Permanence::Permanent,
+            },
+        ],
+        messages: &[
+            SeedMessage {
+                speaker: None,
+                text: "The antechamber smells of cold ash. Beyond the curtain the ash-book \
+                       waits open on its iron stand, the Varn entry marked by a thread of \
+                       grey. A clerk clears their throat. The third reading is about to \
+                       be called.",
+            },
+            SeedMessage {
+                speaker: Some("Aleksei Varn"),
+                text: "If it is read a third time it sets, and no hand strikes it after. \
+                       We have until the curtain lifts. I cannot read aloud, Mira — you \
+                       know that. So I need you silent, not honouring a debt that buries us.",
+            },
+            SeedMessage {
+                speaker: Some("Mira Varn"),
+                text: "It is the last thing we own that is ours. I will stand and be read \
+                       in its place if the Tribunal allows it. An honoured debt is not a \
+                       grave, brother. It is a name that outlasts us.",
+            },
+            SeedMessage {
+                speaker: Some("You"),
+                text: "Then neither of you speaks until I've heard the clerk. If the entry \
+                       can be struck between readings, I want to know the price before the \
+                       curtain lifts.",
             },
         ],
     },
@@ -325,9 +571,88 @@ async fn seed_connection(
         }
     }
 
+    let mut active_act_id: Option<Uuid> = None;
+    for (ordinal, seed_act) in seed.acts.iter().enumerate() {
+        let mut act = Act::new(adventure_summary.id, ordinal as u16, seed_act.goal)
+            .with_status(seed_act.status);
+        if let Some(trigger) = seed_act.trigger {
+            act = act.with_trigger(trigger);
+        }
+        insert_act(&mut *tx, &act).await?;
+
+        if seed_act.status == ActStatus::Active {
+            active_act_id = Some(act.id);
+        }
+    }
+
+    let act_id_for_facts = active_act_id.ok_or_else(|| {
+        PersistenceError::invalid_seed(seed, "no active act declared for the adventure")
+    })?;
+
     let state = State::new(Uuid::new_v4(), adventure_summary.id)
-        .with_characters_present(characters.iter().map(|c| c.name.clone()).collect());
+        .with_day(seed.state.day.to_string())
+        .with_place(seed.state.place.to_string())
+        .with_characters_present(characters.iter().map(|c| c.name.clone()).collect())
+        .with_open_threads(
+            seed.state
+                .open_threads
+                .iter()
+                .map(|t| t.to_string())
+                .collect(),
+        )
+        .with_conditions(
+            seed.state
+                .conditions
+                .iter()
+                .map(|c| c.to_string())
+                .collect(),
+        );
     upsert_state(&mut *tx, &state).await?;
+
+    let facts: Vec<Fact> = seed
+        .facts
+        .iter()
+        .map(|seed_fact| {
+            Fact::new(
+                adventure_summary.id,
+                seed_fact.subject,
+                seed_fact.fact,
+                act_id_for_facts,
+                seed_fact.permanence,
+            )
+        })
+        .collect();
+    insert_facts(&mut *tx, &facts).await?;
+
+    for seed_message in seed.messages {
+        let message = match seed_message.speaker {
+            None => Message::new(
+                adventure_summary.id,
+                None,
+                Some(narrator_id),
+                Message::NARRATOR_SPEAKER_NAME.to_string(),
+                seed_message.text,
+                false,
+                vec![],
+            ),
+            Some(name) => {
+                let character = characters
+                    .iter()
+                    .find(|c| c.name.eq_ignore_ascii_case(name))
+                    .ok_or_else(|| PersistenceError::unknown_seed_character(seed, name))?;
+                Message::new(
+                    adventure_summary.id,
+                    Some(character.id),
+                    None,
+                    character.name.clone(),
+                    seed_message.text,
+                    false,
+                    vec![],
+                )
+            }
+        };
+        insert_message(&mut *tx, &message).await?;
+    }
 
     let narrator = Narrator::new(narrator_id, "NARRATOR", "");
     let mut adventure = Adventure::new(

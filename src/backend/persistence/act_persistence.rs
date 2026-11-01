@@ -218,17 +218,18 @@ pub async fn close_act(
 pub async fn activate_first_act(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
-) -> Result<(), PersistenceError> {
-    sqlx::query(
+) -> Result<Act, PersistenceError> {
+    let row = sqlx::query_as::<_, ActRow>(
         "UPDATE act
          SET status = 'active'
-         WHERE adventure_id = ?1 AND ordinal = 0",
+         WHERE adventure_id = ?1 AND ordinal = 0
+         RETURNING *",
     )
     .bind(adventure_id.to_string())
-    .execute(&mut *conn)
+    .fetch_one(&mut *conn)
     .await?;
 
-    Ok(())
+    Act::try_from(row)
 }
 
 pub async fn activate_and_return_next_act(

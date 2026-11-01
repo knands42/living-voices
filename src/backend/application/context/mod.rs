@@ -298,7 +298,7 @@ impl ContextBuilder {
         _conn: &mut SqliteConnection,
         _adventure: &Adventure,
     ) -> Result<String, PersistenceError> {
-        // TODO: retrieve the live facts for the acts
+        // TODO: put this along with each previous act summary
         Ok(String::new())
     }
 

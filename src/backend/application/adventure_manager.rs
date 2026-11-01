@@ -1,11 +1,14 @@
 use crate::backend::domain::memory::{Act, ActStatus, Fact, State};
 use crate::backend::domain::message::Message;
-use crate::backend::persistence::act_persistence::{activate_first_act, insert_default_act};
+use crate::backend::persistence::act_persistence::{
+    activate_first_act, get_active_act, insert_default_act,
+};
 use crate::backend::persistence::adventure_persistence::get_adventure_summaries;
 use crate::backend::persistence::characters_persistence::insert_default_player_character;
+use crate::backend::persistence::fact_persistence::get_facts;
 use crate::backend::persistence::lore_persistence::insert_default_lore;
 use crate::backend::persistence::message_persistence::insert_message;
-use crate::backend::persistence::state_persistence::insert_default_state;
+use crate::backend::persistence::state_persistence::{get_state, insert_default_state};
 use crate::backend::{
     PersistenceError,
     application::state::{SharedState, StateError},
@@ -138,10 +141,16 @@ impl AdventureManager {
 
     pub async fn start_adventure(&self, adventure: Adventure) -> Result<(), AdventureManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        activate_first_act(&mut conn, adventure.id).await?;
+        let current_act = activate_first_act(&mut conn, adventure.id).await?;
+        let current_state = get_state(&mut conn, adventure.id).await?;
+        let current_facts = get_facts(&mut conn, adventure.id, current_act.id).await?;
+
         {
             let mut guard = self.state.write()?;
             guard.current_adventure = Some(adventure);
+            guard.current_act = Some(current_act);
+            guard.current_state = current_state;
+            guard.current_facts = current_facts;
         }
 
         Ok(())
