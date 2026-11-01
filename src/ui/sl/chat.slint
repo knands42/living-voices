@@ -1,17 +1,20 @@
+import { LineEdit } from "std-widgets.slint";
 import { AppTheme } from "theme.slint";
-import { AdventureView, ActView, StateView, FactView } from "views.slint";
+import { AdventureView, ActView, StateView, FactView, MessageView } from "views.slint";
 
 export component ChatPage inherits Rectangle {
     in property <AdventureView> adventure;
     in property <ActView> act;
     in property <StateView> state;
     in property <[FactView]> facts;
+    in property <[MessageView]> messages;
+    in property <bool> awaiting-reply;
     callback back-requested();
+    callback message-sent(string);
 
     background: AppTheme.bg-deepest;
 
     VerticalLayout {
-        alignment: center;
         spacing: 16px;
         padding: 32px;
 
@@ -37,6 +40,50 @@ export component ChatPage inherits Rectangle {
             font-family: AppTheme.font-body;
             font-size: AppTheme.font-label;
             horizontal-alignment: center;
+        }
+
+        Flickable {
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                spacing: 8px;
+
+                for message in root.messages: VerticalLayout {
+                    spacing: 2px;
+
+                    Text {
+                        text: message.speaker;
+                        color: message.is-player ? AppTheme.gold : AppTheme.bronze;
+                        font-family: AppTheme.font-body;
+                        font-size: AppTheme.font-label;
+                    }
+
+                    Text {
+                        text: message.text;
+                        color: AppTheme.text-light;
+                        font-family: AppTheme.font-body;
+                        font-size: 14px;
+                        wrap: word-wrap;
+                    }
+                }
+
+                if root.awaiting-reply: Text {
+                    text: "…";
+                    color: AppTheme.text-muted;
+                    font-family: AppTheme.font-body;
+                }
+            }
+        }
+
+        composer := LineEdit {
+            placeholder-text: "Say something…";
+            enabled: !root.awaiting-reply;
+            accepted(text) => {
+                if (text != "") {
+                    root.message-sent(text);
+                    composer.text = "";
+                }
+            }
         }
 
         TouchArea {

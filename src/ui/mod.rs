@@ -1,8 +1,9 @@
 use crate::app::AppContext;
 use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
 use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
+use crate::ui::callbacks::register::register_callbacks;
 
-mod callbacks;
+pub mod callbacks;
 pub mod viewmodels;
 mod window;
 
@@ -27,7 +28,7 @@ pub fn run<
     });
 
     window::fill_root_window_inputs(&ui, &summaries);
-    callbacks::register_callbacks(&ui, &ctx);
+    register_callbacks(&ui, &ctx);
 
     ui.run()
 }

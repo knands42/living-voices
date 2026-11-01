@@ -116,7 +116,6 @@ impl Adventure {
             speaker_name,
             text,
             false,
-            vec![], // TODO: Get targeted characters
         )
     }
 

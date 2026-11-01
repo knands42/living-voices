@@ -199,21 +199,6 @@ fn player_line(adventure: &Adventure, text: &str) -> Message {
         player.name.clone(),
         text,
         false,
-        vec![],
-    )
-}
-
-/// A player line explicitly aimed at one cast member.
-fn targeted_line(adventure: &Adventure, text: &str, target: &Character) -> Message {
-    let player = player_character(adventure);
-    Message::new(
-        adventure.id,
-        Some(player.id),
-        None,
-        player.name.clone(),
-        text,
-        false,
-        vec![target.clone()],
     )
 }
 
@@ -302,7 +287,7 @@ async fn full_pipeline_sends_a_turn_and_triggers_background_distillation() {
     drop(conn);
 
     // when: the player sends the turn that crosses the threshold
-    let incoming = targeted_line(&adventure, "What now?", &adventure.characters[0]);
+    let incoming = player_line(&adventure, "What now?");
     let reply = manager.send_message(incoming).await.expect("send succeeds");
 
     // then: the reply is persisted
@@ -404,7 +389,7 @@ async fn send_message_routes_to_a_specific_targeted_character() {
         .expect("Kael is in the cast")
         .clone();
     let reply = manager
-        .send_message(targeted_line(&adventure, "Kael, what do you see?", &kael))
+        .send_message(player_line(&adventure, "Kael, what do you see?"))
         .await
         .expect("send succeeds");
 

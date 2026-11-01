@@ -1,9 +1,9 @@
 import { AppTheme } from "theme.slint";
 import { MainPage, AdventureSummary } from "main.slint";
 import { ChatPage } from "chat.slint";
-import { AdventureView, ActView, StateView, FactView } from "views.slint";
+import { AdventureView, ActView, StateView, FactView, MessageView } from "views.slint";
 
-export { AdventureSummary, AdventureView, ActView, StateView, FactView }
+export { AdventureSummary, AdventureView, ActView, StateView, FactView, MessageView }
 
 export component RootWindow inherits Window {
     title: "Living Voices";
@@ -28,6 +28,9 @@ export component RootWindow inherits Window {
     in property <ActView> current-act;
     in property <StateView> current-state;
     in property <[FactView]> current-facts;
+    in property <[MessageView]> current-messages;
+    in property <bool> awaiting-reply;
+    callback message-sent(string);
 
     if current-page == "main": MainPage {
         adventures: root.adventures;
@@ -42,6 +45,9 @@ export component RootWindow inherits Window {
         act: root.current-act;
         state: root.current-state;
         facts: root.current-facts;
+        messages: root.current-messages;
+        awaiting-reply: root.awaiting-reply;
+        message-sent(text) => { root.message-sent(text); }
         back-requested => { root.current-page = "main"; }
     }
 }

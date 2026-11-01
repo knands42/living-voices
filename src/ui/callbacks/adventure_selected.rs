@@ -1,36 +1,13 @@
+use crate::app::AppContext;
+use crate::backend::application::adventure_manager::{AdventureManagerError, MemorySnapshot};
+use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
+use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
+use crate::ui::{RootWindow, viewmodels};
 use slint::ComponentHandle;
 use tokio::runtime::Handle;
 use uuid::Uuid;
 
-use crate::{
-    app::AppContext,
-    backend::application::adventure_manager::{AdventureManagerError, MemorySnapshot},
-    backend::application::port::chat_port::{ChatHandler, NarratorHandler},
-    backend::application::port::memory_port::{ActCloser, MemoryDistiller},
-    ui::{RootWindow, viewmodels},
-};
-
-// ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
-
-pub fn register_callbacks<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
->(
-    ui: &RootWindow,
-    ctx: &AppContext<C, N, M, A>,
-) {
-    register_adventure_selected(ui, ctx);
-}
-
-// ---------------------------------------------------------------------------
-// adventure-selected
-// ---------------------------------------------------------------------------
-
-fn register_adventure_selected<
+pub fn register_adventure_selected<
     C: ChatHandler + Clone + 'static,
     N: NarratorHandler + Clone + 'static,
     M: MemoryDistiller + Clone + 'static,
@@ -88,12 +65,19 @@ fn apply_snapshot(ui_weak: &slint::Weak<RootWindow>, snapshot: MemorySnapshot) {
         let Some(ui) = ui_weak.upgrade() else {
             return;
         };
-        ui.set_current_adventure(viewmodels::adventure_view(
-            snapshot.current_adventure.as_ref(),
-        ));
-        ui.set_current_act(viewmodels::act_view(snapshot.current_act.as_ref()));
-        ui.set_current_state(viewmodels::state_view(snapshot.current_state.as_ref()));
-        ui.set_current_facts(viewmodels::facts_model(&snapshot.current_facts));
+
+        if let Some(player) = snapshot.player {
+            ui.set_current_adventure(viewmodels::adventure_view(
+                snapshot.current_adventure.as_ref(),
+            ));
+            ui.set_current_act(viewmodels::act_view(snapshot.current_act.as_ref()));
+            ui.set_current_state(viewmodels::state_view(snapshot.current_state.as_ref()));
+            ui.set_current_facts(viewmodels::facts_model(&snapshot.current_facts));
+            ui.set_current_messages(viewmodels::messages_model(
+                &snapshot.current_messages,
+                Some(player.id),
+            ));
+        };
     });
 
     if let Err(err) = post {

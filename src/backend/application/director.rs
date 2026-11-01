@@ -37,7 +37,7 @@ impl Director {
     pub fn pick_character<'a>(
         &self,
         candidates: &'a [&Character],
-        incoming: &Message,
+        _incoming: &Message,
     ) -> Option<&'a Character> {
         if candidates.is_empty() {
             return None;
@@ -47,15 +47,9 @@ impl Director {
             return Some(candidates[0]);
         }
 
-        // Most turns go to whoever the incoming message aimed at.
-        let roll = rand::random::<f32>();
-        if roll < self.director_settings.targeted_pick_chance {
-            let targeted = self.targeted_character(candidates, incoming)?;
-            Some(targeted)
-        } else {
-            None
-        }
-        // TODO: Implement logic for picking a character when the roll is not for the targeted character. CPU Embedding or jev
+        // With more than one candidate and no targets to go by, defer to the model.
+        None
+        // TODO: pick among multiple candidates without targets (CPU embedding or jev)
     }
 
     pub fn should_request_pacing_prompt(&self, messages_in_act: u16) -> bool {
@@ -84,30 +78,5 @@ impl Director {
 
         let span = (max - min) as f32;
         (messages_since_narration - min) as f32 / span
-    }
-
-    /// A cast member chosen at random from the incoming message's targets.
-    fn targeted_character<'a>(
-        &self,
-        candidates: &'a [&Character],
-        incoming: &Message,
-    ) -> Option<&'a Character> {
-        let targeted = &incoming.targeted_characters;
-        if targeted.is_empty() {
-            return None;
-        }
-
-        let in_cast: Vec<&'a Character> = candidates
-            .iter()
-            .filter(|c| targeted.iter().any(|t| t.name == c.name))
-            .copied()
-            .collect();
-
-        if in_cast.is_empty() {
-            return None;
-        }
-
-        let pick = rand::random_range(0..in_cast.len());
-        Some(in_cast[pick])
     }
 }

@@ -1,8 +1,17 @@
+export struct CharacterView {
+    id: string,
+    name: string,
+    headline: string,
+    is-player: bool,
+}
+
 export struct AdventureView {
     id: string,
     title: string,
     headline: string,
     tone: string,
+    characters: [CharacterView],
+    player: CharacterView,
 }
 
 export struct ActView {
@@ -23,4 +32,11 @@ export struct FactView {
     subject: string,
     fact: string,
     permanence: string,
+}
+
+export struct MessageView {
+    speaker: string,
+    text: string,
+    is-player: bool,
+    is-narrator: bool
 }

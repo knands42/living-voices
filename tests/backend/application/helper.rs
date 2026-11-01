@@ -148,7 +148,6 @@ pub async fn create_messages(
             format!("Speaker {i}"),
             format!("line {i}"),
             false,
-            vec![],
         );
         let stored = insert_message(&mut conn, &message)
             .await

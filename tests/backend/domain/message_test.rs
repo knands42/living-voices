@@ -13,7 +13,6 @@ fn message_new_stores_text_with_seq_unset() {
         "Alice".to_string(),
         "[Alice (say)]: Hello",
         false,
-        vec![],
     );
     assert!(m.seq.is_none());
     assert_eq!(m.adventure_id, adv);
@@ -22,21 +21,12 @@ fn message_new_stores_text_with_seq_unset() {
     assert_eq!(m.speaker_name, "Alice");
     assert_eq!(m.text, "[Alice (say)]: Hello");
     assert!(!m.ooc);
-    assert!(m.targeted_characters.is_empty());
 }
 
 #[test]
 fn message_new_keeps_ooc_flag() {
     let adv = Uuid::new_v4();
-    let m = Message::new(
-        adv,
-        None,
-        None,
-        "Alice".to_string(),
-        "meta aside",
-        true,
-        vec![],
-    );
+    let m = Message::new(adv, None, None, "Alice".to_string(), "meta aside", true);
     assert!(m.ooc);
 }
 

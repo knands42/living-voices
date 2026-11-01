@@ -1,18 +1,43 @@
 use slint::{ModelRc, SharedString, VecModel};
 
 use crate::backend::domain::adventure::Adventure;
+use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, Fact, State};
-use crate::ui::{ActView, AdventureView, FactView, StateView};
+use crate::backend::domain::message::Message;
+use crate::ui::{ActView, AdventureView, CharacterView, FactView, MessageView, StateView};
+use uuid::Uuid;
 
 pub fn adventure_view(adventure: Option<&Adventure>) -> AdventureView {
     match adventure {
-        Some(adventure) => AdventureView {
-            id: SharedString::from(adventure.id.to_string()),
-            title: SharedString::from(adventure.title.clone()),
-            headline: SharedString::from(adventure.headline.clone()),
-            tone: SharedString::from(adventure.tone.clone()),
-        },
+        Some(adventure) => {
+            let characters: Vec<CharacterView> =
+                adventure.characters.iter().map(character_view).collect();
+            let player = adventure
+                .characters
+                .iter()
+                .find(|c| c.is_player)
+                .map(character_view)
+                .unwrap_or_default();
+
+            AdventureView {
+                id: SharedString::from(adventure.id.to_string()),
+                title: SharedString::from(adventure.title.clone()),
+                headline: SharedString::from(adventure.headline.clone()),
+                tone: SharedString::from(adventure.tone.clone()),
+                characters: ModelRc::new(VecModel::from(characters)),
+                player,
+            }
+        }
         None => AdventureView::default(),
+    }
+}
+
+fn character_view(character: &Character) -> CharacterView {
+    CharacterView {
+        id: SharedString::from(character.id.to_string()),
+        name: SharedString::from(character.name.clone()),
+        headline: SharedString::from(character.headline.clone()),
+        is_player: character.is_player,
     }
 }
 
@@ -43,6 +68,23 @@ pub fn state_view(state: Option<&State>) -> StateView {
 pub fn facts_model(facts: &[Fact]) -> ModelRc<FactView> {
     let items: Vec<FactView> = facts.iter().map(fact_view).collect();
     ModelRc::new(VecModel::from(items))
+}
+
+pub fn messages_model(messages: &[Message], player_id: Option<Uuid>) -> ModelRc<MessageView> {
+    let items: Vec<MessageView> = messages
+        .iter()
+        .map(|message| message_view(message, player_id))
+        .collect();
+    ModelRc::new(VecModel::from(items))
+}
+
+pub fn message_view(message: &Message, player_id: Option<Uuid>) -> MessageView {
+    MessageView {
+        speaker: SharedString::from(message.speaker_name.clone()),
+        text: SharedString::from(message.text.clone()),
+        is_player: player_id.is_some() && message.character_id == player_id,
+        is_narrator: message.narrator_id.is_some(),
+    }
 }
 
 fn fact_view(fact: &Fact) -> FactView {

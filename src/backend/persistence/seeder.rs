@@ -633,7 +633,6 @@ async fn seed_connection(
                 Message::NARRATOR_SPEAKER_NAME.to_string(),
                 seed_message.text,
                 false,
-                vec![],
             ),
             Some(name) => {
                 let character = characters
@@ -647,7 +646,6 @@ async fn seed_connection(
                     character.name.clone(),
                     seed_message.text,
                     false,
-                    vec![],
                 )
             }
         };

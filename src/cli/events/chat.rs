@@ -127,15 +127,7 @@ fn send_current_input(
         None => (None, DEFAULT_PLAYER_NAME.to_string()),
     };
 
-    let outgoing = Message::new(
-        adventure.id,
-        character_id,
-        None,
-        speaker_name,
-        text,
-        false,
-        vec![],
-    );
+    let outgoing = Message::new(adventure.id, character_id, None, speaker_name, text, false);
 
     // Instant echo: show the player's line before the model is even called.
     state.messages.push(outgoing.clone());

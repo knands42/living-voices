@@ -21,12 +21,7 @@ fn cast(names: &[&str]) -> Vec<Character> {
         .collect()
 }
 
-fn line(targets: &[&Character], ooc: bool) -> Message {
-    let targeted = if targets.is_empty() {
-        None
-    } else {
-        Some(targets.iter().map(|c| (*c).clone()).collect())
-    };
+fn line(ooc: bool) -> Message {
     Message::new(
         Uuid::new_v4(),
         None,
@@ -34,7 +29,6 @@ fn line(targets: &[&Character], ooc: bool) -> Message {
         "Player".to_string(),
         "hello",
         ooc,
-        targeted.unwrap_or(vec![]),
     )
 }
 
@@ -46,7 +40,6 @@ fn narration() -> Message {
         "NARRATOR".to_string(),
         "the tide rises",
         false,
-        vec![],
     )
 }
 
@@ -69,14 +62,14 @@ fn narrator_speaks_when_there_is_no_cast() {
     // given: a director and an empty cast
     let d = director(1.0, 0.0, (255, 255));
     // when/then: the narrator speaks, short-circuiting before any roll
-    assert!(d.should_narrator_speak(&[], &line(&[], false), 0));
+    assert!(d.should_narrator_speak(&[], &line(false), 0));
 }
 
 #[test]
 fn ooc_goes_to_the_narrator_only_when_its_chance_is_certain() {
     // given: a present cast and an out-of-character line
     let cast = cast(&["Mira"]);
-    let ooc = line(&[], true);
+    let ooc = line(true);
 
     // when: the ooc->narrator chance is certain -> then the narrator speaks
     let certain = director(1.0, 1.0, (255, 255));
@@ -95,7 +88,7 @@ fn ramp_is_zero_below_min() {
     let d = director(1.0, 0.0, (20, 30));
     let cast = cast(&["Mira"]);
     // when: 19 messages (below min) -> then the narrator never speaks
-    assert!(!d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), &line(&[], false), 19));
+    assert!(!d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), &line(false), 19));
 }
 
 #[test]
@@ -104,95 +97,45 @@ fn ramp_is_certain_at_or_after_max() {
     let d = director(1.0, 0.0, (20, 30));
     let cast = cast(&["Mira"]);
     // when: at or past max -> then the narrator always speaks
-    assert!(d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), &line(&[], false), 30));
-    assert!(d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), &line(&[], false), 100));
+    assert!(d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), &line(false), 30));
+    assert!(d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), &line(false), 100));
 }
 
-// ---------------------------------------------------------------- targeting
+// ------------------------------------------------------------ picking a character
 
 #[test]
-fn a_targeted_message_picks_that_character_when_chance_is_certain() {
-    // given: a line aimed at Kael and a certain targeting chance
-    let d = director(1.0, 0.0, (20, 30));
-    let cast = cast(&["Mira", "Kael"]);
-    let incoming = line(&[&cast[1]], false);
-    // when/then: Kael is picked
-    assert_eq!(
-        d.pick_character(&cast.iter().collect::<Vec<_>>(), &incoming)
-            .expect("picked")
-            .name,
-        "Kael"
-    );
-}
-
-#[test]
-fn targeting_defers_to_the_model_when_chance_is_zero() {
-    // given: a targeted line but a zero targeting chance
-    let d = director(0.0, 0.0, (20, 30));
-    let cast = cast(&["Mira", "Kael"]);
-    let incoming = line(&[&cast[1]], false);
-    // when/then: the pick is deferred to the model
-    assert!(
-        d.pick_character(&cast.iter().collect::<Vec<_>>(), &incoming)
-            .is_none()
-    );
-}
-
-#[test]
-fn an_untargeted_message_defers_even_when_chance_is_certain() {
-    // given: an untargeted line with a certain targeting chance
-    let d = director(1.0, 0.0, (20, 30));
-    let cast = cast(&["Mira", "Kael"]);
-    let incoming = line(&[], false);
-    // when/then: with nobody targeted, there is nobody to pick directly
-    assert!(
-        d.pick_character(&cast.iter().collect::<Vec<_>>(), &incoming)
-            .is_none()
-    );
-}
-
-#[test]
-fn a_target_not_in_the_cast_defers() {
-    // given: a line aimed at someone absent from the cast
-    let d = director(1.0, 0.0, (20, 30));
-    let cast = cast(&["Mira", "Laura"]);
-    let outsider = Character::new(
-        Uuid::new_v4(),
-        "Nobody".to_string(),
-        Uuid::new_v4(),
-        "a stranger",
-        "",
-        CharacterStatus::Present,
-        false,
-    );
-    let incoming = line(&[&outsider], false);
-    // when/then: the pick is deferred
-    assert!(
-        d.pick_character(&cast.iter().collect::<Vec<_>>(), &incoming)
-            .is_none()
-    );
-}
-
-#[test]
-fn a_target_is_always_selected_if_only_one() {
-    // given: a line aimed at someone
+fn the_lone_candidate_is_always_picked() {
+    // given: a single-member cast
     let d = director(1.0, 0.0, (20, 30));
     let cast = cast(&["Mira"]);
-    let outsider = Character::new(
-        Uuid::new_v4(),
-        "Nobody".to_string(),
-        Uuid::new_v4(),
-        "a stranger",
-        "",
-        CharacterStatus::Present,
-        false,
-    );
-    let incoming = line(&[&outsider], false);
-    // when/then: Mira is picked even the target character does not belong to the cast
+    let incoming = line(false);
+    // when/then: that member is picked directly
     assert_eq!(
         d.pick_character(&cast.iter().collect::<Vec<_>>(), &incoming)
             .expect("picked")
             .name,
         "Mira"
     );
+}
+
+#[test]
+fn multiple_candidates_defer_to_the_model() {
+    // given: a cast with more than one member and a message carrying no target
+    let d = director(1.0, 0.0, (20, 30));
+    let cast = cast(&["Mira", "Kael"]);
+    let incoming = line(false);
+    // when/then: with no target to go by, the pick is deferred to the model
+    assert!(
+        d.pick_character(&cast.iter().collect::<Vec<_>>(), &incoming)
+            .is_none()
+    );
+}
+
+#[test]
+fn an_empty_cast_has_nobody_to_pick() {
+    // given: no candidates
+    let d = director(1.0, 0.0, (20, 30));
+    let incoming = line(false);
+    // when/then: there is nobody to pick
+    assert!(d.pick_character(&[], &incoming).is_none());
 }

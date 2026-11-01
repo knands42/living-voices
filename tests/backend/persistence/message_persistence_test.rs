@@ -18,7 +18,6 @@ async fn insert_and_fetch_round_trip_keeps_the_message() {
         "Alice".to_string(),
         "come here",
         false,
-        vec![],
     );
     let stored = insert_message(&mut conn, &message)
         .await
@@ -53,7 +52,6 @@ async fn fetch_since_excludes_messages_at_or_below_the_cursor() {
             format!("Speaker {i}"),
             format!("line {i}"),
             false,
-            vec![],
         );
         let stored = insert_message(&mut conn, &message)
             .await

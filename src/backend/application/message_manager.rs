@@ -111,6 +111,12 @@ impl<
         let reply_message = adventure.message_from_reply(&chat_reply.replier, &chat_reply.reply);
         let stored_reply = self.create_message(reply_message).await?;
 
+        {
+            let mut guard = self.state.write()?;
+            guard.current_messages.remove(0);
+            guard.current_messages.push(stored_reply.clone());
+        }
+
         self.check_and_update_current_act(chat_reply, &adventure)
             .await?;
         self.check_and_compress_memory().await;

@@ -11,7 +11,6 @@ pub struct Message {
     pub narrator_id: Option<Uuid>,
     pub speaker_name: String,
     pub text: String,
-    pub targeted_characters: Vec<Character>,
     pub ooc: bool,
     pub created_at: DateTime<Utc>,
 }
@@ -26,7 +25,6 @@ impl Message {
         speaker_name: String,
         text: impl Into<String>,
         ooc: bool,
-        targeted_characters: Vec<Character>,
     ) -> Self {
         Self {
             seq: None,
@@ -35,7 +33,6 @@ impl Message {
             narrator_id,
             speaker_name,
             text: text.into(),
-            targeted_characters,
             ooc,
             created_at: Utc::now(),
         }

@@ -38,12 +38,10 @@ pub async fn insert_message(
     conn: &mut SqliteConnection,
     msg: &Message,
 ) -> Result<Message, PersistenceError> {
-    let targeted_ids = encode_targets(msg);
-
     let row = sqlx::query(
         "INSERT INTO message (adventure_id, character_id, narrator_id, speaker_name, text,
-                              targeted_characters, ooc, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                              ooc, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
          RETURNING seq",
     )
     .bind(msg.adventure_id.to_string())
@@ -51,7 +49,6 @@ pub async fn insert_message(
     .bind(msg.narrator_id.map(|id| id.to_string()))
     .bind(&msg.speaker_name)
     .bind(&msg.text)
-    .bind(targeted_ids)
     .bind(msg.ooc as u16)
     .bind(from_timestamp_to_str(&msg.created_at))
     .fetch_one(&mut *conn)
@@ -130,15 +127,6 @@ pub async fn count_since_last_narration(
     Ok(row.get::<u8, _>("c"))
 }
 
-fn encode_targets(msg: &Message) -> String {
-    let ids: Vec<String> = msg
-        .targeted_characters
-        .iter()
-        .map(|c| c.id.to_string())
-        .collect();
-    serde_json::to_string(&ids).unwrap_or_else(|_| "[]".to_string())
-}
-
 impl TryFrom<MessageRow> for Message {
     type Error = PersistenceError;
 
@@ -163,7 +151,6 @@ impl TryFrom<MessageRow> for Message {
             narrator_id,
             speaker_name: row.speaker_name,
             text: row.text,
-            targeted_characters: vec![],
             ooc: row.ooc,
             created_at,
         })

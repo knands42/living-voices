@@ -65,7 +65,6 @@ async fn seed_player_message(
         author.name.clone(),
         text,
         false,
-        vec![],
     );
     insert_message(&mut conn, &message).await.expect("insert");
 }
@@ -85,7 +84,6 @@ async fn seed_cast_message(
         author.name.clone(),
         text,
         false,
-        vec![],
     );
     insert_message(&mut conn, &message).await.expect("insert");
 }
@@ -364,15 +362,7 @@ async fn distill_prompt_leads_with_the_distill_instruction_and_the_turns() {
     let mut conn = pool.acquire().await.expect("acquire");
 
     let messages = vec![
-        Message::new(
-            adventure.id,
-            None,
-            None,
-            "Hero".into(),
-            "We fled.",
-            false,
-            vec![],
-        ),
+        Message::new(adventure.id, None, None, "Hero".into(), "We fled.", false),
         Message::new(
             adventure.id,
             None,
@@ -380,7 +370,6 @@ async fn distill_prompt_leads_with_the_distill_instruction_and_the_turns() {
             "Mira".into(),
             "They followed.",
             false,
-            vec![],
         ),
     ];
 

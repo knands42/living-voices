@@ -1,3 +1,4 @@
+use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, ActStatus, Fact, State};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::act_persistence::{
@@ -7,7 +8,7 @@ use crate::backend::persistence::adventure_persistence::get_adventure_summaries;
 use crate::backend::persistence::characters_persistence::insert_default_player_character;
 use crate::backend::persistence::fact_persistence::get_facts;
 use crate::backend::persistence::lore_persistence::insert_default_lore;
-use crate::backend::persistence::message_persistence::insert_message;
+use crate::backend::persistence::message_persistence::{fetch_last_n, insert_message};
 use crate::backend::persistence::state_persistence::{get_state, insert_default_state};
 use crate::backend::{
     PersistenceError,
@@ -127,6 +128,13 @@ impl AdventureManager {
         self.state.read().ok()?.current_adventure.clone()
     }
 
+    pub fn current_messages(&self) -> Vec<Message> {
+        match self.state.read() {
+            Ok(guard) => guard.current_messages.clone(),
+            Err(_) => Vec::new(),
+        }
+    }
+
     pub fn current_snapshot(&self) -> MemorySnapshot {
         match self.state.read() {
             Ok(guard) => MemorySnapshot::new(
@@ -134,8 +142,10 @@ impl AdventureManager {
                 guard.current_act.clone(),
                 guard.current_state.clone(),
                 guard.current_facts.clone(),
+                guard.current_messages.clone(),
+                guard.player.clone(),
             ),
-            Err(_) => MemorySnapshot::new(None, None, None, Vec::new()),
+            Err(_) => MemorySnapshot::new(None, None, None, Vec::new(), Vec::new(), None),
         }
     }
 
@@ -144,6 +154,8 @@ impl AdventureManager {
         let current_act = activate_first_act(&mut conn, adventure.id).await?;
         let current_state = get_state(&mut conn, adventure.id).await?;
         let current_facts = get_facts(&mut conn, adventure.id, current_act.id).await?;
+        let current_messages = fetch_last_n(&mut conn, adventure.id, 50).await?;
+        let player = adventure.characters.iter().find(|c| c.is_player).cloned();
 
         {
             let mut guard = self.state.write()?;
@@ -151,6 +163,8 @@ impl AdventureManager {
             guard.current_act = Some(current_act);
             guard.current_state = current_state;
             guard.current_facts = current_facts;
+            guard.current_messages = current_messages;
+            guard.player = player;
         }
 
         Ok(())
@@ -162,6 +176,8 @@ pub struct MemorySnapshot {
     pub current_act: Option<Act>,
     pub current_state: Option<State>,
     pub current_facts: Vec<Fact>,
+    pub current_messages: Vec<Message>,
+    pub player: Option<Character>,
 }
 
 impl MemorySnapshot {
@@ -170,12 +186,16 @@ impl MemorySnapshot {
         current_act: Option<Act>,
         current_state: Option<State>,
         current_facts: Vec<Fact>,
+        current_messages: Vec<Message>,
+        player: Option<Character>,
     ) -> Self {
         Self {
             current_adventure,
             current_act,
             current_state,
             current_facts,
+            current_messages,
+            player,
         }
     }
 }
