@@ -1,0 +1,65 @@
+import { AppTheme } from "theme.slint";
+
+export component ChatBubble inherits Rectangle {
+    in property <string> speaker;
+    in property <string> text;
+    in property <bool> is-player;
+    in property <bool> is-narrator;
+    in property <int> hue;
+    in property <float> scale: 1.0;
+
+    property <length> pad: 12px * root.scale;
+    property <length> gap: 4px * root.scale;
+    property <color> speaker-color: hsv(root.hue, 0.45, 0.95);
+
+    background: root.is-player ? AppTheme.bubble-user : AppTheme.bubble-bg;
+    border-radius: AppTheme.radius-card;
+    border-width: 1px;
+    border-color: AppTheme.bubble-border;
+
+    bubble := VerticalLayout {
+        padding: root.pad;
+        spacing: root.gap;
+
+        Text {
+            text: root.speaker;
+            color: root.speaker-color;
+            font-family: AppTheme.font-body;
+            font-size: AppTheme.font-label * root.scale;
+            font-weight: 600;
+        }
+
+        Text {
+            text: root.text;
+            color: AppTheme.text-light;
+            font-family: AppTheme.font-body;
+            font-size: 14px * root.scale;
+            wrap: word-wrap;
+        }
+    }
+}
+
+export component NarratorBubble inherits Rectangle {
+    in property <string> text;
+    in property <float> scale: 1.0;
+
+    property <length> pad: 16px * root.scale;
+
+    background: AppTheme.notice-bg;
+    border-radius: AppTheme.radius-card;
+
+    HorizontalLayout {
+        alignment: center;
+        padding: root.pad;
+
+        Text {
+            text: root.text;
+            color: AppTheme.text-light;
+            font-family: AppTheme.font-display;
+            font-size: 15px * root.scale;
+            font-italic: true;
+            horizontal-alignment: center;
+            wrap: word-wrap;
+        }
+    }
+}

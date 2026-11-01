@@ -1,5 +1,6 @@
 import { LineEdit, VerticalBox } from "std-widgets.slint";
 import { AppTheme } from "theme.slint";
+import { ChatBubble, NarratorBubble } from "chat_bubble.slint";
 import {
     AdventureView,
     ActView,
@@ -18,17 +19,27 @@ export component ChatPage inherits Rectangle {
     callback back-requested();
     callback message-sent(string);
 
+    property <float> scale: max(0.85, min(1.35, root.width / 1100px));
+    property <length> gap-sm: 8px * root.scale;
+    property <length> gap-md: 16px * root.scale;
+    property <length> gap-lg: 24px * root.scale;
+    property <length> pad-page: 32px * root.scale;
+    property <length> side-w: 220px * root.scale;
+    property <length> meta-w: 240px * root.scale;
+
     awaiting-reply: false;
     background: AppTheme.bg-deepest;
 
     VerticalLayout {
-        spacing: 16px;
-        padding: 32px;
+        spacing: root.gap-md;
+        padding: root.pad-page;
 
         HorizontalLayout {
+            spacing: root.gap-md;
+
             TouchArea {
-                width: 80px;
-                height: 40px;
+                width: 80px * root.scale;
+                height: 40px * root.scale;
                 clicked => { root.back-requested(); }
 
                 Rectangle {
@@ -41,7 +52,7 @@ export component ChatPage inherits Rectangle {
                         text: "← Back";
                         color: AppTheme.text-light;
                         font-family: AppTheme.font-body;
-                        font-size: AppTheme.font-label;
+                        font-size: AppTheme.font-label * root.scale;
                     }
                 }
             }
@@ -49,13 +60,13 @@ export component ChatPage inherits Rectangle {
             VerticalLayout {
                 horizontal-stretch: 1;
                 alignment: center;
-                spacing: 2px;
+                spacing: 4px * root.scale;
 
                 Text {
                     text: root.adventure.title;
                     color: AppTheme.gold;
                     font-family: AppTheme.font-brand;
-                    font-size: AppTheme.font-title;
+                    font-size: AppTheme.font-title * root.scale;
                     horizontal-alignment: center;
                 }
 
@@ -63,7 +74,7 @@ export component ChatPage inherits Rectangle {
                     text: root.adventure.headline;
                     color: AppTheme.text-muted;
                     font-family: AppTheme.font-body;
-                    font-size: AppTheme.font-label;
+                    font-size: AppTheme.font-label * root.scale;
                     horizontal-alignment: center;
                     wrap: word-wrap;
                 }
@@ -72,31 +83,31 @@ export component ChatPage inherits Rectangle {
                     text: "Act " + root.act.ordinal + " — " + root.act.goal;
                     color: AppTheme.text-muted;
                     font-family: AppTheme.font-body;
-                    font-size: AppTheme.font-label;
+                    font-size: AppTheme.font-label * root.scale;
                     horizontal-alignment: center;
                     wrap: word-wrap;
                 }
             }
 
             Rectangle {
-                width: 80px;
+                width: 80px * root.scale;
             }
         }
 
         HorizontalLayout {
             vertical-stretch: 1;
-            spacing: 16px;
+            spacing: root.gap-md;
 
             VerticalLayout {
-                width: 220px;
+                width: root.side-w;
                 vertical-stretch: 1;
-                spacing: 8px;
+                spacing: root.gap-sm;
 
                 Text {
                     text: "Cast";
                     color: AppTheme.gold;
                     font-family: AppTheme.font-body;
-                    font-size: AppTheme.font-heading;
+                    font-size: AppTheme.font-heading * root.scale;
                 }
 
                 Flickable {
@@ -104,42 +115,44 @@ export component ChatPage inherits Rectangle {
 
                     VerticalLayout {
                         alignment: start;
-                        spacing: 8px;
+                        spacing: root.gap-md;
 
                         VerticalLayout {
-                            spacing: 2px;
+                            spacing: 2px * root.scale;
 
                             Text {
                                 text: root.adventure.player.name;
-                                color: AppTheme.gold;
+                                color: hsv(root.adventure.player.hue, 0.45, 0.95);
                                 font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label;
+                                font-size: AppTheme.font-label * root.scale;
+                                font-weight: 600;
                             }
 
                             Text {
                                 text: root.adventure.player.headline;
                                 color: AppTheme.text-muted;
                                 font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label;
+                                font-size: AppTheme.font-label * root.scale;
                                 wrap: word-wrap;
                             }
                         }
 
                         for character in root.adventure.characters: VerticalLayout {
-                            spacing: 2px;
+                            spacing: 2px * root.scale;
 
                             Text {
                                 text: character.name;
-                                color: AppTheme.bronze;
+                                color: hsv(character.hue, 0.45, 0.95);
                                 font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label;
+                                font-size: AppTheme.font-label * root.scale;
+                                font-weight: 600;
                             }
 
                             Text {
                                 text: character.headline;
                                 color: AppTheme.text-muted;
                                 font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label;
+                                font-size: AppTheme.font-label * root.scale;
                                 wrap: word-wrap;
                             }
                         }
@@ -150,31 +163,32 @@ export component ChatPage inherits Rectangle {
             VerticalLayout {
                 horizontal-stretch: 1;
                 vertical-stretch: 1;
-                spacing: 16px;
+                spacing: root.gap-md;
 
                 Flickable {
                     vertical-stretch: 1;
 
                     VerticalLayout {
                         alignment: start;
-                        spacing: 8px;
+                        spacing: root.gap-md;
 
-                        for message in root.messages: VerticalLayout {
-                            spacing: 2px;
+                        for message in root.messages: HorizontalLayout {
+                            alignment: message.is-narrator ? stretch
+                                : message.is-player ? end : start;
 
-                            Text {
-                                text: message.speaker;
-                                color: message.is-player ? AppTheme.gold : AppTheme.bronze;
-                                font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label;
+                            if message.is-narrator: NarratorBubble {
+                                text: message.text;
+                                scale: root.scale;
+                                horizontal-stretch: 1;
                             }
 
-                            Text {
+                            if !message.is-narrator: ChatBubble {
+                                max-width: root.width * 0.45;
+                                speaker: message.speaker;
                                 text: message.text;
-                                color: AppTheme.text-light;
-                                font-family: AppTheme.font-body;
-                                font-size: 14px;
-                                wrap: word-wrap;
+                                is-player: message.is-player;
+                                hue: message.hue;
+                                scale: root.scale;
                             }
                         }
 
@@ -182,6 +196,7 @@ export component ChatPage inherits Rectangle {
                             text: "…";
                             color: AppTheme.text-muted;
                             font-family: AppTheme.font-body;
+                            font-size: AppTheme.font-heading * root.scale;
                         }
                     }
                 }
@@ -199,35 +214,36 @@ export component ChatPage inherits Rectangle {
             }
 
             VerticalLayout {
-                width: 240px;
+                width: root.meta-w;
                 vertical-stretch: 1;
-                spacing: 16px;
+                spacing: root.gap-md;
 
                 Flickable {
                     vertical-stretch: 1;
 
                     VerticalLayout {
                         alignment: start;
+                        spacing: root.gap-sm;
 
                         Text {
                             text: "What's going on";
                             color: AppTheme.gold;
                             font-family: AppTheme.font-body;
-                            font-size: AppTheme.font-heading;
+                            font-size: AppTheme.font-heading * root.scale;
                         }
 
                         Text {
                             text: "Conditions";
                             color: AppTheme.amber-glow;
                             font-family: AppTheme.font-body;
-                            font-size: AppTheme.font-label;
+                            font-size: AppTheme.font-label * root.scale;
                         }
 
                         for condition in root.state.conditions: Text {
                             text: "· " + condition;
                             color: AppTheme.text-muted;
                             font-family: AppTheme.font-body;
-                            font-size: AppTheme.font-label;
+                            font-size: AppTheme.font-label * root.scale;
                             wrap: word-wrap;
                         }
 
@@ -235,14 +251,14 @@ export component ChatPage inherits Rectangle {
                             text: "Open threads";
                             color: AppTheme.amber-glow;
                             font-family: AppTheme.font-body;
-                            font-size: AppTheme.font-label;
+                            font-size: AppTheme.font-label * root.scale;
                         }
 
                         for thread in root.state.open-threads: Text {
                             text: "· " + thread;
                             color: AppTheme.text-muted;
                             font-family: AppTheme.font-body;
-                            font-size: AppTheme.font-label;
+                            font-size: AppTheme.font-label * root.scale;
                             wrap: word-wrap;
                         }
 
@@ -250,24 +266,24 @@ export component ChatPage inherits Rectangle {
                             text: "Facts";
                             color: AppTheme.amber-glow;
                             font-family: AppTheme.font-body;
-                            font-size: AppTheme.font-label;
+                            font-size: AppTheme.font-label * root.scale;
                         }
 
                         for fact in root.facts: VerticalLayout {
-                            spacing: 2px;
+                            spacing: 2px * root.scale;
 
                             Text {
                                 text: fact.subject;
                                 color: AppTheme.bronze;
                                 font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label;
+                                font-size: AppTheme.font-label * root.scale;
                             }
 
                             Text {
                                 text: fact.fact;
                                 color: AppTheme.text-muted;
                                 font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label;
+                                font-size: AppTheme.font-label * root.scale;
                                 wrap: word-wrap;
                             }
                         }
@@ -277,27 +293,27 @@ export component ChatPage inherits Rectangle {
                 VerticalLayout {
                     vertical-stretch: 1;
                     alignment: start;
-                    spacing: 8px;
+                    spacing: root.gap-sm;
 
                     Text {
                         text: "Time and place";
                         color: AppTheme.gold;
                         font-family: AppTheme.font-body;
-                        font-size: AppTheme.font-heading;
+                        font-size: AppTheme.font-heading * root.scale;
                     }
 
                     Text {
                         text: root.state.day;
                         color: AppTheme.text-muted;
                         font-family: AppTheme.font-body;
-                        font-size: AppTheme.font-label;
+                        font-size: AppTheme.font-label * root.scale;
                     }
 
                     Text {
                         text: root.state.place;
                         color: AppTheme.text-muted;
                         font-family: AppTheme.font-body;
-                        font-size: AppTheme.font-label;
+                        font-size: AppTheme.font-label * root.scale;
                         wrap: word-wrap;
                     }
                 }

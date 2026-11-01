@@ -1,3 +1,5 @@
+use std::hash::{Hash, Hasher};
+
 use slint::{ModelRc, SharedString, VecModel};
 
 use crate::backend::domain::adventure::Adventure;
@@ -41,7 +43,14 @@ fn character_view(character: &Character) -> CharacterView {
         name: SharedString::from(character.name.clone()),
         headline: SharedString::from(character.headline.clone()),
         is_player: character.is_player,
+        hue: name_hue(&character.name),
     }
+}
+
+fn name_hue(name: &str) -> i32 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    name.hash(&mut hasher);
+    (hasher.finish() % 360) as i32
 }
 
 pub fn act_view(act: Option<&Act>) -> ActView {
@@ -87,6 +96,7 @@ pub fn message_view(message: &Message, player_id: Option<Uuid>) -> MessageView {
         text: SharedString::from(message.text.clone()),
         is_player: player_id.is_some() && message.character_id == player_id,
         is_narrator: message.narrator_id.is_some(),
+        hue: name_hue(&message.speaker_name),
     }
 }
 
