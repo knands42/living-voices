@@ -55,12 +55,22 @@ Each model has one job:
 
 ### Prerequisites
 - Rust (stable)
-- A local LLM runtime (Ollama or llama.cpp server)
 - `just` command line for running tasks
-- `comfy-cli` to setup image generation models
+- `python` to setup comfy for image generation
 
+### Install test coverage dependencies
 ```bash
-just install-requirements
+just dev-requirements
+```
+
+### Installation of Llama.cpp for text generation
+```bash
+just chat-requirements
+```
+
+### Installation of ComfyUI for image generation
+```bash
+just image-requirements
 ```
 
 ### Execute the App

@@ -237,3 +237,13 @@ Example — time passing, tension held
 Dawn is grey and slow. The fire burns down to embers; nobody has suggested sleep.
 Somewhere down the slope, the horses stamp twice, then go quiet.
 "#;
+
+pub(crate) const CHAR_GEN_PROMPT: &str = r#"## CHARACTER APPEARANCE
+Describe ONLY the visual appearance of the single SUBJECT character below, as a
+prompt for an image model. Write one dense block of comma-separated visual
+phrases, not prose and not dialogue. Cover, when known: build and age, face and
+hair, clothing and notable gear, pose and expression. Ground the look in the
+STYLE (tone and setting) so the character fits the world.
+Describe only what is seen. Never invent plot, never name other characters, never
+write text to render in the image. If a detail is unknown, leave it out rather
+than guessing."#;

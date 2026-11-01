@@ -66,6 +66,8 @@ pub struct Character {
     pub status: CharacterStatus,
     pub backstory: String,
     pub appearance: String,
+    /// Pending appearance text awaiting the player's confirmation
+    pub appearance_draft: String,
     pub portrait_path: Option<String>,
     pub is_player: bool,
     pub traits: Vec<String>,    // Speaks only in tidal registers, ...
@@ -92,6 +94,7 @@ impl Character {
             headline: headline.into(),
             backstory: backstory.into(),
             appearance: String::new(),
+            appearance_draft: String::new(),
             status,
             portrait_path: None,
             is_player,
@@ -109,6 +112,18 @@ impl Character {
     pub fn with_appearance(mut self, appearance: impl Into<String>) -> Self {
         self.appearance = appearance.into();
         self
+    }
+
+    pub fn with_appearance_draft(mut self, appearance_draft: impl Into<String>) -> Self {
+        self.appearance_draft = appearance_draft.into();
+        self
+    }
+
+    /// Promote the draft into the committed appearance and clear it.
+    pub fn confirm_appearance(&mut self) {
+        if !self.appearance_draft.trim().is_empty() {
+            self.appearance = std::mem::take(&mut self.appearance_draft);
+        }
     }
 
     pub fn add_tag(&mut self, tag: String) {

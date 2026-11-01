@@ -60,8 +60,7 @@ pub struct TextModel {
     pub model: String,
     pub temperature: f32,
     pub request_timeout_secs: u16,
-    /// Ollama's `keep_alive`, e.g. "5m", "1h", "0" to unload, "-1" to
-    /// keep forever.
+    /// Ollama's `keep_alive`, e.g. "5m", "1h", "0" to unload, "-1" to keep forever.
     pub keep_alive: String,
 }
 

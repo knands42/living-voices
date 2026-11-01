@@ -4,7 +4,6 @@ use sqlx::sqlite::SqliteRow;
 use sqlx::{Error, FromRow, Row, SqliteConnection};
 use uuid::Uuid;
 
-use crate::backend::domain::adventure::{Adventure, AdventureSummary};
 use crate::backend::domain::character::CharacterStatus;
 use crate::backend::persistence::db::from_str_to_uuid;
 use crate::backend::{
@@ -22,6 +21,7 @@ struct CharacterRow {
     headline: String,
     backstory: String,
     appearance: String,
+    appearance_draft: String,
     status: String,
     portrait_path: Option<String>,
     is_player: bool,
@@ -36,6 +36,7 @@ impl FromRow<'_, SqliteRow> for CharacterRow {
             headline: row.get("headline"),
             backstory: row.get("backstory"),
             appearance: row.get("appearance"),
+            appearance_draft: row.get("appearance_draft"),
             status: row.get("status"),
             portrait_path: row.get("portrait_path"),
             is_player: row.get("is_player"),
@@ -57,7 +58,8 @@ impl TryFrom<CharacterRow> for Character {
             CharacterStatus::from_str(value.status.as_str()),
             value.is_player,
         )
-        .with_appearance(value.appearance))
+        .with_appearance(value.appearance)
+        .with_appearance_draft(value.appearance_draft))
     }
 }
 
@@ -67,8 +69,8 @@ pub async fn insert_character(
     character: &Character,
 ) -> Result<(), PersistenceError> {
     sqlx::query(
-        "INSERT INTO character (id, adventure_id, name, headline, backstory, appearance, status, portrait_path, is_player)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        "INSERT INTO character (id, adventure_id, name, headline, backstory, appearance, appearance_draft, status, portrait_path, is_player)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
     )
     .bind(character.id.to_string())
     .bind(adventure_id.to_string())
@@ -76,6 +78,7 @@ pub async fn insert_character(
     .bind(&character.headline)
     .bind(&character.backstory)
     .bind(&character.appearance)
+    .bind(&character.appearance_draft)
     .bind(character.status.as_str())
     .bind(character.portrait_path.as_deref())
     .bind(character.is_player)
