@@ -47,7 +47,6 @@ impl Director {
             return Some(candidates[0]);
         }
 
-        // With more than one candidate and no targets to go by, defer to the model.
         None
         // TODO: pick among multiple candidates without targets (CPU embedding or jev)
     }

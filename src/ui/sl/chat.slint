@@ -95,6 +95,7 @@ export component ChatPage inherits Rectangle {
                     vertical-stretch: 1;
 
                     VerticalLayout {
+                        alignment: start;
                         spacing: 8px;
 
                         VerticalLayout {
@@ -147,6 +148,7 @@ export component ChatPage inherits Rectangle {
                     vertical-stretch: 1;
 
                     VerticalLayout {
+                        alignment: start;
                         spacing: 8px;
 
                         for message in root.messages: VerticalLayout {
@@ -193,98 +195,94 @@ export component ChatPage inherits Rectangle {
                 vertical-stretch: 1;
                 spacing: 16px;
 
-                VerticalLayout {
+                Text {
+                    text: "What's going on";
+                    color: AppTheme.gold;
+                    font-family: AppTheme.font-body;
+                    font-size: AppTheme.font-heading;
+                }
+
+                Flickable {
                     vertical-stretch: 1;
-                    spacing: 8px;
 
-                    Text {
-                        text: "What's going on";
-                        color: AppTheme.gold;
-                        font-family: AppTheme.font-body;
-                        font-size: AppTheme.font-heading;
-                    }
+                    VerticalLayout {
+                        alignment: start;
+                        spacing: 8px;
 
-                    Flickable {
-                        vertical-stretch: 1;
+                        Text {
+                            text: "Conditions";
+                            color: AppTheme.bronze;
+                            font-family: AppTheme.font-body;
+                            font-size: AppTheme.font-label;
+                        }
+
+                        for condition in root.state.conditions: Text {
+                            text: "· " + condition;
+                            color: AppTheme.text-muted;
+                            font-family: AppTheme.font-body;
+                            font-size: AppTheme.font-label;
+                            wrap: word-wrap;
+                        }
+
+                        Text {
+                            text: "Open threads";
+                            color: AppTheme.bronze;
+                            font-family: AppTheme.font-body;
+                            font-size: AppTheme.font-label;
+                        }
+
+                        for thread in root.state.open-threads: Text {
+                            text: "· " + thread;
+                            color: AppTheme.text-muted;
+                            font-family: AppTheme.font-body;
+                            font-size: AppTheme.font-label;
+                            wrap: word-wrap;
+                        }
+
+                        for fact in root.facts: VerticalLayout {
+                            spacing: 2px;
+
+                            Text {
+                                text: fact.subject;
+                                color: AppTheme.bronze;
+                                font-family: AppTheme.font-body;
+                                font-size: AppTheme.font-label;
+                            }
+
+                            Text {
+                                text: fact.fact;
+                                color: AppTheme.text-muted;
+                                font-family: AppTheme.font-body;
+                                font-size: AppTheme.font-label;
+                                wrap: word-wrap;
+                            }
+                        }
 
                         VerticalLayout {
                             spacing: 8px;
 
                             Text {
-                                text: "Conditions";
-                                color: AppTheme.bronze;
+                                text: "Time and place";
+                                color: AppTheme.gold;
                                 font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label;
-                            }
-
-                            for condition in root.state.conditions: Text {
-                                text: "· " + condition;
-                                color: AppTheme.text-muted;
-                                font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label;
-                                wrap: word-wrap;
+                                font-size: AppTheme.font-heading;
                             }
 
                             Text {
-                                text: "Open threads";
-                                color: AppTheme.bronze;
+                                text: root.state.day;
+                                color: AppTheme.text-muted;
                                 font-family: AppTheme.font-body;
                                 font-size: AppTheme.font-label;
                             }
 
-                            for thread in root.state.open-threads: Text {
-                                text: "· " + thread;
+                            Text {
+                                text: root.state.place;
                                 color: AppTheme.text-muted;
                                 font-family: AppTheme.font-body;
                                 font-size: AppTheme.font-label;
                                 wrap: word-wrap;
                             }
-
-                            for fact in root.facts: VerticalLayout {
-                                spacing: 2px;
-
-                                Text {
-                                    text: fact.subject;
-                                    color: AppTheme.bronze;
-                                    font-family: AppTheme.font-body;
-                                    font-size: AppTheme.font-label;
-                                }
-
-                                Text {
-                                    text: fact.fact;
-                                    color: AppTheme.text-muted;
-                                    font-family: AppTheme.font-body;
-                                    font-size: AppTheme.font-label;
-                                    wrap: word-wrap;
-                                }
-                            }
                         }
-                    }
-                }
-
-                VerticalLayout {
-                    spacing: 8px;
-
-                    Text {
-                        text: "Time and place";
-                        color: AppTheme.gold;
-                        font-family: AppTheme.font-body;
-                        font-size: AppTheme.font-heading;
-                    }
-
-                    Text {
-                        text: root.state.day;
-                        color: AppTheme.text-muted;
-                        font-family: AppTheme.font-body;
-                        font-size: AppTheme.font-label;
-                    }
-
-                    Text {
-                        text: root.state.place;
-                        color: AppTheme.text-muted;
-                        font-family: AppTheme.font-body;
-                        font-size: AppTheme.font-label;
-                        wrap: word-wrap;
                     }
                 }
             }
