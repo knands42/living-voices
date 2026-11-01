@@ -7,10 +7,10 @@ export component ChatPagePreview inherits ChatPage {
         headline: "A drowned city stirs",
         tone: "grim",
         characters: [
-            { id: "c-1", name: "Mara", headline: "A wary smuggler", is-player: false },
-            { id: "c-2", name: "Old Finn", headline: "Keeper of the vaults", is-player: false },
+            { id: "c-1", name: "Mara", headline: "A wary smuggler", is-player: false, hue: 40 },
+            { id: "c-2", name: "Old Finn", headline: "Keeper of the vaults", is-player: false, hue: 200 },
         ],
-        player: { id: "p-1", name: "You", headline: "A debt-bound diver", is-player: true },
+        player: { id: "p-1", name: "You", headline: "A debt-bound diver", is-player: true, hue: 300 },
     };
     act: {
         goal: "Find the drowned king's seal",
@@ -29,7 +29,8 @@ export component ChatPagePreview inherits ChatPage {
         { subject: "The Vaults", fact: "Flood at high tide", permanence: "lasting" },
     ];
     messages: [
-        { speaker: "You", text: "I push the heavy door open.", is-player: true, is-narrator: false },
-        { speaker: "Mara", text: "Careful. The water remembers.", is-player: false, is-narrator: false },
+        { speaker: "You", text: "I push the heavy door open.", is-player: true, is-narrator: false, hue: 300 },
+        { speaker: "Mara", text: "Careful. The water remembers.", is-player: false, is-narrator: false, hue: 40 },
+        { speaker: "Narrator", text: "Cold water laps at your boots as the vault yawns open.", is-player: false, is-narrator: true, hue: 0 },
     ];
 }

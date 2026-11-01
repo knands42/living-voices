@@ -20,6 +20,7 @@ fn new_sets_name_description_and_empty_fields() {
     assert_eq!(character.name, "Maren");
     assert_eq!(character.headline, "A lighthouse keeper");
     assert_eq!(character.backstory, "");
+    assert_eq!(character.appearance, "");
     assert!(character.traits.is_empty());
     assert!(character.tags.is_empty());
     assert!(character.relations.is_empty());

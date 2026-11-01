@@ -59,7 +59,6 @@ impl Adventure {
         created_at: DateTime<Utc>,
         updated_at: DateTime<Utc>,
     ) -> Self {
-        let now = Utc::now();
         Self {
             id,
             title: title.into(),

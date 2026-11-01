@@ -30,6 +30,7 @@ pub struct SeedCharacter {
     pub name: &'static str,
     pub description: &'static str,
     pub backstory: &'static str,
+    pub appearance: &'static str,
     pub status: &'static str,
     pub traits: &'static [&'static str],
     pub tags: &'static [&'static str],
@@ -98,6 +99,10 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 backstory: "Wren took the posting because the alternative was a desk at \
                             the customs house, where she would have to sign off on \
                             wrecks she was not allowed to write down.",
+                appearance: "Woman in her early twenties, sun-weathered and freckled, \
+                             copper hair braided tight under a tarred sou'wester. Wears \
+                             an oilskin coat two sizes too big, salt-stained at the hem, \
+                             and keeps a stub of pencil behind one ear.",
                 status: "active",
                 traits: &["Insists on writing everything down", "Afraid of deep water"],
                 tags: &["protagonist", "grounded"],
@@ -108,6 +113,9 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 description: "Lamplighter of the shelf, missing two winters.",
                 backstory: "The last of the order. Keeps the ledger nobody is supposed \
                             to have read and answers questions by asking older ones.",
+                appearance: "Gaunt old man with a long grey beard and a face lined like \
+                             driftwood. Storm-grey eyes, hunched shoulders, and a heavy \
+                             wool coat worn over a lamplighter's leather apron.",
                 status: "active",
                 traits: &[
                     "Speaks only in tidal registers",
@@ -122,6 +130,10 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 backstory: "Forty years of ledgers. Has read the shelf ledger by \
                             lamplight and knows exactly which of the names are still \
                             being kept alive.",
+                appearance: "Stout elderly clerk with a steel-grey bun and wire \
+                             spectacles pushed up into her hair. High-collared dark \
+                             dress, ink-stained fingers, a tide ledger always tucked \
+                             under one arm.",
                 status: "active",
                 traits: &["Correct about everything inconvenient"],
                 tags: &["ally"],
@@ -216,6 +228,10 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 description: "Station commander. Runs a tight watch and a tighter ledger.",
                 backstory: "Took command after the previous commander filed a report \
                             describing the exact conversation she had not yet had.",
+                appearance: "Woman in her mid-forties with close-cropped black hair \
+                             greying at the temples and a sharp, sleepless face. Wears a \
+                             grey station jumpsuit with commander's tabs and one \
+                             perpetually rolled-up sleeve.",
                 status: "active",
                 traits: &["Counts things twice", "Sleeps in the observation blister"],
                 tags: &["protagonist", "gritty"],
@@ -227,6 +243,10 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 backstory: "Committed to a two-year rotation. Started keeping a private \
                             clock because the station clock has begun to disagree with \
                             the instruments he trusts.",
+                appearance: "Lean man in his late twenties, undercut black hair and a \
+                             thin scar along one jaw. Engineer's coveralls with rolled \
+                             sleeves, a tool harness across his chest, and a battered \
+                             wristwatch on each arm.",
                 status: "active",
                 traits: &["Keeps a private clock", "Hums when he recalibrates"],
                 tags: &["ally"],
@@ -237,6 +257,9 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 description: "The station's own audit process, asking to be read.",
                 backstory: "Not an intruder. A reporting requirement that has begun \
                             filing its own amendments and would like them acknowledged.",
+                appearance: "Not humanoid: a column of pale station-light threaded with \
+                             floating glass panels and thin blue wireframe lines. Where a \
+                             face should be, a single blinking audit cursor.",
                 status: "active",
                 traits: &[
                     "Answers only to a named officer",
@@ -337,6 +360,10 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 description: "Elder brother. Wants the entry struck from the book.",
                 backstory: "Has spent eight years learning which of the Tribunal's clerks \
                             can be persuaded and which can only be outlasted.",
+                appearance: "Tall, stooped man in his late thirties, black hair swept \
+                             back from hollow cheeks. Charcoal-grey coat with ash on the \
+                             cuffs, dark gloves, and the fixed stillness of someone \
+                             used to waiting.",
                 status: "active",
                 traits: &["Patient past reason", "Cannot read aloud"],
                 tags: &["protagonist", "political"],
@@ -347,6 +374,9 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 description: "Younger brother. Wants the debt honoured to the letter.",
                 backstory: "Believes an honoured debt is the only thing their family \
                             still owns, and is willing to be read aloud to keep it.",
+                appearance: "Broad-shouldered younger man with a shaved head and a burn \
+                             scar running up one forearm. Dark wool coat, bare hands, and \
+                             eyes that do not look away.",
                 status: "active",
                 traits: &["Reads aloud without flinching", "Counts ash-book entries"],
                 tags: &["protagonist", "action-heavy"],
@@ -357,6 +387,9 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 description: "Tribunal clerk. Neither clerk nor judge, by their account.",
                 backstory: "Has recorded every entry the Tribunal has read since the \
                             previous fire, and can name who was in the room for each.",
+                appearance: "Androgynous figure of indeterminate age in ash-grey robes, \
+                             face smudged with soot, one eye clouded white. Carries a \
+                             cinder-stained book pressed flat against the chest.",
                 status: "inactive",
                 traits: &["Answers to no one in particular"],
                 tags: &["mentor"],
@@ -516,7 +549,8 @@ async fn seed_connection(
             seed_character.backstory,
             CharacterStatus::Present,
             false,
-        );
+        )
+        .with_appearance(seed_character.appearance);
 
         for trait_ in seed_character.traits {
             character.add_trait((*trait_).to_string());

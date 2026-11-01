@@ -65,6 +65,7 @@ pub struct Character {
     pub headline: String,
     pub status: CharacterStatus,
     pub backstory: String,
+    pub appearance: String,
     pub portrait_path: Option<String>,
     pub is_player: bool,
     pub traits: Vec<String>,    // Speaks only in tidal registers, ...
@@ -90,6 +91,7 @@ impl Character {
             name,
             headline: headline.into(),
             backstory: backstory.into(),
+            appearance: String::new(),
             status,
             portrait_path: None,
             is_player,
@@ -101,6 +103,11 @@ impl Character {
 
     pub fn with_portrait(mut self, portrait_path: impl Into<String>) -> Self {
         self.portrait_path = Some(portrait_path.into());
+        self
+    }
+
+    pub fn with_appearance(mut self, appearance: impl Into<String>) -> Self {
+        self.appearance = appearance.into();
         self
     }
 

@@ -20,7 +20,6 @@ struct AdventureRow {
     title: String,
     headline: String,
     tone: String,
-    last_opened_at: String,
     created_at: String,
     updated_at: String,
 }
@@ -32,7 +31,6 @@ impl FromRow<'_, SqliteRow> for AdventureRow {
             title: row.get("title"),
             headline: row.get("headline"),
             tone: row.get("tone"),
-            last_opened_at: row.get("last_opened_at"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         })
@@ -62,7 +60,6 @@ struct CompleteAdventureRow {
     adventure_title: String,
     adventure_headline: String,
     adventure_tone: String,
-    adventure_last_opened_at: String,
     adventure_created_at: String,
     adventure_updated_at: String,
     adventure_tags: String,
@@ -73,6 +70,7 @@ struct CompleteAdventureRow {
     character_name: String,
     character_description: String,
     character_backstory: String,
+    character_appearance: String,
     character_status: String,
     character_portrait_path: String,
     character_is_player: bool,
@@ -93,7 +91,6 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
             adventure_title: row.get("adventure_title"),
             adventure_headline: row.get("adventure_headline"),
             adventure_tone: row.get("adventure_tone"),
-            adventure_last_opened_at: row.get("adventure_last_opened_at"),
             adventure_created_at: row.get("adventure_created_at"),
             adventure_updated_at: row.get("adventure_updated_at"),
             adventure_tags: row.get("adventure_tags"),
@@ -104,6 +101,7 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
             character_name: row.get("character_name"),
             character_description: row.get("character_description"),
             character_backstory: row.get("character_backstory"),
+            character_appearance: row.get("character_appearance"),
             character_status: row.get("character_status"),
             character_portrait_path: row.get("character_portrait_path"),
             character_is_player: row.get::<bool, _>("character_is_player"),
@@ -135,7 +133,8 @@ fn character_from_row(value: &CompleteAdventureRow) -> Result<Character, Persist
         CharacterStatus::from(value.character_status.clone()),
         value.character_is_player,
     )
-    .with_portrait(value.character_portrait_path.clone());
+    .with_portrait(value.character_portrait_path.clone())
+    .with_appearance(value.character_appearance.clone());
 
     character_tags
         .iter()
@@ -230,7 +229,6 @@ SELECT a.id                      AS adventure_id,
        a.tone                   AS adventure_tone,
        a.created_at             AS adventure_created_at,
        a.updated_at             AS adventure_updated_at,
-       a.last_opened_at          AS adventure_last_opened_at,
        COALESCE(at.tags, '[]')   AS adventure_tags,
        COALESCE(l.lore, '[]')    AS adventure_lore,
        l.lore_id                  AS lore_id,
@@ -239,6 +237,7 @@ SELECT a.id                      AS adventure_id,
        c.name                   AS character_name,
        c.headline                AS character_description,
        c.backstory                AS character_backstory,
+       c.appearance               AS character_appearance,
        c.status                   AS character_status,
        c.portrait_path AS character_portrait_path,
        c.is_player AS character_is_player,

@@ -6,6 +6,7 @@ CREATE TABLE character
     name          TEXT    NOT NULL,
     headline      TEXT    NOT NULL DEFAULT '',
     backstory     TEXT    NOT NULL DEFAULT '',
+    appearance    TEXT    NOT NULL DEFAULT '',
     status        TEXT    NOT NULL DEFAULT 'present',
     portrait_path TEXT,
     is_player     INTEGER NOT NULL DEFAULT 0,

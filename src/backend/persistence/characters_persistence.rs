@@ -21,6 +21,7 @@ struct CharacterRow {
     name: String,
     headline: String,
     backstory: String,
+    appearance: String,
     status: String,
     portrait_path: Option<String>,
     is_player: bool,
@@ -34,6 +35,7 @@ impl FromRow<'_, SqliteRow> for CharacterRow {
             name: row.get("name"),
             headline: row.get("headline"),
             backstory: row.get("backstory"),
+            appearance: row.get("appearance"),
             status: row.get("status"),
             portrait_path: row.get("portrait_path"),
             is_player: row.get("is_player"),
@@ -54,7 +56,8 @@ impl TryFrom<CharacterRow> for Character {
             value.backstory,
             CharacterStatus::from_str(value.status.as_str()),
             value.is_player,
-        ))
+        )
+        .with_appearance(value.appearance))
     }
 }
 
@@ -64,15 +67,16 @@ pub async fn insert_character(
     character: &Character,
 ) -> Result<(), PersistenceError> {
     sqlx::query(
-        "INSERT INTO character (id, adventure_id, name, headline, backstory, status, portrait_path, is_player)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        "INSERT INTO character (id, adventure_id, name, headline, backstory, appearance, status, portrait_path, is_player)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
     )
     .bind(character.id.to_string())
     .bind(adventure_id.to_string())
     .bind(&character.name)
     .bind(&character.headline)
     .bind(&character.backstory)
-    .bind(&character.status.as_str())
+    .bind(&character.appearance)
+    .bind(character.status.as_str())
     .bind(character.portrait_path.as_deref())
     .bind(character.is_player)
     .execute(&mut *conn)
