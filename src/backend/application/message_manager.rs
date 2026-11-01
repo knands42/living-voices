@@ -163,7 +163,7 @@ impl<
             });
         }
 
-        if let Some(character) = self.director.pick_character(active_characters, incoming) {
+        if let Some(character) = self.director.pick_character(active_characters) {
             let context = ContextBuilder::build_single_character_chat_prompt(
                 conn,
                 adventure,

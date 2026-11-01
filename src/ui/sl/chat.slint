@@ -1,6 +1,12 @@
-import { LineEdit } from "std-widgets.slint";
+import { LineEdit, VerticalBox } from "std-widgets.slint";
 import { AppTheme } from "theme.slint";
-import { AdventureView, ActView, StateView, FactView, MessageView } from "views.slint";
+import {
+    AdventureView,
+    ActView,
+    StateView,
+    FactView,
+    MessageView,
+} from "views.slint";
 
 export component ChatPage inherits Rectangle {
     in property <AdventureView> adventure;
@@ -72,7 +78,9 @@ export component ChatPage inherits Rectangle {
                 }
             }
 
-            Rectangle { width: 80px; }
+            Rectangle {
+                width: 80px;
+            }
         }
 
         HorizontalLayout {
@@ -195,19 +203,18 @@ export component ChatPage inherits Rectangle {
                 vertical-stretch: 1;
                 spacing: 16px;
 
-                Text {
-                    text: "What's going on";
-                    color: AppTheme.gold;
-                    font-family: AppTheme.font-body;
-                    font-size: AppTheme.font-heading;
-                }
-
                 Flickable {
-                    vertical-stretch: 1;
+                    vertical-stretch: 1; // TODO: Make this stretch only up to 50% of the column
 
                     VerticalLayout {
                         alignment: start;
-                        spacing: 8px;
+
+                        Text {
+                            text: "What's going on";
+                            color: AppTheme.gold;
+                            font-family: AppTheme.font-body;
+                            font-size: AppTheme.font-heading;
+                        }
 
                         Text {
                             text: "Conditions";
@@ -257,8 +264,14 @@ export component ChatPage inherits Rectangle {
                                 wrap: word-wrap;
                             }
                         }
+                    }
+
+                    VerticalLayout {
+                        alignment: end;
+                        spacing: 8px;
 
                         VerticalLayout {
+                        alignment: start;
                             spacing: 8px;
 
                             Text {

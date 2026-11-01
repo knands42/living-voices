@@ -108,10 +108,9 @@ fn the_lone_candidate_is_always_picked() {
     // given: a single-member cast
     let d = director(1.0, 0.0, (20, 30));
     let cast = cast(&["Mira"]);
-    let incoming = line(false);
     // when/then: that member is picked directly
     assert_eq!(
-        d.pick_character(&cast.iter().collect::<Vec<_>>(), &incoming)
+        d.pick_character(&cast.iter().collect::<Vec<_>>())
             .expect("picked")
             .name,
         "Mira"
@@ -119,23 +118,29 @@ fn the_lone_candidate_is_always_picked() {
 }
 
 #[test]
-fn multiple_candidates_defer_to_the_model() {
-    // given: a cast with more than one member and a message carrying no target
+fn a_targeted_pick_lands_on_one_of_the_candidates() {
+    // given: a multi-member cast and a certain targeted-pick chance
     let d = director(1.0, 0.0, (20, 30));
     let cast = cast(&["Mira", "Kael"]);
-    let incoming = line(false);
-    // when/then: with no target to go by, the pick is deferred to the model
-    assert!(
-        d.pick_character(&cast.iter().collect::<Vec<_>>(), &incoming)
-            .is_none()
-    );
+    let candidates = cast.iter().collect::<Vec<_>>();
+    // when/then: the roll always fires, so one of the candidates is picked
+    let picked = d.pick_character(&candidates).expect("picked");
+    assert!(picked.name == "Mira" || picked.name == "Kael");
+}
+
+#[test]
+fn multiple_candidates_defer_to_the_model() {
+    // given: a cast with more than one member and no targeted-pick chance
+    let d = director(0.0, 0.0, (20, 30));
+    let cast = cast(&["Mira", "Kael"]);
+    // when/then: with no roll firing, the pick is deferred to the model
+    assert!(d.pick_character(&cast.iter().collect::<Vec<_>>()).is_none());
 }
 
 #[test]
 fn an_empty_cast_has_nobody_to_pick() {
     // given: no candidates
     let d = director(1.0, 0.0, (20, 30));
-    let incoming = line(false);
     // when/then: there is nobody to pick
-    assert!(d.pick_character(&[], &incoming).is_none());
+    assert!(d.pick_character(&[]).is_none());
 }

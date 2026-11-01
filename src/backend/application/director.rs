@@ -34,11 +34,7 @@ impl Director {
         roll < self.narrator_chance(messages_since_narration)
     }
 
-    pub fn pick_character<'a>(
-        &self,
-        candidates: &'a [&Character],
-        _incoming: &Message,
-    ) -> Option<&'a Character> {
+    pub fn pick_character<'a>(&self, candidates: &'a [&Character]) -> Option<&'a Character> {
         if candidates.is_empty() {
             return None;
         }
@@ -47,7 +43,14 @@ impl Director {
             return Some(candidates[0]);
         }
 
-        None
+        let roll = rand::random::<f32>();
+        if roll < self.director_settings.targeted_pick_chance {
+            let pick = rand::random_range(0..candidates.len());
+            Some(candidates[pick])
+        } else {
+            None
+        }
+
         // TODO: pick among multiple candidates without targets (CPU embedding or jev)
     }
 
