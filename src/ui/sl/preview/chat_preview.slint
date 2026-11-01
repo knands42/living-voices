@@ -1,0 +1,35 @@
+import { ChatPage } from "../chat.slint";
+
+export component ChatPagePreview inherits ChatPage {
+    adventure: {
+        id: "adv-1",
+        title: "The Sunken Crown",
+        headline: "A drowned city stirs",
+        tone: "grim",
+        characters: [
+            { id: "c-1", name: "Mara", headline: "A wary smuggler", is-player: false },
+            { id: "c-2", name: "Old Finn", headline: "Keeper of the vaults", is-player: false },
+        ],
+        player: { id: "p-1", name: "You", headline: "A debt-bound diver", is-player: true },
+    };
+    act: {
+        goal: "Find the drowned king's seal",
+        status: "active",
+        ordinal: 1,
+    };
+    state: {
+        day: "Day 3",
+        place: "The Tidal Vaults",
+        characters-present: ["Mara", "Old Finn"],
+        open-threads: ["The seal is missing"],
+        conditions: ["Rising water"],
+    };
+    facts: [
+        { subject: "Mara", fact: "Owes the smuggler a debt", permanence: "lasting" },
+        { subject: "The Vaults", fact: "Flood at high tide", permanence: "lasting" },
+    ];
+    messages: [
+        { speaker: "You", text: "I push the heavy door open.", is-player: true, is-narrator: false },
+        { speaker: "Mara", text: "Careful. The water remembers.", is-player: false, is-narrator: false },
+    ];
+}

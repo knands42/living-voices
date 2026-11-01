@@ -10,8 +10,11 @@ use uuid::Uuid;
 pub fn adventure_view(adventure: Option<&Adventure>) -> AdventureView {
     match adventure {
         Some(adventure) => {
-            let characters: Vec<CharacterView> =
-                adventure.characters.iter().map(character_view).collect();
+            let characters: Vec<CharacterView> = adventure
+                .characters
+                .iter()
+                .filter_map(|char| (!char.is_player).then(|| character_view(char)))
+                .collect();
             let player = adventure
                 .characters
                 .iter()

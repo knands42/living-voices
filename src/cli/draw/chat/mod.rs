@@ -41,7 +41,7 @@ pub fn render(
         .direction(Direction::Vertical)
         .margin(1)
         .constraints([
-            Constraint::Length(3), // header
+            Constraint::Length(4), // header (title + meta)
             Constraint::Min(5),    // body (3 columns)
             Constraint::Length(3), // composer
             Constraint::Length(1), // hints
@@ -83,7 +83,7 @@ fn render_header(frame: &mut Frame, area: Rect, adventure: Option<&Adventure>) {
         None => ("No tale open", "—", "—"),
     };
 
-    let line = Line::from(vec![
+    let title_line = Line::from(vec![
         Span::styled("❈ ", Style::default().fg(GOLD)),
         Span::styled(
             title,
@@ -91,7 +91,10 @@ fn render_header(frame: &mut Frame, area: Rect, adventure: Option<&Adventure>) {
                 .fg(EMBER)
                 .add_modifier(Modifier::BOLD | Modifier::ITALIC),
         ),
-        Span::styled(" ❖ ", Style::default().fg(GOLD_FADED)),
+        Span::styled(" ❈", Style::default().fg(GOLD)),
+    ]);
+
+    let meta_line = Line::from(vec![
         pill(tone, EMBER),
         Span::raw("  "),
         Span::styled("⟡ narrated by ", dim()),
@@ -100,7 +103,11 @@ fn render_header(frame: &mut Frame, area: Rect, adventure: Option<&Adventure>) {
             Style::default().fg(GOLD).add_modifier(Modifier::BOLD),
         ),
     ]);
-    frame.render_widget(Paragraph::new(line), inner);
+
+    frame.render_widget(
+        Paragraph::new(vec![title_line, meta_line]).alignment(Alignment::Center),
+        inner,
+    );
 }
 
 // ---------- Cast sidebar ----------
