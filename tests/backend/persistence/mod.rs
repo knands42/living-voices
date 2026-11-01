@@ -6,5 +6,4 @@ mod fact_persistence_test;
 mod helper;
 mod message_persistence_test;
 mod narrator_persistence_test;
-mod seeder_test;
 mod state_persistence_test;

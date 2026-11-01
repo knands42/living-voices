@@ -70,9 +70,12 @@ impl Fact {
             return None;
         }
 
-        let mut block = String::from("\nKnown facts:");
+        let mut block = String::from("facts:");
         for fact in facts {
-            block.push_str(&format!("\n- {}: {}", fact.subject, fact.fact));
+            block.push_str(&format!(
+                "\n- {}: {} -> {}",
+                fact.subject, fact.fact, fact.permanence
+            ));
         }
         Some(block)
     }

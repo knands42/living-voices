@@ -142,16 +142,23 @@ impl Act {
         self.running_digest.clone().unwrap_or_default()
     }
 
+    pub fn render_digest_entry(&self) -> String {
+        match &self.digest {
+            Some(digest) => format!(
+                "Act {}\ngoal: {}\nstatus: {}\ndigest: {}",
+                self.ordinal, self.goal, self.status, digest
+            ),
+            None => format!(
+                "Act {}\ngoal: {}\nstatus: {}",
+                self.ordinal, self.goal, self.status
+            ),
+        }
+    }
+
     pub fn render_digest(acts: &[&Act]) -> String {
         acts.iter()
-            .filter_map(|act| {
-                act.digest.as_ref().map(|digest| {
-                    format!(
-                        "Act {}\ngoal: {}\nstatus: {}\ndigest: {}",
-                        act.ordinal, act.goal, act.status, digest
-                    )
-                })
-            })
+            .filter(|act| act.digest.is_some())
+            .map(|act| act.render_digest_entry())
             .collect::<Vec<_>>()
             .join("\n")
     }

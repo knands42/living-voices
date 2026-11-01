@@ -55,7 +55,7 @@ impl Director {
         } else {
             None
         }
-        // TODO: Implement logic for picking a character when the roll is not for the targeted character. CPU Embedding
+        // TODO: Implement logic for picking a character when the roll is not for the targeted character. CPU Embedding or jev
     }
 
     pub fn should_request_pacing_prompt(&self, messages_in_act: u16) -> bool {

@@ -30,9 +30,9 @@ fn fact_render_lists_every_fact() {
     let first = Fact::new(adv, "elara", "fears deep water", act, Permanence::Permanent);
     let second = Fact::new(adv, "the lighthouse", "is abandoned", act, Permanence::Plot);
     let rendered = Fact::render(&[first, second]).expect("some output");
-    assert!(rendered.starts_with("\nKnown facts:"));
-    assert!(rendered.contains("\n- elara: fears deep water"));
-    assert!(rendered.contains("\n- the lighthouse: is abandoned"));
+    assert!(rendered.starts_with("facts:"));
+    assert!(rendered.contains("\n- elara: fears deep water -> permanent"));
+    assert!(rendered.contains("\n- the lighthouse: is abandoned -> plot"));
 }
 
 #[test]

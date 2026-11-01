@@ -82,9 +82,10 @@ out, once its goal is genuinely met."#;
 
 // TODO: Improve this prompt
 pub(crate) const DISTILL_PROMPT: &str = r#"## DISTILL
-Below you are given the existing memory (## CONTEXT: the current PAST ACTS, CURRENT
-STATE, facts and memories) followed by the latest conversation turns. The existing
-memory was true as of its last update; the conversation is what happened since.
+Below you are given the existing memory (## CONTEXT: the PAST ACTS and CURRENT ACT,
+each with its own facts as "subject: fact -> permanence", plus the CURRENT STATE)
+followed by the latest conversation turns. The existing memory was true as of its
+last update; the conversation is what happened since.
 
 Reconcile the two. Produce the memory record as it should stand NOW — not a record
 of only the new turns, and not a copy of the old one. Return JSON only, with exactly

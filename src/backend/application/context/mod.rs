@@ -5,13 +5,15 @@ use crate::backend::application::director::Director;
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::Character;
-use crate::backend::domain::memory::{Act, ActStatus};
+use crate::backend::domain::memory::{Act, ActStatus, Fact};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::act_persistence::{count_messages_per_act, get_acts};
 use crate::backend::persistence::error::PersistenceError;
+use crate::backend::persistence::fact_persistence::get_facts;
 use crate::backend::persistence::message_persistence::fetch_last_n;
 use crate::backend::persistence::state_persistence::get_state;
 use sqlx::SqliteConnection;
+use uuid::Uuid;
 
 pub struct ContextBuilder;
 
@@ -205,7 +207,6 @@ impl ContextBuilder {
             "## CONTEXT".to_string(),
             Self::build_acts_prompt(conn, adventure).await?,
             Self::build_current_state(conn, adventure).await?,
-            Self::build_relevant_memories(conn, adventure).await?,
         ];
 
         Ok(final_prompt.join("\n\n"))
@@ -230,11 +231,22 @@ impl ContextBuilder {
         let mut sections = Vec::new();
 
         if !past.is_empty() {
-            sections.push(format!("### PAST ACTS\n{}", Act::render_digest(&past)));
+            let mut block = String::from("### PAST ACTS");
+            for act in &past {
+                block.push_str(&format!("\n{}", act.render_digest_entry()));
+                if let Some(facts) = Self::render_act_facts(conn, adventure, act.id).await? {
+                    block.push_str(&format!("\n{facts}"));
+                }
+            }
+            sections.push(block);
         }
 
         if let Some(act) = current {
-            sections.push(format!("### CURRENT ACT\n{}", act.render_index()));
+            let mut block = format!("### CURRENT ACT\n{}", act.render_index());
+            if let Some(facts) = Self::render_act_facts(conn, adventure, act.id).await? {
+                block.push_str(&format!("\n{facts}"));
+            }
+            sections.push(block);
 
             let running = act.render_running_digest();
             if !running.trim().is_empty() {
@@ -243,6 +255,15 @@ impl ContextBuilder {
         }
 
         Ok(sections.join("\n\n"))
+    }
+
+    async fn render_act_facts(
+        conn: &mut SqliteConnection,
+        adventure: &Adventure,
+        act_id: Uuid,
+    ) -> Result<Option<String>, PersistenceError> {
+        let facts = get_facts(conn, adventure.id, act_id).await?;
+        Ok(Fact::render(&facts))
     }
 
     async fn build_current_state(
@@ -292,14 +313,6 @@ impl ContextBuilder {
                 .any(|c| c.id == author_id && c.is_player),
             None => false,
         }
-    }
-
-    async fn build_relevant_memories(
-        _conn: &mut SqliteConnection,
-        _adventure: &Adventure,
-    ) -> Result<String, PersistenceError> {
-        // TODO: put this along with each previous act summary
-        Ok(String::new())
     }
 
     /// The full cast, each rendered in the adventure's tone.

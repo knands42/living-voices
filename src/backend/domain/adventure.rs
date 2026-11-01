@@ -5,7 +5,6 @@ use crate::backend::domain::{
     character::Character, lore::Lore, message::Message, narrator::Narrator,
 };
 
-// TODO: confirm if is a good pattern
 pub struct AdventureSummary {
     pub id: Uuid,
     pub title: String,

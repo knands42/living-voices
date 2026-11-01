@@ -266,6 +266,43 @@ async fn static_context_carries_the_running_digest_of_the_active_act() {
 }
 
 #[tokio::test]
+async fn static_context_renders_act_facts_under_the_current_act() {
+    use living_voices::backend::domain::memory::{Fact, Permanence};
+    use living_voices::backend::persistence::act_persistence::get_active_act;
+    use living_voices::backend::persistence::fact_persistence::insert_facts;
+
+    let (pool, _db) = setup_db().await;
+    let (_state, adventure) = setup_adventure(&pool, &[("Mira", false)]).await;
+
+    let mut conn = pool.acquire().await.expect("acquire");
+    let active_act = get_active_act(&mut conn, adventure.id)
+        .await
+        .expect("get active act")
+        .expect("has active act");
+    let fact = Fact::new(
+        adventure.id,
+        "mira",
+        "fears deep water",
+        active_act.id,
+        Permanence::Permanent,
+    );
+    insert_facts(&mut conn, &[fact]).await.expect("insert fact");
+
+    let turns =
+        ContextBuilder::build_narrator_chat_prompt(&mut conn, &adventure, &low_closure_director())
+            .await
+            .expect("build prompt");
+
+    let joined = turns
+        .iter()
+        .map(|t| t.text.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(joined.contains("### CURRENT ACT"));
+    assert!(joined.contains("mira: fears deep water -> permanent"));
+}
+
+#[tokio::test]
 async fn closure_prompt_appears_only_once_the_gate_opens() {
     let (pool, _db) = setup_db().await;
     let (_state, adventure) = setup_adventure(&pool, &[("Mira", false)]).await;
