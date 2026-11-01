@@ -204,7 +204,7 @@ export component ChatPage inherits Rectangle {
                 spacing: 16px;
 
                 Flickable {
-                    vertical-stretch: 1; // TODO: Make this stretch only up to 50% of the column
+                    vertical-stretch: 1;
 
                     VerticalLayout {
                         alignment: start;
@@ -218,7 +218,7 @@ export component ChatPage inherits Rectangle {
 
                         Text {
                             text: "Conditions";
-                            color: AppTheme.bronze;
+                            color: AppTheme.amber-glow;
                             font-family: AppTheme.font-body;
                             font-size: AppTheme.font-label;
                         }
@@ -233,7 +233,7 @@ export component ChatPage inherits Rectangle {
 
                         Text {
                             text: "Open threads";
-                            color: AppTheme.bronze;
+                            color: AppTheme.amber-glow;
                             font-family: AppTheme.font-body;
                             font-size: AppTheme.font-label;
                         }
@@ -244,6 +244,13 @@ export component ChatPage inherits Rectangle {
                             font-family: AppTheme.font-body;
                             font-size: AppTheme.font-label;
                             wrap: word-wrap;
+                        }
+
+                        Text {
+                            text: "Facts";
+                            color: AppTheme.amber-glow;
+                            font-family: AppTheme.font-body;
+                            font-size: AppTheme.font-label;
                         }
 
                         for fact in root.facts: VerticalLayout {
@@ -265,37 +272,33 @@ export component ChatPage inherits Rectangle {
                             }
                         }
                     }
+                }
 
-                    VerticalLayout {
-                        alignment: end;
-                        spacing: 8px;
+                VerticalLayout {
+                    vertical-stretch: 1;
+                    alignment: start;
+                    spacing: 8px;
 
-                        VerticalLayout {
-                        alignment: start;
-                            spacing: 8px;
+                    Text {
+                        text: "Time and place";
+                        color: AppTheme.gold;
+                        font-family: AppTheme.font-body;
+                        font-size: AppTheme.font-heading;
+                    }
 
-                            Text {
-                                text: "Time and place";
-                                color: AppTheme.gold;
-                                font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-heading;
-                            }
+                    Text {
+                        text: root.state.day;
+                        color: AppTheme.text-muted;
+                        font-family: AppTheme.font-body;
+                        font-size: AppTheme.font-label;
+                    }
 
-                            Text {
-                                text: root.state.day;
-                                color: AppTheme.text-muted;
-                                font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label;
-                            }
-
-                            Text {
-                                text: root.state.place;
-                                color: AppTheme.text-muted;
-                                font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label;
-                                wrap: word-wrap;
-                            }
-                        }
+                    Text {
+                        text: root.state.place;
+                        color: AppTheme.text-muted;
+                        font-family: AppTheme.font-body;
+                        font-size: AppTheme.font-label;
+                        wrap: word-wrap;
                     }
                 }
             }
