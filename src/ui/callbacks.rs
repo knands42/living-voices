@@ -1,10 +1,13 @@
 use slint::ComponentHandle;
+use tokio::runtime::Handle;
+use uuid::Uuid;
 
 use crate::{
     app::AppContext,
+    backend::application::adventure_manager::{AdventureManagerError, MemorySnapshot},
     backend::application::port::chat_port::{ChatHandler, NarratorHandler},
     backend::application::port::memory_port::{ActCloser, MemoryDistiller},
-    ui::RootWindow,
+    ui::{RootWindow, viewmodels},
 };
 
 // ---------------------------------------------------------------------------
@@ -18,15 +21,82 @@ pub fn register_callbacks<
     A: ActCloser + Clone + 'static,
 >(
     ui: &RootWindow,
-    _ctx: &AppContext<C, N, M, A>,
+    ctx: &AppContext<C, N, M, A>,
 ) {
-    let _ui_weak = ui.as_weak();
+    register_adventure_selected(ui, ctx);
+}
+
+// ---------------------------------------------------------------------------
+// adventure-selected
+// ---------------------------------------------------------------------------
+
+fn register_adventure_selected<
+    C: ChatHandler + Clone + 'static,
+    N: NarratorHandler + Clone + 'static,
+    M: MemoryDistiller + Clone + 'static,
+    A: ActCloser + Clone + 'static,
+>(
+    ui: &RootWindow,
+    ctx: &AppContext<C, N, M, A>,
+) {
+    let ctx = ctx.clone();
+    let handle = Handle::current();
+    let ui_weak = ui.as_weak();
 
     ui.on_adventure_selected(move |id| {
-        // The id is the uuid string we published in `fill_root_window_inputs`.
-        // Slint has already switched to the chat page; here we only react.
-        log::info!("adventure selected: {id}");
-        // TODO: load the full Adventure and hand it to ctx.adventures /
-        //       ctx.messages before the chat page needs it.
+        let Ok(adventure_id) = Uuid::parse_str(id.as_str()) else {
+            log::error!("invalid adventure id: {id}");
+            return;
+        };
+
+        let snapshot = match load_and_start(&handle, &ctx, adventure_id) {
+            Ok(snapshot) => snapshot,
+            Err(err) => {
+                log::error!("could not open adventure {adventure_id}: {err}");
+                return;
+            }
+        };
+
+        apply_snapshot(&ui_weak, snapshot);
     });
+}
+
+fn load_and_start<
+    C: ChatHandler + Clone + 'static,
+    N: NarratorHandler + Clone + 'static,
+    M: MemoryDistiller + Clone + 'static,
+    A: ActCloser + Clone + 'static,
+>(
+    handle: &Handle,
+    ctx: &AppContext<C, N, M, A>,
+    adventure_id: Uuid,
+) -> Result<MemorySnapshot, AdventureManagerError> {
+    tokio::task::block_in_place(|| {
+        handle.block_on(async {
+            let adventure = ctx.adventures.get_adventure(adventure_id).await?;
+            ctx.adventures.start_adventure(adventure).await?;
+            log::info!("adventure started: {adventure_id}");
+
+            Ok(ctx.adventures.current_snapshot())
+        })
+    })
+}
+
+fn apply_snapshot(ui_weak: &slint::Weak<RootWindow>, snapshot: MemorySnapshot) {
+    let ui_weak = ui_weak.clone();
+    let post = slint::invoke_from_event_loop(move || {
+        let Some(ui) = ui_weak.upgrade() else {
+            return;
+        };
+        ui.set_current_adventure(viewmodels::adventure_view(
+            snapshot.current_adventure.as_ref(),
+        ));
+        ui.set_current_act(viewmodels::act_view(snapshot.current_act.as_ref()));
+        ui.set_current_state(viewmodels::state_view(snapshot.current_state.as_ref()));
+        ui.set_current_facts(viewmodels::facts_model(&snapshot.current_facts));
+    });
+
+    if let Err(err) = post {
+        log::error!("could not post adventure to UI: {err}");
+    }
 }

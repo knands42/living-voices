@@ -1,4 +1,4 @@
-use crate::backend::domain::memory::ActStatus;
+use crate::backend::domain::memory::{Act, ActStatus, Fact, State};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::act_persistence::{activate_first_act, insert_default_act};
 use crate::backend::persistence::adventure_persistence::get_adventure_summaries;
@@ -124,6 +124,18 @@ impl AdventureManager {
         self.state.read().ok()?.current_adventure.clone()
     }
 
+    pub fn current_snapshot(&self) -> MemorySnapshot {
+        match self.state.read() {
+            Ok(guard) => MemorySnapshot::new(
+                guard.current_adventure.clone(),
+                guard.current_act.clone(),
+                guard.current_state.clone(),
+                guard.current_facts.clone(),
+            ),
+            Err(_) => MemorySnapshot::new(None, None, None, Vec::new()),
+        }
+    }
+
     pub async fn start_adventure(&self, adventure: Adventure) -> Result<(), AdventureManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         activate_first_act(&mut conn, adventure.id).await?;
@@ -133,5 +145,28 @@ impl AdventureManager {
         }
 
         Ok(())
+    }
+}
+
+pub struct MemorySnapshot {
+    pub current_adventure: Option<Adventure>,
+    pub current_act: Option<Act>,
+    pub current_state: Option<State>,
+    pub current_facts: Vec<Fact>,
+}
+
+impl MemorySnapshot {
+    fn new(
+        current_adventure: Option<Adventure>,
+        current_act: Option<Act>,
+        current_state: Option<State>,
+        current_facts: Vec<Fact>,
+    ) -> Self {
+        Self {
+            current_adventure,
+            current_act,
+            current_state,
+            current_facts,
+        }
     }
 }

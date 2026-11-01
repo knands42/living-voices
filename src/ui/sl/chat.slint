@@ -1,7 +1,11 @@
 import { AppTheme } from "theme.slint";
+import { AdventureView, ActView, StateView, FactView } from "views.slint";
 
 export component ChatPage inherits Rectangle {
-    in property <string> adventure-id;
+    in property <AdventureView> adventure;
+    in property <ActView> act;
+    in property <StateView> state;
+    in property <[FactView]> facts;
     callback back-requested();
 
     background: AppTheme.bg-deepest;
@@ -12,10 +16,26 @@ export component ChatPage inherits Rectangle {
         padding: 32px;
 
         Text {
-            text: "Chat — " + root.adventure-id;
+            text: root.adventure.title;
             color: AppTheme.gold;
             font-family: AppTheme.font-brand;
             font-size: AppTheme.font-title;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: "Act " + root.act.ordinal + " — " + root.act.goal;
+            color: AppTheme.text-muted;
+            font-family: AppTheme.font-body;
+            font-size: AppTheme.font-label;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: root.state.day + " · " + root.state.place;
+            color: AppTheme.text-muted;
+            font-family: AppTheme.font-body;
+            font-size: AppTheme.font-label;
             horizontal-alignment: center;
         }
 
