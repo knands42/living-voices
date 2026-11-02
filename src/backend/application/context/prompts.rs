@@ -239,12 +239,33 @@ Dawn is grey and slow. The fire burns down to embers; nobody has suggested sleep
 Somewhere down the slope, the horses stamp twice, then go quiet.
 "#;
 
-pub(crate) const CHAR_GEN_PROMPT: &str = r#"## CHARACTER APPEARANCE
+pub(crate) const CHAR_PORTRAIT_PROMPT: &str = r#"## CHARACTER PORTRAIT
 Describe ONLY the visual appearance of the single SUBJECT character below, as a
-prompt for an image model. Write one dense block of comma-separated visual
-phrases, not prose and not dialogue. Cover, when known: build and age, face and
-hair, clothing and notable gear, pose and expression. Ground the look in the
-STYLE (tone and setting) so the character fits the world.
-Describe only what is seen. Never invent plot, never name other characters, never
-write text to render in the image. If a detail is unknown, leave it out rather
-than guessing."#;
+head-and-shoulders portrait prompt for an image model. Write one dense block of
+comma-separated visual phrases, not prose and not dialogue.
+
+Frame the character from the chest up: face, hair, expression, shoulders, and the
+upper clothing and gear that show within that frame. Cover, when known: build and
+age, facial features and complexion, hair, expression and gaze, posture, and what
+is worn or carried at the neck and shoulders. Ground the look in the STYLE (tone
+and setting) so the character fits the world.
+
+Describe only what is seen. Do not describe the lower body, legs, footwear, or a
+full-body pose. Never invent plot, never name other characters, never write text
+to render in the image. If a detail is unknown, leave it out rather than guessing."#;
+
+pub(crate) const CHAR_FULL_BODY_PROMPT: &str = r#"## CHARACTER FULL BODY
+Describe ONLY the visual appearance of the single SUBJECT character below, as a
+full-body character prompt for an image model. Write one dense block of
+comma-separated visual phrases, not prose and not dialogue.
+
+Show the whole figure from head to toe in a clear, readable pose: build, age, face
+and hair, expression, complete outfit, footwear, notable gear, and the stance or
+gesture they hold. Cover, when known: proportions, silhouette, how the clothing
+hangs or moves on them, and the pose that shows off the full design. Ground the
+look in the STYLE (tone and setting) so the character fits the world.
+
+Describe only what is seen. Keep the whole figure visible; do not crop to a
+portrait or close-up. Never invent plot, never name other characters, never write
+text to render in the image. If a detail is unknown, leave it out rather than
+guessing."#;
