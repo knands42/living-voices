@@ -9,8 +9,15 @@ ace_url := "https://huggingface.co/Comfy-Org/ACE-Step_ComfyUI_repackaged/resolve
 audio-model-ace:
     test -f {{ comfy_ws }}/models/checkpoints/$(basename {{ ace_url }}) && echo "ACE-Step already present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ ace_url }} --relative-path models/checkpoints
 
-# queue an ACE-Step music workflow
+# queue an ACE-Step instrumental workflow (empty lyrics = background music)
 audio-music-test workflow="tests/ai/audio-example-ace.json":
+    curl -s -X POST {{ comfy_url }}/prompt \
+        -H 'Content-Type: application/json' \
+        -d "$(jq -c '{prompt: .}' {{ workflow }})"
+    @echo "Output will be generated at $HOME/.living-voices/comfy/ComfyUI/output"
+
+# queue an ACE-Step SONG workflow (lyrics + vocal tags = sung track)
+audio-song-test workflow="tests/ai/audio-example-ace-song.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
