@@ -1,0 +1,59 @@
+{
+  "40": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "ace_step_v1_3.5b.safetensors"
+    }
+  },
+  "44": {
+    "class_type": "TextEncodeAceStepAudio",
+    "inputs": {
+      "tags": "ambient, orchestral, tense, cinematic, instrumental, dark fantasy",
+      "lyrics": "",
+      "lyrics_strength": 0.99,
+      "clip": ["40", 1]
+    }
+  },
+  "45": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": ["44", 0]
+    }
+  },
+  "17": {
+    "class_type": "EmptyAceStepLatentAudio",
+    "inputs": {
+      "seconds": 30,
+      "batch_size": 1
+    }
+  },
+  "3": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 42,
+      "steps": 60,
+      "cfg": 5,
+      "sampler_name": "dpmpp_2",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": ["40", 0],
+      "positive": ["44", 0],
+      "negative": ["45", 0],
+      "latent_image": ["17", 0]
+    }
+  },
+  "18": {
+    "class_type": "VAEDecodeAudio",
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["40", 2]
+    }
+  },
+  "19": {
+    "class_type": "SaveAudio",
+    "inputs": {
+      "filename_prefix": "living_voices_test_ace",
+      "audio": ["18", 0]
+    }
+  }
+}

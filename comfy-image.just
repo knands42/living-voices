@@ -1,6 +1,5 @@
 # -------------------- comfy (image) -------------------- #
-# ComfyUI setup, model downloads, server lifecycle and workflow tests.
-# Imported by the root justfile; run any recipe with `just image-...`.
+# ComfyUI image models setup.
 # Models: Flux.1 [dev] (Q4/Q8), Chroma, Qwen-Image — all GGUF, token-free.
 
 comfy_home := env_var_or_default("COMFY_HOME", env_var("HOME") / ".living-voices" / "comfy")
@@ -66,26 +65,11 @@ image-model-qwen: image-flux-node
 # download every model (Flux Q4 + Q8 + Chroma + Qwen)
 image-models-all: image-model-flux-q4 image-model-flux-q8 image-model-chroma image-model-qwen
 
-image-up:
-    cd {{ comfy_ws }} && setsid {{ comfy_venv }}/bin/python main.py --listen {{ comfy_host }} --port {{ comfy_port }} --disable-auto-launch > {{ comfy_home }}/comfyui.log 2>&1 < /dev/null &
-    @echo "ComfyUI starting on {{ comfy_url }} (log: {{ comfy_home }}/comfyui.log)"
-
-# block until the API answers
-image-wait:
-    until curl -sf {{ comfy_url }}/system_stats > /dev/null 2>&1; do sleep 1; done
-    @echo "ComfyUI is up at {{ comfy_url }}"
-
-image-down:
-    -pkill -f "main.py --listen {{ comfy_host }} --port {{ comfy_port }}"
-    @echo "ComfyUI stopped"
-
-image-start: image-up image-wait
+image-models:
+    curl -sf {{ comfy_url }}/object_info/UnetLoaderGGUF | jq '.UnetLoaderGGUF.input.required.unet_name[0]'
 
 image-test workflow="tests/ai/image-example-flux-q4.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
     @echo "Output will be generated at $HOME/.living-voices/comfy/ComfyUI/output"
-
-image-models:
-    curl -sf {{ comfy_url }}/object_info/UnetLoaderGGUF | jq '.UnetLoaderGGUF.input.required.unet_name[0]'
