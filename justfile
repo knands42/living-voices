@@ -1,6 +1,6 @@
 import 'comfy-image.just'
 import 'comfy-video.just'
-import 'audio-comfy.just'
+import 'comfy-audio.just'
 
 build:
     cargo build

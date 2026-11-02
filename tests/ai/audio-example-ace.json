@@ -33,7 +33,7 @@
       "seed": 42,
       "steps": 60,
       "cfg": 5,
-      "sampler_name": "dpmpp_2",
+      "sampler_name": "euler",
       "scheduler": "simple",
       "denoise": 1,
       "model": ["40", 0],
