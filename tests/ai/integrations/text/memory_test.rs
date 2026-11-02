@@ -1,4 +1,6 @@
-use living_voices::ai::integrations::text::memory::{MemoryUpdate, Permanence};
+use living_voices::ai::integrations::text::memory::{
+    CharacterConditionSnapshot, MemoryUpdate, Permanence,
+};
 
 #[test]
 fn parses_the_schema_shaped_object() {
@@ -11,7 +13,7 @@ fn parses_the_schema_shaped_object() {
             "place": "the drowned quarter",
             "characters_present": ["Mara"],
             "open_threads": ["why Mara left the sea"],
-            "conditions": ["mood: wary"]
+            "character_conditions": [{"character": "Mara", "note": "hands shaking"}]
         },
         "running_digest": "Mara arrived in the drowned quarter and admitted she hates the sea."
     }"#;
@@ -25,13 +27,20 @@ fn parses_the_schema_shaped_object() {
     assert_eq!(update.state.day, String::from("Day 1, noon"));
     assert_eq!(update.state.place, String::from("the drowned quarter"));
     assert_eq!(update.state.characters_present, vec!["Mara".to_string()]);
+    assert_eq!(
+        update.state.character_conditions,
+        vec![CharacterConditionSnapshot {
+            character: "Mara".to_string(),
+            note: "hands shaking".to_string(),
+        }]
+    );
     assert!(update.running_digest.contains("drowned quarter"));
 }
 
 #[test]
 fn tolerates_leading_and_trailing_whitespace_and_empty_collections() {
     let reply = "\n  {\"facts\": [], \"state\": {\"day\": null, \"place\": null, \
-        \"characters_present\": [], \"open_threads\": [], \"conditions\": []}}  \n";
+        \"characters_present\": [], \"open_threads\": [], \"character_conditions\": []}}  \n";
 
     let update = MemoryUpdate::from_reply(reply).expect("parse");
 
@@ -40,7 +49,7 @@ fn tolerates_leading_and_trailing_whitespace_and_empty_collections() {
     assert_eq!(update.state.place, String::from("unknown"));
     assert!(update.state.characters_present.is_empty());
     assert!(update.state.open_threads.is_empty());
-    assert!(update.state.conditions.is_empty());
+    assert!(update.state.character_conditions.is_empty());
 }
 
 #[test]
@@ -55,7 +64,7 @@ fn rejects_an_unknown_permanence() {
     let reply = r#"{
         "facts": [{"subject": "Mara", "fact": "x", "permanence": "forever"}],
         "state": {"day": null, "place": null, "characters_present": [],
-                  "open_threads": [], "conditions": []}
+                  "open_threads": [], "character_conditions": []}
     }"#;
 
     assert!(MemoryUpdate::from_reply(reply).is_err());

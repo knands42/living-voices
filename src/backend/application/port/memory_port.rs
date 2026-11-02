@@ -1,5 +1,5 @@
 use crate::backend::application::port::chat_port::PromptTurn;
-use crate::backend::domain::memory::{ActStatus, Fact, Permanence, State};
+use crate::backend::domain::memory::{ActStatus, CharacterCondition, Fact, Permanence, State};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -60,13 +60,13 @@ pub struct DistilledState {
     pub place: String,
     pub characters_present: Vec<String>,
     pub open_threads: Vec<String>,
-    pub conditions: Vec<String>,
+    pub character_conditions: Vec<CharacterCondition>,
 }
 
 impl DistilledState {
     pub fn into_state(self, adventure_id: Uuid) -> State {
         State::new(Uuid::new_v4(), adventure_id)
-            .with_conditions(self.conditions.clone())
+            .with_character_conditions(self.character_conditions.clone())
             .with_characters_present(self.characters_present.clone())
             .with_open_threads(self.open_threads.clone())
             .with_day(self.day.clone())

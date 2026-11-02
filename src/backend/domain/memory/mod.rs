@@ -4,4 +4,4 @@ pub mod state;
 
 pub use act::{Act, ActStatus};
 pub use fact::{Fact, Permanence};
-pub use state::State;
+pub use state::{CharacterCondition, State};

@@ -71,7 +71,13 @@ pub fn state_view(state: Option<&State>) -> StateView {
             place: SharedString::from(state.place.clone()),
             characters_present: string_model(&state.characters_present),
             open_threads: string_model(&state.open_threads),
-            conditions: string_model(&state.conditions),
+            conditions: string_model(
+                &state
+                    .character_conditions
+                    .iter()
+                    .map(|c| c.to_string())
+                    .collect::<Vec<_>>(),
+            ),
         },
         None => StateView::default(),
     }

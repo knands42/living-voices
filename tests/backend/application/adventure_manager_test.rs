@@ -33,7 +33,7 @@ async fn adventure_insert_creates_default_state() {
     assert_eq!(state_row.place, String::from("unknown"));
     assert!(state_row.characters_present.is_empty());
     assert!(state_row.open_threads.is_empty());
-    assert!(state_row.conditions.is_empty());
+    assert!(state_row.character_conditions.is_empty());
 
     // And active candidates read cleanly as an empty scene, not an error.
     let names = get_active_candidates(&mut conn, &adventure.id.to_string())

@@ -8,7 +8,7 @@ use crate::backend::{
         adventure::Adventure,
         character::{Character, CharacterStatus},
         lore::Lore,
-        memory::{Act, ActStatus, Fact, Permanence, State},
+        memory::{Act, ActStatus, CharacterCondition, Fact, Permanence, State},
         message::Message,
         narrator::Narrator,
     },
@@ -60,7 +60,7 @@ pub struct SeedState {
     pub day: &'static str,
     pub place: &'static str,
     pub open_threads: &'static [&'static str],
-    pub conditions: &'static [&'static str],
+    pub character_conditions: &'static [(&'static str, &'static str)],
 }
 
 pub struct SeedAdventure {
@@ -183,7 +183,7 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 "A light answers from water that holds no charted light",
                 "Corrant will not say what the ledger's names have in common",
             ],
-            conditions: &["Wren is seasick and has not slept"],
+            character_conditions: &[("Wren", "seasick and has not slept")],
         },
         facts: &[
             SeedFact {
@@ -329,7 +329,10 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 "The agency log runs nine minutes ahead of the station log",
                 "SUITE-7 is filing amendments nobody authorised",
             ],
-            conditions: &["Station clock and instrument clock disagree"],
+            character_conditions: &[(
+                "Dr. Ana Reyes",
+                "hands unsteady from too long without sleep",
+            )],
         },
         facts: &[
             SeedFact {
@@ -466,7 +469,7 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 "The Varn entry has been read aloud twice and a third reading is called",
                 "Aleksei wants the entry struck; Mira wants it honoured",
             ],
-            conditions: &["The brothers are not speaking"],
+            character_conditions: &[("Aleksei Varn", "jaw set, will not look at his brother")],
         },
         facts: &[
             SeedFact {
@@ -681,11 +684,11 @@ async fn seed_connection(
                 .map(|t| t.to_string())
                 .collect(),
         )
-        .with_conditions(
+        .with_character_conditions(
             seed.state
-                .conditions
+                .character_conditions
                 .iter()
-                .map(|c| c.to_string())
+                .map(|(character, note)| CharacterCondition::new(*character, *note))
                 .collect(),
         );
     upsert_state(&mut *tx, &state).await?;

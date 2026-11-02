@@ -1,5 +1,38 @@
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+/// A single live condition about one character, e.g. a wound that changes how they look.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CharacterCondition {
+    pub character: String,
+    pub note: String,
+}
+
+impl CharacterCondition {
+    pub fn new(character: impl Into<String>, note: impl Into<String>) -> Self {
+        Self {
+            character: character.into(),
+            note: note.into(),
+        }
+    }
+
+    pub fn for_character<'a>(
+        conditions: &'a [CharacterCondition],
+        character: &str,
+    ) -> Vec<&'a CharacterCondition> {
+        conditions
+            .iter()
+            .filter(|c| c.character.eq_ignore_ascii_case(character))
+            .collect()
+    }
+}
+
+impl std::fmt::Display for CharacterCondition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.character, self.note)
+    }
+}
 
 /// The single live snapshot of an adventure: exactly one row per adventure.
 #[derive(Clone, Debug)]
@@ -10,7 +43,7 @@ pub struct State {
     pub place: String,
     pub characters_present: Vec<String>,
     pub open_threads: Vec<String>,
-    pub conditions: Vec<String>,
+    pub character_conditions: Vec<CharacterCondition>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -23,7 +56,7 @@ impl State {
             place: String::from("unknown"),
             characters_present: Vec::new(),
             open_threads: Vec::new(),
-            conditions: Vec::new(),
+            character_conditions: Vec::new(),
             updated_at: Utc::now(),
         }
     }
@@ -38,8 +71,11 @@ impl State {
         self
     }
 
-    pub fn with_conditions(mut self, conditions: Vec<String>) -> Self {
-        self.conditions = conditions;
+    pub fn with_character_conditions(
+        mut self,
+        character_conditions: Vec<CharacterCondition>,
+    ) -> Self {
+        self.character_conditions = character_conditions;
         self
     }
 
@@ -64,8 +100,13 @@ impl State {
         if !self.open_threads.is_empty() {
             lines.push(format!("Open threads: {}", self.open_threads.join(", ")));
         }
-        if !self.conditions.is_empty() {
-            lines.push(format!("Wounds: {}", self.conditions.join(", ")));
+        if !self.character_conditions.is_empty() {
+            let rendered: Vec<String> = self
+                .character_conditions
+                .iter()
+                .map(CharacterCondition::to_string)
+                .collect();
+            lines.push(format!("Conditions: {}", rendered.join(", ")));
         }
 
         if lines.is_empty() {

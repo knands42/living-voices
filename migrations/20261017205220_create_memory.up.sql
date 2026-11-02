@@ -72,7 +72,7 @@ CREATE TABLE state
     place              TEXT NOT NULL DEFAULT "unknown", -- "cave mouth"
     characters_present TEXT NOT NULL DEFAULT "[]",      -- json: ["kaelen","elara"]
     open_threads       TEXT NOT NULL DEFAULT "[]",      -- json: ["crown trail","blood on the stones"]
-    conditions         TEXT NOT NULL DEFAULT "[]",      -- json: ["kaelen: left arm, minor", "mood: tense","storm approaching"]
+    character_conditions TEXT NOT NULL DEFAULT "[]",    -- json: [{"character":"kaelen","note":"left arm severed"}]
     updated_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
     CONSTRAINT state_id_is_uuid CHECK (length(id) = 36)

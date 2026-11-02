@@ -5,7 +5,7 @@ use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::Character;
 use crate::backend::domain::message::Message;
-use crate::backend::persistence::act_persistence::count_messages_per_act;
+use crate::backend::persistence::act_persistence::{count_messages_per_act, get_active_act};
 use crate::backend::persistence::error::PersistenceError;
 use sqlx::SqliteConnection;
 
@@ -21,12 +21,8 @@ impl ContextBuilder {
         let head = [
             AUTONOMOUS_CHAT_PROMPT.to_string(),
             Self::build_settings_prompt(adventure),
+            AUTONOMOUS_CHAT_INSTRUCTIONS.to_string(),
             Self::build_characters_prompt(adventure),
-            // TODO: Merge this into just one prompt (no need to split into 4)
-            AUTONOMOUS_CHAT_REPLY_CONTRACT.to_string(),
-            AUTONOMOUS_CHAT_BODY_INSTRUCTION.to_string(),
-            AUTONOMOUS_CHAT_RULES_INSTRUCTION.to_string(),
-            AUTONOMOUS_CHAT_EXAMPLES_INSTRUCTION.to_string(),
         ];
 
         Self::assemble(conn, adventure, director, &head).await
@@ -41,9 +37,7 @@ impl ContextBuilder {
         let head = [
             SINGLE_CHARACTER_CHAT_PROMPT.to_string(),
             Self::build_settings_prompt(adventure),
-            SINGLE_CHARACTER_CHAT_BODY_INSTRUCTION.to_string(),
-            SINGLE_CHARACTER_CHAT_RULES_INSTRUCTION.to_string(),
-            SINGLE_CHARACTER_CHAT_EXAMPLES_INSTRUCTION.to_string(),
+            SINGLE_CHARACTER_CHAT_INSTRUCTIONS.to_string(),
             "## CHARACTER".to_string(),
             character.render(),
         ];
@@ -59,9 +53,7 @@ impl ContextBuilder {
         let head = [
             NARRATOR_CHAT_PROMPT.to_string(),
             Self::build_settings_prompt(adventure),
-            NARRATOR_CHAT_BODY_INSTRUCTION.to_string(),
-            NARRATOR_CHAT_RULES_INSTRUCTION.to_string(),
-            NARRATOR_CHAT_EXAMPLES_INSTRUCTION.to_string(),
+            NARRATOR_CHAT_INSTRUCTIONS.to_string(),
         ];
 
         Self::assemble(conn, adventure, director, &head).await
@@ -114,9 +106,14 @@ impl ContextBuilder {
         let max_messages = director.get_max_act_messages();
 
         if director.should_request_pacing_prompt(messages_in_act) {
+            let last_closure_score = get_active_act(conn, adventure.id)
+                .await?
+                .map(|act| act.last_closure_score)
+                .unwrap_or(0);
             turns.push(PromptTurn::system(Self::build_pacing_prompt(
                 messages_in_act,
                 max_messages,
+                last_closure_score,
             )));
         }
 
@@ -142,6 +139,7 @@ impl ContextBuilder {
     fn build_pacing_prompt(
         current_number_of_messages: u16,
         current_act_messages_max_threshold: u16,
+        last_closure_score: u16,
     ) -> String {
         let percent = if current_act_messages_max_threshold == 0 {
             0
@@ -154,6 +152,7 @@ impl ContextBuilder {
             .replace("{0}", &current_number_of_messages.to_string())
             .replace("{1}", &current_act_messages_max_threshold.to_string())
             .replace("{2}", &percent.to_string())
+            .replace("{3}", &last_closure_score.to_string())
     }
 
     async fn build_memory_prompt(

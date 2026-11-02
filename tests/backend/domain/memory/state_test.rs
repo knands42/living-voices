@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use living_voices::backend::domain::memory::State;
+use living_voices::backend::domain::memory::{CharacterCondition, State};
 
 #[test]
 fn state_new_starts_empty() {
@@ -12,7 +12,7 @@ fn state_new_starts_empty() {
     assert_eq!(state.place, String::from("unknown"));
     assert!(state.characters_present.is_empty());
     assert!(state.open_threads.is_empty());
-    assert!(state.conditions.is_empty());
+    assert!(state.character_conditions.is_empty());
     assert!(State::new(Uuid::new_v4(), adv).render().is_some());
 }
 
@@ -23,13 +23,16 @@ fn state_builders_set_every_field() {
         .with_place("the vault".to_string())
         .with_characters_present(vec!["Mira".to_string()])
         .with_open_threads(vec!["the sealed door".to_string()])
-        .with_conditions(vec!["Mira: exhausted".to_string()]);
+        .with_character_conditions(vec![CharacterCondition::new("Mira", "exhausted")]);
 
     assert_eq!(state.day, "Day 3");
     assert_eq!(state.place, "the vault");
     assert_eq!(state.characters_present, vec!["Mira".to_string()]);
     assert_eq!(state.open_threads, vec!["the sealed door".to_string()]);
-    assert_eq!(state.conditions, vec!["Mira: exhausted".to_string()]);
+    assert_eq!(
+        state.character_conditions,
+        vec![CharacterCondition::new("Mira", "exhausted")]
+    );
 }
 
 #[test]
@@ -39,12 +42,12 @@ fn state_render_lists_set_fields() {
     state.place = "cave mouth".to_string();
     state.characters_present = vec!["kaelen".to_string(), "elara".to_string()];
     state.open_threads = vec!["crown trail".to_string()];
-    state.conditions = vec!["kaelen: left arm, minor".to_string()];
+    state.character_conditions = vec![CharacterCondition::new("kaelen", "left arm, minor")];
     let rendered = state.render().expect("some output");
     assert!(rendered.starts_with("Current state:\n- "));
     assert!(rendered.contains("Day: Day 2, dusk"));
     assert!(rendered.contains("Place: cave mouth"));
     assert!(rendered.contains("Present: kaelen, elara"));
     assert!(rendered.contains("Open threads: crown trail"));
-    assert!(rendered.contains("Wounds: kaelen: left arm, minor"));
+    assert!(rendered.contains("Conditions: kaelen: left arm, minor"));
 }

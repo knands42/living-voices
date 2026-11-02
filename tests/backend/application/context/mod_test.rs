@@ -172,6 +172,7 @@ async fn pacing_prompt_appears_with_counts_once_the_gate_opens() {
         .expect("a pacing turn once the gate opens");
     assert!(pacing.text.contains("message 3 of about 5"));
     assert!(pacing.text.contains("60%"));
+    assert!(pacing.text.contains("Goal progress last judged: 0 of 5."));
 }
 
 #[tokio::test]

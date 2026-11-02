@@ -51,7 +51,7 @@ impl Director {
             None
         }
 
-        // TODO: pick among multiple candidates without targets (CPU embedding or jev)
+        // TODO: pick among multiple candidates without targets (CPU embedding)
     }
 
     pub fn should_request_pacing_prompt(&self, messages_in_act: u16) -> bool {

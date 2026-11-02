@@ -9,6 +9,7 @@ use crate::backend::application::port::memory_port::{
     ActCloser, ClosedAct, ClosedActError, ClosedActStatus, DistillError, DistilledFact,
     DistilledMemory, DistilledState, FactPermanence, MemoryDistiller,
 };
+use crate::backend::domain::memory::CharacterCondition;
 use crate::config::TextModel;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -34,6 +35,18 @@ pub struct Fact {
     pub permanence: Permanence,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CharacterConditionSnapshot {
+    pub character: String,
+    pub note: String,
+}
+
+impl From<CharacterConditionSnapshot> for CharacterCondition {
+    fn from(value: CharacterConditionSnapshot) -> Self {
+        CharacterCondition::new(value.character, value.note)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct StateSnapshot {
     #[serde(default = "unknown", deserialize_with = "or_unknown")]
@@ -44,8 +57,8 @@ pub struct StateSnapshot {
     pub characters_present: Vec<String>,
     #[serde(default, deserialize_with = "or_empty")]
     pub open_threads: Vec<String>,
-    #[serde(default, deserialize_with = "or_empty")]
-    pub conditions: Vec<String>,
+    #[serde(default)]
+    pub character_conditions: Vec<CharacterConditionSnapshot>,
 }
 
 fn unknown() -> String {
@@ -152,7 +165,12 @@ impl From<MemoryUpdate> for DistilledMemory {
             place: memory_update.state.place,
             characters_present: memory_update.state.characters_present,
             open_threads: memory_update.state.open_threads,
-            conditions: memory_update.state.conditions,
+            character_conditions: memory_update
+                .state
+                .character_conditions
+                .into_iter()
+                .map(CharacterCondition::from)
+                .collect(),
         };
 
         DistilledMemory {
@@ -206,9 +224,17 @@ fn schema() -> JsonSchema {
                             "items": { "type": "string" },
                             "default": []
                         },
-                        "conditions": {
+                        "character_conditions": {
                             "type": "array",
-                            "items": { "type": "string" },
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "character": { "type": "string" },
+                                    "note": { "type": "string" }
+                                },
+                                "required": ["character", "note"],
+                                "additionalProperties": false
+                            },
                             "default": []
                         }
                     },
@@ -217,7 +243,7 @@ fn schema() -> JsonSchema {
                         "place",
                         "characters_present",
                         "open_threads",
-                        "conditions"
+                        "character_conditions"
                     ],
                     "additionalProperties": false
                 },
