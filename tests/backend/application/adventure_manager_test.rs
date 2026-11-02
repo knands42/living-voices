@@ -1,19 +1,10 @@
-use crate::backend::application::helper::{TempDb, setup_db};
+use crate::backend::application::helper::setup_db;
 use living_voices::backend::application::{
     adventure_manager::AdventureManager, state::SharedState,
 };
 use living_voices::backend::domain::memory::ActStatus;
 use living_voices::backend::persistence::act_persistence::get_acts;
 use living_voices::backend::persistence::state_persistence::{get_active_candidates, get_state};
-
-async fn new_manager_with(state: SharedState) -> (AdventureManager, TempDb) {
-    let (pool, db) = setup_db().await;
-    (AdventureManager::new(state, pool), db)
-}
-
-async fn new_manager() -> (AdventureManager, TempDb) {
-    new_manager_with(SharedState::new()).await
-}
 
 #[tokio::test]
 async fn adventure_insert_creates_default_state() {

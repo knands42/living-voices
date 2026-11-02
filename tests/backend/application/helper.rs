@@ -3,10 +3,8 @@ use sqlx::SqlitePool;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use living_voices::backend::application::adventure_manager::AdventureManager;
 use living_voices::backend::application::character_manager::CharacterManager;
 use living_voices::backend::application::state::SharedState;
-use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::{Character, CharacterStatus};
 
 pub struct TempDb(pub PathBuf);

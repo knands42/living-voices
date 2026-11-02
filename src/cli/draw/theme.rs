@@ -6,6 +6,7 @@ pub const INK_MUTED: Color = Color::Rgb(0x8a, 0x7f, 0x68);
 
 pub const EMBER: Color = Color::Rgb(0xd9, 0x6a, 0x3a); // accents, active
 
+#[allow(dead_code)]
 pub const EMBER_SOFT: Color = Color::Rgb(0xb0, 0x55, 0x2e);
 pub const GOLD: Color = Color::Rgb(0xe8, 0xb4, 0x4a);
 pub const GOLD_FADED: Color = Color::Rgb(97, 78, 20);
