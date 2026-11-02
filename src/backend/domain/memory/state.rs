@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use slint::PlatformError;
 use uuid::Uuid;
 
 /// The single live snapshot of an adventure: exactly one row per adventure.

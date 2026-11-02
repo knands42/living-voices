@@ -1,9 +1,7 @@
 use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, ActStatus, Fact, State};
 use crate::backend::domain::message::Message;
-use crate::backend::persistence::act_persistence::{
-    activate_first_act, get_active_act, insert_default_act,
-};
+use crate::backend::persistence::act_persistence::{activate_first_act, insert_default_act};
 use crate::backend::persistence::adventure_persistence::get_adventure_summaries;
 use crate::backend::persistence::characters_persistence::insert_default_player_character;
 use crate::backend::persistence::fact_persistence::get_facts;

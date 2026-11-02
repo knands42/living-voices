@@ -98,37 +98,6 @@ pub async fn create_characters(
     characters
 }
 
-/// Persist a full adventure using AdventureManager, with optional NPC characters.
-pub async fn create_adventure(pool: &SqlitePool, specs: &[CharacterSpec]) -> Adventure {
-    let state = SharedState::new();
-    let adventure_mgr = AdventureManager::new(state.clone(), pool.clone());
-
-    let adventure = adventure_mgr
-        .create_adventure(
-            "Test adventure".into(),
-            "A drowned city".into(),
-            "tense".into(),
-        )
-        .await
-        .expect("create adventure");
-
-    // Seed any additional NPCs beyond the default player character.
-    let character_mgr = CharacterManager::new(state.clone(), pool.clone());
-    let characters = build_characters(adventure.id, specs);
-    for character in &characters {
-        character_mgr
-            .create_character(character.clone())
-            .await
-            .expect("create character");
-    }
-
-    // Return the updated adventure with all characters.
-    adventure_mgr
-        .get_adventure(adventure.id)
-        .await
-        .expect("get adventure")
-}
-
 /// Seed raw messages via persistence; MessageManager::send_message always calls the model.
 pub async fn create_messages(
     pool: &SqlitePool,

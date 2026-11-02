@@ -32,17 +32,6 @@ fn line(ooc: bool) -> Message {
     )
 }
 
-fn narration() -> Message {
-    Message::new(
-        Uuid::new_v4(),
-        None,
-        Some(Uuid::new_v4()),
-        "NARRATOR".to_string(),
-        "the tide rises",
-        false,
-    )
-}
-
 fn director(targeted_pick_chance: f32, narrator_change_if_ooc: f32, ramp: (u8, u8)) -> Director {
     Director::new(DirectorSettings {
         targeted_pick_chance,

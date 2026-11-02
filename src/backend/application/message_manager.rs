@@ -11,7 +11,7 @@ use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::Character;
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::act_persistence::{
-    get_active_act, get_acts, update_active_act_last_closure_score,
+    get_active_act, update_active_act_last_closure_score,
 };
 use crate::backend::persistence::message_persistence::{
     count_since_last_narration, fetch_since, insert_message,

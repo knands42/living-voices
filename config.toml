@@ -24,7 +24,8 @@ keep_alive = "0"
 [models.image]
 backend = "comfyui"
 base_url = "http://localhost:8188"
-workflow = "scene.json"
+workflow = "qwen"
+output_prefix = "living_voices"
 
 [memory]
 compress_after_threshold = 70

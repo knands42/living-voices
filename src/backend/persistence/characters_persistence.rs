@@ -21,7 +21,7 @@ struct CharacterRow {
     headline: String,
     backstory: String,
     appearance: String,
-    appearance_draft: String,
+    appearance_prompt: String,
     status: String,
     portrait_path: Option<String>,
     is_player: bool,
@@ -36,7 +36,7 @@ impl FromRow<'_, SqliteRow> for CharacterRow {
             headline: row.get("headline"),
             backstory: row.get("backstory"),
             appearance: row.get("appearance"),
-            appearance_draft: row.get("appearance_draft"),
+            appearance_prompt: row.get("appearance_prompt"),
             status: row.get("status"),
             portrait_path: row.get("portrait_path"),
             is_player: row.get("is_player"),
@@ -59,7 +59,7 @@ impl TryFrom<CharacterRow> for Character {
             value.is_player,
         )
         .with_appearance(value.appearance)
-        .with_appearance_prompt(value.appearance_draft))
+        .with_appearance_prompt(value.appearance_prompt))
     }
 }
 

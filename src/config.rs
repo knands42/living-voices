@@ -9,7 +9,7 @@ const DB_FILE: &str = "living_voices.db";
 const DEFAULT_CHAT_MODEL_URL: &str = "http://localhost:11434/v1";
 const DEFAULT_CHAT_MEMORY_URL: &str = "http://localhost:11434/v1";
 const DEFAULT_IMAGE_MODEL_URL: &str = "http://localhost:8188";
-const DEFAULT_IMAGE_OUTPUT_PREFIX: &str = "output";
+const DEFAULT_IMAGE_OUTPUT_PREFIX: &str = "living_voices";
 
 const DEFAULT_CHAT_TEMPERATURE: f32 = 0.5;
 const DEFAULT_MEMORY_TEMPERATURE: f32 = 0.1;
@@ -18,8 +18,6 @@ const DEFAULT_KEEP_ALIVE: &str = "5m";
 
 const DEFAULT_COMPRESS_AFTER_THRESHOLD: u8 = 70;
 const DEFAULT_COMPRESS_LAST_MESSAGES: u8 = 50;
-const DEFAULT_SUMMARY_LIMIT: u8 = 5;
-const DEFAULT_FACT_LIMIT: u8 = 5;
 
 const DEFAULT_TARGETED_PICK_CHANCE: f32 = 0.8;
 const DEFAULT_NARRATOR_CHANGE_IF_OOC: f32 = 0.2;
@@ -76,6 +74,7 @@ impl TextModel {
     pub fn memory_default() -> Self {
         Self {
             temperature: DEFAULT_MEMORY_TEMPERATURE,
+            base_url: DEFAULT_CHAT_MEMORY_URL.to_string(),
             ..Self::default()
         }
     }
@@ -153,11 +152,19 @@ impl MessageThresholdRange {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ImageModelWorkflow {
+    Qwen,
+    FluxQ4,
+    FluxQ8,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(default)]
 pub struct ImageModel {
     pub backend: String,
     pub base_url: String,
-    pub workflow: String,
+    pub workflow: ImageModelWorkflow,
     pub output_prefix: String,
 }
 
@@ -166,7 +173,7 @@ impl Default for ImageModel {
         Self {
             backend: "comfyui".to_string(),
             base_url: DEFAULT_IMAGE_MODEL_URL.to_string(),
-            workflow: String::new(),
+            workflow: ImageModelWorkflow::FluxQ8,
             output_prefix: DEFAULT_IMAGE_OUTPUT_PREFIX.to_string(),
         }
     }

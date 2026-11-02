@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display, vec};
+use std::{fmt::Display, vec};
 
 use uuid::Uuid;
 
@@ -115,8 +115,8 @@ impl Character {
         self
     }
 
-    pub fn with_appearance_prompt(mut self, appearance_draft: impl Into<String>) -> Self {
-        self.appearance_prompt = appearance_draft.into();
+    pub fn with_appearance_prompt(mut self, appearance_prompt: impl Into<String>) -> Self {
+        self.appearance_prompt = appearance_prompt.into();
         self
     }
 

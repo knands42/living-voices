@@ -1,4 +1,3 @@
-use crate::backend::domain::character::Character;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 

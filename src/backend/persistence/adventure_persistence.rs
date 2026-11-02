@@ -10,9 +10,8 @@ use crate::backend::{
         tags::{ensure_tag, normalize},
     },
 };
-use chrono::Utc;
 use sqlx::sqlite::SqliteRow;
-use sqlx::{Error, FromRow, Row, Sqlite, SqliteConnection};
+use sqlx::{Error, FromRow, Row, SqliteConnection};
 use uuid::Uuid;
 
 struct AdventureRow {
