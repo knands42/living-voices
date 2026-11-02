@@ -27,6 +27,13 @@ flux_q8_url := "https://huggingface.co/city96/FLUX.1-dev-gguf/resolve/main/flux1
 flux_t5_url := "https://huggingface.co/city96/t5-v1_1-xxl-encoder-gguf/resolve/main/t5-v1_1-xxl-encoder-Q5_K_M.gguf"
 flux_clip_url := "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors"
 flux_vae_url := "https://huggingface.co/Comfy-Org/Lumina_Image_2.0_Repackaged/resolve/main/split_files/vae/ae.safetensors"
+
+# Chroma (Flux retrain, artistic/unfiltered) — reuses Flux T5 + VAE, new unet.
+chroma_url := "https://huggingface.co/silveroxides/Chroma-GGUF/resolve/main/chroma-unlocked-v47-flash-heun/chroma-unlocked-v47-flash-heun-Q4_K_S.gguf"
+# Qwen-Image (20B, top-tier + readable text) — its own encoder and VAE.
+qwen_url := "https://huggingface.co/city96/Qwen-Image-gguf/resolve/main/qwen-image-Q4_K_S.gguf"
+qwen_vae_url := "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors"
+qwen_clip_url := "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"
 # pull the CivitAI token out of config-local.toml (the single source of truth)
 civitai_token := `sed -n 's/^civitai_token[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' config-local.toml`
 
@@ -88,8 +95,20 @@ image-model-flux-q4: image-flux-node image-flux-support
 image-model-flux-q8: image-flux-node image-flux-support
     test -f {{ comfy_ws }}/models/unet/$(basename {{ flux_q8_url }}) && echo "Flux Q8 already present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ flux_q8_url }} --relative-path models/unet
 
-# download every checkpoint (base set + four art-style fine-tunes + both Flux quants)
-image-models-all: image-model-sd15 image-model-sdxl image-model-sdxl-turbo image-model-dreamshaper image-model-juggernaut image-model-realvis image-model-animagine image-model-flux-q4 image-model-flux-q8
+# ---- Chroma & Qwen-Image (top quality, slow) ----
+
+# Chroma (~5.3GB unet) — reuses Flux's GGUF node + T5 + VAE; ~3 min/image
+image-model-chroma: image-flux-node image-flux-support
+    test -f {{ comfy_ws }}/models/unet/$(basename {{ chroma_url }}) && echo "Chroma already present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ chroma_url }} --relative-path models/unet
+
+# Qwen-Image (20B, readable text) — GGUF node + its own encoder and VAE; ~3-4 min
+image-model-qwen: image-flux-node
+    test -f {{ comfy_ws }}/models/unet/$(basename {{ qwen_url }}) && echo "Qwen unet already present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ qwen_url }} --relative-path models/unet
+    test -f {{ comfy_ws }}/models/vae/$(basename {{ qwen_vae_url }}) && echo "Qwen VAE already present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ qwen_vae_url }} --relative-path models/vae
+    test -f {{ comfy_ws }}/models/text_encoders/$(basename {{ qwen_clip_url }}) && echo "Qwen encoder already present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ qwen_clip_url }} --relative-path models/text_encoders
+
+# download every checkpoint (base + fine-tunes + Flux + Chroma + Qwen)
+image-models-all: image-model-sd15 image-model-sdxl image-model-sdxl-turbo image-model-dreamshaper image-model-juggernaut image-model-realvis image-model-animagine image-model-flux-q4 image-model-flux-q8 image-model-chroma image-model-qwen
 
 image-up:
     cd {{ comfy_ws }} && setsid {{ comfy_venv }}/bin/python main.py --listen {{ comfy_host }} --port {{ comfy_port }} --disable-auto-launch > {{ comfy_home }}/comfyui.log 2>&1 < /dev/null &

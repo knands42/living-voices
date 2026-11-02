@@ -1,0 +1,72 @@
+{
+  "10": {
+    "class_type": "UnetLoaderGGUF",
+    "inputs": {
+      "unet_name": "chroma-unlocked-v47-flash-heun-Q4_K_S.gguf"
+    }
+  },
+  "11": {
+    "class_type": "CLIPLoaderGGUF",
+    "inputs": {
+      "clip_name": "t5-v1_1-xxl-encoder-Q5_K_M.gguf",
+      "type": "chroma"
+    }
+  },
+  "12": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "flux_ae.safetensors"
+    }
+  },
+  "6": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "a weathered sellsword at a rain-soaked river ford at first light, scarred eyebrow, leather armor, dark fantasy, painterly, dramatic, highly detailed",
+      "clip": ["11", 0]
+    }
+  },
+  "7": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "blurry, lowres, deformed, extra limbs, text, watermark",
+      "clip": ["11", 0]
+    }
+  },
+  "5": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    }
+  },
+  "3": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 42,
+      "steps": 26,
+      "cfg": 4,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": ["10", 0],
+      "positive": ["6", 0],
+      "negative": ["7", 0],
+      "latent_image": ["5", 0]
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["12", 0]
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "living_voices_test_chroma",
+      "images": ["8", 0]
+    }
+  }
+}
