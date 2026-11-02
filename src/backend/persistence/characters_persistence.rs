@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use sqlx::sqlite::SqliteRow;
-use sqlx::{Error, FromRow, Row, SqliteConnection};
+use sqlx::{FromRow, Row, SqliteConnection};
 use uuid::Uuid;
 
 use crate::backend::domain::character::CharacterStatus;

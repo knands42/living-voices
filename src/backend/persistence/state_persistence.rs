@@ -1,5 +1,3 @@
-use crossterm::ExecutableCommand;
-use ratatui::macros::row;
 use sqlx::sqlite::SqliteRow;
 use sqlx::{Error, FromRow, Row, SqliteConnection};
 use uuid::Uuid;

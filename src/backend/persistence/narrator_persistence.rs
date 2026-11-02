@@ -1,7 +1,7 @@
 use sqlx::SqliteConnection;
 use uuid::Uuid;
 
-use crate::backend::{domain::narrator::Narrator, persistence::error::PersistenceError};
+use crate::backend::persistence::error::PersistenceError;
 
 pub async fn insert_default_narrator(
     conn: &mut SqliteConnection,

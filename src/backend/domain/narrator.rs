@@ -8,8 +8,6 @@ pub struct Narrator {
 }
 
 impl Narrator {
-    const DEFAULT_TONE: &str = "Keep the tone casual and straightforward—clear, relaxed narration that stays out of the way and lets the story breathe";
-
     pub fn new(id: Uuid, name: impl Into<String>, tone: impl Into<String>) -> Self {
         Self {
             id,
