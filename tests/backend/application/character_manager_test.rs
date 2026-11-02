@@ -5,15 +5,22 @@ use living_voices::backend::domain::character::{Character, CharacterStatus};
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
-use crate::backend::application::helper::{TempDb, setup_db};
+use crate::backend::application::helper::{StubPromptHandler, TempDb, setup_db};
 
-async fn new_manager_with(state: SharedState) -> (CharacterManager, TempDb, SqlitePool) {
+async fn new_manager_with(
+    state: SharedState,
+) -> (CharacterManager<StubPromptHandler>, TempDb, SqlitePool) {
     let (pool, db) = setup_db().await;
-    let manager = CharacterManager::new(state, pool.clone());
+    let manager = CharacterManager::new(state, pool.clone(), StubPromptHandler);
     (manager, db, pool)
 }
 
-async fn new_manager() -> (CharacterManager, SharedState, TempDb, SqlitePool) {
+async fn new_manager() -> (
+    CharacterManager<StubPromptHandler>,
+    SharedState,
+    TempDb,
+    SqlitePool,
+) {
     let state = SharedState::new();
     let (manager, db, pool) = new_manager_with(state.clone()).await;
     (manager, state, db, pool)

@@ -69,5 +69,8 @@ pub trait NarratorHandler: Send + Sync {
 }
 
 pub trait PromptHandler: Send + Sync {
-    fn handle_prompt(&self, prompt: &str) -> impl Future<Output = Result<String, ChatResponseError>> + Send;
+    fn handle_prompt(
+        &self,
+        context: &[PromptTurn],
+    ) -> impl Future<Output = Result<String, ChatResponseError>> + Send;
 }

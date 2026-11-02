@@ -68,12 +68,13 @@ struct CompleteAdventureRow {
     character_name: String,
     character_description: String,
     character_backstory: String,
-    character_appearance: String,
+    character_appearance: Option<String>,
+    character_appearance_portrait_prompt: Option<String>,
+    character_appearance_full_body_prompt: Option<String>,
+    character_appearance_current_pose: Option<String>,
     character_status: String,
-    character_portrait_path: String,
+    character_portrait_path: Option<String>,
     character_is_player: bool,
-    character_created_at: String,
-    character_updated_at: String,
     character_tags: String,
     character_traits: String,
     character_relations: String,
@@ -99,11 +100,12 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
             character_description: row.get("character_description"),
             character_backstory: row.get("character_backstory"),
             character_appearance: row.get("character_appearance"),
+            character_appearance_portrait_prompt: row.get("character_appearance_portrait_prompt"),
+            character_appearance_full_body_prompt: row.get("character_appearance_full_body_prompt"),
+            character_appearance_current_pose: row.get("character_appearance_current_pose"),
             character_status: row.get("character_status"),
             character_portrait_path: row.get("character_portrait_path"),
             character_is_player: row.get::<bool, _>("character_is_player"),
-            character_created_at: row.get("character_created_at"),
-            character_updated_at: row.get("character_updated_at"),
             character_tags: row.get("character_tags"),
             character_traits: row.get("character_traits"),
             character_relations: row.get("character_relations"),
@@ -129,9 +131,12 @@ fn character_from_row(value: &CompleteAdventureRow) -> Result<Character, Persist
         value.character_backstory.clone(),
         CharacterStatus::from(value.character_status.clone()),
         value.character_is_player,
-    )
-    .with_portrait(value.character_portrait_path.clone())
-    .with_appearance(value.character_appearance.clone());
+    );
+    character.appearance = value.character_appearance.clone();
+    character.appearance_portrait_prompt = value.character_appearance_portrait_prompt.clone();
+    character.appearance_full_body_prompt = value.character_appearance_full_body_prompt.clone();
+    character.appearance_current_pose = value.character_appearance_current_pose.clone();
+    character.portrait_path = value.character_portrait_path.clone();
 
     character_tags
         .iter()
@@ -234,12 +239,12 @@ SELECT a.id                      AS adventure_id,
        c.headline                AS character_description,
        c.backstory                AS character_backstory,
        c.appearance               AS character_appearance,
-       c.appearance_prompt AS character_appearance_prompt,
+       c.appearance_portrait_prompt AS character_appearance_portrait_prompt,
+       c.appearance_full_body_prompt AS character_appearance_full_body_prompt,
+       c.appearance_current_pose AS character_appearance_current_pose,
        c.status                   AS character_status,
        c.portrait_path AS character_portrait_path,
        c.is_player AS character_is_player,
-       c.created_at AS character_created_at,
-       c.updated_at     AS character_updated_at,
        COALESCE(ctag.tags, '[]') AS character_tags,
        COALESCE(ct.trait, '[]')  AS character_traits,
        COALESCE(crl.rels, '[]')  AS character_relations,

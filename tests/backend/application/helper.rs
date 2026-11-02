@@ -4,8 +4,19 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 use living_voices::backend::application::character_manager::CharacterManager;
+use living_voices::backend::application::port::chat_port::{
+    ChatResponseError, PromptHandler, PromptTurn,
+};
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::character::{Character, CharacterStatus};
+
+pub struct StubPromptHandler;
+
+impl PromptHandler for StubPromptHandler {
+    async fn handle_prompt(&self, _prompt: &[PromptTurn]) -> Result<String, ChatResponseError> {
+        Ok(String::new())
+    }
+}
 
 pub struct TempDb(pub PathBuf);
 impl Drop for TempDb {
@@ -86,7 +97,7 @@ pub async fn create_characters(
 ) -> Vec<Character> {
     let characters = build_characters(adventure_id, specs);
     let state = SharedState::new();
-    let character_mgr = CharacterManager::new(state, pool.clone());
+    let character_mgr = CharacterManager::new(state, pool.clone(), StubPromptHandler);
     for character in &characters {
         character_mgr
             .create_character(character.clone())

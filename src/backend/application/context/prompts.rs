@@ -270,4 +270,20 @@ portrait or close-up. Never invent plot, never name other characters, never writ
 text to render in the image. If a detail is unknown, leave it out rather than
 guessing."#;
 
-pub(crate) const CHAR_POSE_BODY_PROMPT: &str = r#""#;
+pub(crate) const CHAR_POSE_BODY_PROMPT: &str = r#"## CHARACTER CURRENT POSE
+Describe ONLY the visible pose and action of the single SUBJECT character below,
+as a full-body image prompt for an image model. Write one dense block of
+comma-separated visual phrases, not prose and not dialogue.
+
+Read the CHARACTER MESSAGES to find what the SUBJECT is doing at the current
+moment, then capture that single instant: the body position, the action in
+progress, the angle of the head and torso, where the hands and arms are, the
+stance or movement, and how the hair, clothing and gear react to it. Keep the
+character's known appearance, build and conditions consistent with the SUBJECT.
+Show the whole figure from head to toe so the action is readable.
+
+Describe only what is seen in that instant. Never invent an action the messages do
+not support, never write dialogue, never name or depict other characters, and never
+write text to render in the image. If the exact pose is unclear, choose the most
+plausible pose that fits the visible action without adding plot. If a detail is
+unknown, leave it out rather than guessing."#;

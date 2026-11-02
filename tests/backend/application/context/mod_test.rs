@@ -1,4 +1,4 @@
-use sqlx::sqlite::SqlitePool;
+use sqlx::{SqliteConnection, sqlite::SqlitePool};
 
 use crate::backend::application::helper::{CharacterSpec, create_characters, setup_db};
 use living_voices::backend::application::adventure_manager::AdventureManager;
@@ -88,6 +88,13 @@ async fn seed_cast_message(
     insert_message(&mut conn, &message).await.expect("insert");
 }
 
+async fn last_messages(conn: &mut SqliteConnection, adventure: &Adventure) -> Vec<Message> {
+    use living_voices::backend::persistence::message_persistence::fetch_last_n;
+    fetch_last_n(conn, adventure.id, 50)
+        .await
+        .expect("fetch messages")
+}
+
 fn low_closure_director() -> Director {
     // A huge act cap so the closure gate never fires in these fixtures.
     Director::new(DirectorSettings {
@@ -110,6 +117,7 @@ async fn autonomous_prompt_opens_with_system_turns_and_the_full_cast() {
         &mut conn,
         &adventure,
         &low_closure_director(),
+        &[],
     )
     .await
     .expect("build prompt");
@@ -135,6 +143,7 @@ async fn system_head_renders_the_adventure_settings() {
         &mut conn,
         &adventure,
         &low_closure_director(),
+        &[],
     )
     .await
     .expect("build prompt");
@@ -162,9 +171,11 @@ async fn pacing_prompt_appears_with_counts_once_the_gate_opens() {
         act_max_messages: 5,
         ..Default::default()
     });
-    let turns = ContextBuilder::build_autonomous_chat_prompt(&mut conn, &adventure, &eager)
-        .await
-        .expect("build prompt");
+    let messages = last_messages(&mut conn, &adventure).await;
+    let turns =
+        ContextBuilder::build_autonomous_chat_prompt(&mut conn, &adventure, &eager, &messages)
+            .await
+            .expect("build prompt");
 
     let pacing = turns
         .iter()
@@ -186,10 +197,12 @@ async fn previous_messages_classify_player_and_cast_turns() {
     seed_cast_message(&pool, &adventure, &npc, "It creaks.").await;
 
     let mut conn = pool.acquire().await.expect("acquire");
+    let messages = last_messages(&mut conn, &adventure).await;
     let turns = ContextBuilder::build_autonomous_chat_prompt(
         &mut conn,
         &adventure,
         &low_closure_director(),
+        &messages,
     )
     .await
     .expect("build prompt");
@@ -217,10 +230,12 @@ async fn the_player_characters_line_is_a_player_turn() {
     seed_player_message(&pool, &adventure, &player, "I stare at the sky.").await;
 
     let mut conn = pool.acquire().await.expect("acquire");
+    let messages = last_messages(&mut conn, &adventure).await;
     let turns = ContextBuilder::build_autonomous_chat_prompt(
         &mut conn,
         &adventure,
         &low_closure_director(),
+        &messages,
     )
     .await
     .expect("build prompt");
@@ -249,10 +264,14 @@ async fn static_context_carries_the_running_digest_of_the_active_act() {
     update_act_running_digest(&mut conn, active_act.id, "They escaped the keep.", 0)
         .await
         .expect("update running_digest");
-    let turns =
-        ContextBuilder::build_narrator_chat_prompt(&mut conn, &adventure, &low_closure_director())
-            .await
-            .expect("build prompt");
+    let turns = ContextBuilder::build_narrator_chat_prompt(
+        &mut conn,
+        &adventure,
+        &low_closure_director(),
+        &[],
+    )
+    .await
+    .expect("build prompt");
 
     let joined = turns
         .iter()
@@ -287,10 +306,14 @@ async fn static_context_renders_act_facts_under_the_current_act() {
     );
     insert_facts(&mut conn, &[fact]).await.expect("insert fact");
 
-    let turns =
-        ContextBuilder::build_narrator_chat_prompt(&mut conn, &adventure, &low_closure_director())
-            .await
-            .expect("build prompt");
+    let turns = ContextBuilder::build_narrator_chat_prompt(
+        &mut conn,
+        &adventure,
+        &low_closure_director(),
+        &[],
+    )
+    .await
+    .expect("build prompt");
 
     let joined = turns
         .iter()
@@ -318,9 +341,11 @@ async fn closure_prompt_appears_only_once_the_gate_opens() {
         act_max_messages: 2,
         ..Default::default()
     });
-    let turns = ContextBuilder::build_autonomous_chat_prompt(&mut conn, &adventure, &eager)
-        .await
-        .expect("build prompt");
+    let messages = last_messages(&mut conn, &adventure).await;
+    let turns =
+        ContextBuilder::build_autonomous_chat_prompt(&mut conn, &adventure, &eager, &messages)
+            .await
+            .expect("build prompt");
     let has_closure = turns
         .iter()
         .any(|t| t.text.contains("## CLOSURE INFORMATION"));
@@ -340,6 +365,7 @@ async fn closure_prompt_appears_only_once_the_gate_opens() {
         &mut conn,
         &adventure,
         &low_closure_director(),
+        &messages,
     )
     .await
     .expect("build prompt");

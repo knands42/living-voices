@@ -1,13 +1,13 @@
 use sqlx::SqlitePool;
 use thiserror::Error;
 
+use crate::backend::application::port::chat_port::PromptHandler;
 use crate::backend::{
     PersistenceError,
     application::state::{SharedState, StateError},
     domain::character::Character,
     persistence::characters_persistence::insert_character,
 };
-use crate::backend::application::port::chat_port::PromptHandler;
 
 #[derive(Error, Debug)]
 pub enum CharacterManagerError {
@@ -21,12 +21,16 @@ pub enum CharacterManagerError {
 pub struct CharacterManager<PROMPT: PromptHandler> {
     state: SharedState,
     pool: SqlitePool,
-    prompt_handler: PROMPT
+    prompt_handler: PROMPT,
 }
 
-impl <PROMPT: PromptHandler> CharacterManager<PROMPT> {
+impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
     pub fn new(state: SharedState, pool: SqlitePool, prompt_handler: PROMPT) -> Self {
-        CharacterManager { state, pool, prompt_handler }
+        CharacterManager {
+            state,
+            pool,
+            prompt_handler,
+        }
     }
 
     pub async fn create_character(
@@ -45,26 +49,24 @@ impl <PROMPT: PromptHandler> CharacterManager<PROMPT> {
 
         Ok(())
     }
-    
+
     pub async fn create_character_portrait_image(
         &self,
-        character_appearance: &str
+        _character_appearance: &str,
     ) -> Result<(), CharacterManagerError> {
-        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        
-        // build character portrait image prompt
-        // call the PromptHandler to get the reply
-        // persist into the 
-        
+        // TODO: build the character portrait image prompt, call the PromptHandler,
+        // and persist the result.
+
         Ok(())
     }
-    
+
     pub async fn create_character_full_body_image(
         &self,
-        character_appearance: &str
+        _character_appearance: &str,
     ) -> Result<(), CharacterManagerError> {
-        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        
+        // TODO: build the character full-body image prompt, call the PromptHandler,
+        // and persist the result.
+
         Ok(())
     }
 }

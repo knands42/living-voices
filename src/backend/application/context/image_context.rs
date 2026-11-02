@@ -1,4 +1,6 @@
-use crate::backend::application::context::prompts::{CHAR_FULL_BODY_PROMPT, CHAR_PORTRAIT_PROMPT};
+use crate::backend::application::context::prompts::{
+    CHAR_FULL_BODY_PROMPT, CHAR_PORTRAIT_PROMPT, CHAR_POSE_BODY_PROMPT,
+};
 use crate::backend::application::context::{ContextBuilder, ContextBuilderError};
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::domain::adventure::Adventure;
@@ -22,7 +24,7 @@ impl ContextBuilder {
                 character.name.as_str(),
                 character_conditions,
                 appearance,
-                &vec![],
+                &[],
             );
         }
 
@@ -41,7 +43,7 @@ impl ContextBuilder {
                 character.name.as_str(),
                 character_conditions,
                 appearance,
-                &vec![],
+                &[],
             );
         }
 
@@ -52,11 +54,11 @@ impl ContextBuilder {
         adventure: &Adventure,
         character: &Character,
         character_conditions: Vec<CharacterCondition>,
-        uncovered_messages: &Vec<&Message>,
+        uncovered_messages: &[Message],
     ) -> Result<Vec<PromptTurn>, ContextBuilderError> {
         if let Some(appearance) = &character.appearance {
             return Self::build_character_prompt(
-                CHAR_FULL_BODY_PROMPT,
+                CHAR_POSE_BODY_PROMPT,
                 adventure,
                 character.name.as_str(),
                 character_conditions,
@@ -74,7 +76,7 @@ impl ContextBuilder {
         character_name: &str,
         character_conditions: Vec<CharacterCondition>,
         appearance: &str,
-        uncovered_messages: &Vec<&Message>,
+        uncovered_messages: &[Message],
     ) -> Result<Vec<PromptTurn>, ContextBuilderError> {
         let mut subject = vec![format!("## {}", character_name)];
         let mut messages_content: Vec<PromptTurn> = Vec::with_capacity(uncovered_messages.len());
@@ -104,7 +106,7 @@ impl ContextBuilder {
             subject.join(". ")
         )));
 
-        if (!messages_content.is_empty()) {
+        if !messages_content.is_empty() {
             final_prompt.extend(messages_content);
         }
 

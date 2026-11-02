@@ -20,8 +20,10 @@ struct CharacterRow {
     name: String,
     headline: String,
     backstory: String,
-    appearance: String,
-    appearance_prompt: String,
+    appearance: Option<String>,
+    appearance_portrait_prompt: Option<String>,
+    appearance_full_body_prompt: Option<String>,
+    appearance_current_pose: Option<String>,
     status: String,
     portrait_path: Option<String>,
     is_player: bool,
@@ -36,7 +38,9 @@ impl FromRow<'_, SqliteRow> for CharacterRow {
             headline: row.get("headline"),
             backstory: row.get("backstory"),
             appearance: row.get("appearance"),
-            appearance_prompt: row.get("appearance_prompt"),
+            appearance_portrait_prompt: row.get("appearance_portrait_prompt"),
+            appearance_full_body_prompt: row.get("appearance_full_body_prompt"),
+            appearance_current_pose: row.get("appearance_current_pose"),
             status: row.get("status"),
             portrait_path: row.get("portrait_path"),
             is_player: row.get("is_player"),
@@ -49,7 +53,7 @@ impl TryFrom<CharacterRow> for Character {
     fn try_from(value: CharacterRow) -> Result<Self, PersistenceError> {
         let character_id = from_str_to_uuid(value.id.as_str())?;
         let adventure_id = from_str_to_uuid(value.adventure_id.as_str())?;
-        Ok(Character::new(
+        let mut character = Character::new(
             character_id,
             value.name,
             adventure_id,
@@ -57,9 +61,13 @@ impl TryFrom<CharacterRow> for Character {
             value.backstory,
             CharacterStatus::from_str(value.status.as_str()),
             value.is_player,
-        )
-        .with_appearance(value.appearance)
-        .with_appearance_portrait_prompt(value.appearance_prompt))
+        );
+        character.appearance = value.appearance;
+        character.appearance_portrait_prompt = value.appearance_portrait_prompt;
+        character.appearance_full_body_prompt = value.appearance_full_body_prompt;
+        character.appearance_current_pose = value.appearance_current_pose;
+        character.portrait_path = value.portrait_path;
+        Ok(character)
     }
 }
 
@@ -182,18 +190,24 @@ pub async fn insert_relations(
     Ok(())
 }
 
-pub async fn update_appearance_(
+pub async fn update_appearance(
     conn: &mut SqliteConnection,
     character_id: Uuid,
-    appearance: impl Into<String>,
-    appearance_prompt: impl Into<String>,
+    appearance: &str,
+    appearance_portrait_prompt: &str,
+    appearance_full_body_prompt: &str,
+    appearance_current_pose: &str,
 ) -> Result<(), PersistenceError> {
-    sqlx::query("UPDATE character SET appearance = ?1, appearance_prompt = ?2 WHERE id = ?3")
-        .bind(appearance.into())
-        .bind(appearance_prompt.into())
-        .bind(character_id.to_string())
-        .execute(conn)
-        .await?;
+    sqlx::query(
+        "UPDATE character SET appearance = ?1, appearance_portrait_prompt = ?2, appearance_full_body_prompt = ?3, appearance_current_pose = ?4 WHERE id = ?5",
+    )
+    .bind(appearance)
+    .bind(appearance_portrait_prompt)
+    .bind(appearance_full_body_prompt)
+    .bind(appearance_current_pose)
+    .bind(character_id.to_string())
+    .execute(conn)
+    .await?;
 
     Ok(())
 }

@@ -124,7 +124,7 @@ async fn setup_adventure(pool: &SqlitePool, characters: &[&str]) -> (SharedState
         .expect("start adventure");
 
     // Seed any additional NPCs beyond the default player character
-    let character_mgr = CharacterManager::new(state.clone(), pool.clone());
+    let character_mgr = CharacterManager::new(state.clone(), pool.clone(), chat_handler());
     if !characters.is_empty() {
         let characters_mapped = characters.iter().map(|char_name| {
             Character::new(

@@ -17,7 +17,7 @@ impl ContextBuilder {
         conn: &mut SqliteConnection,
         adventure: &Adventure,
         director: &Director,
-        messages: &Vec<&Message>,
+        messages: &[Message],
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let head = [
             AUTONOMOUS_CHAT_PROMPT.to_string(),
@@ -34,7 +34,7 @@ impl ContextBuilder {
         adventure: &Adventure,
         director: &Director,
         character: &Character,
-        messages: &Vec<&Message>,
+        messages: &[Message],
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let head = [
             SINGLE_CHARACTER_CHAT_PROMPT.to_string(),
@@ -51,7 +51,7 @@ impl ContextBuilder {
         conn: &mut SqliteConnection,
         adventure: &Adventure,
         director: &Director,
-        messages: &Vec<&Message>,
+        messages: &[Message],
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let head = [
             NARRATOR_CHAT_PROMPT.to_string(),
@@ -96,7 +96,7 @@ impl ContextBuilder {
         adventure: &Adventure,
         director: &Director,
         head: &[String],
-        messages: &Vec<&Message>,
+        messages: &[Message],
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
 

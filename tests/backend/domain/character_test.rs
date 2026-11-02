@@ -20,7 +20,10 @@ fn new_sets_name_description_and_empty_fields() {
     assert_eq!(character.name, "Maren");
     assert_eq!(character.headline, "A lighthouse keeper");
     assert_eq!(character.backstory, "");
-    assert_eq!(character.appearance, "");
+    assert_eq!(character.appearance, None);
+    assert_eq!(character.appearance_portrait_prompt, None);
+    assert_eq!(character.appearance_full_body_prompt, None);
+    assert_eq!(character.appearance_current_pose, None);
     assert!(character.traits.is_empty());
     assert!(character.tags.is_empty());
     assert!(character.relations.is_empty());
@@ -194,4 +197,58 @@ fn render_omits_empty_sections() {
     assert!(rendered.contains("A lighthouse keeper"));
     assert!(!rendered.contains("Backstory:"));
     assert!(!rendered.contains("Traits:"));
+}
+
+#[test]
+fn with_portrait_sets_the_portrait_path() {
+    let character = new_character().with_portrait("portraits/maren.png");
+
+    assert_eq!(
+        character.portrait_path.as_deref(),
+        Some("portraits/maren.png")
+    );
+}
+
+#[test]
+fn with_appearance_sets_the_appearance() {
+    let character = new_character()
+        .with_appearance("A weathered woman with copper hair and a salt-stained coat.");
+
+    assert_eq!(
+        character.appearance.as_deref(),
+        Some("A weathered woman with copper hair and a salt-stained coat.")
+    );
+}
+
+#[test]
+fn with_appearance_portrait_prompt_sets_the_portrait_prompt() {
+    let character =
+        new_character().with_appearance_portrait_prompt("head-and-shoulders portrait, copper hair");
+
+    assert_eq!(
+        character.appearance_portrait_prompt.as_deref(),
+        Some("head-and-shoulders portrait, copper hair")
+    );
+}
+
+#[test]
+fn with_appearance_full_body_prompt_sets_the_full_body_prompt() {
+    let character = new_character()
+        .with_appearance_full_body_prompt("full body, standing on a lighthouse stair");
+
+    assert_eq!(
+        character.appearance_full_body_prompt.as_deref(),
+        Some("full body, standing on a lighthouse stair")
+    );
+}
+
+#[test]
+fn with_appearance_current_pose_sets_the_current_pose() {
+    let character =
+        new_character().with_appearance_current_pose("reaching up to trim the lamp wick");
+
+    assert_eq!(
+        character.appearance_current_pose.as_deref(),
+        Some("reaching up to trim the lamp wick")
+    );
 }

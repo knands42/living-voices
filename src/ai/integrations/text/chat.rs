@@ -6,7 +6,7 @@ use crate::ai::integrations::text::open_api_client::{
 };
 use crate::ai::types::ChatMessage;
 use crate::backend::application::port::chat_port::{
-    ChatHandler, ChatReply, ChatResponseError, PromptTurn,
+    ChatHandler, ChatReply, ChatResponseError, PromptHandler, PromptTurn,
 };
 use crate::config::TextModel;
 
@@ -116,5 +116,27 @@ impl ChatHandler for Chat {
             reply: completion.reply,
             act_closure: completion.act_closure,
         })
+    }
+}
+
+impl PromptHandler for Chat {
+    async fn handle_prompt(&self, context: &[PromptTurn]) -> Result<String, ChatResponseError> {
+        let client = self.client()?;
+        let prompt = context
+            .iter()
+            .cloned()
+            .map(ChatMessage::from)
+            .collect::<Vec<ChatMessage>>();
+
+        client
+            .send(
+                self.config.model.as_str(),
+                &prompt,
+                self.config.temperature,
+                None,
+                super::keep_alive(&self.config),
+            )
+            .await
+            .map_err(|e| ChatResponseError::Provider(e.to_string()))
     }
 }

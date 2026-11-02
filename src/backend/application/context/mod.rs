@@ -2,6 +2,8 @@ mod chat_context;
 mod image_context;
 mod prompts;
 
+pub(crate) use prompts::AUTONOMOUS_HISTORY_WINDOW;
+
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::memory::{Act, ActStatus, Fact};
@@ -128,10 +130,10 @@ impl ContextBuilder {
     }
 
     /// The dynamic messaging setup to differentiate the user from the cast.
-    fn build_previous_messages(adventure: &Adventure, messages: &Vec<&Message>) -> Vec<PromptTurn> {
+    fn build_previous_messages(adventure: &Adventure, messages: &[Message]) -> Vec<PromptTurn> {
         messages
-            .into_iter()
-            .map(|message| Self::message_to_turn(adventure, &message))
+            .iter()
+            .map(|message| Self::message_to_turn(adventure, message))
             .collect()
     }
 

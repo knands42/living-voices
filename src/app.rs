@@ -23,7 +23,7 @@ pub struct AppContext<
     A: ActCloser + Clone + 'static,
 > {
     pub adventures: AdventureManager,
-    pub characters: CharacterManager,
+    pub characters: CharacterManager<Chat>,
     pub messages: MessageManager<C, N, M, A>,
 }
 
@@ -57,7 +57,8 @@ impl App<Chat, Narrator, MemoryUpdate, ActClose> {
         let director = Director::new(director_settings);
 
         let adventure_manager = AdventureManager::new(state.clone(), pool.clone());
-        let character_manager = CharacterManager::new(state.clone(), pool.clone());
+        let character_manager =
+            CharacterManager::new(state.clone(), pool.clone(), chat_handler.clone());
         let memory_manager = MemoryManager::new(state.clone(), pool.clone(), distiller, closer);
         let message_manager = MessageManager::new(
             state.clone(),

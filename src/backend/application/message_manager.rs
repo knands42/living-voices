@@ -1,5 +1,5 @@
 use crate::backend::PersistenceError;
-use crate::backend::application::context::ContextBuilder;
+use crate::backend::application::context::{AUTONOMOUS_HISTORY_WINDOW, ContextBuilder};
 use crate::backend::application::director::Director;
 use crate::backend::application::memory_manager::{MemoryManager, MemoryManagerError};
 use crate::backend::application::port::chat_port::{
@@ -13,7 +13,9 @@ use crate::backend::domain::message::Message;
 use crate::backend::persistence::act_persistence::{
     get_active_act, update_active_act_last_closure_score,
 };
-use crate::backend::persistence::message_persistence::{count_since_last_narration, fetch_last_n, fetch_since, insert_message};
+use crate::backend::persistence::message_persistence::{
+    count_since_last_narration, fetch_last_n, fetch_since, insert_message,
+};
 use crate::backend::persistence::state_persistence::get_active_candidates;
 use crate::config::MemorySettings;
 use sqlx::{SqliteConnection, SqlitePool};
@@ -94,7 +96,8 @@ impl<
         let present_names = get_active_candidates(&mut conn, &adventure.id.to_string()).await?;
         let active_characters = adventure.active_characters(&present_names);
         let messages_since_narration = count_since_last_narration(&mut conn, adventure.id).await?;
-        let uncovered_messages = fetch_last_n(&mut conn, adventure.id, 50).await?; // TODO: get this 50 value from config
+        let uncovered_messages: Vec<Message> =
+            fetch_last_n(&mut conn, adventure.id, AUTONOMOUS_HISTORY_WINDOW).await?;
 
         let chat_reply = self
             .send(
@@ -147,15 +150,20 @@ impl<
         incoming: &Message,
         active_characters: &[&Character],
         messages_since_narration: u8,
-        uncovered_messages: &Vec<&Message>,
+        uncovered_messages: &[Message],
     ) -> Result<ChatReply, MessageManagerError> {
         if self.director.should_narrator_speak(
             active_characters,
             incoming,
             messages_since_narration,
         ) {
-            let context =
-                ContextBuilder::build_narrator_chat_prompt(conn, adventure, &self.director, uncovered_messages).await?;
+            let context = ContextBuilder::build_narrator_chat_prompt(
+                conn,
+                adventure,
+                &self.director,
+                uncovered_messages,
+            )
+            .await?;
             let reply = self.narrator_handler.narrator_respond(&context).await?;
             return Ok(ChatReply {
                 replier: Message::NARRATOR_SPEAKER_NAME.to_string(),
@@ -170,7 +178,7 @@ impl<
                 adventure,
                 &self.director,
                 character,
-                uncovered_messages
+                uncovered_messages,
             )
             .await?;
             let reply = self.chat_handler.character_respond(&context).await?;
@@ -181,8 +189,13 @@ impl<
             });
         }
 
-        let context =
-            ContextBuilder::build_autonomous_chat_prompt(conn, adventure, &self.director, uncovered_messages).await?;
+        let context = ContextBuilder::build_autonomous_chat_prompt(
+            conn,
+            adventure,
+            &self.director,
+            uncovered_messages,
+        )
+        .await?;
         Ok(self.chat_handler.autonomous_respond(&context).await?)
     }
 
