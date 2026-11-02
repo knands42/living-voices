@@ -1,23 +1,25 @@
 # -------------------- comfy (audio) -------------------- #
 # ComfyUI audio models setup.
-# Models: ACE-Step (music, native) + F5-TTS (character speech, voice clone)
+# Models: ACE-Step 1.5 XL (music, native) + F5-TTS (character speech, voice clone)
 
-# ACE-Step v1 3.5B all-in-one checkpoint (model + encoders bundled).
-ace_url := "https://huggingface.co/Comfy-Org/ACE-Step_ComfyUI_repackaged/resolve/main/all_in_one/ace_step_v1_3.5b.safetensors"
+# ACE-Step 1.5 XL (4B DiT, commercial-grade) — split files, offloads to RAM.
+ace15_base := "https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files/diffusion_models/acestep_v1.5_xl_base_bf16.safetensors"
+ace15_clip := "https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files/text_encoders/qwen_1.7b_ace15.safetensors"
+ace15_vae := "https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files/vae/ace_1.5_vae.safetensors"
 
-# download the ACE-Step checkpoint (skip if present)
-audio-model-ace:
-    test -f {{ comfy_ws }}/models/checkpoints/$(basename {{ ace_url }}) && echo "ACE-Step already present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ ace_url }} --relative-path models/checkpoints
+# download ACE-Step 1.5 XL: 4B diffusion model + 1.7B planner encoder + VAE
+audio-model-ace15xl:
+    test -f {{ comfy_ws }}/models/diffusion_models/$(basename {{ ace15_base }}) && echo "ACE 1.5 XL base present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ ace15_base }} --relative-path models/diffusion_models
+    test -f {{ comfy_ws }}/models/text_encoders/$(basename {{ ace15_clip }}) && echo "ACE 1.5 encoder present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ ace15_clip }} --relative-path models/text_encoders
+    test -f {{ comfy_ws }}/models/vae/$(basename {{ ace15_vae }}) && echo "ACE 1.5 VAE present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ ace15_vae }} --relative-path models/vae
 
-# queue an ACE-Step instrumental workflow (empty lyrics = background music)
 audio-music-test workflow="tests/ai/audio-example-ace.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
     @echo "Output will be generated at $HOME/.living-voices/comfy/ComfyUI/output"
 
-# queue an ACE-Step SONG workflow (lyrics + vocal tags = sung track)
-audio-song-test workflow="tests/ai/audio-example-ace-song.json":
+audio-song-test workflow="tests/ai/audio-example-ace15xl-song.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
@@ -65,4 +67,4 @@ audio-index-test workflow="tests/ai/audio-example-index.json":
     @echo "Output will be generated at $HOME/.living-voices/comfy/ComfyUI/output"
 
 
-audio-model-all: audio-index-model audio-model-ace audio-index-node
+audio-model-all: audio-index-model audio-model-ace15xl audio-index-node

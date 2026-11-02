@@ -126,7 +126,7 @@ No vibecoding, any bug this project has, it's entirely my fault. AI is used deli
 - Troubleshooting (tons of UI wiring and state management on both SLintUI and RatatUI)
 - Writing/Improving tests
 - UI layouts
-- Boilerplate
+- Boilerplate (specially AI integrations)
 
 ## Status
 

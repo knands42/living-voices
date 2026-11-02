@@ -2,15 +2,13 @@
 
 ## Media generation (via ComfyUI)
 
-Priority: video first, audio later.
-
-| model      | use                             | ComfyUI support               | ease   | notes                                                               |
-|------------|---------------------------------|-------------------------------|--------|---------------------------------------------------------------------|
-| Wan 2.1    | video (3s loop)                 | native                        | easy   | heaviest / slowest on 8GB; on-command only                          |
-| MMAudio    | video sound                     | custom node                   | medium | takes a video as input                                              |
-| F5-TTS     | character speech (first choice) | custom node (TTS-Audio-Suite) | medium | TTS: text -> spoken voice; lighter, main env, voice cloning         |
-| IndexTTS-2 | character speech (fallback)     | custom node (TTS-Audio-Suite) | medium | richer emotion, but cannot offload properly, needs more VRAM        |
-| ACE-Step   | background music (optional)     | native                        | easy   | music gen: empty lyrics = instrumental; lyrics = sung, not dialogue |
+| model         | use                             | ComfyUI support               | notes                                                               |
+|---------------|---------------------------------|-------------------------------|---------------------------------------------------------------------|
+| Wan 2.1       | video (3s loop)                 | native                        | heaviest / slowest on 8GB; on-command only                          |
+| MMAudio       | video sound                     | custom node                   | takes a video as input                                              |
+| F5-TTS        | character speech (first choice) | custom node (TTS-Audio-Suite) | TTS: text -> spoken voice; lighter, main env, voice cloning         |
+| IndexTTS-2    | character speech (fallback)     | custom node (TTS-Audio-Suite) | richer emotion, but cannot offload properly, needs more VRAM        |
+| ACE-Step 15xl | background music (optional)     | native                        | music gen: empty lyrics = instrumental; lyrics = sung, not dialogue |
 
 ## Features
 
