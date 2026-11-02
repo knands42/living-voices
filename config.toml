@@ -25,7 +25,6 @@ keep_alive = "0"
 backend = "comfyui"
 base_url = "http://localhost:8188"
 workflow = "scene.json"
-civitai_token = ""            # CivitAI API token for DreamShaper / Juggernaut downloads; empty = none (HF models need no token)
 
 [memory]
 compress_after_threshold = 70

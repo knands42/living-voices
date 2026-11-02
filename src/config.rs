@@ -157,7 +157,6 @@ pub struct ImageModel {
     pub backend: String,
     pub base_url: String,
     pub workflow: String,
-    pub civitai_token: String,
 }
 
 impl Default for ImageModel {
@@ -166,7 +165,6 @@ impl Default for ImageModel {
             backend: "comfyui".to_string(),
             base_url: DEFAULT_IMAGE_MODEL_URL.to_string(),
             workflow: String::new(),
-            civitai_token: String::new(),
         }
     }
 }
