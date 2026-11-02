@@ -19,3 +19,6 @@ video-test workflow="tests/ai/video-example-wan.json":
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
     @echo "Output will be generated at $HOME/.living-voices/comfy/ComfyUI/output"
+
+
+video-model-all: video-model-wan

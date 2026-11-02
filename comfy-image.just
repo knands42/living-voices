@@ -2,14 +2,6 @@
 # ComfyUI image models setup.
 # Models: Flux.1 [dev] (Q4/Q8), Chroma, Qwen-Image — all GGUF, token-free.
 
-comfy_home := env_var_or_default("COMFY_HOME", env_var("HOME") / ".living-voices" / "comfy")
-comfy_venv := comfy_home / "venv"
-comfy_ws := comfy_home / "ComfyUI"
-comfy_bin := comfy_venv / "bin" / "comfy"
-comfy_host := "127.0.0.1"
-comfy_port := "8188"
-comfy_url := "http://" + comfy_host + ":" + comfy_port
-
 # Flux.1 [dev] GGUF — top quality, slower. Q4 fits VRAM; Q8 offloads to RAM.
 # Needs the ComfyUI-GGUF custom node + T5/CLIP encoders + VAE (all token-free).
 flux_q4_url := "https://huggingface.co/city96/FLUX.1-dev-gguf/resolve/main/flux1-dev-Q4_K_S.gguf"
@@ -24,13 +16,6 @@ chroma_url := "https://huggingface.co/silveroxides/Chroma-GGUF/resolve/main/chro
 qwen_url := "https://huggingface.co/city96/Qwen-Image-gguf/resolve/main/qwen-image-Q4_K_S.gguf"
 qwen_vae_url := "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors"
 qwen_clip_url := "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"
-
-image-requirements:
-    python3 -m venv {{ comfy_venv }}
-    {{ comfy_venv }}/bin/pip install --upgrade pip comfy-cli
-    {{ comfy_bin }} --workspace {{ comfy_ws }} install --skip-prompt
-    {{ comfy_venv }}/bin/pip install -r {{ comfy_ws }}/requirements.txt
-    @echo "ComfyUI installed at {{ comfy_ws }}"
 
 # install the ComfyUI-GGUF custom node (needed for every GGUF loader)
 image-flux-node:

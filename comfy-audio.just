@@ -1,7 +1,6 @@
 # -------------------- comfy (audio) -------------------- #
 # ComfyUI audio models setup.
-# Models: ACE-Step music generation (native in ComfyUI)
-# F5-TTS for voice cloning + sentiment
+# Models: ACE-Step (music, native) + F5-TTS (character speech, voice clone)
 
 # ACE-Step v1 3.5B all-in-one checkpoint (model + encoders bundled).
 ace_url := "https://huggingface.co/Comfy-Org/ACE-Step_ComfyUI_repackaged/resolve/main/all_in_one/ace_step_v1_3.5b.safetensors"
@@ -36,21 +35,27 @@ audio-tts-test workflow="tests/ai/audio-example-f5tts.json":
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
     @echo "Output will be generated at $HOME/.living-voices/comfy/ComfyUI/output"
 
-# ---- Higgs Audio v2 (character speech, tag-based emotion) ----
-# Via the TTS-Audio-Suite multi-engine node. Heavier than F5 (3B, ~8GB VRAM)
-# and a fragile stack: the suite runs it in an isolated worker. Models
-# auto-download to ComfyUI/models/TTS/ on first render.
-tts_suite := comfy_ws / "custom_nodes" / "TTS-Audio-Suite"
+# ---- IndexTTS-2 (character speech, emotion control) ----
+# One voice clip -> 8 emotion dials + emotion-from-text.
+index_node := comfy_ws / "custom_nodes" / "ComfyUI-IndexTTS2"
 
-# install the TTS-Audio-Suite node (provides Higgs Audio 2, also F5 and others)
-audio-higgs-node:
-    test -d {{ tts_suite }} && echo "TTS-Audio-Suite already present" || git clone --depth 1 https://github.com/diodiogod/TTS-Audio-Suite {{ tts_suite }}
-    {{ comfy_venv }}/bin/pip install -r {{ tts_suite }}/requirements.txt
+# install the IndexTTS-2 node (clone + requirements; pynini builds on 3.12)
+audio-index-node:
+    test -d {{ index_node }} && echo "IndexTTS-2 node already present" || git clone --depth 1 https://github.com/snicolast/ComfyUI-IndexTTS2 {{ index_node }}
+    {{ comfy_venv }}/bin/pip install -r {{ index_node }}/requirements.txt
 
-# queue a Higgs Audio v2 speech workflow (reference voice in ComfyUI/input/)
-audio-higgs-test workflow="tests/ai/audio-example-higgs.json":
+# download the IndexTTS-2 release (~8GB) incl. QwenEmotion into checkpoints/
+# (needed before first render; the emotion-from-text node needs QwenEmotion)
+audio-index-model:
+    test -d {{ index_node }}/checkpoints/qwen0.6bemo4-merge && echo "IndexTTS-2 models already present" || env GIT_LFS_SKIP_SMUDGE=0 {{ comfy_venv }}/bin/hf download IndexTeam/IndexTTS-2 --local-dir {{ index_node }}/checkpoints
+
+# queue an IndexTTS-2 speech workflow (reference voice in ComfyUI/input/)
+audio-index-test workflow="tests/ai/audio-example-index.json":
     cp tests/ai/audio.wav tests/ai/audio.txt {{ comfy_ws }}/input/
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
     @echo "Output will be generated at $HOME/.living-voices/comfy/ComfyUI/output"
+
+
+audio-model-all: audio-index-model audio-model-ace audio-index-node

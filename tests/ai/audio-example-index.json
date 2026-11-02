@@ -1,0 +1,39 @@
+{
+  "1": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "audio.wav"
+    }
+  },
+  "2": {
+    "class_type": "IndexTTS2EmotionVector",
+    "inputs": {
+      "happy": 0.0,
+      "angry": 0.6,
+      "sad": 0.0,
+      "afraid": 0.3,
+      "disgusted": 0.0,
+      "melancholic": 0.0,
+      "surprised": 0.0,
+      "calm": 0.0
+    }
+  },
+  "3": {
+    "class_type": "IndexTTS2Simple",
+    "inputs": {
+      "audio": ["1", 0],
+      "text": "The gate will not open for us again. Not tonight, not with that horn still ringing.",
+      "emotion_control_weight": 1.0,
+      "emotion_vector": ["2", 0],
+      "use_fp16": true
+    }
+  },
+  "4": {
+    "class_type": "IndexTTS2SaveAudio",
+    "inputs": {
+      "audio": ["3", 0],
+      "name": "living_voices_test_index",
+      "format": "wav"
+    }
+  }
+}

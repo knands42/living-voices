@@ -70,7 +70,7 @@ just chat-requirements
 
 ### Installation of ComfyUI for image generation
 ```bash
-just image-requirements
+just comfy-requirements
 ```
 
 ### Execute the App
@@ -88,6 +88,30 @@ just run-debug
 | `*physical action*` | action (third person, present tense) | everyone present |
 | `((private thought))` | thought | no one |
 | `(whisper to <name>) "..."` | whisper | only that character |
+
+## Advanced Steps
+
+### Load Comfy UI 
+```shell
+just comfy-up
+# or
+COMFY_EXTRA=--lowvram just comfy-up
+```
+
+### Load image models
+```shell
+just image-models-all
+```
+
+### Load video models
+```shell
+just video-model-all
+```
+
+### Load Audio models
+```shell
+just audio-model-all
+```
 
 ## Non-goals
 

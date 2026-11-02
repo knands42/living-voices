@@ -70,6 +70,23 @@ chat-test:
         --data-binary @./tests/ai/chat-example.json | jq -r .choices[0].message.content
 
 # -------------------- comfy (image/video/audio) -------------------- #
+comfy_python := env_var_or_default("COMFY_PYTHON", "python3.12")
+comfy_home := env_var_or_default("COMFY_HOME", env_var("HOME") / ".living-voices" / "comfy")
+comfy_venv := comfy_home / "venv"
+comfy_ws := comfy_home / "ComfyUI"
+comfy_bin := comfy_venv / "bin" / "comfy"
+comfy_host := "127.0.0.1"
+comfy_port := "8188"
+comfy_url := "http://" + comfy_host + ":" + comfy_port
+
+comfy-requirements:
+    {{ comfy_python }} -m venv {{ comfy_venv }}
+    {{ comfy_venv }}/bin/pip install --upgrade pip comfy-cli
+    {{ comfy_bin }} --workspace {{ comfy_ws }} install --nvidia --restore
+    {{ comfy_venv }}/bin/pip install -r {{ comfy_ws }}/requirements.txt
+    {{ comfy_venv }}/bin/pip install torch torchvision torchaudio comfy_aimdo comfy_kitchen
+    @echo "ComfyUI installed at {{ comfy_ws }} ($({{ comfy_venv }}/bin/python --version))"
+
 comfy-wait:
     until curl -sf {{ comfy_url }}/system_stats > /dev/null 2>&1; do sleep 1; done
     @echo "ComfyUI is up at {{ comfy_url }}"
@@ -79,7 +96,7 @@ comfy-down:
     @echo "ComfyUI stopped"
 
 comfy-start:
-    cd {{ comfy_ws }} && setsid {{ comfy_venv }}/bin/python main.py --listen {{ comfy_host }} --port {{ comfy_port }} --disable-auto-launch > {{ comfy_home }}/comfyui.log 2>&1 < /dev/null &
+    cd {{ comfy_ws }} && setsid {{ comfy_venv }}/bin/python main.py --listen {{ comfy_host }} --port {{ comfy_port }} --disable-auto-launch {{ env_var_or_default("COMFY_EXTRA", "") }} > {{ comfy_home }}/comfyui.log 2>&1 < /dev/null &
     @echo "ComfyUI starting on {{ comfy_url }} (log: {{ comfy_home }}/comfyui.log)"
 
 comfy-up: comfy-down comfy-start comfy-wait
