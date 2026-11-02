@@ -8,7 +8,9 @@ use living_voices::backend::application::port::chat_port::{
     ChatResponseError, PromptHandler, PromptTurn,
 };
 use living_voices::backend::application::state::SharedState;
+use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::{Character, CharacterStatus};
+use living_voices::backend::domain::message::Message;
 
 pub struct StubPromptHandler;
 
@@ -56,13 +58,6 @@ impl CharacterSpec {
             is_player: false,
         }
     }
-
-    pub fn player(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            is_player: true,
-        }
-    }
 }
 
 impl From<&str> for CharacterSpec {
@@ -107,30 +102,47 @@ pub async fn create_characters(
     characters
 }
 
-/// Seed raw messages via persistence; MessageManager::send_message always calls the model.
-pub async fn create_messages(
+pub async fn seed_messages(
     pool: &SqlitePool,
     adventure_id: Uuid,
-    authors: &[Option<Uuid>],
-) -> Vec<u16> {
+    characters: &[Character],
+    count: usize,
+) {
+    let cap = characters.len();
+    for _ in 0..count {
+        let roll = rand::random::<u8>() as usize;
+        seed_message(
+            &pool,
+            adventure_id,
+            characters[roll % cap].id,
+            &characters[roll % cap].name,
+        )
+        .await;
+    }
+}
+
+/// Seed raw messages via persistence; MessageManager::send_message always calls the model.
+pub async fn seed_message(
+    pool: &SqlitePool,
+    adventure_id: Uuid,
+    character_id: Uuid,
+    character_name: &str,
+) -> Message {
     use living_voices::backend::domain::message::Message;
     use living_voices::backend::persistence::message_persistence::insert_message;
 
     let mut conn = pool.acquire().await.expect("acquire");
-    let mut seqs = Vec::with_capacity(authors.len());
-    for (i, author) in authors.iter().enumerate() {
-        let message = Message::new(
-            adventure_id,
-            *author,
-            None,
-            format!("Speaker {i}"),
-            format!("line {i}"),
-            false,
-        );
-        let stored = insert_message(&mut conn, &message)
-            .await
-            .expect("insert message");
-        seqs.push(stored.seq.expect("assigned seq"));
-    }
-    seqs
+    let message = Message::new(
+        adventure_id,
+        Some(character_id),
+        None,
+        character_name.into(),
+        "Lorem Ipsum".to_string(),
+        false,
+    );
+    let stored = insert_message(&mut conn, &message)
+        .await
+        .expect("insert message");
+
+    stored
 }

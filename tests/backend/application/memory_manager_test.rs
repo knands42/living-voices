@@ -2,7 +2,7 @@ use sqlx::sqlite::SqlitePool;
 use sqlx::{Row, query, query_scalar};
 use uuid::Uuid;
 
-use crate::backend::application::helper::{create_messages, setup_db};
+use crate::backend::application::helper::{seed_messages, setup_db};
 use living_voices::ai::{ActClose, MemoryUpdate};
 use living_voices::backend::application::adventure_manager::AdventureManager;
 
@@ -33,11 +33,6 @@ async fn load_manager(
     pool: &SqlitePool,
 ) -> MemoryManager<MemoryUpdate, ActClose> {
     MemoryManager::new(state.clone(), pool.clone(), distiller(), closer())
-}
-
-async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: u16) -> Vec<u16> {
-    let authors = vec![None; count as usize];
-    create_messages(pool, adventure_id, &authors).await
 }
 
 async fn seed_unstarted_act(pool: &SqlitePool, adventure_id: Uuid, ordinal: u16) -> Uuid {

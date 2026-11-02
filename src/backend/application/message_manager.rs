@@ -100,7 +100,7 @@ impl<
             fetch_last_n(&mut conn, adventure.id, AUTONOMOUS_HISTORY_WINDOW).await?;
 
         let chat_reply = self
-            .send(
+            .send_to_handler(
                 &mut conn,
                 &adventure,
                 &incoming,
@@ -116,7 +116,9 @@ impl<
 
         {
             let mut guard = self.state.write()?;
-            guard.current_messages.remove(0);
+            if guard.current_messages.len() > 0 {
+                guard.current_messages.remove(0);
+            }
             guard.current_messages.push(stored_reply.clone());
         }
 
@@ -143,7 +145,7 @@ impl<
         Ok(stored)
     }
 
-    async fn send(
+    async fn send_to_handler(
         &self,
         conn: &mut SqliteConnection,
         adventure: &Adventure,
