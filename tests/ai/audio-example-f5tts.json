@@ -2,7 +2,7 @@
   "1": {
     "class_type": "F5TTSAudio",
     "inputs": {
-      "sample": "F5TTS_test_en_1_ref_short.wav",
+      "sample": "audio.wav",
       "speech": "The gate will not open for us again. Not tonight, not with that horn still ringing.",
       "seed": 42,
       "model": "F5v1",

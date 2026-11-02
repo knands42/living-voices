@@ -30,7 +30,26 @@ audio-f5-node:
 
 # queue an F5-TTS speech workflow
 audio-tts-test workflow="tests/ai/audio-example-f5tts.json":
-    # TODO: cp the F5TTS_test_en_1_ref_short.* files into comfyui input
+    cp tests/ai/audio.wav tests/ai/audio.txt {{ comfy_ws }}/input/
+    curl -s -X POST {{ comfy_url }}/prompt \
+        -H 'Content-Type: application/json' \
+        -d "$(jq -c '{prompt: .}' {{ workflow }})"
+    @echo "Output will be generated at $HOME/.living-voices/comfy/ComfyUI/output"
+
+# ---- Higgs Audio v2 (character speech, tag-based emotion) ----
+# Via the TTS-Audio-Suite multi-engine node. Heavier than F5 (3B, ~8GB VRAM)
+# and a fragile stack: the suite runs it in an isolated worker. Models
+# auto-download to ComfyUI/models/TTS/ on first render.
+tts_suite := comfy_ws / "custom_nodes" / "TTS-Audio-Suite"
+
+# install the TTS-Audio-Suite node (provides Higgs Audio 2, also F5 and others)
+audio-higgs-node:
+    test -d {{ tts_suite }} && echo "TTS-Audio-Suite already present" || git clone --depth 1 https://github.com/diodiogod/TTS-Audio-Suite {{ tts_suite }}
+    {{ comfy_venv }}/bin/pip install -r {{ tts_suite }}/requirements.txt
+
+# queue a Higgs Audio v2 speech workflow (reference voice in ComfyUI/input/)
+audio-higgs-test workflow="tests/ai/audio-example-higgs.json":
+    cp tests/ai/audio.wav tests/ai/audio.txt {{ comfy_ws }}/input/
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"

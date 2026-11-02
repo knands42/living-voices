@@ -1,0 +1,41 @@
+{
+  "1": {
+    "class_type": "HiggsAudioEngineNode",
+    "inputs": {
+      "model": "higgs-audio-v2-3B",
+      "device": "auto",
+      "multi_speaker_mode": "Custom Character Switching",
+      "system_prompt": "Generate dramatic, emotional speech.",
+      "temperature": 0.8,
+      "top_p": 0.6,
+      "top_k": 80,
+      "max_new_tokens": 2048,
+      "force_audio_gen": false,
+      "ras_win_len": 7,
+      "ras_max_num_repeat": 2
+    }
+  },
+  "4": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "audio.wav"
+    }
+  },
+  "2": {
+    "class_type": "UnifiedTTSTextNode",
+    "inputs": {
+      "TTS_engine": ["1", 0],
+      "text": "The gate will not open for us again. Not tonight, not with that horn still ringing.",
+      "narrator_voice": "none",
+      "seed": 42,
+      "opt_narrator": ["4", 0]
+    }
+  },
+  "3": {
+    "class_type": "SaveAudio",
+    "inputs": {
+      "filename_prefix": "living_voices_test_higgs",
+      "audio": ["2", 0]
+    }
+  }
+}
