@@ -13,9 +13,18 @@ use crate::backend::persistence::fact_persistence::get_facts;
 use crate::backend::persistence::message_persistence::fetch_last_n;
 use crate::backend::persistence::state_persistence::get_state;
 use sqlx::SqliteConnection;
+use thiserror::Error;
 use uuid::Uuid;
 
 pub struct ContextBuilder;
+
+#[derive(Error, Debug)]
+pub enum ContextBuilderError {
+    #[error("Database error: {0}")]
+    DatabaseError(#[from] PersistenceError),
+    #[error("Missing appearance description")]
+    MissingAppearanceDescription,
+}
 
 // ----------------------------------------------------------------------------
 // Shared assembly internals, used by both chat_context and image_context.

@@ -3,8 +3,8 @@ use sqlx::sqlite::SqlitePool;
 use uuid::Uuid;
 
 use crate::backend::application::helper::{create_messages, setup_db};
-use living_voices::ai::integrations::chat::Chat;
-use living_voices::ai::integrations::narrator::Narrator;
+use living_voices::ai::integrations::text::chat::Chat;
+use living_voices::ai::integrations::text::narrator::Narrator;
 use living_voices::ai::{ActClose, MemoryUpdate};
 use living_voices::backend::application::adventure_manager::AdventureManager;
 

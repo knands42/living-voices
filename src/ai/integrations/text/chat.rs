@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::ai::{
-    open_api_client::{JsonSchema, OpenAiCompatibleClient, ResponseFormat},
-    types::ChatMessage,
+use crate::ai::integrations::text::open_api_client::{
+    JsonSchema, OpenAiCompatibleClient, ResponseFormat,
 };
+use crate::ai::types::ChatMessage;
 use crate::backend::application::port::chat_port::{
     ChatHandler, ChatReply, ChatResponseError, PromptTurn,
 };

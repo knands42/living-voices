@@ -1,4 +1,4 @@
-use living_voices::ai::integrations::memory::{MemoryUpdate, Permanence};
+use living_voices::ai::integrations::text::memory::{MemoryUpdate, Permanence};
 
 #[test]
 fn parses_the_schema_shaped_object() {

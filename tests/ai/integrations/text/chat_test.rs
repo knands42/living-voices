@@ -1,4 +1,4 @@
-use living_voices::ai::integrations::chat::Chat;
+use living_voices::ai::integrations::text::chat::Chat;
 use living_voices::backend::application::port::chat_port::{ChatHandler, PromptTurn};
 use living_voices::config::TextModel;
 

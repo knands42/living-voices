@@ -4,8 +4,8 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-use crate::ai::integrations::chat::Chat;
-use crate::ai::integrations::narrator::Narrator;
+use crate::ai::integrations::text::chat::Chat;
+use crate::ai::integrations::text::narrator::Narrator;
 use crate::ai::{ActClose, MemoryUpdate};
 use crate::app::AppContext;
 use crate::backend::domain::adventure::Adventure;

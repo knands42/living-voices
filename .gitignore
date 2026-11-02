@@ -3,3 +3,4 @@
 .idea/
 *.db*
 .kiro/
+config-local.toml
