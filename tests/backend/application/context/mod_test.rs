@@ -28,7 +28,7 @@ async fn setup_adventure(
         .await
         .expect("create adventure");
     let adventure_id = adventure.id;
-    mgr.start_adventure(adventure.clone())
+    mgr.start_adventure(adventure.id)
         .await
         .expect("start adventure");
 

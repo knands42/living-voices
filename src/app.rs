@@ -96,7 +96,7 @@ impl<
         &self,
         adventure: crate::backend::domain::adventure::Adventure,
     ) -> Result<(), crate::backend::application::adventure_manager::AdventureManagerError> {
-        self.ctx.adventures.start_adventure(adventure).await?;
+        self.ctx.adventures.start_adventure(adventure.id).await?;
 
         Ok(())
     }

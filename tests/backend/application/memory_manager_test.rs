@@ -2,7 +2,9 @@ use sqlx::sqlite::SqlitePool;
 use sqlx::{Row, query, query_scalar};
 use uuid::Uuid;
 
-use crate::backend::application::helper::{seed_messages, setup_db};
+use crate::backend::application::helper::{
+    CONVERSATION, seed_conversation, setup_db, start_adventure_with_default_cast,
+};
 use living_voices::ai::{ActClose, MemoryUpdate};
 use living_voices::backend::application::adventure_manager::AdventureManager;
 
@@ -24,11 +26,12 @@ fn memory_model() -> TextModel {
 fn distiller() -> MemoryUpdate {
     MemoryUpdate::new(memory_model())
 }
+
 fn closer() -> ActClose {
     ActClose::new(memory_model())
 }
 
-async fn load_manager(
+async fn create_load_manager(
     state: &SharedState,
     pool: &SqlitePool,
 ) -> MemoryManager<MemoryUpdate, ActClose> {
@@ -90,6 +93,7 @@ async fn compress_is_a_noop_without_a_current_adventure() {
 #[tokio::test]
 async fn compress_is_a_noop_without_an_active_act() {
     // given: an adventure with messages but no active act (not started)
+    // built inline, not via the shared helper, because that one starts the act
     let (pool, _db) = setup_db().await;
     let state = SharedState::new();
     let mgr = AdventureManager::new(state.clone(), pool.clone());
@@ -102,8 +106,8 @@ async fn compress_is_a_noop_without_an_active_act() {
         .await
         .expect("create adventure");
     // Intentionally NOT calling start_adventure — no active act
-    seed_messages(&pool, adventure.id, 2).await;
-    let manager = load_manager(&state, &pool).await;
+    seed_conversation(&pool, &adventure, CONVERSATION, 2).await;
+    let manager = create_load_manager(&state, &pool).await;
 
     // when: compressing
     let result = manager.compress_and_update().await;
@@ -118,20 +122,10 @@ async fn compress_is_a_noop_when_every_message_is_already_covered() {
     // given: two messages whose seqs are already below the act watermark
     let (pool, _db) = setup_db().await;
     let state = SharedState::new();
-    let mgr = AdventureManager::new(state.clone(), pool.clone());
-    let adventure = mgr
-        .create_adventure(
-            "Test adventure".into(),
-            "A drowned city".into(),
-            "tense".into(),
-        )
-        .await
-        .expect("create adventure");
-    mgr.start_adventure(adventure.clone())
-        .await
-        .expect("start adventure");
+    let mgr = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = mgr.current_adventure().expect("current adventure");
 
-    let seqs = seed_messages(&pool, adventure.id, 2).await;
+    let seqs = seed_conversation(&pool, &adventure, CONVERSATION, 2).await;
     let watermark = *seqs.last().expect("last");
 
     // Set the active act's digest_to_seq so all messages are already covered
@@ -146,7 +140,7 @@ async fn compress_is_a_noop_when_every_message_is_already_covered() {
     drop(conn);
     let act_id = active_act.id;
 
-    let manager = load_manager(&state, &pool).await;
+    let manager = create_load_manager(&state, &pool).await;
 
     // when: compressing
     let result = manager.compress_and_update().await;
@@ -165,20 +159,10 @@ async fn compress_distills_the_uncovered_tail_persists_memory_and_advances_the_w
     // given: three messages with the first already covered, so only seqs 2-3 distill
     let (pool, _db) = setup_db().await;
     let state = SharedState::new();
-    let mgr = AdventureManager::new(state.clone(), pool.clone());
-    let adventure = mgr
-        .create_adventure(
-            "Test adventure".into(),
-            "A drowned city".into(),
-            "tense".into(),
-        )
-        .await
-        .expect("create adventure");
-    mgr.start_adventure(adventure.clone())
-        .await
-        .expect("start adventure");
+    let mgr = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = mgr.current_adventure().expect("current adventure");
 
-    let seqs = seed_messages(&pool, adventure.id, 3).await;
+    let seqs = seed_conversation(&pool, &adventure, CONVERSATION, 3).await;
 
     // Set the act's digest_to_seq so the first message is already covered
     let mut conn = pool.acquire().await.expect("acquire");
@@ -192,7 +176,7 @@ async fn compress_distills_the_uncovered_tail_persists_memory_and_advances_the_w
     drop(conn);
     let act_id = active_act.id;
 
-    let manager = load_manager(&state, &pool).await;
+    let manager = create_load_manager(&state, &pool).await;
 
     // when: compressing through the real memory model
     manager
@@ -263,22 +247,12 @@ async fn close_current_act_closes_the_act_and_activates_the_next_one() {
     // given: an active act with messages and an unstarted act waiting next
     let (pool, _db) = setup_db().await;
     let state = SharedState::new();
-    let mgr = AdventureManager::new(state.clone(), pool.clone());
-    let adventure = mgr
-        .create_adventure(
-            "Test adventure".into(),
-            "A drowned city".into(),
-            "tense".into(),
-        )
-        .await
-        .expect("create adventure");
-    mgr.start_adventure(adventure.clone())
-        .await
-        .expect("start adventure");
+    let mgr = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = mgr.current_adventure().expect("current adventure");
 
-    let seqs = seed_messages(&pool, adventure.id, 2).await;
+    let seqs = seed_conversation(&pool, &adventure, CONVERSATION, 2).await;
     let next_act_id = seed_unstarted_act(&pool, adventure.id, 2).await;
-    let manager = load_manager(&state, &pool).await;
+    let manager = create_load_manager(&state, &pool).await;
 
     let mut conn = pool.acquire().await.expect("acquire");
     let act = get_active_act(&mut conn, adventure.id)

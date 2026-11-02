@@ -1,20 +1,19 @@
-use sqlx::query_scalar;
 use sqlx::sqlite::SqlitePool;
+use sqlx::{Row, query_scalar};
 use uuid::Uuid;
 
-use crate::backend::application::helper::{seed_message, seed_messages, setup_db};
+use crate::backend::application::helper::{
+    CONVERSATION, seed_conversation, setup_db, start_adventure_with_default_cast,
+};
 use living_voices::ai::integrations::text::chat::Chat;
 use living_voices::ai::integrations::text::narrator::Narrator;
 use living_voices::ai::{ActClose, MemoryUpdate};
-use living_voices::backend::application::adventure_manager::AdventureManager;
-
-use living_voices::backend::application::character_manager::CharacterManager;
 use living_voices::backend::application::director::Director;
 use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::message_manager::MessageManager;
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
-use living_voices::backend::domain::character::{Character, CharacterStatus};
+use living_voices::backend::domain::character::Character;
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::act_persistence::get_active_act;
 use living_voices::config::{
@@ -85,8 +84,8 @@ fn director_pick_autonomous() -> Director {
         narrator_change_if_ooc: 0.0,
         act_max_messages: 10_000,
         narrator_pick_chance_after_message_threshold_range: MessageThresholdRange {
-            min: 0,
-            max: 0,
+            min: 255,
+            max: 255,
         },
     })
 }
@@ -104,52 +103,6 @@ fn director_transition_act() -> Director {
 }
 
 // ---------------------------------------------------------------- fixtures
-
-async fn setup_new_adventure(
-    pool: &SqlitePool,
-    characters: &[&str],
-) -> (SharedState, AdventureManager) {
-    let state = SharedState::new();
-    let adventure_mgr = AdventureManager::new(state.clone(), pool.clone());
-    let adventure = adventure_mgr
-        .create_adventure(
-            "Test adventure".into(),
-            "A drowned city".into(),
-            "tense".into(),
-        )
-        .await
-        .expect("create adventure");
-
-    // Seed any additional NPCs beyond the default player character
-    let character_mgr = CharacterManager::new(state.clone(), pool.clone(), chat_handler());
-    if !characters.is_empty() {
-        let characters_mapped = characters.iter().map(|char_name| {
-            Character::new(
-                Uuid::new_v4(),
-                (*char_name).into(),
-                adventure.id,
-                format!("Character {} headline", *char_name).as_str(),
-                format!("Character {} backstory", *char_name).as_str(),
-                CharacterStatus::Present,
-                false,
-            )
-        });
-
-        for character in characters_mapped {
-            character_mgr
-                .create_character(character.clone())
-                .await
-                .expect("create character");
-        }
-    }
-
-    adventure_mgr
-        .start_adventure(adventure.clone())
-        .await
-        .expect("start adventure");
-
-    (state, adventure_mgr)
-}
 
 fn player_character(adventure: &Adventure) -> &Character {
     adventure
@@ -190,8 +143,8 @@ fn player_line(adventure: &Adventure, text: &str) -> Message {
 }
 
 async fn check_digest_checkpoint(pool: &SqlitePool, act_id: Uuid) -> bool {
-    for _ in 0..20 {
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    for _ in 0..60 {
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         let mut conn = pool.acquire().await.expect("acquire");
         let watermark: Option<i64> = query_scalar("SELECT digest_to_seq FROM act WHERE id = ?1")
             .bind(act_id.to_string())
@@ -215,17 +168,25 @@ async fn fact_count(pool: &SqlitePool, act_id: Uuid) -> u16 {
 }
 
 /// The `to_seq` of the most recent terminal act, or `None` if none closed.
-async fn closed_act_to_seq(pool: &SqlitePool, adventure_id: Uuid) -> Option<i64> {
+async fn check_closed_act(pool: &SqlitePool, adventure_id: Uuid, act_id: Uuid) -> Option<i64> {
     let mut conn = pool.acquire().await.expect("acquire");
-    query_scalar(
-        "SELECT to_seq FROM act
-         WHERE adventure_id = ?1 AND status IN ('resolved', 'failed', 'bypassed')
+    let row = sqlx::query(
+        "SELECT digest, to_seq, status FROM act
+         WHERE adventure_id = ?1 AND id = ?2
          ORDER BY ordinal DESC LIMIT 1",
     )
     .bind(adventure_id.to_string())
+    .bind(act_id.to_string())
     .fetch_optional(&mut *conn)
     .await
-    .expect("read closed act")
+    .expect("closed act")
+    .expect("digest and to_seq to be available");
+
+    assert!(row.get::<i64, _>("to_seq") > 0);
+    assert!(row.get::<String, _>("digest").is_empty());
+    assert_ne!(row.get::<String, _>("status"), "active");
+
+    row.get("to_seq")
 }
 
 async fn message_is_narrator(pool: &SqlitePool, adventure_id: Uuid, seq: i64) -> bool {
@@ -244,30 +205,58 @@ async fn message_is_narrator(pool: &SqlitePool, adventure_id: Uuid, seq: i64) ->
 
 #[tokio::test]
 #[ignore = "requires a running Ollama server"]
-async fn full_pipeline_sends_a_turn_and_triggers_an_act_closure() {}
+async fn full_pipeline_sends_a_turn_and_triggers_an_act_closure() {
+    // given: an act sat at its message cap, one turn away from transitioning
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
+    let memory_config = memory_high_distiller_trigger();
+    let manager = setup_message_manager(&state, &pool, &director_transition_act(), &memory_config);
+
+    let adventure = adventure_manager.current_adventure().unwrap();
+    seed_conversation(&pool, &adventure, CONVERSATION, CONVERSATION.len()).await;
+
+    // when: the player sends the turn that crosses the act cap
+    let message_to_send = player_line(&adventure, "What now?");
+    let reply = manager
+        .send_message(message_to_send)
+        .await
+        .expect("send succeeds");
+
+    // then: the reply is persisted
+    assert!(reply.seq.is_some());
+
+    // and: the current act closes
+    let closed_to_seq = check_closed_act(
+        &pool,
+        adventure.id,
+        adventure_manager.current_snapshot().current_act.unwrap().id,
+    )
+    .await
+    .expect("an act should have closed");
+
+    // and: the closing narration is persisted at the act boundary
+    assert!(
+        message_is_narrator(&pool, adventure.id, closed_to_seq).await,
+        "the act boundary message should be narration"
+    );
+}
 
 #[tokio::test]
 #[ignore = "requires a running Ollama server"]
 async fn full_pipeline_sends_a_turn_and_triggers_background_distillation() {
     // given: an act preloaded to the compression threshold, one more turn away
     let (pool, _db) = setup_db().await;
-    let (state, adventure_manager) = setup_new_adventure(&pool, &["Mira"]).await;
+    let state = SharedState::new();
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
     let memory_config = memory_low_distiller_trigger();
     let manager = setup_message_manager(&state, &pool, &director_pick_autonomous(), &memory_config);
 
     let adventure = adventure_manager.current_adventure().unwrap();
     let threshold = memory_config.compress_after_threshold as usize;
-    let characters = adventure.characters.clone();
-    let mira_character = characters.iter().find(|c| c.name == "Mira").unwrap();
-    let player_character = characters.iter().find(|c| c.is_player).unwrap();
 
-    seed_messages(
-        &pool,
-        adventure.id,
-        &[mira_character.clone(), player_character.clone()],
-        threshold,
-    )
-    .await;
+    // seed a real exchange up to the compression threshold
+    seed_conversation(&pool, &adventure, CONVERSATION, threshold).await;
 
     // Get the active act
     let mut conn = pool.acquire().await.expect("acquire");
@@ -306,7 +295,8 @@ async fn full_pipeline_sends_a_turn_and_triggers_background_distillation() {
 async fn send_message_routes_to_the_narrator() {
     // given: an active act and a director that always narrates
     let (pool, _db) = setup_db().await;
-    let (state, adventure_manager) = setup_new_adventure(&pool, &["Mira"]).await;
+    let state = SharedState::new();
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
     let memory_config = memory_high_distiller_trigger();
     let manager = setup_message_manager(&state, &pool, &director_pick_narrator(), &memory_config);
     let adventure = adventure_manager.current_adventure().unwrap();
@@ -330,10 +320,11 @@ async fn send_message_routes_to_the_narrator() {
 async fn send_message_routes_to_a_random_cast_member() {
     // given: two present characters and a director that defers the voice to the model
     let (pool, _db) = setup_db().await;
-    let (state, adventure_manager) = setup_new_adventure(&pool, &["Mira"]).await;
+    let state = SharedState::new();
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
     let adventure = adventure_manager.current_adventure().unwrap();
     let memory_config = memory_high_distiller_trigger();
-    let manager = setup_message_manager(&state, &pool, &director_pick_narrator(), &memory_config);
+    let manager = setup_message_manager(&state, &pool, &director_pick_autonomous(), &memory_config);
 
     // when: the player invites anyone to speak
     let reply = manager
@@ -361,7 +352,8 @@ async fn send_message_routes_to_a_random_cast_member() {
 async fn send_message_routes_to_a_specific_targeted_character() {
     // given: two present characters and a director that honours an explicit target
     let (pool, _db) = setup_db().await;
-    let (state, adventure_manager) = setup_new_adventure(&pool, &["Mira"]).await;
+    let state = SharedState::new();
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
     let adventure = adventure_manager.current_adventure().unwrap();
     let memory_config = memory_high_distiller_trigger();
     let manager = setup_message_manager(&state, &pool, &director_pick_character(), &memory_config);

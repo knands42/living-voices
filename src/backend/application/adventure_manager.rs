@@ -147,14 +147,15 @@ impl AdventureManager {
         }
     }
 
-    pub async fn start_adventure(&self, adventure: Adventure) -> Result<(), AdventureManagerError> {
+    pub async fn start_adventure(&self, adventure_id: Uuid) -> Result<(), AdventureManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let current_act = activate_first_act(&mut conn, adventure.id).await?;
-        let current_state = get_state(&mut conn, adventure.id).await?;
-        let current_facts = get_facts(&mut conn, adventure.id, current_act.id).await?;
-        let current_messages = fetch_last_n(&mut conn, adventure.id, 50).await?;
-        let player = adventure.characters.iter().find(|c| c.is_player).cloned();
+        let current_act = activate_first_act(&mut conn, adventure_id).await?;
+        let current_state = get_state(&mut conn, adventure_id).await?;
+        let current_facts = get_facts(&mut conn, adventure_id, current_act.id).await?;
+        let current_messages = fetch_last_n(&mut conn, adventure_id, 50).await?;
 
+        let adventure = get_adventure(&mut conn, adventure_id).await?;
+        let player = adventure.characters.iter().find(|c| c.is_player).cloned();
         {
             let mut guard = self.state.write()?;
             guard.current_adventure = Some(adventure);

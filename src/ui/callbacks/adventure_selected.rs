@@ -51,7 +51,7 @@ fn load_and_start<
     tokio::task::block_in_place(|| {
         handle.block_on(async {
             let adventure = ctx.adventures.get_adventure(adventure_id).await?;
-            ctx.adventures.start_adventure(adventure).await?;
+            ctx.adventures.start_adventure(adventure.id).await?;
             log::info!("adventure started: {adventure_id}");
 
             Ok(ctx.adventures.current_snapshot())
