@@ -190,6 +190,48 @@ pub async fn insert_relations(
     Ok(())
 }
 
+pub async fn update_appearance_portrait_prompt(
+    conn: &mut SqliteConnection,
+    character_id: Uuid,
+    appearance_portrait_prompt: &str,
+) -> Result<(), PersistenceError> {
+    sqlx::query("UPDATE character SET appearance_portrait_prompt = ?1 WHERE id = ?2")
+        .bind(appearance_portrait_prompt)
+        .bind(character_id.to_string())
+        .execute(conn)
+        .await?;
+
+    Ok(())
+}
+
+pub async fn update_appearance_full_body_prompt(
+    conn: &mut SqliteConnection,
+    character_id: Uuid,
+    appearance_full_body_prompt: &str,
+) -> Result<(), PersistenceError> {
+    sqlx::query("UPDATE character SET appearance_full_body_prompt = ?1 WHERE id = ?2")
+        .bind(appearance_full_body_prompt)
+        .bind(character_id.to_string())
+        .execute(conn)
+        .await?;
+
+    Ok(())
+}
+
+pub async fn update_appearance_current_pose(
+    conn: &mut SqliteConnection,
+    character_id: Uuid,
+    appearance_current_pose: &str,
+) -> Result<(), PersistenceError> {
+    sqlx::query("UPDATE character SET appearance_current_pose = ?1 WHERE id = ?2")
+        .bind(appearance_current_pose)
+        .bind(character_id.to_string())
+        .execute(conn)
+        .await?;
+
+    Ok(())
+}
+
 pub async fn update_appearance(
     conn: &mut SqliteConnection,
     character_id: Uuid,
