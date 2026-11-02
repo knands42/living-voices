@@ -269,3 +269,5 @@ Describe only what is seen. Keep the whole figure visible; do not crop to a
 portrait or close-up. Never invent plot, never name other characters, never write
 text to render in the image. If a detail is unknown, leave it out rather than
 guessing."#;
+
+pub(crate) const CHAR_POSE_BODY_PROMPT: &str = r#""#;

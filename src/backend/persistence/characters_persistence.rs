@@ -59,7 +59,7 @@ impl TryFrom<CharacterRow> for Character {
             value.is_player,
         )
         .with_appearance(value.appearance)
-        .with_appearance_prompt(value.appearance_prompt))
+        .with_appearance_portrait_prompt(value.appearance_prompt))
     }
 }
 
@@ -69,8 +69,8 @@ pub async fn insert_character(
     character: &Character,
 ) -> Result<(), PersistenceError> {
     sqlx::query(
-        "INSERT INTO character (id, adventure_id, name, headline, backstory, appearance, appearance_prompt, status, portrait_path, is_player)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        "INSERT INTO character (id, adventure_id, name, headline, backstory, appearance, appearance_portrait_prompt, appearance_full_body_prompt, appearance_current_pose, status, portrait_path, is_player)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
     )
     .bind(character.id.to_string())
     .bind(adventure_id.to_string())
@@ -78,7 +78,9 @@ pub async fn insert_character(
     .bind(&character.headline)
     .bind(&character.backstory)
     .bind(&character.appearance)
-    .bind(&character.appearance_prompt)
+    .bind(&character.appearance_portrait_prompt)
+    .bind(&character.appearance_full_body_prompt)
+    .bind(&character.appearance_current_pose)
     .bind(character.status.as_str())
     .bind(character.portrait_path.as_deref())
     .bind(character.is_player)
@@ -180,7 +182,7 @@ pub async fn insert_relations(
     Ok(())
 }
 
-pub async fn update_appearance(
+pub async fn update_appearance_(
     conn: &mut SqliteConnection,
     character_id: Uuid,
     appearance: impl Into<String>,

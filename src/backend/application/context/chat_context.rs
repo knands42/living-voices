@@ -17,6 +17,7 @@ impl ContextBuilder {
         conn: &mut SqliteConnection,
         adventure: &Adventure,
         director: &Director,
+        messages: &Vec<&Message>,
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let head = [
             AUTONOMOUS_CHAT_PROMPT.to_string(),
@@ -25,7 +26,7 @@ impl ContextBuilder {
             Self::build_characters_prompt(adventure),
         ];
 
-        Self::assemble(conn, adventure, director, &head).await
+        Self::assemble(conn, adventure, director, &head, messages).await
     }
 
     pub async fn build_single_character_chat_prompt(
@@ -33,6 +34,7 @@ impl ContextBuilder {
         adventure: &Adventure,
         director: &Director,
         character: &Character,
+        messages: &Vec<&Message>,
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let head = [
             SINGLE_CHARACTER_CHAT_PROMPT.to_string(),
@@ -42,13 +44,14 @@ impl ContextBuilder {
             character.render(),
         ];
 
-        Self::assemble(conn, adventure, director, &head).await
+        Self::assemble(conn, adventure, director, &head, messages).await
     }
 
     pub async fn build_narrator_chat_prompt(
         conn: &mut SqliteConnection,
         adventure: &Adventure,
         director: &Director,
+        messages: &Vec<&Message>,
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let head = [
             NARRATOR_CHAT_PROMPT.to_string(),
@@ -56,7 +59,7 @@ impl ContextBuilder {
             NARRATOR_CHAT_INSTRUCTIONS.to_string(),
         ];
 
-        Self::assemble(conn, adventure, director, &head).await
+        Self::assemble(conn, adventure, director, &head, messages).await
     }
 
     pub async fn build_distill_prompt(
@@ -88,19 +91,19 @@ impl ContextBuilder {
 // Chat-only assembly internals
 // ----------------------------------------------------------------------------
 impl ContextBuilder {
-    // TODO: provide messages here already, instead of fetching it
     async fn assemble(
         conn: &mut SqliteConnection,
         adventure: &Adventure,
         director: &Director,
         head: &[String],
+        messages: &Vec<&Message>,
     ) -> Result<Vec<PromptTurn>, PersistenceError> {
         let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
 
         turns.push(PromptTurn::system(
             Self::build_static_context(conn, adventure).await?,
         ));
-        turns.extend(Self::build_previous_messages(conn, adventure).await?);
+        turns.extend(Self::build_previous_messages(adventure, messages));
 
         let messages_in_act = count_messages_per_act(conn, adventure.id).await?;
         let max_messages = director.get_max_act_messages();

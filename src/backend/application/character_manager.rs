@@ -7,6 +7,7 @@ use crate::backend::{
     domain::character::Character,
     persistence::characters_persistence::insert_character,
 };
+use crate::backend::application::port::chat_port::PromptHandler;
 
 #[derive(Error, Debug)]
 pub enum CharacterManagerError {
@@ -17,14 +18,15 @@ pub enum CharacterManagerError {
 }
 
 #[derive(Clone, Debug)]
-pub struct CharacterManager {
+pub struct CharacterManager<PROMPT: PromptHandler> {
     state: SharedState,
     pool: SqlitePool,
+    prompt_handler: PROMPT
 }
 
-impl CharacterManager {
-    pub fn new(state: SharedState, pool: SqlitePool) -> Self {
-        CharacterManager { state, pool }
+impl <PROMPT: PromptHandler> CharacterManager<PROMPT> {
+    pub fn new(state: SharedState, pool: SqlitePool, prompt_handler: PROMPT) -> Self {
+        CharacterManager { state, pool, prompt_handler }
     }
 
     pub async fn create_character(
@@ -41,6 +43,28 @@ impl CharacterManager {
             }
         }
 
+        Ok(())
+    }
+    
+    pub async fn create_character_portrait_image(
+        &self,
+        character_appearance: &str
+    ) -> Result<(), CharacterManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        
+        // build character portrait image prompt
+        // call the PromptHandler to get the reply
+        // persist into the 
+        
+        Ok(())
+    }
+    
+    pub async fn create_character_full_body_image(
+        &self,
+        character_appearance: &str
+    ) -> Result<(), CharacterManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        
         Ok(())
     }
 }

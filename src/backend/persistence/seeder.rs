@@ -600,7 +600,7 @@ async fn seed_connection(
             false,
         )
         .with_appearance(seed_character.appearance)
-        .with_appearance_prompt(seed_character.appearance_prompt);
+        .with_appearance_portrait_prompt(seed_character.appearance_prompt);
 
         for trait_ in seed_character.traits {
             character.add_trait((*trait_).to_string());

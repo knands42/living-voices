@@ -66,9 +66,11 @@ pub struct Character {
     pub status: CharacterStatus,
     pub backstory: String,
     /// Used for a "poetic" description of the character
-    pub appearance: String,
+    pub appearance: Option<String>,
     /// Used for image generation
-    pub appearance_prompt: String,
+    pub appearance_portrait_prompt: Option<String>,
+    pub appearance_full_body_prompt: Option<String>,
+    pub appearance_current_pose: Option<String>,
     pub portrait_path: Option<String>,
     pub is_player: bool,
     pub traits: Vec<String>,    // Speaks only in tidal registers, ...
@@ -94,8 +96,10 @@ impl Character {
             name,
             headline: headline.into(),
             backstory: backstory.into(),
-            appearance: String::new(),
-            appearance_prompt: String::new(),
+            appearance: None,
+            appearance_portrait_prompt: None,
+            appearance_full_body_prompt: None,
+            appearance_current_pose: None,
             status,
             portrait_path: None,
             is_player,
@@ -111,12 +115,31 @@ impl Character {
     }
 
     pub fn with_appearance(mut self, appearance: impl Into<String>) -> Self {
-        self.appearance = appearance.into();
+        self.appearance = Some(appearance.into());
         self
     }
 
-    pub fn with_appearance_prompt(mut self, appearance_prompt: impl Into<String>) -> Self {
-        self.appearance_prompt = appearance_prompt.into();
+    pub fn with_appearance_portrait_prompt(
+        mut self,
+        appearance_portrait_prompt: impl Into<String>,
+    ) -> Self {
+        self.appearance_portrait_prompt = Some(appearance_portrait_prompt.into());
+        self
+    }
+
+    pub fn with_appearance_full_body_prompt(
+        mut self,
+        appearance_full_body_prompt: impl Into<String>,
+    ) -> Self {
+        self.appearance_full_body_prompt = Some(appearance_full_body_prompt.into());
+        self
+    }
+
+    pub fn with_appearance_current_pose(
+        mut self,
+        appearance_current_pose: impl Into<String>,
+    ) -> Self {
+        self.appearance_current_pose = Some(appearance_current_pose.into());
         self
     }
 
@@ -147,8 +170,8 @@ impl Character {
         if !self.traits.is_empty() {
             parts.push(format!("Traits: {}.", self.traits.join(", ")));
         }
-        if !self.appearance.trim().is_empty() {
-            parts.push(format!("Appearance: {}.", self.appearance));
+        if let Some(appearance) = &self.appearance {
+            parts.push(format!("Appearance: {}.", appearance));
         }
 
         parts.join(" ")

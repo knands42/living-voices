@@ -2,7 +2,6 @@ mod chat_context;
 mod image_context;
 mod prompts;
 
-use crate::backend::application::context::prompts::*;
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::memory::{Act, ActStatus, Fact};
@@ -10,7 +9,6 @@ use crate::backend::domain::message::Message;
 use crate::backend::persistence::act_persistence::get_acts;
 use crate::backend::persistence::error::PersistenceError;
 use crate::backend::persistence::fact_persistence::get_facts;
-use crate::backend::persistence::message_persistence::fetch_last_n;
 use crate::backend::persistence::state_persistence::get_state;
 use sqlx::SqliteConnection;
 use thiserror::Error;
@@ -26,6 +24,7 @@ pub enum ContextBuilderError {
     MissingAppearanceDescription,
 }
 
+// TODO: Drop conn from parameters... Provide everything that is needed via parameter
 // ----------------------------------------------------------------------------
 // Shared assembly internals, used by both chat_context and image_context.
 // ----------------------------------------------------------------------------
@@ -129,16 +128,11 @@ impl ContextBuilder {
     }
 
     /// The dynamic messaging setup to differentiate the user from the cast.
-    async fn build_previous_messages(
-        conn: &mut SqliteConnection,
-        adventure: &Adventure,
-    ) -> Result<Vec<PromptTurn>, PersistenceError> {
-        let messages = fetch_last_n(conn, adventure.id, AUTONOMOUS_HISTORY_WINDOW).await?;
-
-        Ok(messages
+    fn build_previous_messages(adventure: &Adventure, messages: &Vec<&Message>) -> Vec<PromptTurn> {
+        messages
             .into_iter()
             .map(|message| Self::message_to_turn(adventure, &message))
-            .collect())
+            .collect()
     }
 
     /// Classify a stored message. Does it come from the player or NPC?
