@@ -16,10 +16,10 @@ impl ContextBuilder {
             subject.push("### Character Headline".to_string());
             subject.push(character.headline.clone());
         }
-        let appearance = if character.appearance_draft.trim().is_empty() {
+        let appearance = if character.appearance_prompt.trim().is_empty() {
             return Err(ContextBuilderError::MissingAppearanceDescription);
         } else {
-            character.appearance_draft.trim()
+            character.appearance_prompt.trim()
         };
         if !appearance.is_empty() {
             subject.push("### Character Appearance".to_string());

@@ -59,7 +59,7 @@ impl TryFrom<CharacterRow> for Character {
             value.is_player,
         )
         .with_appearance(value.appearance)
-        .with_appearance_draft(value.appearance_draft))
+        .with_appearance_prompt(value.appearance_draft))
     }
 }
 
@@ -69,7 +69,7 @@ pub async fn insert_character(
     character: &Character,
 ) -> Result<(), PersistenceError> {
     sqlx::query(
-        "INSERT INTO character (id, adventure_id, name, headline, backstory, appearance, appearance_draft, status, portrait_path, is_player)
+        "INSERT INTO character (id, adventure_id, name, headline, backstory, appearance, appearance_prompt, status, portrait_path, is_player)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
     )
     .bind(character.id.to_string())
@@ -78,7 +78,7 @@ pub async fn insert_character(
     .bind(&character.headline)
     .bind(&character.backstory)
     .bind(&character.appearance)
-    .bind(&character.appearance_draft)
+    .bind(&character.appearance_prompt)
     .bind(character.status.as_str())
     .bind(character.portrait_path.as_deref())
     .bind(character.is_player)
@@ -176,6 +176,22 @@ pub async fn insert_relations(
     for (related_character_id, relation) in relations {
         insert_relation(conn, character_id, *related_character_id, relation).await?;
     }
+
+    Ok(())
+}
+
+pub async fn update_appearance(
+    conn: &mut SqliteConnection,
+    character_id: Uuid,
+    appearance: impl Into<String>,
+    appearance_prompt: impl Into<String>,
+) -> Result<(), PersistenceError> {
+    sqlx::query("UPDATE character SET appearance = ?1, appearance_prompt = ?2 WHERE id = ?3")
+        .bind(appearance.into())
+        .bind(appearance_prompt.into())
+        .bind(character_id.to_string())
+        .execute(conn)
+        .await?;
 
     Ok(())
 }

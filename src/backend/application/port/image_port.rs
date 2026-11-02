@@ -1,37 +1,6 @@
 use std::future::Future;
 
 use thiserror::Error;
-use uuid::Uuid;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ScenePrompt {
-    pub adventure_id: Uuid,
-    pub title: String,
-    pub headline: String,
-    pub tone: String,
-}
-
-impl ScenePrompt {
-    pub fn new(
-        adventure_id: Uuid,
-        title: impl Into<String>,
-        headline: impl Into<String>,
-        tone: impl Into<String>,
-    ) -> Self {
-        Self {
-            adventure_id,
-            title: title.into(),
-            headline: headline.into(),
-            tone: tone.into(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GeneratedImage {
-    pub adventure_id: Uuid,
-    pub bytes: Vec<u8>,
-}
 
 #[derive(Error, Debug)]
 pub enum ImageError {
@@ -40,8 +9,15 @@ pub enum ImageError {
 }
 
 pub trait ImageHandler: Send + Sync {
-    fn generate_scene(
+    fn generate_scene(&self, prompt: &str) -> impl Future<Output = Result<(), ImageError>> + Send;
+
+    fn generate_character_portrait(
         &self,
-        prompt: &ScenePrompt,
-    ) -> impl Future<Output = Result<GeneratedImage, ImageError>> + Send;
+        prompt: &str,
+    ) -> impl Future<Output = Result<(), ImageError>> + Send;
+
+    fn generate_character_image(
+        &self,
+        prompt: &str,
+    ) -> impl Future<Output = Result<(), ImageError>> + Send;
 }

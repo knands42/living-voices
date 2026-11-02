@@ -9,6 +9,7 @@ const DB_FILE: &str = "living_voices.db";
 const DEFAULT_CHAT_MODEL_URL: &str = "http://localhost:11434/v1";
 const DEFAULT_CHAT_MEMORY_URL: &str = "http://localhost:11434/v1";
 const DEFAULT_IMAGE_MODEL_URL: &str = "http://localhost:8188";
+const DEFAULT_IMAGE_OUTPUT_PREFIX: &str = "output";
 
 const DEFAULT_CHAT_TEMPERATURE: f32 = 0.5;
 const DEFAULT_MEMORY_TEMPERATURE: f32 = 0.1;
@@ -157,6 +158,7 @@ pub struct ImageModel {
     pub backend: String,
     pub base_url: String,
     pub workflow: String,
+    pub output_prefix: String,
 }
 
 impl Default for ImageModel {
@@ -165,6 +167,7 @@ impl Default for ImageModel {
             backend: "comfyui".to_string(),
             base_url: DEFAULT_IMAGE_MODEL_URL.to_string(),
             workflow: String::new(),
+            output_prefix: DEFAULT_IMAGE_OUTPUT_PREFIX.to_string(),
         }
     }
 }

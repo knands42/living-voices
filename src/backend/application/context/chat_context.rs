@@ -22,6 +22,7 @@ impl ContextBuilder {
             AUTONOMOUS_CHAT_PROMPT.to_string(),
             Self::build_settings_prompt(adventure),
             Self::build_characters_prompt(adventure),
+            // TODO: Merge this into just one prompt (no need to split into 4)
             AUTONOMOUS_CHAT_REPLY_CONTRACT.to_string(),
             AUTONOMOUS_CHAT_BODY_INSTRUCTION.to_string(),
             AUTONOMOUS_CHAT_RULES_INSTRUCTION.to_string(),
@@ -43,6 +44,7 @@ impl ContextBuilder {
             SINGLE_CHARACTER_CHAT_BODY_INSTRUCTION.to_string(),
             SINGLE_CHARACTER_CHAT_RULES_INSTRUCTION.to_string(),
             SINGLE_CHARACTER_CHAT_EXAMPLES_INSTRUCTION.to_string(),
+            "## CHARACTER".to_string(),
             character.render(),
         ];
 

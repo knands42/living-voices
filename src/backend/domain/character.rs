@@ -65,9 +65,10 @@ pub struct Character {
     pub headline: String,
     pub status: CharacterStatus,
     pub backstory: String,
+    /// Used for a "poetic" description of the character
     pub appearance: String,
-    /// Pending appearance text awaiting the player's confirmation
-    pub appearance_draft: String,
+    /// Used for image generation
+    pub appearance_prompt: String,
     pub portrait_path: Option<String>,
     pub is_player: bool,
     pub traits: Vec<String>,    // Speaks only in tidal registers, ...
@@ -94,7 +95,7 @@ impl Character {
             headline: headline.into(),
             backstory: backstory.into(),
             appearance: String::new(),
-            appearance_draft: String::new(),
+            appearance_prompt: String::new(),
             status,
             portrait_path: None,
             is_player,
@@ -114,16 +115,9 @@ impl Character {
         self
     }
 
-    pub fn with_appearance_draft(mut self, appearance_draft: impl Into<String>) -> Self {
-        self.appearance_draft = appearance_draft.into();
+    pub fn with_appearance_prompt(mut self, appearance_draft: impl Into<String>) -> Self {
+        self.appearance_prompt = appearance_draft.into();
         self
-    }
-
-    /// Promote the draft into the committed appearance and clear it.
-    pub fn confirm_appearance(&mut self) {
-        if !self.appearance_draft.trim().is_empty() {
-            self.appearance = std::mem::take(&mut self.appearance_draft);
-        }
     }
 
     pub fn add_tag(&mut self, tag: String) {
@@ -145,13 +139,16 @@ impl Character {
     pub fn render(&self) -> String {
         let mut parts = vec![format!("{}.", self.name)];
         if !self.headline.trim().is_empty() {
-            parts.push(self.headline.clone());
+            parts.push(format!("Headline: {}", self.headline.clone()));
         }
         if !self.backstory.trim().is_empty() {
             parts.push(format!("Backstory: {}", self.backstory));
         }
         if !self.traits.is_empty() {
             parts.push(format!("Traits: {}.", self.traits.join(", ")));
+        }
+        if !self.appearance.trim().is_empty() {
+            parts.push(format!("Appearance: {}.", self.appearance));
         }
 
         parts.join(" ")
