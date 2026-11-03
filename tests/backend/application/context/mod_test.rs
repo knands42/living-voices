@@ -4,7 +4,7 @@ use crate::backend::application::helper::{
     CharacterSpec, create_characters, setup_db, start_adventure_with_default_cast,
 };
 use living_voices::backend::application::adventure_manager::AdventureManager;
-use living_voices::backend::application::context::ContextBuilder;
+use living_voices::backend::application::context::{ContextBuilder, ContextData};
 use living_voices::backend::application::director::Director;
 use living_voices::backend::application::port::chat_port::Speaker;
 use living_voices::backend::application::state::SharedState;
@@ -22,18 +22,18 @@ async fn autonomous_prompt_opens_with_system_turns_and_the_full_cast() {
     let (pool, _db) = setup_db().await;
     let state = SharedState::new();
     let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = adventure_manager
+        .current_adventure()
+        .expect("adventure to exist on the snapshot");
     let mut conn = pool.acquire().await.expect("acquire");
+    let data = context_data(&mut conn, &adventure).await;
 
     let turns = ContextBuilder::build_autonomous_chat_prompt(
-        &mut conn,
-        &adventure_manager
-            .current_adventure()
-            .expect("adventure to exist on the snapshot"),
+        &adventure,
         &low_closure_director(),
+        &data,
         &[],
-    )
-    .await
-    .expect("build prompt");
+    );
 
     // First turn is the system head, listing the whole cast.
     assert_eq!(turns[0].speaker, Speaker::System);
@@ -55,15 +55,14 @@ async fn system_head_renders_the_adventure_settings() {
     adventure.tone = "tense".into();
     adventure.lore = adventure.lore.with_text("The sea remembers.".into());
     let mut conn = pool.acquire().await.expect("acquire");
+    let data = context_data(&mut conn, &adventure).await;
 
     let turns = ContextBuilder::build_autonomous_chat_prompt(
-        &mut conn,
         &adventure,
         &low_closure_director(),
+        &data,
         &[],
-    )
-    .await
-    .expect("build prompt");
+    );
 
     let head = &turns[0].text;
     assert!(head.contains("## SETTINGS"));
@@ -97,14 +96,9 @@ async fn pacing_prompt_appears_with_counts_once_the_gate_opens() {
         ..Default::default()
     });
     let messages = last_messages(&mut conn, &adventure).await;
-    let turns = ContextBuilder::build_autonomous_chat_prompt(
-        &mut conn,
-        &adventure,
-        &eager_director,
-        &messages,
-    )
-    .await
-    .expect("build prompt");
+    let data = context_data(&mut conn, &adventure).await;
+    let turns =
+        ContextBuilder::build_autonomous_chat_prompt(&adventure, &eager_director, &data, &messages);
 
     let pacing = turns
         .iter()
@@ -132,14 +126,13 @@ async fn previous_messages_classify_player_and_cast_turns() {
 
     let mut conn = pool.acquire().await.expect("acquire");
     let messages = last_messages(&mut conn, &adventure).await;
+    let data = context_data(&mut conn, &adventure).await;
     let turns = ContextBuilder::build_autonomous_chat_prompt(
-        &mut conn,
         &adventure,
         &low_closure_director(),
+        &data,
         &messages,
-    )
-    .await
-    .expect("build prompt");
+    );
 
     let player_turn = turns
         .iter()
@@ -169,14 +162,13 @@ async fn the_player_characters_line_is_a_player_turn() {
 
     let mut conn = pool.acquire().await.expect("acquire");
     let messages = last_messages(&mut conn, &adventure).await;
+    let data = context_data(&mut conn, &adventure).await;
     let turns = ContextBuilder::build_autonomous_chat_prompt(
-        &mut conn,
         &adventure,
         &low_closure_director(),
+        &data,
         &messages,
-    )
-    .await
-    .expect("build prompt");
+    );
 
     let player_turn = turns
         .iter()
@@ -206,14 +198,9 @@ async fn static_context_carries_the_running_digest_of_the_active_act() {
     update_act_running_digest(&mut conn, active_act.id, "They escaped the keep.", 0)
         .await
         .expect("update running_digest");
-    let turns = ContextBuilder::build_narrator_chat_prompt(
-        &mut conn,
-        &adventure,
-        &low_closure_director(),
-        &[],
-    )
-    .await
-    .expect("build prompt");
+    let data = context_data(&mut conn, &adventure).await;
+    let turns =
+        ContextBuilder::build_narrator_chat_prompt(&adventure, &low_closure_director(), &data, &[]);
 
     let joined = turns
         .iter()
@@ -240,14 +227,9 @@ async fn static_context_renders_the_fact_snapshot() {
         .await
         .expect("upsert fact");
 
-    let turns = ContextBuilder::build_narrator_chat_prompt(
-        &mut conn,
-        &adventure,
-        &low_closure_director(),
-        &[],
-    )
-    .await
-    .expect("build prompt");
+    let data = context_data(&mut conn, &adventure).await;
+    let turns =
+        ContextBuilder::build_narrator_chat_prompt(&adventure, &low_closure_director(), &data, &[]);
 
     let joined = turns
         .iter()
@@ -285,10 +267,8 @@ async fn closure_prompt_appears_only_once_the_gate_opens() {
         ..Default::default()
     });
     let messages = last_messages(&mut conn, &adventure).await;
-    let turns =
-        ContextBuilder::build_autonomous_chat_prompt(&mut conn, &adventure, &eager, &messages)
-            .await
-            .expect("build prompt");
+    let data = context_data(&mut conn, &adventure).await;
+    let turns = ContextBuilder::build_autonomous_chat_prompt(&adventure, &eager, &data, &messages);
     let has_closure = turns
         .iter()
         .any(|t| t.text.contains("## CLOSURE INFORMATION"));
@@ -306,13 +286,11 @@ async fn closure_prompt_appears_only_once_the_gate_opens() {
 
     // A huge cap keeps the gate shut.
     let turns = ContextBuilder::build_autonomous_chat_prompt(
-        &mut conn,
         &adventure,
         &low_closure_director(),
+        &data,
         &messages,
-    )
-    .await
-    .expect("build prompt");
+    );
     let has_closure = turns
         .iter()
         .any(|t| t.text.contains("## CLOSURE INFORMATION"));
@@ -348,9 +326,8 @@ async fn distill_prompt_leads_with_the_distill_instruction_and_the_turns() {
         ),
     ];
 
-    let turns = ContextBuilder::build_distill_prompt(&mut conn, &adventure, &messages)
-        .await
-        .expect("build distill prompt");
+    let data = context_data(&mut conn, &adventure).await;
+    let turns = ContextBuilder::build_distill_prompt(&data, &messages);
 
     assert_eq!(turns[0].speaker, Speaker::System);
     assert!(turns[0].text.contains("## DISTILL"));
@@ -410,6 +387,12 @@ async fn last_messages(conn: &mut SqliteConnection, adventure: &Adventure) -> Ve
     fetch_last_n(conn, adventure.id, 50)
         .await
         .expect("fetch messages")
+}
+
+async fn context_data(conn: &mut SqliteConnection, adventure: &Adventure) -> ContextData {
+    ContextData::load(conn, adventure.id)
+        .await
+        .expect("load context data")
 }
 
 fn low_closure_director() -> Director {

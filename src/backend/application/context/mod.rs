@@ -4,14 +4,15 @@ mod prompts;
 
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::domain::adventure::Adventure;
-use crate::backend::domain::memory::{Act, ActStatus, Fact};
+use crate::backend::domain::memory::{Act, ActStatus, Fact, State};
 use crate::backend::domain::message::Message;
-use crate::backend::persistence::act_persistence::get_acts;
+use crate::backend::persistence::act_persistence::{count_messages_per_act, get_acts};
 use crate::backend::persistence::error::PersistenceError;
 use crate::backend::persistence::fact_persistence::get_facts;
 use crate::backend::persistence::state_persistence::get_state;
 use sqlx::SqliteConnection;
 use thiserror::Error;
+use uuid::Uuid;
 
 pub struct ContextBuilder;
 
@@ -23,7 +24,33 @@ pub enum ContextBuilderError {
     MissingAppearanceDescription,
 }
 
-// TODO: Drop conn from parameters... Provide everything that is needed via parameter
+/// Everything a prompt needs from the store, fetched once by the caller so the
+/// builders stay pure (no `conn`, no queries, no snapshot skew).
+pub struct ContextData {
+    pub acts: Vec<Act>,
+    pub facts: Vec<Fact>,
+    pub state: Option<State>,
+    pub messages_in_act: u16,
+}
+
+impl ContextData {
+    pub async fn load(
+        conn: &mut SqliteConnection,
+        adventure_id: Uuid,
+    ) -> Result<Self, PersistenceError> {
+        Ok(Self {
+            acts: get_acts(conn, adventure_id).await?,
+            facts: get_facts(conn, adventure_id).await?,
+            state: get_state(conn, adventure_id).await?,
+            messages_in_act: count_messages_per_act(conn, adventure_id).await?,
+        })
+    }
+
+    fn active_act(&self) -> Option<&Act> {
+        self.acts.iter().find(|act| act.status == ActStatus::Active)
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Shared assembly internals, used by both chat_context and image_context.
 // ----------------------------------------------------------------------------
@@ -46,27 +73,20 @@ impl ContextBuilder {
         lines.join("\n")
     }
 
-    async fn build_static_context(
-        conn: &mut SqliteConnection,
-        adventure: &Adventure,
-    ) -> Result<String, PersistenceError> {
+    fn build_static_context(data: &ContextData) -> String {
         let final_prompt = vec![
             "## CONTEXT".to_string(),
-            Self::build_acts_prompt(conn, adventure).await?,
-            Self::build_current_state(conn, adventure).await?,
+            Self::build_acts_prompt(data),
+            Self::build_current_state(data),
         ];
 
-        Ok(final_prompt.join("\n\n"))
+        final_prompt.join("\n\n")
     }
 
-    async fn build_acts_prompt(
-        conn: &mut SqliteConnection,
-        adventure: &Adventure,
-    ) -> Result<String, PersistenceError> {
-        let acts = get_acts(conn, adventure.id).await?;
-
-        let current = acts.iter().find(|act| act.status == ActStatus::Active);
-        let past: Vec<&Act> = acts
+    fn build_acts_prompt(data: &ContextData) -> String {
+        let current = data.active_act();
+        let past: Vec<&Act> = data
+            .acts
             .iter()
             .filter(|act| {
                 act.status != ActStatus::Active
@@ -94,32 +114,21 @@ impl ContextBuilder {
             }
         }
 
-        if let Some(facts) = Self::render_facts(conn, adventure).await? {
+        if let Some(facts) = Fact::render(&data.facts) {
             sections.push(format!("### FACTS\n{facts}"));
         }
 
-        Ok(sections.join("\n\n"))
+        sections.join("\n\n")
     }
 
-    async fn render_facts(
-        conn: &mut SqliteConnection,
-        adventure: &Adventure,
-    ) -> Result<Option<String>, PersistenceError> {
-        let facts = get_facts(conn, adventure.id).await?;
-        Ok(Fact::render(&facts))
-    }
-
-    async fn build_current_state(
-        conn: &mut SqliteConnection,
-        adventure: &Adventure,
-    ) -> Result<String, PersistenceError> {
-        if let Some(state) = get_state(conn, adventure.id).await? {
+    fn build_current_state(data: &ContextData) -> String {
+        if let Some(state) = &data.state {
             if let Some(rendered) = state.render() {
-                return Ok(format!("### CURRENT STATE\n{rendered}"));
+                return format!("### CURRENT STATE\n{rendered}");
             }
         }
 
-        Ok(String::new())
+        String::new()
     }
 
     /// The dynamic messaging setup to differentiate the user from the cast.

@@ -1,24 +1,21 @@
-use crate::backend::application::context::ContextBuilder;
 use crate::backend::application::context::prompts::*;
+use crate::backend::application::context::{ContextBuilder, ContextData};
 use crate::backend::application::director::Director;
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::Character;
 use crate::backend::domain::message::Message;
-use crate::backend::persistence::act_persistence::{count_messages_per_act, get_active_act};
-use crate::backend::persistence::error::PersistenceError;
-use sqlx::SqliteConnection;
 
 // ----------------------------------------------------------------------------
 // Chat prompt building
 // ----------------------------------------------------------------------------
 impl ContextBuilder {
-    pub async fn build_autonomous_chat_prompt(
-        conn: &mut SqliteConnection,
+    pub fn build_autonomous_chat_prompt(
         adventure: &Adventure,
         director: &Director,
+        data: &ContextData,
         messages: &[Message],
-    ) -> Result<Vec<PromptTurn>, PersistenceError> {
+    ) -> Vec<PromptTurn> {
         let head = [
             AUTONOMOUS_CHAT_PROMPT.to_string(),
             Self::build_settings_prompt(adventure),
@@ -26,16 +23,16 @@ impl ContextBuilder {
             Self::build_characters_prompt(adventure),
         ];
 
-        Self::assemble(conn, adventure, director, &head, messages).await
+        Self::assemble(adventure, director, data, &head, messages)
     }
 
-    pub async fn build_single_character_chat_prompt(
-        conn: &mut SqliteConnection,
+    pub fn build_single_character_chat_prompt(
         adventure: &Adventure,
         director: &Director,
+        data: &ContextData,
         character: &Character,
         messages: &[Message],
-    ) -> Result<Vec<PromptTurn>, PersistenceError> {
+    ) -> Vec<PromptTurn> {
         let head = [
             SINGLE_CHARACTER_CHAT_PROMPT.to_string(),
             Self::build_settings_prompt(adventure),
@@ -44,46 +41,37 @@ impl ContextBuilder {
             character.render(),
         ];
 
-        Self::assemble(conn, adventure, director, &head, messages).await
+        Self::assemble(adventure, director, data, &head, messages)
     }
 
-    pub async fn build_narrator_chat_prompt(
-        conn: &mut SqliteConnection,
+    pub fn build_narrator_chat_prompt(
         adventure: &Adventure,
         director: &Director,
+        data: &ContextData,
         messages: &[Message],
-    ) -> Result<Vec<PromptTurn>, PersistenceError> {
+    ) -> Vec<PromptTurn> {
         let head = [
             NARRATOR_CHAT_PROMPT.to_string(),
             Self::build_settings_prompt(adventure),
             NARRATOR_CHAT_INSTRUCTIONS.to_string(),
         ];
 
-        Self::assemble(conn, adventure, director, &head, messages).await
+        Self::assemble(adventure, director, data, &head, messages)
     }
 
-    pub async fn build_distill_prompt(
-        conn: &mut SqliteConnection,
-        adventure: &Adventure,
-        messages: &[Message],
-    ) -> Result<Vec<PromptTurn>, PersistenceError> {
-        Self::build_memory_prompt(conn, adventure, messages, DISTILL_PROMPT).await
+    pub fn build_distill_prompt(data: &ContextData, messages: &[Message]) -> Vec<PromptTurn> {
+        Self::build_memory_prompt(data, messages, DISTILL_PROMPT)
     }
 
-    pub async fn build_act_close_prompt(
-        conn: &mut SqliteConnection,
-        adventure: &Adventure,
-        messages: &[Message],
-    ) -> Result<Vec<PromptTurn>, PersistenceError> {
-        Self::build_memory_prompt(conn, adventure, messages, ACT_CLOSE_PROMPT).await
+    pub fn build_act_close_prompt(data: &ContextData, messages: &[Message]) -> Vec<PromptTurn> {
+        Self::build_memory_prompt(data, messages, ACT_CLOSE_PROMPT)
     }
 
-    pub async fn build_act_transition_prompt(
-        conn: &mut SqliteConnection,
-        adventure: &Adventure,
+    pub fn build_act_transition_prompt(
+        data: &ContextData,
         messages: &[Message],
-    ) -> Result<Vec<PromptTurn>, PersistenceError> {
-        Self::build_memory_prompt(conn, adventure, messages, ACT_TRANSITION_PROMPT).await
+    ) -> Vec<PromptTurn> {
+        Self::build_memory_prompt(data, messages, ACT_TRANSITION_PROMPT)
     }
 }
 
@@ -91,26 +79,24 @@ impl ContextBuilder {
 // Chat-only assembly internals
 // ----------------------------------------------------------------------------
 impl ContextBuilder {
-    async fn assemble(
-        conn: &mut SqliteConnection,
+    fn assemble(
         adventure: &Adventure,
         director: &Director,
+        data: &ContextData,
         head: &[String],
         messages: &[Message],
-    ) -> Result<Vec<PromptTurn>, PersistenceError> {
+    ) -> Vec<PromptTurn> {
         let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
 
-        turns.push(PromptTurn::system(
-            Self::build_static_context(conn, adventure).await?,
-        ));
+        turns.push(PromptTurn::system(Self::build_static_context(data)));
         turns.extend(Self::build_previous_messages(adventure, messages));
 
-        let messages_in_act = count_messages_per_act(conn, adventure.id).await?;
+        let messages_in_act = data.messages_in_act;
         let max_messages = director.get_max_act_messages();
 
         if director.should_request_pacing_prompt(messages_in_act) {
-            let last_closure_score = get_active_act(conn, adventure.id)
-                .await?
+            let last_closure_score = data
+                .active_act()
                 .map(|act| act.last_closure_score)
                 .unwrap_or(0);
             turns.push(PromptTurn::system(Self::build_pacing_prompt(
@@ -127,7 +113,7 @@ impl ContextBuilder {
             )));
         }
 
-        Ok(turns)
+        turns
     }
 
     fn build_closure_prompt(
@@ -158,23 +144,20 @@ impl ContextBuilder {
             .replace("{3}", &last_closure_score.to_string())
     }
 
-    async fn build_memory_prompt(
-        conn: &mut SqliteConnection,
-        adventure: &Adventure,
+    fn build_memory_prompt(
+        data: &ContextData,
         messages: &[Message],
         lead_prompt: &str,
-    ) -> Result<Vec<PromptTurn>, PersistenceError> {
+    ) -> Vec<PromptTurn> {
         let mut turns = Vec::with_capacity(messages.len() + 2);
         turns.push(PromptTurn::system(lead_prompt.to_string()));
-        turns.push(PromptTurn::system(
-            Self::build_static_context(conn, adventure).await?,
-        ));
+        turns.push(PromptTurn::system(Self::build_static_context(data)));
 
         turns.extend(messages.iter().map(|message| {
             PromptTurn::player(format!("{}: {}", message.speaker_name, message.text))
         }));
 
-        Ok(turns)
+        turns
     }
 
     /// The full cast, each rendered in the adventure's tone.

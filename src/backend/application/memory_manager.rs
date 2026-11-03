@@ -2,7 +2,7 @@ use sqlx::{Acquire, SqlitePool};
 use thiserror::Error;
 
 use crate::backend::PersistenceError;
-use crate::backend::application::context::ContextBuilder;
+use crate::backend::application::context::{ContextBuilder, ContextData};
 use crate::backend::application::port::memory_port::{
     ActCloser, ClosedAct, ClosedActError, DistillError, DistilledFact, DistilledMemory,
     MemoryDistiller,
@@ -93,7 +93,8 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
 
-        let prompt = ContextBuilder::build_distill_prompt(&mut conn, &adventure, uncovered).await?;
+        let data = ContextData::load(&mut conn, adventure.id).await?;
+        let prompt = ContextBuilder::build_distill_prompt(&data, uncovered);
         let distilled = self.distiller.distill(&prompt).await?;
 
         self.persist_distilled(&mut conn, &adventure, act, distilled, digest_to_seq)
@@ -115,18 +116,16 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
 
+        let data = ContextData::load(&mut conn, adventure.id).await?;
+
         // Distill first so facts/state can be up to date
         let distilled = {
-            let prompt =
-                ContextBuilder::build_distill_prompt(&mut conn, &adventure, &uncovered_messages)
-                    .await?;
+            let prompt = ContextBuilder::build_distill_prompt(&data, uncovered_messages);
             self.distiller.distill(&prompt).await?
         };
 
         let closed = {
-            let prompt =
-                ContextBuilder::build_act_close_prompt(&mut conn, &adventure, &uncovered_messages)
-                    .await?;
+            let prompt = ContextBuilder::build_act_close_prompt(&data, uncovered_messages);
             self.closer.close_act(&prompt).await?
         };
 

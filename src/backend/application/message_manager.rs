@@ -1,5 +1,5 @@
 use crate::backend::PersistenceError;
-use crate::backend::application::context::ContextBuilder;
+use crate::backend::application::context::{ContextBuilder, ContextData};
 use crate::backend::application::director::Director;
 use crate::backend::application::memory_manager::{MemoryManager, MemoryManagerError};
 use crate::backend::application::port::chat_port::{
@@ -90,12 +90,12 @@ impl<
     pub async fn send_message(&self, incoming: Message) -> Result<Message, MessageManagerError> {
         self.create_message(incoming.clone()).await?;
 
-        let input_data = self.gather_data(&incoming).await?;
+        let input_data = self.gather_data().await?;
         let chat_reply = self.respond(&incoming, &input_data).await?;
         self.process_respond(chat_reply, input_data).await
     }
 
-    async fn gather_data(&self, incoming: &Message) -> Result<TurnInput, MessageManagerError> {
+    async fn gather_data(&self) -> Result<TurnInput, MessageManagerError> {
         let adventure = {
             let guard = self.state.read()?;
             guard
@@ -179,18 +179,19 @@ impl<
         messages_since_narration: u8,
         uncovered_messages: &[Message],
     ) -> Result<ChatReply, MessageManagerError> {
+        let data = ContextData::load(conn, adventure.id).await?;
+
         if self.director.should_narrator_speak(
             active_characters,
             incoming,
             messages_since_narration,
         ) {
             let context = ContextBuilder::build_narrator_chat_prompt(
-                conn,
                 adventure,
                 &self.director,
+                &data,
                 uncovered_messages,
-            )
-            .await?;
+            );
             let reply = self.narrator_handler.narrator_respond(&context).await?;
             return Ok(ChatReply {
                 replier: Message::NARRATOR_SPEAKER_NAME.to_string(),
@@ -201,13 +202,12 @@ impl<
 
         if let Some(character) = self.director.pick_character(active_characters) {
             let context = ContextBuilder::build_single_character_chat_prompt(
-                conn,
                 adventure,
                 &self.director,
+                &data,
                 character,
                 uncovered_messages,
-            )
-            .await?;
+            );
             let reply = self.chat_handler.character_respond(&context).await?;
             return Ok(ChatReply {
                 replier: character.name.clone(),
@@ -217,12 +217,11 @@ impl<
         }
 
         let context = ContextBuilder::build_autonomous_chat_prompt(
-            conn,
             adventure,
             &self.director,
+            &data,
             uncovered_messages,
-        )
-        .await?;
+        );
         Ok(self.chat_handler.autonomous_respond(&context).await?)
     }
 
@@ -285,12 +284,8 @@ impl<
             return Ok(());
         };
 
-        let prompt = ContextBuilder::build_act_transition_prompt(
-            conn,
-            &input.adventure,
-            &input.uncovered_messages,
-        )
-        .await?;
+        let data = ContextData::load(conn, input.adventure.id).await?;
+        let prompt = ContextBuilder::build_act_transition_prompt(&data, &input.uncovered_messages);
 
         let narration = self.narrator_handler.narrator_respond(&prompt).await?;
         let narration_message = input
@@ -313,20 +308,158 @@ impl<
         conn: &mut SqliteConnection,
         active_act: &Option<Act>,
     ) -> Result<Vec<Message>, MessageManagerError> {
-        let Some(act) = active_act else {
-            return Ok(vec![]);
-        };
-
-        let uncovered = fetch_since(conn, act.adventure_id, act.digest_to_seq).await?;
-
-        // A fresh act (ordinal != 0) starts with its watermark at its own first
-        // message, so it has no uncovered tail yet. Backfill recent turns from the
-        // previous acts so the prompt keeps continuity until the act fills up.
         let window = self.memory_manager.recent_messages_window();
-        if act.ordinal != 0 && uncovered.len() < window as usize {
-            return Ok(fetch_last_n(conn, act.adventure_id, window).await?);
-        }
+        load_uncovered_messages(conn, active_act, window).await
+    }
+}
 
-        Ok(uncovered)
+/// The uncovered tail for a turn, with the fresh-act backfill applied.
+///
+/// A fresh act (ordinal != 0) starts with its watermark at its own first message,
+/// so it has no uncovered tail yet. In that case backfill the last `window` turns
+/// from the previous acts so the prompt keeps continuity until the act fills up.
+async fn load_uncovered_messages(
+    conn: &mut SqliteConnection,
+    active_act: &Option<Act>,
+    window: u16,
+) -> Result<Vec<Message>, MessageManagerError> {
+    let Some(act) = active_act else {
+        return Ok(vec![]);
+    };
+
+    let uncovered = fetch_since(conn, act.adventure_id, act.digest_to_seq).await?;
+
+    if act.ordinal != 0 && uncovered.len() < window as usize {
+        return Ok(fetch_last_n(conn, act.adventure_id, window).await?);
+    }
+
+    Ok(uncovered)
+}
+
+#[cfg(test)]
+mod load_uncovered_tests {
+    use super::*;
+    use crate::backend::persistence::db::open_pool;
+    use crate::backend::persistence::message_persistence::insert_message;
+    use crate::backend::persistence::migrator::run_migrations;
+    use std::path::{Path, PathBuf};
+    use uuid::Uuid;
+
+    struct TempDb(PathBuf);
+    impl Drop for TempDb {
+        fn drop(&mut self) {
+            let base = self.0.to_string_lossy().into_owned();
+            for suffix in ["", "-wal", "-shm"] {
+                let _ = std::fs::remove_file(format!("{base}{suffix}"));
+            }
+        }
+    }
+
+    async fn setup() -> (SqlitePool, TempDb, Uuid) {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join(format!("load_uncovered_test_{}.db", Uuid::new_v4()));
+        let db = TempDb(path);
+        let db_str = db.0.to_string_lossy().into_owned();
+
+        let migrating = open_pool(&db_str).await.expect("open pool");
+        run_migrations(&migrating).await.expect("run migrations");
+        let pool = open_pool(&db_str).await.expect("reopen pool");
+
+        let adventure_id = Uuid::new_v4();
+        let mut conn = pool.acquire().await.expect("acquire");
+        sqlx::query("INSERT INTO adventure (id, title) VALUES (?1, ?2)")
+            .bind(adventure_id.to_string())
+            .bind("Test adventure")
+            .execute(&mut *conn)
+            .await
+            .expect("insert adventure");
+
+        (pool, db, adventure_id)
+    }
+
+    async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: usize) {
+        let mut conn = pool.acquire().await.expect("acquire");
+        for i in 0..count {
+            let message = Message::new(
+                adventure_id,
+                None,
+                None,
+                Message::NARRATOR_SPEAKER_NAME.to_string(),
+                format!("message {i}"),
+                false,
+            );
+            insert_message(&mut conn, &message)
+                .await
+                .expect("insert message");
+        }
+    }
+
+    #[tokio::test]
+    async fn returns_empty_without_an_active_act() {
+        let (pool, _db, _adventure_id) = setup().await;
+        let mut conn = pool.acquire().await.expect("acquire");
+
+        let messages = load_uncovered_messages(&mut conn, &None, 50)
+            .await
+            .expect("load uncovered");
+
+        assert!(messages.is_empty());
+    }
+
+    #[tokio::test]
+    async fn first_act_with_a_thin_tail_is_not_backfilled() {
+        let (pool, _db, adventure_id) = setup().await;
+        seed_messages(&pool, adventure_id, 10).await;
+        let mut conn = pool.acquire().await.expect("acquire");
+
+        // first act (ordinal 0) with a watermark past every message: nothing uncovered
+        let mut act = Act::new(adventure_id, 0, "goal");
+        act.digest_to_seq = 10;
+
+        let messages = load_uncovered_messages(&mut conn, &Some(act), 50)
+            .await
+            .expect("load uncovered");
+
+        // the first act never borrows from earlier history
+        assert!(messages.is_empty());
+    }
+
+    #[tokio::test]
+    async fn fresh_later_act_backfills_the_recent_window() {
+        let (pool, _db, adventure_id) = setup().await;
+        seed_messages(&pool, adventure_id, 10).await;
+        let mut conn = pool.acquire().await.expect("acquire");
+
+        // a later act (ordinal 1) just started: its watermark is at its own first
+        // message, so it has no uncovered tail
+        let mut act = Act::new(adventure_id, 1, "goal");
+        act.digest_to_seq = 10;
+
+        let messages = load_uncovered_messages(&mut conn, &Some(act), 5)
+            .await
+            .expect("load uncovered");
+
+        // it backfills the last `window` turns from the previous acts
+        assert_eq!(messages.len(), 5);
+        assert_eq!(messages.last().expect("a message").text, "message 9");
+    }
+
+    #[tokio::test]
+    async fn later_act_with_a_full_tail_uses_its_own_tail() {
+        let (pool, _db, adventure_id) = setup().await;
+        seed_messages(&pool, adventure_id, 10).await;
+        let mut conn = pool.acquire().await.expect("acquire");
+
+        // a later act whose own uncovered tail already meets the window
+        let mut act = Act::new(adventure_id, 1, "goal");
+        act.digest_to_seq = 4;
+
+        let messages = load_uncovered_messages(&mut conn, &Some(act), 3)
+            .await
+            .expect("load uncovered");
+
+        // tail is seqs 5..=10 (six messages), above the window of 3: no backfill
+        assert_eq!(messages.len(), 6);
+        assert_eq!(messages.first().expect("a message").text, "message 4");
     }
 }
