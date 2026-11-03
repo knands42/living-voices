@@ -2,8 +2,6 @@
 
 A local-first roleplay chat app built in **Rust**, with a terminal UI (ratatui) and a desktop UI (Slint). Create characters and a world, then talk with them — with a Narrator that steers events in the background.
 
-Not a novel editor. Not a VTT. The chat is the product.
-
 ## What it does
 
 - **Roleplay chat** — solo or group conversations with AI characters, each with a persistent persona (voice, goals, what they'll reveal) and memory.

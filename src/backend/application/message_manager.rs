@@ -95,7 +95,6 @@ impl<
         let present_names = get_active_candidates(&mut conn, &adventure.id.to_string()).await?;
         let active_characters = adventure.active_characters(&present_names);
         let messages_since_narration = count_since_last_narration(&mut conn, adventure.id).await?;
-        // TODO: on the beginning of a new act, it will have 0 messages, when thats the case, get the last x messages (for other scenarios is not needed as the distill operation will always apply over the last 50 messages when I have 70 on the chat, so its always going to have at least 20)
         let uncovered_messages: Vec<Message> = self.load_uncovered(&mut conn, adventure.id).await?;
 
         let chat_reply = self
@@ -120,8 +119,6 @@ impl<
             stored_reply.clone(),
         )
         .await?;
-
-        // TODO: check if make sense to call for another llm message (multiple characters talk per turn)
 
         Ok(stored_reply)
     }
