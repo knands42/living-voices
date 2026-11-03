@@ -65,6 +65,11 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
         Ok(uncovered_messages_len >= self.memory_settings.compress_after_threshold as usize)
     }
 
+    /// How many recent messages the prompt should carry as raw turns.
+    pub fn recent_messages_window(&self) -> u16 {
+        self.memory_settings.compress_last_messages as u16
+    }
+
     /// Compress every message not yet covered by the latest summary.
     pub async fn compress_and_update(
         &self,

@@ -15,7 +15,7 @@ use crate::backend::persistence::act_persistence::{
     get_active_act, update_active_act_last_closure_score,
 };
 use crate::backend::persistence::message_persistence::{
-    count_since_last_narration, fetch_since, insert_message,
+    count_since_last_narration, fetch_last_n, fetch_since, insert_message,
 };
 use crate::backend::persistence::state_persistence::get_active_candidates;
 use sqlx::{SqliteConnection, SqlitePool};
@@ -92,7 +92,7 @@ impl<
 
         let input_data = self.gather_data(&incoming).await?;
         let chat_reply = self.respond(&incoming, &input_data).await?;
-        self.settle(chat_reply, input_data).await
+        self.process_respond(chat_reply, input_data).await
     }
 
     async fn gather_data(&self, incoming: &Message) -> Result<TurnInput, MessageManagerError> {
@@ -139,7 +139,7 @@ impl<
         .await
     }
 
-    async fn settle(
+    async fn process_respond(
         &self,
         chat_reply: ChatReply,
         input: TurnInput,
@@ -318,6 +318,15 @@ impl<
         };
 
         let uncovered = fetch_since(conn, act.adventure_id, act.digest_to_seq).await?;
+
+        // A fresh act (ordinal != 0) starts with its watermark at its own first
+        // message, so it has no uncovered tail yet. Backfill recent turns from the
+        // previous acts so the prompt keeps continuity until the act fills up.
+        let window = self.memory_manager.recent_messages_window();
+        if act.ordinal != 0 && uncovered.len() < window as usize {
+            return Ok(fetch_last_n(conn, act.adventure_id, window).await?);
+        }
+
         Ok(uncovered)
     }
 }
