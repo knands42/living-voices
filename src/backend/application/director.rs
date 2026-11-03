@@ -54,6 +54,23 @@ impl Director {
         // TODO: pick among multiple candidates without targets (CPU embedding)
     }
 
+    pub fn should_a_conversation_follow_up(
+        &self,
+        candidates: &[&Character],
+        steps_taken: u8,
+    ) -> bool {
+        if candidates.len() < 2 {
+            return false;
+        }
+
+        if steps_taken >= self.director_settings.follow_up_max_chain {
+            return false;
+        }
+
+        let chance = self.director_settings.follow_up_chance / (steps_taken as f32 + 1.0);
+        rand::random::<f32>() < chance
+    }
+
     pub fn should_request_pacing_prompt(&self, messages_in_act: u16) -> bool {
         messages_in_act >= self.director_settings.act_max_messages / 3
     }

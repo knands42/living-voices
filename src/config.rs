@@ -23,6 +23,9 @@ const DEFAULT_TARGETED_PICK_CHANCE: f32 = 0.8;
 const DEFAULT_NARRATOR_CHANGE_IF_OOC: f32 = 0.2;
 const DEFAULT_ACT_MAX_MESSAGES: u16 = 200;
 
+const DEFAULT_FOLLOW_UP_CHANCE: f32 = 0.35;
+const DEFAULT_FOLLOW_UP_MAX_CHAIN: u8 = 6;
+
 const DEFAULT_NARRATOR_RAMP_MIN: u8 = 20;
 const DEFAULT_NARRATOR_RAMP_MAX: u8 = 30;
 
@@ -114,6 +117,10 @@ pub struct DirectorSettings {
     pub targeted_pick_chance: f32,
     pub narrator_change_if_ooc: f32,
     pub act_max_messages: u16,
+    /// chance that an NPC follows another NPC's reply, before the per-step decay
+    pub follow_up_chance: f32,
+    /// hard cap on NPC-to-NPC follow-ups chained off one player beat
+    pub follow_up_max_chain: u8,
     pub narrator_pick_chance_after_message_threshold_range: MessageThresholdRange,
 }
 
@@ -123,6 +130,8 @@ impl Default for DirectorSettings {
             targeted_pick_chance: DEFAULT_TARGETED_PICK_CHANCE,
             narrator_change_if_ooc: DEFAULT_NARRATOR_CHANGE_IF_OOC,
             act_max_messages: DEFAULT_ACT_MAX_MESSAGES,
+            follow_up_chance: DEFAULT_FOLLOW_UP_CHANCE,
+            follow_up_max_chain: DEFAULT_FOLLOW_UP_MAX_CHAIN,
             narrator_pick_chance_after_message_threshold_range: MessageThresholdRange::default(),
         }
     }

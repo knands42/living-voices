@@ -46,6 +46,21 @@ pub fn chat_reply_schema() -> JsonSchema {
     }
 }
 
+pub fn follow_up_reply_schema() -> JsonSchema {
+    JsonSchema {
+        name: "follow_up_reply".to_string(),
+        schema: json!({
+            "type": "object",
+            "properties": {
+                "replier": { "type": "string" },
+                "reply": { "type": "string" }
+            },
+            "required": ["replier", "reply"],
+            "additionalProperties": false
+        }),
+    }
+}
+
 impl Chat {
     pub fn new(config: TextModel) -> Self {
         Self { config }
@@ -115,6 +130,41 @@ impl ChatHandler for Chat {
             replier: completion.replier,
             reply: completion.reply,
             act_closure: completion.act_closure,
+        })
+    }
+
+    async fn follow_up_respond(
+        &self,
+        context: &[PromptTurn],
+    ) -> Result<ChatReply, ChatResponseError> {
+        let client = self.client()?;
+        let prompt = context
+            .iter()
+            .cloned()
+            .map(ChatMessage::from)
+            .collect::<Vec<ChatMessage>>();
+
+        let format = ResponseFormat::JsonSchema {
+            json_schema: &follow_up_reply_schema(),
+        };
+
+        let raw = client
+            .send(
+                self.config.model.as_str(),
+                &prompt,
+                self.config.temperature,
+                Some(format),
+                super::keep_alive(&self.config),
+            )
+            .await
+            .map_err(|e| ChatResponseError::Provider(e.to_string()))?;
+
+        let completion = ChatCompletion::from_reply(&raw)?;
+
+        Ok(ChatReply {
+            replier: completion.replier,
+            reply: completion.reply,
+            act_closure: None,
         })
     }
 }

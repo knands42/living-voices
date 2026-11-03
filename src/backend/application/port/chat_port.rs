@@ -59,6 +59,13 @@ pub trait ChatHandler: Send + Sync {
         &self,
         context: &[PromptTurn],
     ) -> impl Future<Output = Result<ChatReply, ChatResponseError>> + Send;
+
+    /// One NPC-to-NPC follow-up beat. The model picks which present cast member
+    /// speaks; `act_closure` is always `None` since a follow-up never judges closure.
+    fn follow_up_respond(
+        &self,
+        context: &[PromptTurn],
+    ) -> impl Future<Output = Result<ChatReply, ChatResponseError>> + Send;
 }
 
 pub trait NarratorHandler: Send + Sync {

@@ -92,7 +92,53 @@ impl<
 
         let input_data = self.gather_data().await?;
         let chat_reply = self.respond(&incoming, &input_data).await?;
-        self.process_respond(chat_reply, input_data).await
+        let stored_reply = self.process_respond(chat_reply, input_data).await?;
+
+        self.run_follow_ups(stored_reply.speaker_name.clone())
+            .await?;
+
+        Ok(stored_reply)
+    }
+
+    async fn run_follow_ups(&self, mut last_speaker: String) -> Result<(), MessageManagerError> {
+        let mut steps = 6;
+
+        for _ in 1..steps {
+            let input = self.gather_data().await?;
+            let candidates = input.adventure.active_characters(&input.present_names);
+
+            if !self
+                .director
+                .should_a_conversation_follow_up(&candidates, steps)
+            {
+                return Ok(());
+            }
+
+            let data = {
+                let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+                ContextData::load(&mut conn, input.adventure.id).await?
+            };
+            let prompt = ContextBuilder::build_follow_up_prompt(
+                &input.adventure,
+                &data,
+                &input.uncovered_messages,
+            );
+            let reply = self.chat_handler.follow_up_respond(&prompt).await?;
+
+            if reply.replier == last_speaker || reply.replier == Message::NARRATOR_SPEAKER_NAME {
+                return Ok(());
+            }
+
+            let message = input
+                .adventure
+                .message_from_reply(&reply.replier, &reply.reply);
+            let stored = self.create_message(message).await?;
+
+            last_speaker = stored.speaker_name;
+            steps += 1;
+        }
+
+        Ok(())
     }
 
     async fn gather_data(&self) -> Result<TurnInput, MessageManagerError> {

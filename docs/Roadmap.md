@@ -20,16 +20,3 @@
 | CPU embedding for character selection    |                                                     |
 | Challenges & achievements (quest score)  | score on quest completion                           |
 | Final per-journey prompt about the score | end-of-journey summary                              |
-
-## TODOs (tracked here until moved to GitHub issues)
-
-Priority order. P1 = do first, P3 = nice to have.
-
-| pri | where | what |
-|-----|-------|------|
-| P1 | `message_manager.rs` | Add benchmarks. Worst case: an active act closes, which fires a narration message + an autonomous chat prompt + a background distill (2 LLM calls, lots of Rust). Never measured. |
-| P2 | `director.rs` | If the narrator spoke the last message, wait for at least 10 messages before it speaks again. |
-| P2 | `director.rs` | Pick among many no-target candidates using CPU embedding. |
-| P3 | `message_manager.rs:send_message` | Check if a second LLM message makes sense (many characters talk per turn). |
-| P3 | `chat_context.rs:build_closure_prompt` | `current_act_messages_max_threshold` will come from adventure settings later. For now it defaults to 200. |
-| P3 | `state.rs:AppState` | Remove some fields from state. Slint can hold its own state for some of them. |

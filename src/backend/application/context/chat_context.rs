@@ -59,6 +59,25 @@ impl ContextBuilder {
         Self::assemble(adventure, director, data, &head, messages)
     }
 
+    /// An NPC-to-NPC follow-up beat.
+    pub fn build_follow_up_prompt(
+        adventure: &Adventure,
+        data: &ContextData,
+        messages: &[Message],
+    ) -> Vec<PromptTurn> {
+        let head = [
+            FOLLOW_UP_CHAT_PROMPT.to_string(),
+            Self::build_settings_prompt(adventure),
+            FOLLOW_UP_CHAT_INSTRUCTIONS.to_string(),
+            Self::build_characters_prompt(adventure),
+        ];
+
+        let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
+        turns.push(PromptTurn::system(Self::build_static_context(data)));
+        turns.extend(Self::build_previous_messages(adventure, messages));
+        turns
+    }
+
     pub fn build_distill_prompt(data: &ContextData, messages: &[Message]) -> Vec<PromptTurn> {
         Self::build_memory_prompt(data, messages, DISTILL_PROMPT)
     }

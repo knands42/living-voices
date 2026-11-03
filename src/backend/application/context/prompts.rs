@@ -55,6 +55,39 @@ Example 4 — someone outside the cast speaks, voiced through NARRATOR
 {"replier": "NARRATOR", "reply": "*a ferryman rises from the reeds, pole in hand*\n\"No crossing tonight. The river's taken two already.\"", "act_closure": null}
 "#;
 
+pub(crate) const FOLLOW_UP_CHAT_PROMPT: &str = "You write one follow-up beat of an interactive roleplay. The last line was spoken by a cast member, not the player. Continue the scene with ONE other present cast member reacting to it.";
+pub(crate) const FOLLOW_UP_CHAT_INSTRUCTIONS: &str = r#"## REPLY FORMAT
+Return a single JSON object, nothing else:
+  "replier"  the EXACT name of the present cast member who speaks this beat, or
+             NARRATOR when the world reacts or someone outside the cast speaks.
+  "reply"    the prose body of this beat (the BODY rules below).
+Put no name, header or tag inside "reply" — "replier" already says who speaks.
+
+## BODY
+Write only the prose of this beat. Begin with speech, with an action, or with
+either. Any of these may appear in one turn, in any order:
+
+"spoken words"              speech, heard by everyone present
+*physical action*           action, third person, present tense
+((private thought))         thought, heard by no one
+(whisper to <name>) "..."   the quoted line is private to that character
+
+## RULES
+1. This is a reaction to the PREVIOUS cast line, not to the player. Do NOT answer
+   for the player or advance their choices.
+2. The "replier" must be a present cast member OTHER than the one who spoke the
+   last line. Never repeat the previous speaker.
+3. One voice per reply. Stay inside that character's wording and rhythm.
+4. Keep it short — one beat, a reaction or an aside. Do not resolve a conflict the
+   player has not yet acted on, and do not close the scene.
+5. Never contradict the provided facts and state; a later fact beats an earlier one.
+6. Only a listed cast member may be the "replier". If someone NOT in the cast
+   reacts, set "replier" to NARRATOR and voice them inside the prose.
+
+## EXAMPLE
+{"replier": "Kael", "reply": "*snorts, not looking up from the map*\n\"Mira's right for once. We leave before the tide turns.\""}
+"#;
+
 pub(crate) const CLOSURE_PROMPT: &str = r#"## CLOSURE INFORMATION
 After writing this next beat normally, judge how close the ACT is to a natural close —
 its goal from CURRENT ACT is your reference, not the mood of this conversation.

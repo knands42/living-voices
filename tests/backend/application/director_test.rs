@@ -41,6 +41,7 @@ fn director(targeted_pick_chance: f32, narrator_change_if_ooc: f32, ramp: (u8, u
             min: ramp.0,
             max: ramp.1,
         },
+        ..Default::default()
     })
 }
 
@@ -132,4 +133,52 @@ fn an_empty_cast_has_nobody_to_pick() {
     let d = director(1.0, 0.0, (20, 30));
     // when/then: there is nobody to pick
     assert!(d.pick_character(&[]).is_none());
+}
+
+// ------------------------------------------------------------ npc follow-ups
+
+fn follow_up_director(chance: f32, max_chain: u8) -> Director {
+    Director::new(DirectorSettings {
+        follow_up_chance: chance,
+        follow_up_max_chain: max_chain,
+        ..Default::default()
+    })
+}
+
+#[test]
+fn no_follow_up_with_fewer_than_two_candidates() {
+    // given: a certain chance but only one present cast member
+    let d = follow_up_director(1.0, 3);
+    let cast = cast(&["Mira"]);
+    // when/then: there is nobody else to react, so no follow-up
+    assert!(!d.should_a_conversation_follow_up(&cast.iter().collect::<Vec<_>>(), 0));
+}
+
+#[test]
+fn no_follow_up_once_the_chain_cap_is_reached() {
+    // given: a certain chance, two candidates, and a cap of 2
+    let d = follow_up_director(1.0, 2);
+    let cast = cast(&["Mira", "Kael"]);
+    let candidates = cast.iter().collect::<Vec<_>>();
+    // when/then: at or past the cap, the chain ends regardless of chance
+    assert!(!d.should_a_conversation_follow_up(&candidates, 2));
+    assert!(!d.should_a_conversation_follow_up(&candidates, 3));
+}
+
+#[test]
+fn a_certain_chance_follows_up_within_the_cap() {
+    // given: a certain chance, two candidates, room under the cap
+    let d = follow_up_director(1.0, 3);
+    let cast = cast(&["Mira", "Kael"]);
+    // when/then: the first step always fires
+    assert!(d.should_a_conversation_follow_up(&cast.iter().collect::<Vec<_>>(), 0));
+}
+
+#[test]
+fn a_zero_chance_never_follows_up() {
+    // given: no follow-up chance
+    let d = follow_up_director(0.0, 3);
+    let cast = cast(&["Mira", "Kael"]);
+    // when/then: a follow-up never fires
+    assert!(!d.should_a_conversation_follow_up(&cast.iter().collect::<Vec<_>>(), 0));
 }

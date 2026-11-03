@@ -251,10 +251,12 @@ fn director_pick_narrator() -> Director {
         targeted_pick_chance: 1.0,
         narrator_change_if_ooc: 1.0,
         act_max_messages: 10_000,
+        follow_up_chance: 0.0,
         narrator_pick_chance_after_message_threshold_range: MessageThresholdRange {
             min: 0,
             max: 0,
         },
+        ..Default::default()
     })
 }
 
@@ -263,10 +265,12 @@ fn director_pick_character() -> Director {
         targeted_pick_chance: 1.0,
         narrator_change_if_ooc: 0.0,
         act_max_messages: 10_000,
+        follow_up_chance: 0.0,
         narrator_pick_chance_after_message_threshold_range: MessageThresholdRange {
             min: 255,
             max: 255,
         },
+        ..Default::default()
     })
 }
 
@@ -275,10 +279,12 @@ fn director_pick_autonomous() -> Director {
         targeted_pick_chance: 0.0,
         narrator_change_if_ooc: 0.0,
         act_max_messages: 10_000,
+        follow_up_chance: 0.0,
         narrator_pick_chance_after_message_threshold_range: MessageThresholdRange {
             min: 255,
             max: 255,
         },
+        ..Default::default()
     })
 }
 
@@ -287,10 +293,12 @@ fn director_transition_act() -> Director {
         targeted_pick_chance: 0.0,
         narrator_change_if_ooc: 0.0,
         act_max_messages: 5,
+        follow_up_chance: 0.0,
         narrator_pick_chance_after_message_threshold_range: MessageThresholdRange {
             min: 255,
             max: 255,
         },
+        ..Default::default()
     })
 }
 
