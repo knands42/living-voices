@@ -60,7 +60,7 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
         }
     }
 
-    pub async fn needs_compression(
+    pub fn needs_compression(
         &self,
         uncovered_messages_len: usize,
     ) -> Result<bool, MemoryManagerError> {

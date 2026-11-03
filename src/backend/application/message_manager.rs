@@ -113,10 +113,13 @@ impl<
         let reply_message = adventure.message_from_reply(&chat_reply.replier, &chat_reply.reply);
         let stored_reply = self.create_message(reply_message).await?;
 
-        self.check_and_update_current_act(chat_reply, &adventure, stored_reply.clone())
-            .await?;
-        self.check_and_compress_memory(uncovered_messages.len())
-            .await;
+        self.check_and_update_current_act(
+            chat_reply,
+            &adventure,
+            &uncovered_messages,
+            stored_reply.clone(),
+        )
+        .await?;
 
         // TODO: check if make sense to call for another llm message (multiple characters talk per turn)
 
@@ -194,14 +197,10 @@ impl<
         Ok(self.chat_handler.autonomous_respond(&context).await?)
     }
 
-    async fn check_and_compress_memory(
-        &self,
-        uncovered_messages_len: usize,
-    ) -> Result<(), MessageManagerError> {
+    fn check_and_compress_memory(&self, uncovered_messages_len: usize) {
         match self
             .memory_manager
             .needs_compression(uncovered_messages_len)
-            .await
         {
             Ok(false) => {}
             Ok(true) => {
@@ -214,19 +213,16 @@ impl<
             }
             Err(err) => eprintln!("memory compression check failed: {err}"),
         }
-
-        Ok(())
     }
 
     async fn check_and_update_current_act(
         &self,
         chat_reply: ChatReply,
         adventure: &Adventure,
+        uncovered_messages: &Vec<Message>,
         last_message: Message,
     ) -> Result<(), MessageManagerError> {
-        let Some(score) = chat_reply.act_closure else {
-            return Ok(());
-        };
+        let score = chat_reply.act_closure.unwrap_or(0);
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
 
@@ -237,9 +233,12 @@ impl<
             update_active_act_last_closure_score(&mut conn, adventure.id, score).await?;
 
         if should_close {
-            self.close_current_act(&mut conn, adventure).await?;
+            self.close_current_act(&mut conn, adventure, uncovered_messages)
+                .await?;
         } else {
             self.state.write()?.current_act = updated_act;
+
+            self.check_and_compress_memory(uncovered_messages.len());
         }
 
         Ok(())
@@ -249,32 +248,32 @@ impl<
         &self,
         conn: &mut SqliteConnection,
         adventure: &Adventure,
+        uncovered_messages: &Vec<Message>,
     ) -> Result<(), MessageManagerError> {
         let Some(act) = get_active_act(conn, adventure.id).await? else {
             log::error!("No active act found for adventure {}", adventure.id);
             return Ok(());
         };
 
-        //TODO: Reuse my already fetched uncovered_messages
-        let mut uncovered_messages = fetch_since(conn, adventure.id, act.digest_to_seq).await?;
         let prompt =
-            ContextBuilder::build_act_transition_prompt(conn, adventure, &uncovered_messages)
+            ContextBuilder::build_act_transition_prompt(conn, adventure, uncovered_messages)
                 .await?;
 
         let narration = self.narrator_handler.narrator_respond(&prompt).await?;
         let narration_message =
             adventure.message_from_reply(Message::NARRATOR_SPEAKER_NAME, &narration);
         let stored = insert_message(conn, &narration_message).await?;
-        uncovered_messages.push(stored);
+
+        let mut all_messages = uncovered_messages.clone();
+        all_messages.push(stored);
 
         self.memory_manager
-            .close_current_act(&act, &uncovered_messages)
+            .close_current_act(&act, &all_messages)
             .await?;
 
         Ok(())
     }
 
-    // TODO: Should I get this from the guard.current_messages since last act digest_to_seq?
     async fn load_uncovered(
         &self,
         conn: &mut SqliteConnection,
