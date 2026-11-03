@@ -1,6 +1,5 @@
-use sqlx::{Acquire, SqliteConnection, SqlitePool};
+use sqlx::{Acquire, SqlitePool};
 use thiserror::Error;
-use uuid::Uuid;
 
 use crate::backend::PersistenceError;
 use crate::backend::application::context::ContextBuilder;
@@ -16,7 +15,6 @@ use crate::backend::persistence::act_persistence::{
     activate_next_act, close_act, get_active_act, update_act_running_digest,
 };
 use crate::backend::persistence::fact_persistence::insert_facts;
-use crate::backend::persistence::message_persistence::fetch_since;
 use crate::backend::persistence::state_persistence::upsert_state;
 use crate::config::MemorySettings;
 
@@ -68,7 +66,11 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
     }
 
     /// Compress every message not yet covered by the latest summary.
-    pub async fn compress_and_update(&self) -> Result<(), MemoryManagerError> {
+    pub async fn compress_and_update(
+        &self,
+        act: &Act,
+        uncovered: &[Message],
+    ) -> Result<(), MemoryManagerError> {
         let adventure = {
             let guard = self.state.read()?;
             let Some(adventure) = guard.current_adventure.as_ref() else {
@@ -77,18 +79,19 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
             adventure.clone()
         };
 
-        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let Some((act, uncovered, digest_to_seq)) =
-            self.load_uncovered(&mut conn, adventure.id).await?
-        else {
+        let Some(last) = uncovered.last() else {
             return Ok(());
         };
+        let digest_to_seq = last
+            .seq
+            .ok_or_else(|| MemoryManagerError::MissingSequence(last.text.clone()))?;
 
-        let prompt =
-            ContextBuilder::build_distill_prompt(&mut conn, &adventure, &uncovered).await?;
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+
+        let prompt = ContextBuilder::build_distill_prompt(&mut conn, &adventure, uncovered).await?;
         let distilled = self.distiller.distill(&prompt).await?;
 
-        self.persist_distilled(&mut conn, &adventure, &act, distilled, digest_to_seq)
+        self.persist_distilled(&mut conn, &adventure, act, distilled, digest_to_seq)
             .await
     }
 
@@ -212,26 +215,5 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
             guard.current_facts.extend(facts);
         }
         Ok(())
-    }
-
-    async fn load_uncovered(
-        &self,
-        conn: &mut SqliteConnection,
-        adventure_id: Uuid,
-    ) -> Result<Option<(Act, Vec<Message>, u16)>, MemoryManagerError> {
-        let Some(act) = get_active_act(conn, adventure_id).await? else {
-            return Ok(None);
-        };
-
-        let uncovered = fetch_since(conn, adventure_id, act.digest_to_seq).await?;
-        let Some(last) = uncovered.last() else {
-            return Ok(None);
-        };
-
-        let digest_to_seq = last
-            .seq
-            .ok_or_else(|| MemoryManagerError::MissingSequence(last.text.clone()))?;
-
-        Ok(Some((act, uncovered, digest_to_seq)))
     }
 }

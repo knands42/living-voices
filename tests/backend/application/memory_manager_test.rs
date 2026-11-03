@@ -6,14 +6,13 @@ use crate::backend::application::helper::{
     CONVERSATION, seed_conversation, setup_db, start_adventure_with_default_cast,
 };
 use living_voices::ai::{ActClose, MemoryUpdate};
-use living_voices::backend::application::adventure_manager::AdventureManager;
-
 use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::memory::{Act, ActStatus};
 use living_voices::backend::persistence::act_persistence::{
     get_active_act, update_act_running_digest, upsert_act,
 };
+use living_voices::backend::persistence::message_persistence::fetch_since;
 use living_voices::config::{Config, MemorySettings, TextModel};
 
 // ---------------------------------------------------------------- compress and distill path
@@ -40,11 +39,18 @@ async fn full_pipeline_compress_distills_the_uncovered_tail_persists_memory_and_
     update_act_running_digest(&mut conn, active_act.id, "", 1)
         .await
         .expect("update digest_to_seq");
+    let active_act = get_active_act(&mut conn, adventure.id)
+        .await
+        .expect("get active act")
+        .expect("has active act");
+    let uncovered = fetch_since(&mut conn, adventure.id, active_act.digest_to_seq)
+        .await
+        .expect("uncovered");
     drop(conn);
 
     // when: compressing through the real memory model
     memory_manager
-        .compress_and_update()
+        .compress_and_update(&active_act, &uncovered)
         .await
         .expect("compress succeeds");
 
@@ -78,9 +84,10 @@ async fn compress_is_a_noop_without_a_current_adventure() {
     // given: a migrated database with no adventure loaded
     let (pool, _db) = setup_db().await;
     let manager = setup_memory_manager(&SharedState::new(), &pool);
+    let act = Act::new(Uuid::new_v4(), 1, "reach the surface");
 
     // when: compressing
-    let result = manager.compress_and_update().await;
+    let result = manager.compress_and_update(&act, &[]).await;
 
     // then: it succeeds without touching the database
     assert!(result.is_ok());
@@ -88,26 +95,24 @@ async fn compress_is_a_noop_without_a_current_adventure() {
 }
 
 #[tokio::test]
-async fn compress_is_a_noop_without_an_active_act() {
-    // given: an adventure with messages but no active act (not started)
-    // built inline, not via the shared helper, because that one starts the act
+async fn compress_is_a_noop_without_uncovered_messages() {
+    // given: a loaded adventure but nothing uncovered to compress
     let (pool, _db) = setup_db().await;
     let state = SharedState::new();
-    let mgr = AdventureManager::new(state.clone(), pool.clone());
-    let adventure = mgr
-        .create_adventure(
-            "Test adventure".into(),
-            "A drowned city".into(),
-            "tense".into(),
-        )
-        .await
-        .expect("create adventure");
-    // Intentionally NOT calling start_adventure — no active act
-    seed_conversation(&pool, &adventure, CONVERSATION, 2).await;
-    let manager = setup_memory_manager(&SharedState::new(), &pool);
+    let mgr = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = mgr.current_adventure().expect("current adventure");
 
-    // when: compressing
-    let result = manager.compress_and_update().await;
+    let mut conn = pool.acquire().await.expect("acquire");
+    let active_act = get_active_act(&mut conn, adventure.id)
+        .await
+        .expect("get active act")
+        .expect("has active act");
+    drop(conn);
+
+    let manager = setup_memory_manager(&state, &pool);
+
+    // when: compressing with an empty uncovered tail
+    let result = manager.compress_and_update(&active_act, &[]).await;
 
     // then: it succeeds without writing memory
     assert!(result.is_ok());
@@ -134,13 +139,20 @@ async fn compress_is_a_noop_when_every_message_is_already_covered() {
     update_act_running_digest(&mut conn, active_act.id, "", watermark)
         .await
         .expect("update digest_to_seq");
+    let active_act = get_active_act(&mut conn, adventure.id)
+        .await
+        .expect("get active act")
+        .expect("has active act");
+    let uncovered = fetch_since(&mut conn, adventure.id, active_act.digest_to_seq)
+        .await
+        .expect("uncovered");
     drop(conn);
     let act_id = active_act.id;
 
-    let manager = setup_memory_manager(&SharedState::new(), &pool);
+    let manager = setup_memory_manager(&state, &pool);
 
-    // when: compressing
-    let result = manager.compress_and_update().await;
+    // when: compressing the already-covered tail
+    let result = manager.compress_and_update(&active_act, &uncovered).await;
 
     // then: it succeeds without advancing the watermark or writing facts
     assert!(result.is_ok());
