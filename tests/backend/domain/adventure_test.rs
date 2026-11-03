@@ -11,7 +11,7 @@ fn new_adventure() -> Adventure {
         Uuid::new_v4(),
         "Tides of Glass",
         "A drowned city",
-        Narrator::new(Uuid::new_v4(), "NARRATOR", ""),
+        Narrator::new(Uuid::new_v4(), Uuid::new_v4(), "NARRATOR", ""),
         "",
         Lore::new(Uuid::new_v4(), ""),
         now,

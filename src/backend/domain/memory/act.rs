@@ -79,6 +79,7 @@ pub struct Act {
 }
 
 impl Act {
+    pub const DEFAULT_ACT_GOAL: &str = "PENDING GOAL";
     pub fn new(adventure_id: Uuid, ordinal: u16, goal: impl Into<String>) -> Self {
         let now = Utc::now();
         Self {
@@ -98,6 +99,10 @@ impl Act {
             created_at: now,
             updated_at: now,
         }
+    }
+
+    pub fn is_valid_act(&self) -> bool {
+        !self.goal.is_empty() || self.goal != Self::DEFAULT_ACT_GOAL
     }
 
     pub fn with_trigger(mut self, trigger: impl Into<String>) -> Self {

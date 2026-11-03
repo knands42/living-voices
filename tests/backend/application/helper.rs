@@ -1,26 +1,16 @@
 use living_voices::ai::integrations::text::chat::Chat;
 use living_voices::backend::application::adventure_manager::AdventureManager;
 use living_voices::backend::application::character_manager::CharacterManager;
-use living_voices::backend::application::port::chat_port::{
-    ChatResponseError, PromptHandler, PromptTurn,
-};
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::{Character, CharacterStatus};
+use living_voices::backend::domain::memory::{Act, ActStatus};
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::{open_pool, run_migrations};
 use living_voices::config::Config;
 use sqlx::SqlitePool;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
-
-pub struct StubPromptHandler;
-
-impl PromptHandler for StubPromptHandler {
-    async fn handle_prompt(&self, _prompt: &[PromptTurn]) -> Result<String, ChatResponseError> {
-        Ok(String::new())
-    }
-}
 
 pub struct TempDb(pub PathBuf);
 impl Drop for TempDb {
@@ -33,8 +23,8 @@ impl Drop for TempDb {
 }
 
 pub async fn setup_db() -> (SqlitePool, TempDb) {
-    let path =
-        std::env::temp_dir().join(format!("living_voices_memory_test_{}.db", Uuid::new_v4()));
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join(format!("living_voices_memory_test_{}.db", Uuid::new_v4()));
     let db = TempDb(path);
     let db_str = db.0.to_string_lossy().into_owned();
 
@@ -101,6 +91,53 @@ pub async fn start_adventure_with_default_cast(
             .expect("create character");
     }
 
+    let updated_act = adventure_mgr
+        .current_snapshot()
+        .current_act
+        .expect("act should exist");
+
+    adventure_mgr
+        .upsert_act(&Act {
+            id: updated_act.id,
+            adventure_id: adventure.id,
+            ordinal: updated_act.ordinal,
+            goal: "Reach the frozen tavern".to_string(),
+            trigger: None,
+            status: ActStatus::Active,
+            index_line: updated_act.index_line,
+            digest: updated_act.digest,
+            running_digest: updated_act.running_digest,
+            digest_to_seq: updated_act.digest_to_seq,
+            from_seq: updated_act.from_seq,
+            to_seq: updated_act.to_seq,
+            last_closure_score: updated_act.last_closure_score,
+            created_at: updated_act.created_at,
+            updated_at: updated_act.updated_at,
+        })
+        .await
+        .expect("update existing act");
+
+    adventure_mgr
+        .upsert_act(&Act {
+            id: Uuid::new_v4(),
+            adventure_id: adventure.id,
+            ordinal: 1,
+            goal: "Reach the burned tavern".to_string(),
+            trigger: None,
+            status: ActStatus::Unstarted,
+            index_line: Some("Journey towards the legendary burned tavern".to_string()),
+            digest: None,
+            running_digest: None,
+            digest_to_seq: 0,
+            from_seq: 0,
+            to_seq: 0,
+            last_closure_score: 0,
+            created_at: updated_act.created_at,
+            updated_at: updated_act.updated_at,
+        })
+        .await
+        .expect("update existing act");
+
     adventure_mgr
         .start_adventure(adventure.id)
         .await
@@ -130,7 +167,9 @@ pub async fn create_characters(
         .collect();
 
     let state = SharedState::new();
-    let character_mgr = CharacterManager::new(state, pool.clone(), StubPromptHandler);
+    let text_model_config = Config::new().expect("load config").settings.models.chat;
+    let chat_handler = Chat::new(text_model_config);
+    let character_mgr = CharacterManager::new(state, pool.clone(), chat_handler);
     for character in &characters {
         character_mgr
             .create_character(character.clone())
@@ -169,6 +208,7 @@ pub async fn seed_conversation(
 pub const DEFAULT_CAST_MIRA: &'static str = "Mira";
 pub const DEFAULT_CAST_KAEL: &'static str = "Kael";
 pub const CONVERSATION: &[SeedLine] = &[
+    // ---- BEGINNING: the door on the tide flat ----
     SeedLine {
         speaker: None,
         text: "The tide has gone out further than the charts allow. Where the harbour \
@@ -191,34 +231,59 @@ pub const CONVERSATION: &[SeedLine] = &[
                came out the far side. Tell me you saw that too.",
     },
     SeedLine {
+        speaker: Some(DEFAULT_CAST_KAEL),
+        text: "Maybe it came out somewhere else. Look past the frame — that's not more \
+               sand in there. That's a harbour. Lit, crowded, and frozen mid-step.",
+    },
+    // ---- MIDDLE: the crossing ----
+    SeedLine {
         speaker: Some(DEFAULT_CAST_MIRA),
-        text: "I saw it. And the sand around the threshold is dry, in the middle of a \
-               tide flat. That's not the sea's doing. That's an invitation.",
+        text: "Every face turned toward us, and not one of them moving. The still ones \
+               are the ones already taken. We cross as visitors who leave again.",
     },
     SeedLine {
         speaker: Some("You"),
-        text: "An invitation I'd rather decline. But my brother's name was the last \
-               thing the water took from you — so I won't make you turn back.",
+        text: "The frost takes the boards an arm's length ahead of my boot and stops, \
+               like a tide line. Whatever rules this place, it's patient — it lets us \
+               walk, so long as we keep walking toward the tavern.",
     },
     SeedLine {
         speaker: Some(DEFAULT_CAST_KAEL),
-        text: "Then stay close. Through that frame I can see the harbour, lit and \
-               crowded and ordinary — except every face is turned to us, and not one of \
-               them is moving.",
-    },
-    SeedLine {
-        speaker: Some("You"),
-        text: "The still ones are the ones already taken. If we cross, we cross as \
-               visitors who leave again, not as names added to their list.",
+        text: "The lamplight down the lane just brightened. Not warming — brightening. \
+               Like something lighting the way in, or lighting us up for the table.",
     },
     SeedLine {
         speaker: Some(DEFAULT_CAST_MIRA),
-        text: "Agreed. We keep each other in sight, we touch nothing, and the moment the \
-               lamplight dims we come straight back through the door.",
+        text: "Don't touch the fish strung up on that rack. They're not fish anymore, \
+               and their eyes followed me past. Keep each other in sight. Nothing else.",
     },
     SeedLine {
         speaker: Some("You"),
-        text: "The lamplight is dimming now, like the whole frozen harbour drew one \
-               breath. Whatever waits past the threshold, it knows we're here.",
+        text: "The whole harbour just drew one breath. The lamps dim, the crowd leans \
+               one degree toward the tavern door, and I can hear singing under the \
+               frost. It knows we're here, and it knows where we're going.",
+    },
+    // ---- END: arrival at the frozen tavern ----
+    SeedLine {
+        speaker: Some(DEFAULT_CAST_KAEL),
+        text: "There — end of the lane. A tavern with every window lit and frozen \
+               over, frost on the inside of the glass. The sign above the door still \
+               swings, though there's no wind anywhere else.",
+    },
+    SeedLine {
+        speaker: Some(DEFAULT_CAST_MIRA),
+        text: "The door is not frozen shut. Of everything here, only the door that \
+               wants us opens freely. That's an invitation I don't like any better \
+               than the last one.",
+    },
+    SeedLine {
+        speaker: Some("You"),
+        text: "Then we open it together, or not at all. Warm light under the crack, \
+               a chair drawn out like someone's expecting us. We reached the frozen \
+               tavern — now we find out what it wanted us here for.",
+    },
+    SeedLine {
+        speaker: Some(DEFAULT_CAST_MIRA),
+        text: "Let's rent a room, tomorrow is another we go on a hunt.",
     },
 ];

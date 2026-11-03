@@ -49,7 +49,6 @@ pub async fn get_active_candidates(
     parse_json_array(row.get("characters_present"))
 }
 
-/// The single live `state` row for an adventure, if one exists yet.
 pub async fn get_state(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
@@ -71,17 +70,17 @@ pub async fn insert_default_state(
     conn: &mut SqliteConnection,
     id: Uuid,
     adventure_id: Uuid,
-) -> Result<(), PersistenceError> {
-    sqlx::query(
+) -> Result<State, PersistenceError> {
+    let row = sqlx::query_as::<_, StateRow>(
         "INSERT INTO state (id, adventure_id) VALUES (?1, ?2)
-         ON CONFLICT(adventure_id) DO NOTHING",
+         ON CONFLICT(adventure_id) DO NOTHING RETURNING *",
     )
     .bind(id.to_string())
     .bind(adventure_id.to_string())
-    .execute(&mut *conn)
+    .fetch_one(&mut *conn)
     .await?;
 
-    Ok(())
+    State::try_from(row)
 }
 
 pub async fn upsert_state(
@@ -115,6 +114,41 @@ pub async fn upsert_state(
     .bind(from_timestamp_to_str(&state.updated_at))
     .execute(&mut *conn)
     .await?;
+
+    Ok(())
+}
+
+pub async fn update_character_presence(
+    conn: &mut SqliteConnection,
+    adventure_id: Uuid,
+    characters_to_add: &[&str],
+    characters_to_remove: &[&str],
+) -> Result<(), PersistenceError> {
+    // Read current
+    let current: String =
+        sqlx::query_scalar("SELECT characters_present FROM state WHERE adventure_id = ?1")
+            .bind(adventure_id.to_string())
+            .fetch_one(&mut *conn)
+            .await?;
+
+    let mut chars: Vec<String> = serde_json::from_str(&current).unwrap_or_default();
+
+    // Add if missing
+    for c in characters_to_add {
+        if !chars.iter().any(|x| x == c) {
+            chars.push(c.to_string());
+        }
+    }
+
+    // Remove all occurrences
+    chars.retain(|x| !characters_to_remove.contains(&x.as_str()));
+
+    // Write back
+    sqlx::query("UPDATE state SET characters_present = ?1 WHERE adventure_id = ?2")
+        .bind(serde_json::to_string(&chars)?)
+        .bind(adventure_id.to_string())
+        .execute(&mut *conn)
+        .await?;
 
     Ok(())
 }

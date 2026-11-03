@@ -2,10 +2,9 @@ use sqlx::SqlitePool;
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::backend::application::context::{
-    AUTONOMOUS_HISTORY_WINDOW, ContextBuilder, ContextBuilderError,
-};
+use crate::backend::application::context::{ContextBuilder, ContextBuilderError};
 use crate::backend::application::port::chat_port::{ChatResponseError, PromptHandler};
+use crate::backend::persistence::state_persistence::update_character_presence;
 use crate::backend::{
     PersistenceError,
     application::state::{SharedState, StateError},
@@ -66,9 +65,17 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
         {
             let mut guard = self.state.write()?;
             if let Some(adventure) = &mut guard.current_adventure {
-                adventure.add_character(character);
+                adventure.add_character(character.clone());
             }
         }
+
+        update_character_presence(
+            &mut conn,
+            character.adventure_id,
+            &vec![character.name.as_str()],
+            &vec![],
+        )
+        .await?;
 
         Ok(())
     }
@@ -116,9 +123,7 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
             .unwrap_or_default();
 
         let messages: Vec<Message> = match kind {
-            ImagePromptKind::Pose => {
-                fetch_last_n(&mut conn, character.adventure_id, AUTONOMOUS_HISTORY_WINDOW).await?
-            }
+            ImagePromptKind::Pose => fetch_last_n(&mut conn, character.adventure_id, 50).await?,
             ImagePromptKind::Portrait | ImagePromptKind::FullBody => Vec::new(),
         };
 

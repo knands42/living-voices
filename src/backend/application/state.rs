@@ -3,7 +3,6 @@ use std::sync::{Arc, RwLock};
 use thiserror::Error;
 
 use crate::backend::domain::character::Character;
-use crate::backend::domain::message::Message;
 use crate::backend::domain::{
     adventure::Adventure,
     memory::{Act, Fact, State},
@@ -17,13 +16,13 @@ pub enum StateError {
     WriteLockFailed(String),
 }
 
+//TODO: remove some of these irrelevant information form state, SLint can and will use it's own state for some fields
 #[derive(Debug, Default)]
 pub struct AppState {
     pub current_adventure: Option<Adventure>,
     pub current_act: Option<Act>,
     pub current_state: Option<State>,
     pub current_facts: Vec<Fact>,
-    pub current_messages: Vec<Message>,
     pub player: Option<Character>,
 }
 
@@ -34,7 +33,6 @@ impl AppState {
             current_act: None,
             current_state: None,
             current_facts: Vec::new(),
-            current_messages: Vec::with_capacity(50),
             player: None,
         }
     }

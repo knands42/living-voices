@@ -59,7 +59,13 @@ impl App<Chat, Narrator, MemoryUpdate, ActClose> {
         let adventure_manager = AdventureManager::new(state.clone(), pool.clone());
         let character_manager =
             CharacterManager::new(state.clone(), pool.clone(), chat_handler.clone());
-        let memory_manager = MemoryManager::new(state.clone(), pool.clone(), distiller, closer);
+        let memory_manager = MemoryManager::new(
+            state.clone(),
+            pool.clone(),
+            distiller,
+            closer,
+            memory_settings,
+        );
         let message_manager = MessageManager::new(
             state.clone(),
             pool.clone(),
@@ -67,7 +73,6 @@ impl App<Chat, Narrator, MemoryUpdate, ActClose> {
             narrator_handler,
             director,
             memory_manager,
-            memory_settings,
         );
 
         Self {

@@ -2,8 +2,6 @@ mod chat_context;
 mod image_context;
 mod prompts;
 
-pub(crate) use prompts::AUTONOMOUS_HISTORY_WINDOW;
-
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::memory::{Act, ActStatus, Fact};

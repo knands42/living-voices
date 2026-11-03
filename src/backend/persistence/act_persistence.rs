@@ -129,7 +129,7 @@ pub async fn update_act_running_digest(
 pub async fn update_active_act_last_closure_score(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
-    score: u16,
+    score: u8,
 ) -> Result<Option<Act>, PersistenceError> {
     let row = sqlx::query_as::<_, ActRow>(
         "UPDATE act
@@ -147,10 +147,14 @@ pub async fn update_active_act_last_closure_score(
     row.map(Act::try_from).transpose()
 }
 
-pub async fn insert_act(conn: &mut SqliteConnection, act: &Act) -> Result<(), PersistenceError> {
-    sqlx::query(
+pub async fn upsert_act(conn: &mut SqliteConnection, act: &Act) -> Result<Act, PersistenceError> {
+    let row = sqlx::query_as::<_, ActRow>(
         "INSERT INTO act (id, adventure_id, ordinal, goal, trigger, status, from_seq)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) ON CONFLICT DO UPDATE SET
+         goal = ?4,
+         trigger = ?5,
+         status = ?6,
+         from_seq = ?7 RETURNING *",
     )
     .bind(act.id.to_string())
     .bind(act.adventure_id.to_string())
@@ -159,10 +163,10 @@ pub async fn insert_act(conn: &mut SqliteConnection, act: &Act) -> Result<(), Pe
     .bind(act.trigger.as_deref())
     .bind(act.status.to_string())
     .bind(act.from_seq)
-    .execute(&mut *conn)
+    .fetch_one(&mut *conn)
     .await?;
 
-    Ok(())
+    Act::try_from(row)
 }
 
 pub async fn insert_default_act(
@@ -172,20 +176,20 @@ pub async fn insert_default_act(
     ordinal: u16,
     goal: &str,
     status: &str,
-) -> Result<(), PersistenceError> {
-    sqlx::query(
+) -> Result<Act, PersistenceError> {
+    let row = sqlx::query_as::<_, ActRow>(
         "INSERT INTO act (id, adventure_id, ordinal, goal, status)
-         VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(id) DO NOTHING",
+         VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(id) DO NOTHING RETURNING *",
     )
     .bind(id.to_string())
     .bind(adventure_id.to_string())
     .bind(ordinal)
     .bind(goal)
     .bind(status.to_string())
-    .execute(&mut *conn)
+    .fetch_one(&mut *conn)
     .await?;
 
-    Ok(())
+    Act::try_from(row)
 }
 
 pub async fn close_act(
@@ -232,14 +236,15 @@ pub async fn activate_first_act(
     Act::try_from(row)
 }
 
-pub async fn activate_and_return_next_act(
+pub async fn activate_next_act(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
+    from_seq: u16,
 ) -> Result<Option<Act>, PersistenceError> {
     let row = sqlx::query_as::<_, ActRow>(
         r#"
         UPDATE act
-        SET status = 'active'
+        SET status = 'active', from_seq = ?2, to_seq = ?2
         WHERE adventure_id = ?1 AND ordinal = (
             SELECT ordinal + 1
             FROM act
@@ -250,6 +255,7 @@ pub async fn activate_and_return_next_act(
         RETURNING *"#,
     )
     .bind(adventure_id.to_string())
+    .bind(from_seq)
     .fetch_optional(&mut *conn)
     .await?;
 

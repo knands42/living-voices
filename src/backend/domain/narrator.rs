@@ -3,14 +3,21 @@ use uuid::Uuid;
 #[derive(Clone, Debug)]
 pub struct Narrator {
     pub id: Uuid,
+    pub adventure_id: Uuid,
     pub name: String,
     pub tone: String,
 }
 
 impl Narrator {
-    pub fn new(id: Uuid, name: impl Into<String>, tone: impl Into<String>) -> Self {
+    pub fn new(
+        id: Uuid,
+        adventure_id: Uuid,
+        name: impl Into<String>,
+        tone: impl Into<String>,
+    ) -> Self {
         Self {
             id,
+            adventure_id,
             name: name.into(),
             tone: tone.into(),
         }

@@ -13,11 +13,12 @@ use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::memory::{Act, ActStatus};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::act_persistence::{
-    activate_and_return_next_act, close_act, get_active_act, update_act_running_digest,
+    activate_next_act, close_act, get_active_act, update_act_running_digest,
 };
 use crate::backend::persistence::fact_persistence::insert_facts;
-use crate::backend::persistence::message_persistence::{count_since_last_narration, fetch_since};
+use crate::backend::persistence::message_persistence::fetch_since;
 use crate::backend::persistence::state_persistence::upsert_state;
+use crate::config::MemorySettings;
 
 #[derive(Error, Debug)]
 pub enum MemoryManagerError {
@@ -39,30 +40,31 @@ pub struct MemoryManager<D: MemoryDistiller, C: ActCloser> {
     pool: SqlitePool,
     distiller: D,
     closer: C,
+    memory_settings: MemorySettings,
 }
 
 impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
-    pub fn new(state: SharedState, pool: SqlitePool, distiller: D, closer: C) -> Self {
+    pub fn new(
+        state: SharedState,
+        pool: SqlitePool,
+        distiller: D,
+        closer: C,
+        memory_settings: MemorySettings,
+    ) -> Self {
         Self {
             state,
             pool,
             distiller,
             closer,
+            memory_settings,
         }
     }
 
-    pub async fn needs_compression(&self, threshold: u8) -> Result<bool, MemoryManagerError> {
-        let adventure_id = {
-            let guard = self.state.read()?;
-            let Some(adventure) = guard.current_adventure.as_ref() else {
-                return Ok(false);
-            };
-            adventure.id
-        };
-
-        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let count = count_since_last_narration(&mut conn, adventure_id).await?;
-        Ok(count >= threshold)
+    pub async fn needs_compression(
+        &self,
+        uncovered_messages_len: usize,
+    ) -> Result<bool, MemoryManagerError> {
+        Ok(uncovered_messages_len >= self.memory_settings.compress_after_threshold as usize)
     }
 
     /// Compress every message not yet covered by the latest summary.
@@ -166,7 +168,9 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
             to_seq,
         )
         .await?;
-        let next_act = activate_and_return_next_act(&mut tx, adventure.id).await?;
+
+        let new_sequence = to_seq + 1;
+        let next_act = activate_next_act(&mut tx, adventure.id, new_sequence).await?;
 
         tx.commit().await.map_err(PersistenceError::from)?;
 

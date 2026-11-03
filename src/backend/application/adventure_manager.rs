@@ -1,7 +1,9 @@
 use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, ActStatus, Fact, State};
 use crate::backend::domain::message::Message;
-use crate::backend::persistence::act_persistence::{activate_first_act, insert_default_act};
+use crate::backend::persistence::act_persistence::{
+    activate_first_act, get_active_act, insert_default_act, upsert_act,
+};
 use crate::backend::persistence::adventure_persistence::get_adventure_summaries;
 use crate::backend::persistence::characters_persistence::insert_default_player_character;
 use crate::backend::persistence::fact_persistence::get_facts;
@@ -29,6 +31,8 @@ pub enum AdventureManagerError {
     DatabaseError(#[from] PersistenceError),
     #[error("no adventure is currently active")]
     NoAdventureActive,
+    #[error("adventure is incomplete")]
+    AdventureIncomplete(String),
 }
 
 #[derive(Clone, Debug)]
@@ -65,20 +69,20 @@ impl AdventureManager {
         insert_default_narrator(&mut conn, narrator_id, adventure_id).await?;
 
         let state_id = Uuid::new_v4();
-        insert_default_state(&mut conn, state_id, adventure_summary.id).await?;
+        let default_state = insert_default_state(&mut conn, state_id, adventure_summary.id).await?;
 
         let player_character_id = Uuid::new_v4();
-        insert_default_player_character(&mut conn, player_character_id, adventure_summary.id)
-            .await?;
+        let default_player_character =
+            insert_default_player_character(&mut conn, player_character_id, adventure_summary.id)
+                .await?;
 
         let act_id = Uuid::new_v4();
-        let act_goal = "PENDING GOAL";
-        insert_default_act(
+        let default_act = insert_default_act(
             &mut conn,
             act_id,
             adventure_summary.id,
             0,
-            act_goal,
+            Act::DEFAULT_ACT_GOAL,
             ActStatus::Unstarted.as_str(),
         )
         .await?;
@@ -90,13 +94,16 @@ impl AdventureManager {
         {
             let mut guard = self.state.write()?;
             guard.current_adventure = Some(new_adventure.clone());
+            guard.current_act = Some(default_act);
+            guard.current_state = Some(default_state);
+            guard.player = Some(default_player_character);
         }
 
         Ok(new_adventure)
     }
 
     pub async fn create_initial_messages(
-        self,
+        &self,
         messages: &[Message],
     ) -> Result<(), AdventureManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
@@ -107,6 +114,74 @@ impl AdventureManager {
         Ok(())
     }
 
+    pub async fn upsert_act(&self, act: &Act) -> Result<(), AdventureManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+
+        let upserted_act = upsert_act(&mut conn, act).await?;
+
+        if upserted_act.status == ActStatus::Active {
+            let mut guard = self.state.write()?;
+            guard.current_act = Some(upserted_act.clone());
+        }
+
+        Ok(())
+    }
+
+    pub async fn start_adventure(&self, adventure_id: Uuid) -> Result<(), AdventureManagerError> {
+        self.validate_adventure_before_start(adventure_id).await?;
+
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        let current_act = activate_first_act(&mut conn, adventure_id).await?;
+        let current_state = get_state(&mut conn, adventure_id).await?;
+        let current_facts = get_facts(&mut conn, adventure_id, current_act.id).await?;
+        let current_messages = fetch_last_n(&mut conn, adventure_id, 50).await?;
+
+        let adventure = get_adventure(&mut conn, adventure_id).await?;
+        let player = adventure.characters.iter().find(|c| c.is_player).cloned();
+        {
+            let mut guard = self.state.write()?;
+            guard.current_adventure = Some(adventure);
+            guard.current_act = Some(current_act);
+            guard.current_state = current_state;
+            guard.current_facts = current_facts;
+            guard.player = player;
+        }
+
+        Ok(())
+    }
+
+    async fn validate_adventure_before_start(
+        &self,
+        adventure_id: Uuid,
+    ) -> Result<(), AdventureManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+
+        let act = get_active_act(&mut conn, adventure_id)
+            .await?
+            .ok_or_else(|| {
+                AdventureManagerError::AdventureIncomplete("no active act found".into())
+            })?;
+
+        if !act.is_valid_act() {
+            return Err(AdventureManagerError::AdventureIncomplete(
+                "act is incomplete".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    pub async fn get_messages(
+        &self,
+        adventure_id: Uuid,
+        limit: usize,
+    ) -> Result<Vec<Message>, AdventureManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        Ok(fetch_last_n(&mut conn, adventure_id, limit as u16).await?)
+    }
+}
+
+impl AdventureManager {
     pub async fn get_adventures_summaries(
         &self,
     ) -> Result<Vec<AdventureSummary>, AdventureManagerError> {
@@ -126,13 +201,6 @@ impl AdventureManager {
         self.state.read().ok()?.current_adventure.clone()
     }
 
-    pub fn current_messages(&self) -> Vec<Message> {
-        match self.state.read() {
-            Ok(guard) => guard.current_messages.clone(),
-            Err(_) => Vec::new(),
-        }
-    }
-
     pub fn current_snapshot(&self) -> MemorySnapshot {
         match self.state.read() {
             Ok(guard) => MemorySnapshot::new(
@@ -140,42 +208,19 @@ impl AdventureManager {
                 guard.current_act.clone(),
                 guard.current_state.clone(),
                 guard.current_facts.clone(),
-                guard.current_messages.clone(),
                 guard.player.clone(),
             ),
-            Err(_) => MemorySnapshot::new(None, None, None, Vec::new(), Vec::new(), None),
+            Err(_) => MemorySnapshot::default(),
         }
-    }
-
-    pub async fn start_adventure(&self, adventure_id: Uuid) -> Result<(), AdventureManagerError> {
-        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let current_act = activate_first_act(&mut conn, adventure_id).await?;
-        let current_state = get_state(&mut conn, adventure_id).await?;
-        let current_facts = get_facts(&mut conn, adventure_id, current_act.id).await?;
-        let current_messages = fetch_last_n(&mut conn, adventure_id, 50).await?;
-
-        let adventure = get_adventure(&mut conn, adventure_id).await?;
-        let player = adventure.characters.iter().find(|c| c.is_player).cloned();
-        {
-            let mut guard = self.state.write()?;
-            guard.current_adventure = Some(adventure);
-            guard.current_act = Some(current_act);
-            guard.current_state = current_state;
-            guard.current_facts = current_facts;
-            guard.current_messages = current_messages;
-            guard.player = player;
-        }
-
-        Ok(())
     }
 }
 
+#[derive(Default)]
 pub struct MemorySnapshot {
     pub current_adventure: Option<Adventure>,
     pub current_act: Option<Act>,
     pub current_state: Option<State>,
     pub current_facts: Vec<Fact>,
-    pub current_messages: Vec<Message>,
     pub player: Option<Character>,
 }
 
@@ -185,7 +230,6 @@ impl MemorySnapshot {
         current_act: Option<Act>,
         current_state: Option<State>,
         current_facts: Vec<Fact>,
-        current_messages: Vec<Message>,
         player: Option<Character>,
     ) -> Self {
         Self {
@@ -193,7 +237,6 @@ impl MemorySnapshot {
             current_act,
             current_state,
             current_facts,
-            current_messages,
             player,
         }
     }

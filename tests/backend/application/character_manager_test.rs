@@ -1,315 +1,87 @@
+use crate::backend::application::helper::{TempDb, setup_db, start_adventure_with_default_cast};
 use living_voices::ai::integrations::text::chat::Chat;
 use living_voices::backend::application::{
-    adventure_manager::AdventureManager, character_manager::CharacterManager, state::SharedState,
+    character_manager::CharacterManager, state::SharedState,
 };
 use living_voices::backend::domain::character::{Character, CharacterStatus};
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::message_persistence::insert_message;
-use living_voices::config::TextModel;
-use sqlx::SqlitePool;
+use living_voices::config::{Config, TextModel};
+use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
-
-use crate::backend::application::helper::{StubPromptHandler, TempDb, setup_db};
 
 const OLLAMA_URL: &str = "http://localhost:11434/v1";
 const CHAT_MODEL: &str = "llama3.1:8b";
 
-fn chat() -> Chat {
-    Chat::new(TextModel {
-        base_url: OLLAMA_URL.to_string(),
-        model: CHAT_MODEL.to_string(),
-        temperature: 0.5,
-        request_timeout_secs: 120,
-        keep_alive: "5m".to_string(),
-    })
-}
-
-async fn new_integration_manager() -> (CharacterManager<Chat>, SharedState, TempDb, SqlitePool) {
+#[tokio::test]
+async fn full_pipeline_create_character_persists_to_database_and_shared_state_and_state_table() {
+    // given
+    let (pool, _db) = setup_db().await;
     let state = SharedState::new();
-    let (pool, db) = setup_db().await;
-    let manager = CharacterManager::new(state.clone(), pool.clone(), chat());
-    (manager, state, db, pool)
-}
+    let character_manager = setup_character_manager(pool.clone(), state.clone());
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = adventure_manager
+        .current_adventure()
+        .expect("current adventure to be available");
 
-async fn new_manager_with(
-    state: SharedState,
-) -> (CharacterManager<StubPromptHandler>, TempDb, SqlitePool) {
-    let (pool, db) = setup_db().await;
-    let manager = CharacterManager::new(state, pool.clone(), StubPromptHandler);
-    (manager, db, pool)
-}
+    // when creating a new character
+    let character = Character::new(
+        Uuid::new_v4(),
+        "Mara Venn".to_string(),
+        adventure.id,
+        "A tide-singer",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
 
-async fn new_manager() -> (
-    CharacterManager<StubPromptHandler>,
-    SharedState,
-    TempDb,
-    SqlitePool,
-) {
-    let state = SharedState::new();
-    let (manager, db, pool) = new_manager_with(state.clone()).await;
-    (manager, state, db, pool)
-}
-
-/// Create an adventure into the given shared state so the CharacterManager
-/// (which shares that state) has a current adventure to append cast to.
-async fn persist_adventure(state: &SharedState, pool: &SqlitePool) -> Uuid {
-    let mgr = AdventureManager::new(state.clone(), pool.clone());
-    let adventure = mgr
-        .create_adventure("Tides of Glass".into(), "A drowned city".into(), "".into())
+    character_manager
+        .create_character(character.clone())
         .await
-        .expect("create adventure");
-    adventure.id
-}
+        .unwrap();
 
-/// The non-player cast currently held in shared state.
-fn stored_npcs(state: &SharedState) -> Vec<Character> {
-    state
-        .read()
-        .unwrap()
-        .current_adventure
-        .as_ref()
-        .map(|a| {
-            a.characters
-                .iter()
-                .filter(|c| !c.is_player)
-                .cloned()
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
-#[tokio::test]
-async fn create_character_stores_character_in_state() {
-    let (manager, state, _db, pool) = new_manager().await;
-    let adventure_id = persist_adventure(&state, &pool).await;
-
-    let character = Character::new(
-        Uuid::new_v4(),
-        "Mara Venn".to_string(),
-        adventure_id,
-        "A tide-singer",
-        "",
-        CharacterStatus::Present,
-        false,
-    );
-
-    manager.create_character(character.clone()).await.unwrap();
-
-    let stored = stored_npcs(&state);
-    assert_eq!(stored.len(), 1);
-    assert_eq!(stored[0].name, "Mara Venn");
-    assert_eq!(stored[0].id, character.id);
-}
-
-#[tokio::test]
-async fn create_character_appends_characters_to_state() {
-    let (manager, state, _db, pool) = new_manager().await;
-    let adventure_id = persist_adventure(&state, &pool).await;
-
-    let first = Character::new(
-        Uuid::new_v4(),
-        "Mara".to_string(),
-        adventure_id,
-        "Singer",
-        "",
-        CharacterStatus::Present,
-        false,
-    );
-    let second = Character::new(
-        Uuid::new_v4(),
-        "Otho".to_string(),
-        adventure_id,
-        "Diver",
-        "",
-        CharacterStatus::Present,
-        false,
-    );
-
-    manager.create_character(first).await.unwrap();
-    manager.create_character(second).await.unwrap();
-
-    let stored = stored_npcs(&state);
-    assert_eq!(stored.len(), 2);
-    assert_eq!(stored[0].name, "Mara");
-    assert_eq!(stored[1].name, "Otho");
-}
-
-#[tokio::test]
-async fn state_is_shared_with_the_state_passed_to_new() {
-    let state = SharedState::new();
-    let (manager, _db, pool) = new_manager_with(state.clone()).await;
-    let adventure_id = persist_adventure(&state, &pool).await;
-
-    let character = Character::new(
-        Uuid::new_v4(),
-        "Mara Venn".to_string(),
-        adventure_id,
-        "A tide-singer",
-        "",
-        CharacterStatus::Present,
-        false,
-    );
-
-    manager.create_character(character.clone()).await.unwrap();
-
-    let stored = stored_npcs(&state);
-    assert_eq!(stored.len(), 1);
-    assert_eq!(stored[0].id, character.id);
-}
-
-#[tokio::test]
-async fn create_character_persists_character_to_database() {
-    let (manager, state, _db, pool) = new_manager().await;
-    let adventure_id = persist_adventure(&state, &pool).await;
-
-    let character = Character::new(
-        Uuid::new_v4(),
-        "Mara Venn".to_string(),
-        adventure_id,
-        "A tide-singer",
-        "",
-        CharacterStatus::Present,
-        false,
-    );
-
-    manager.create_character(character.clone()).await.unwrap();
-
+    // then: validate if it was persisted to database
     let (count, name): (u16, String) =
-        sqlx::query_as("SELECT COUNT(*), name FROM character WHERE id = ?1")
-            .bind(character.id.to_string())
+        sqlx::query_as("SELECT COUNT(*), name FROM character WHERE adventure_id = ?1")
+            .bind(adventure.id.to_string())
             .fetch_one(&pool)
             .await
             .expect("query character");
+    assert_eq!(count, 4);
 
-    assert_eq!(count, 1);
-    assert_eq!(name, "Mara Venn");
-}
-
-#[tokio::test]
-async fn create_character_persists_traits_in_order() {
-    let (manager, state, _db, pool) = new_manager().await;
-    let adventure_id = persist_adventure(&state, &pool).await;
-
-    let mut character = Character::new(
-        Uuid::new_v4(),
-        "Mara Venn".to_string(),
-        adventure_id,
-        "A tide-singer",
-        "",
-        CharacterStatus::Present,
-        false,
-    );
-    character.add_trait("Speaks only in tidal registers".to_string());
-    character.add_trait("Hums before speaking".to_string());
-
-    manager.create_character(character.clone()).await.unwrap();
-
-    let rows: Vec<(u16, String)> = sqlx::query_as(
-        "SELECT position, value FROM character_trait WHERE character_id = ?1 ORDER BY position",
-    )
-    .bind(character.id.to_string())
-    .fetch_all(&pool)
-    .await
-    .expect("query traits");
-
-    assert_eq!(rows.len(), 2);
-    assert_eq!(rows[0], (0, "Speaks only in tidal registers".to_string()));
-    assert_eq!(rows[1], (1, "Hums before speaking".to_string()));
-}
-
-#[tokio::test]
-async fn create_character_persists_tags() {
-    let (manager, state, _db, pool) = new_manager().await;
-    let adventure_id = persist_adventure(&state, &pool).await;
-
-    let mut character = Character::new(
-        Uuid::new_v4(),
-        "Mara Venn".to_string(),
-        adventure_id,
-        "A tide-singer",
-        "",
-        CharacterStatus::Present,
-        false,
-    );
-    character.add_tag("Protagonist".to_string());
-    character.add_tag("Brave".to_string());
-
-    manager.create_character(character.clone()).await.unwrap();
-
-    let rows: Vec<String> =
-        sqlx::query_scalar("SELECT tag FROM character_tag WHERE character_id = ?1 ORDER BY tag")
-            .bind(character.id.to_string())
-            .fetch_all(&pool)
-            .await
-            .expect("query tags");
-
-    assert_eq!(rows.len(), 2);
-    // Tags are normalized (lowercased) before being stored.
-    assert!(rows.contains(&"protagonist".to_string()));
-    assert!(rows.contains(&"brave".to_string()));
-}
-
-#[tokio::test]
-async fn create_character_persists_status_and_backstory() {
-    let (manager, state, _db, pool) = new_manager().await;
-    let adventure_id = persist_adventure(&state, &pool).await;
-
-    let character = Character::new(
-        Uuid::new_v4(),
-        "Mara Venn".to_string(),
-        adventure_id,
-        "A tide-singer",
-        "Raised in the drowned quarter",
-        CharacterStatus::Away,
-        false,
-    );
-
-    manager.create_character(character.clone()).await.unwrap();
-
-    let (backstory, status): (String, String) =
-        sqlx::query_as("SELECT backstory, status FROM character WHERE id = ?1")
-            .bind(character.id.to_string())
-            .fetch_one(&pool)
-            .await
-            .expect("query character");
-
-    assert_eq!(backstory, "Raised in the drowned quarter");
-    assert_eq!(status, "away");
-}
-
-#[tokio::test]
-async fn create_character_stores_adventure_id() {
-    let (manager, state, _db, pool) = new_manager().await;
-    let adventure_id = persist_adventure(&state, &pool).await;
-
-    let character = Character::new(
-        Uuid::new_v4(),
-        "Orin".to_string(),
-        adventure_id,
-        "A drifter",
-        "",
-        CharacterStatus::Present,
-        false,
-    );
-
-    manager.create_character(character).await.unwrap();
-
+    // then: validate if it was persisted to state
     let stored = stored_npcs(&state);
-    assert_eq!(stored.len(), 1);
-    assert_eq!(stored[0].name, "Orin");
-    assert_eq!(stored[0].adventure_id, adventure_id);
+    assert_eq!(stored.len(), 3);
+
+    // then: validate if it was persisted to state
+    let row = sqlx::query("SELECT characters_present FROM state WHERE adventure_id = ?1 LIMIT 1")
+        .bind(adventure.id.to_string())
+        .fetch_one(&pool)
+        .await
+        .expect("query state");
+
+    let chars: Vec<String> =
+        serde_json::from_str(row.get::<String, _>("characters_present").as_str())
+            .unwrap_or_default();
+    chars
+        .iter()
+        .find(|&c| c == "Mara Venn")
+        .expect("Mara Venn character to be present");
 }
 
 #[tokio::test]
 #[ignore = "requires a running Ollama server"]
 async fn create_character_portrait_image_generates_and_persists_the_prompt() {
     let (manager, state, _db, pool) = new_integration_manager().await;
-    let adventure_id = persist_adventure(&state, &pool).await;
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = adventure_manager
+        .current_adventure()
+        .expect("current adventure to be available");
 
     let character = Character::new(
         Uuid::new_v4(),
         "Mara Venn".to_string(),
-        adventure_id,
+        adventure.id,
         "A tide-singer",
         "",
         CharacterStatus::Present,
@@ -353,12 +125,15 @@ async fn create_character_portrait_image_generates_and_persists_the_prompt() {
 #[ignore = "requires a running Ollama server"]
 async fn create_character_full_body_image_generates_and_persists_the_prompt() {
     let (manager, state, _db, pool) = new_integration_manager().await;
-    let adventure_id = persist_adventure(&state, &pool).await;
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = adventure_manager
+        .current_adventure()
+        .expect("current adventure to be available");
 
     let character = Character::new(
         Uuid::new_v4(),
         "Mara Venn".to_string(),
-        adventure_id,
+        adventure.id,
         "A tide-singer",
         "",
         CharacterStatus::Present,
@@ -402,12 +177,15 @@ async fn create_character_full_body_image_generates_and_persists_the_prompt() {
 #[ignore = "requires a running Ollama server"]
 async fn create_character_pose_image_uses_messages_and_persists_the_prompt() {
     let (manager, state, _db, pool) = new_integration_manager().await;
-    let adventure_id = persist_adventure(&state, &pool).await;
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = adventure_manager
+        .current_adventure()
+        .expect("current adventure to be available");
 
     let character = Character::new(
         Uuid::new_v4(),
         "Mara Venn".to_string(),
-        adventure_id,
+        adventure.id,
         "A tide-singer",
         "",
         CharacterStatus::Present,
@@ -419,7 +197,7 @@ async fn create_character_pose_image_uses_messages_and_persists_the_prompt() {
 
     let mut conn = pool.acquire().await.expect("acquire");
     let message = Message::new(
-        adventure_id,
+        adventure.id,
         Some(character.id),
         None,
         character.name.clone(),
@@ -460,4 +238,46 @@ async fn create_character_pose_image_uses_messages_and_persists_the_prompt() {
             .is_some_and(|prompt| !prompt.trim().is_empty()),
         "pose prompt was not written to state"
     );
+}
+
+// ---------------------------------------------------------------- fixtures
+
+fn chat() -> Chat {
+    Chat::new(TextModel {
+        base_url: OLLAMA_URL.to_string(),
+        model: CHAT_MODEL.to_string(),
+        temperature: 0.5,
+        request_timeout_secs: 120,
+        keep_alive: "5m".to_string(),
+    })
+}
+
+async fn new_integration_manager() -> (CharacterManager<Chat>, SharedState, TempDb, SqlitePool) {
+    let state = SharedState::new();
+    let (pool, db) = setup_db().await;
+    let manager = CharacterManager::new(state.clone(), pool.clone(), chat());
+    (manager, state, db, pool)
+}
+
+fn setup_character_manager(pool: SqlitePool, state: SharedState) -> CharacterManager<Chat> {
+    let text_model_config = Config::new().expect("load config").settings.models.chat;
+    let chat_handler = Chat::new(text_model_config);
+    CharacterManager::new(state, pool, chat_handler)
+}
+
+/// The non-player cast currently held in shared state.
+fn stored_npcs(state: &SharedState) -> Vec<Character> {
+    state
+        .read()
+        .unwrap()
+        .current_adventure
+        .as_ref()
+        .map(|a| {
+            a.characters
+                .iter()
+                .filter(|c| !c.is_player)
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default()
 }

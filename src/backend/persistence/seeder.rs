@@ -13,7 +13,7 @@ use crate::backend::{
         narrator::Narrator,
     },
     persistence::{
-        act_persistence::insert_act,
+        act_persistence::upsert_act,
         adventure_persistence::insert_adventure,
         characters_persistence::{insert_character, insert_relations},
         db::open_pool,
@@ -662,7 +662,7 @@ async fn seed_connection(
         if let Some(trigger) = seed_act.trigger {
             act = act.with_trigger(trigger);
         }
-        insert_act(&mut *tx, &act).await?;
+        upsert_act(&mut *tx, &act).await?;
 
         if seed_act.status == ActStatus::Active {
             active_act_id = Some(act.id);
@@ -736,7 +736,7 @@ async fn seed_connection(
         insert_message(&mut *tx, &message).await?;
     }
 
-    let narrator = Narrator::new(narrator_id, "NARRATOR", "");
+    let narrator = Narrator::new(narrator_id, adventure_id, "NARRATOR", "");
     let mut adventure = Adventure::new(
         adventure_summary.id,
         adventure_summary.title,

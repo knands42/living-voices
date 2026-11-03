@@ -2,8 +2,8 @@ use crate::backend::application::helper::setup_db;
 use crate::backend::persistence::helper::{seed_act, seed_adventure, seed_message};
 use living_voices::backend::domain::memory::{Act, ActStatus};
 use living_voices::backend::persistence::act_persistence::{
-    activate_and_return_next_act, close_act, count_messages_per_act, get_active_act, get_acts,
-    insert_act, update_act_running_digest, update_active_act_last_closure_score,
+    activate_next_act, close_act, count_messages_per_act, get_active_act, get_acts,
+    update_act_running_digest, update_active_act_last_closure_score, upsert_act,
 };
 
 #[tokio::test]
@@ -13,7 +13,7 @@ async fn insert_act_persists_a_new_act() {
     let mut conn = pool.acquire().await.expect("acquire");
 
     let act = Act::new(adventure.id, 1, "recover the crown").with_status(ActStatus::Active);
-    insert_act(&mut conn, &act).await.expect("insert act");
+    upsert_act(&mut conn, &act).await.expect("insert act");
 
     let loaded = get_active_act(&mut conn, adventure.id)
         .await
@@ -173,11 +173,12 @@ async fn activate_next_act_promotes_the_act_after_the_closed_one() {
     let next_id = seed_act(&pool, adventure.id, 2, "unstarted", None, None).await;
     let mut conn = pool.acquire().await.expect("acquire");
 
-    let new_act = activate_and_return_next_act(&mut conn, adventure.id)
+    let new_act = activate_next_act(&mut conn, adventure.id, 10)
         .await
         .expect("activate next");
 
     let active = new_act.expect("an active act");
     assert_eq!(active.id, next_id);
     assert_eq!(active.ordinal, 2);
+    assert_eq!(active.from_seq, 10);
 }

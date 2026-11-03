@@ -2,6 +2,7 @@ use crate::app::AppContext;
 use crate::backend::application::adventure_manager::{AdventureManagerError, MemorySnapshot};
 use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
 use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
+use crate::backend::domain::message::Message;
 use crate::ui::{RootWindow, viewmodels};
 use slint::ComponentHandle;
 use tokio::runtime::Handle;
@@ -26,7 +27,7 @@ pub fn register_adventure_selected<
             return;
         };
 
-        let snapshot = match load_and_start(&handle, &ctx, adventure_id) {
+        let (snapshot, messages) = match load_and_start(&handle, &ctx, adventure_id) {
             Ok(snapshot) => snapshot,
             Err(err) => {
                 log::error!("could not open adventure {adventure_id}: {err}");
@@ -34,7 +35,7 @@ pub fn register_adventure_selected<
             }
         };
 
-        apply_snapshot(&ui_weak, snapshot);
+        apply_snapshot(&ui_weak, snapshot, messages);
     });
 }
 
@@ -47,19 +48,24 @@ fn load_and_start<
     handle: &Handle,
     ctx: &AppContext<C, N, M, A>,
     adventure_id: Uuid,
-) -> Result<MemorySnapshot, AdventureManagerError> {
+) -> Result<(MemorySnapshot, Vec<Message>), AdventureManagerError> {
     tokio::task::block_in_place(|| {
         handle.block_on(async {
             let adventure = ctx.adventures.get_adventure(adventure_id).await?;
             ctx.adventures.start_adventure(adventure.id).await?;
+            let messages = ctx.adventures.get_messages(adventure.id, 50).await?;
             log::info!("adventure started: {adventure_id}");
 
-            Ok(ctx.adventures.current_snapshot())
+            Ok((ctx.adventures.current_snapshot(), messages))
         })
     })
 }
 
-fn apply_snapshot(ui_weak: &slint::Weak<RootWindow>, snapshot: MemorySnapshot) {
+fn apply_snapshot(
+    ui_weak: &slint::Weak<RootWindow>,
+    snapshot: MemorySnapshot,
+    messages: Vec<Message>,
+) {
     let ui_weak = ui_weak.clone();
     let post = slint::invoke_from_event_loop(move || {
         let Some(ui) = ui_weak.upgrade() else {
@@ -73,10 +79,7 @@ fn apply_snapshot(ui_weak: &slint::Weak<RootWindow>, snapshot: MemorySnapshot) {
             ui.set_current_act(viewmodels::act_view(snapshot.current_act.as_ref()));
             ui.set_current_state(viewmodels::state_view(snapshot.current_state.as_ref()));
             ui.set_current_facts(viewmodels::facts_model(&snapshot.current_facts));
-            ui.set_current_messages(viewmodels::messages_model(
-                &snapshot.current_messages,
-                Some(player.id),
-            ));
+            ui.set_current_messages(viewmodels::messages_model(&messages, Some(player.id)));
         };
     });
 

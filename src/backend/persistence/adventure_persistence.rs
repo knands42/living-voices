@@ -164,6 +164,7 @@ impl TryFrom<CompleteAdventureRow> for Adventure {
 
         let narrator = Narrator::new(
             narrator_id_uuid,
+            adventure_id_uuid.clone(),
             value.narrator_name.clone(),
             value.narrator_tone.clone(),
         );

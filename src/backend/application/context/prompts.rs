@@ -4,8 +4,6 @@
 //! `ContextBuilder` stitches into turns. Keeping it apart from the assembly
 //! code lets prose be edited without scrolling past database queries.
 
-pub(crate) const AUTONOMOUS_HISTORY_WINDOW: u16 = 50;
-
 pub(crate) const AUTONOMOUS_CHAT_PROMPT: &str = "You write one beat of an interactive roleplay at a time: one character speaks and/or acts, or you narrate the world around the player";
 pub(crate) const AUTONOMOUS_CHAT_INSTRUCTIONS: &str = r#"## REPLY FORMAT
 Return a single JSON object, nothing else:

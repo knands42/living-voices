@@ -1,5 +1,5 @@
 use crate::backend::PersistenceError;
-use crate::backend::application::context::{AUTONOMOUS_HISTORY_WINDOW, ContextBuilder};
+use crate::backend::application::context::ContextBuilder;
 use crate::backend::application::director::Director;
 use crate::backend::application::memory_manager::{MemoryManager, MemoryManagerError};
 use crate::backend::application::port::chat_port::{
@@ -14,12 +14,12 @@ use crate::backend::persistence::act_persistence::{
     get_active_act, update_active_act_last_closure_score,
 };
 use crate::backend::persistence::message_persistence::{
-    count_since_last_narration, fetch_last_n, fetch_since, insert_message,
+    count_since_last_narration, fetch_since, insert_message,
 };
 use crate::backend::persistence::state_persistence::get_active_candidates;
-use crate::config::MemorySettings;
 use sqlx::{SqliteConnection, SqlitePool};
 use thiserror::Error;
+use uuid::Uuid;
 
 #[derive(Error, Debug)]
 pub enum MessageManagerError {
@@ -35,6 +35,8 @@ pub enum MessageManagerError {
     NoAdventure,
     #[error("no character is available to respond")]
     NoResponder,
+    #[error("message for {0} fetched from the store without a sequence number")]
+    MissingSequence(String),
 }
 
 #[derive(Clone, Debug)]
@@ -49,8 +51,7 @@ pub struct MessageManager<
     chat_handler: CHAT,
     narrator_handler: NARRATOR,
     director: Director,
-    memory: MemoryManager<MEMORY, ACT>,
-    memory_settings: MemorySettings,
+    memory_manager: MemoryManager<MEMORY, ACT>,
 }
 
 impl<
@@ -66,8 +67,7 @@ impl<
         chat_handler: CHAT,
         narrator_handler: NARRATOR,
         director: Director,
-        memory: MemoryManager<MEMORY, ACT>,
-        memory_settings: MemorySettings,
+        memory_manager: MemoryManager<MEMORY, ACT>,
     ) -> Self {
         Self {
             state,
@@ -75,8 +75,7 @@ impl<
             chat_handler,
             narrator_handler,
             director,
-            memory,
-            memory_settings,
+            memory_manager,
         }
     }
 
@@ -96,8 +95,8 @@ impl<
         let present_names = get_active_candidates(&mut conn, &adventure.id.to_string()).await?;
         let active_characters = adventure.active_characters(&present_names);
         let messages_since_narration = count_since_last_narration(&mut conn, adventure.id).await?;
-        let uncovered_messages: Vec<Message> =
-            fetch_last_n(&mut conn, adventure.id, AUTONOMOUS_HISTORY_WINDOW).await?;
+        // TODO: on the beginning of a new act, it will have 0 messages, when thats the case, get the last x messages (for other scenarios is not needed as the distill operation will always apply over the last 50 messages when I have 70 on the chat, so its always going to have at least 20)
+        let uncovered_messages: Vec<Message> = self.load_uncovered(&mut conn, adventure.id).await?;
 
         let chat_reply = self
             .send_to_handler(
@@ -114,17 +113,10 @@ impl<
         let reply_message = adventure.message_from_reply(&chat_reply.replier, &chat_reply.reply);
         let stored_reply = self.create_message(reply_message).await?;
 
-        {
-            let mut guard = self.state.write()?;
-            if guard.current_messages.len() > 0 {
-                guard.current_messages.remove(0);
-            }
-            guard.current_messages.push(stored_reply.clone());
-        }
-
-        self.check_and_update_current_act(chat_reply, &adventure)
+        self.check_and_update_current_act(chat_reply, &adventure, stored_reply.clone())
             .await?;
-        self.check_and_compress_memory().await;
+        self.check_and_compress_memory(uncovered_messages.len())
+            .await;
 
         // TODO: check if make sense to call for another llm message (multiple characters talk per turn)
 
@@ -142,6 +134,7 @@ impl<
     async fn create_message(&self, message: Message) -> Result<Message, MessageManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         let stored = insert_message(&mut conn, &message).await?;
+
         Ok(stored)
     }
 
@@ -201,15 +194,18 @@ impl<
         Ok(self.chat_handler.autonomous_respond(&context).await?)
     }
 
-    async fn check_and_compress_memory(&self) {
+    async fn check_and_compress_memory(
+        &self,
+        uncovered_messages_len: usize,
+    ) -> Result<(), MessageManagerError> {
         match self
-            .memory
-            .needs_compression(self.memory_settings.compress_after_threshold)
+            .memory_manager
+            .needs_compression(uncovered_messages_len)
             .await
         {
             Ok(false) => {}
             Ok(true) => {
-                let memory = self.memory.clone();
+                let memory = self.memory_manager.clone();
                 tokio::spawn(async move {
                     if let Err(err) = memory.compress_and_update().await {
                         eprintln!("memory compression failed: {err}");
@@ -218,26 +214,32 @@ impl<
             }
             Err(err) => eprintln!("memory compression check failed: {err}"),
         }
+
+        Ok(())
     }
 
     async fn check_and_update_current_act(
         &self,
         chat_reply: ChatReply,
         adventure: &Adventure,
+        last_message: Message,
     ) -> Result<(), MessageManagerError> {
         let Some(score) = chat_reply.act_closure else {
             return Ok(());
         };
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let updated_act =
-            update_active_act_last_closure_score(&mut conn, adventure.id, score as u16).await?;
 
-        if score >= 5 {
+        let should_close = score >= 5
+            || matches!(last_message.seq, Some(seq) if seq >= self.director.get_max_act_messages() && score == 4);
+
+        let updated_act =
+            update_active_act_last_closure_score(&mut conn, adventure.id, score).await?;
+
+        if should_close {
             self.close_current_act(&mut conn, adventure).await?;
         } else {
-            let mut guard = self.state.write()?;
-            guard.current_act = updated_act;
+            self.state.write()?.current_act = updated_act;
         }
 
         Ok(())
@@ -253,6 +255,7 @@ impl<
             return Ok(());
         };
 
+        //TODO: Reuse my already fetched uncovered_messages
         let mut uncovered_messages = fetch_since(conn, adventure.id, act.digest_to_seq).await?;
         let prompt =
             ContextBuilder::build_act_transition_prompt(conn, adventure, &uncovered_messages)
@@ -264,10 +267,24 @@ impl<
         let stored = insert_message(conn, &narration_message).await?;
         uncovered_messages.push(stored);
 
-        self.memory
+        self.memory_manager
             .close_current_act(&act, &uncovered_messages)
             .await?;
 
         Ok(())
+    }
+
+    // TODO: Should I get this from the guard.current_messages since last act digest_to_seq?
+    async fn load_uncovered(
+        &self,
+        conn: &mut SqliteConnection,
+        adventure_id: Uuid,
+    ) -> Result<Vec<Message>, MessageManagerError> {
+        let Some(act) = get_active_act(conn, adventure_id).await? else {
+            return Ok(vec![]);
+        };
+
+        let uncovered = fetch_since(conn, adventure_id, act.digest_to_seq).await?;
+        Ok(uncovered)
     }
 }
