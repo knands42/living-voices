@@ -102,7 +102,7 @@ impl Act {
     }
 
     pub fn is_valid_act(&self) -> bool {
-        !self.goal.is_empty() || self.goal != Self::DEFAULT_ACT_GOAL
+        !self.goal.is_empty() && self.goal != Self::DEFAULT_ACT_GOAL
     }
 
     pub fn with_trigger(mut self, trigger: impl Into<String>) -> Self {
