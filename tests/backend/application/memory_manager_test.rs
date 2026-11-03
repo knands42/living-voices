@@ -13,6 +13,7 @@ use living_voices::backend::persistence::act_persistence::{
     get_active_act, update_act_running_digest, upsert_act,
 };
 use living_voices::backend::persistence::message_persistence::fetch_since;
+use living_voices::backend::persistence::state_persistence::get_state;
 use living_voices::config::{Config, MemorySettings, TextModel};
 
 // ---------------------------------------------------------------- compress and distill path
@@ -245,6 +246,17 @@ async fn full_pipeline_close_current_act_and_activates_the_next_one() {
             .id,
         new_active_act.id
     );
+
+    // and: character_present should not list the player
+    let player_name = adventure_manager.current_snapshot().player.unwrap().name;
+    assert!(
+        state_characters_present(&pool, adventure.id)
+            .await
+            .iter()
+            .find(|c| *c == player_name.as_str())
+            .is_none(),
+        "expected character_present to be empty"
+    )
 }
 
 // ---------------------------------------------------------------- helpers
@@ -356,4 +368,13 @@ async fn act_status(pool: &SqlitePool, act_id: Uuid) -> String {
         .fetch_one(&mut *conn)
         .await
         .expect("read status")
+}
+
+async fn state_characters_present(pool: &SqlitePool, adventure_id: Uuid) -> Vec<String> {
+    let mut conn = pool.acquire().await.expect("acquire");
+    get_state(&mut *conn, adventure_id)
+        .await
+        .expect("retrieve a state")
+        .expect("to have one state")
+        .characters_present
 }

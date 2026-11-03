@@ -676,7 +676,12 @@ async fn seed_connection(
     let state = State::new(Uuid::new_v4(), adventure_summary.id)
         .with_day(seed.state.day.to_string())
         .with_place(seed.state.place.to_string())
-        .with_characters_present(characters.iter().map(|c| c.name.clone()).collect())
+        .with_characters_present(
+            characters
+                .iter()
+                .filter_map(|c| (!c.is_player).then_some(c.name.clone()))
+                .collect(),
+        )
         .with_open_threads(
             seed.state
                 .open_threads

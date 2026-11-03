@@ -55,13 +55,23 @@ pub struct DistilledState {
 }
 
 impl DistilledState {
-    pub fn into_state(self, adventure_id: Uuid) -> State {
+    /// Build the live `State`. Removing leftovers from the LLM where the player is listed among the NPCs.
+    pub fn into_state(self, adventure_id: Uuid, player_name: Option<&str>) -> State {
+        let characters_present = self
+            .characters_present
+            .into_iter()
+            .filter(|name| match player_name {
+                Some(player) => !name.eq_ignore_ascii_case(player),
+                None => true,
+            })
+            .collect();
+
         State::new(Uuid::new_v4(), adventure_id)
-            .with_character_conditions(self.character_conditions.clone())
-            .with_characters_present(self.characters_present.clone())
-            .with_open_threads(self.open_threads.clone())
-            .with_day(self.day.clone())
-            .with_place(self.place.clone())
+            .with_character_conditions(self.character_conditions)
+            .with_characters_present(characters_present)
+            .with_open_threads(self.open_threads)
+            .with_day(self.day)
+            .with_place(self.place)
     }
 }
 
@@ -120,4 +130,49 @@ pub trait ActCloser: Send + Sync {
         &self,
         context: &[PromptTurn],
     ) -> impl Future<Output = Result<ClosedAct, ClosedActError>> + Send;
+}
+
+#[cfg(test)]
+mod into_state_tests {
+    use super::*;
+
+    fn distilled_with_present(names: &[&str]) -> DistilledState {
+        DistilledState {
+            characters_present: names.iter().map(|n| n.to_string()).collect(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn drops_the_player_from_characters_present() {
+        let distilled = distilled_with_present(&["You", "Mira", "Kael"]);
+
+        let state = distilled.into_state(Uuid::new_v4(), Some("You"));
+
+        assert_eq!(
+            state.characters_present,
+            vec!["Mira".to_string(), "Kael".to_string()]
+        );
+    }
+
+    #[test]
+    fn drops_the_player_case_insensitively() {
+        let distilled = distilled_with_present(&["you", "Mira"]);
+
+        let state = distilled.into_state(Uuid::new_v4(), Some("You"));
+
+        assert_eq!(state.characters_present, vec!["Mira".to_string()]);
+    }
+
+    #[test]
+    fn keeps_everyone_when_there_is_no_player() {
+        let distilled = distilled_with_present(&["Mira", "Kael"]);
+
+        let state = distilled.into_state(Uuid::new_v4(), None);
+
+        assert_eq!(
+            state.characters_present,
+            vec!["Mira".to_string(), "Kael".to_string()]
+        );
+    }
 }

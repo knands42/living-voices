@@ -184,6 +184,56 @@ fn message_from_reply_strips_a_character_header_before_matching() {
 }
 
 #[test]
+fn message_from_reply_drops_the_speaker_name_echoed_into_the_body() {
+    // Given a cast with "Mira"
+    let (adventure, _mira) = adventure_with_character("Mira");
+
+    // When the model echoes the speaker into the reply body
+    let message = adventure.message_from_reply("Mira", "Mira: The tide is turning.");
+
+    // Then only the body survives; the speaker lives in speaker_name
+    assert_eq!(message.text, "The tide is turning.");
+    assert_eq!(message.speaker_name, "Mira");
+}
+
+#[test]
+fn message_from_reply_keeps_a_colon_that_is_not_the_speaker_name() {
+    let (adventure, _mira) = adventure_with_character("Mira");
+
+    // A line that merely contains a colon is left untouched
+    let message = adventure.message_from_reply("Mira", "Note: the map is wrong.");
+
+    assert_eq!(message.text, "Note: the map is wrong.");
+}
+
+#[test]
+fn message_from_reply_drops_the_narrator_name_echoed_into_the_body() {
+    let (adventure, _mira) = adventure_with_character("Mira");
+
+    let message = adventure.message_from_reply("NARRATOR", "NARRATOR: A horn sounds.");
+
+    assert_eq!(message.text, "A horn sounds.");
+    assert_eq!(message.speaker_name, "NARRATOR");
+}
+
+#[test]
+fn player_name_returns_the_is_player_characters_name() {
+    let mut adventure = new_adventure();
+    let player = Character::new(
+        Uuid::new_v4(),
+        "You".to_string(),
+        adventure.id,
+        "the player",
+        "",
+        CharacterStatus::Present,
+        true,
+    );
+    adventure.add_character(player);
+
+    assert_eq!(adventure.player_name(), Some("You"));
+}
+
+#[test]
 fn message_from_reply_strips_a_trailing_target_qualifier() {
     let (adventure, mira) = adventure_with_character("Mira");
 

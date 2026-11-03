@@ -161,7 +161,9 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
         let facts = DistilledFact::into_facts(distilled.facts);
         upsert_facts(&mut tx, adventure.id, &facts).await?;
 
-        let state = distilled.state.into_state(adventure.id);
+        let state = distilled
+            .state
+            .into_state(adventure.id, adventure.player_name());
         upsert_state(&mut tx, &state).await?;
 
         update_act_running_digest(&mut tx, act.id, &distilled.running_digest, to_seq).await?;
@@ -203,7 +205,9 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
         let facts = DistilledFact::into_facts(distilled.facts);
         upsert_facts(&mut tx, adventure.id, &facts).await?;
 
-        let state = distilled.state.into_state(adventure.id);
+        let state = distilled
+            .state
+            .into_state(adventure.id, adventure.player_name());
         upsert_state(&mut tx, &state).await?;
 
         update_act_running_digest(&mut tx, act.id, &distilled.running_digest, digest_to_seq)

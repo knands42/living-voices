@@ -92,6 +92,13 @@ impl Adventure {
             .collect()
     }
 
+    pub fn player_name(&self) -> Option<&str> {
+        self.characters
+            .iter()
+            .find(|c| c.is_player)
+            .map(|c| c.name.as_str())
+    }
+
     pub fn message_from_reply(&self, replier: &str, text: &str) -> Message {
         let character = if Adventure::is_narrator_reply(replier) {
             None
@@ -108,14 +115,30 @@ impl Adventure {
             ),
         };
 
+        let body = Adventure::strip_speaker_prefix(text, &speaker_name);
+
         Message::new(
             self.id,
             character_id,
             narrator_id,
             speaker_name,
-            text,
+            body,
             false,
         )
+    }
+
+    /// The model sometimes echoes the speaker into the reply body as `"Name: ..."` -> Remove leftovers
+    fn strip_speaker_prefix<'a>(text: &'a str, speaker_name: &str) -> &'a str {
+        let trimmed = text.trim_start();
+        let Some((head, rest)) = trimmed.split_once(':') else {
+            return text;
+        };
+
+        if head.trim().eq_ignore_ascii_case(speaker_name.trim()) {
+            rest.trim_start()
+        } else {
+            text
+        }
     }
 
     fn resolve_replier(&self, replier: &str) -> Option<&Character> {
