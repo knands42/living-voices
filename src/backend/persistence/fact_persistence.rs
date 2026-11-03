@@ -1,103 +1,77 @@
 use sqlx::sqlite::SqliteRow;
-use sqlx::{Error, FromRow, QueryBuilder, Row, SqliteConnection};
+use sqlx::{Error, FromRow, Row, SqliteConnection};
 use uuid::Uuid;
 
-use crate::backend::persistence::db::{
-    from_str_to_timestamp, from_str_to_uuid, from_timestamp_to_str,
-};
-use crate::backend::{
-    domain::memory::{Fact, Permanence},
-    persistence::error::PersistenceError,
-};
+use crate::backend::{domain::memory::Fact, persistence::error::PersistenceError};
 
 struct FactRow {
-    id: String,
-    adventure_id: String,
-    subject: String,
-    fact: String,
-    act_id: String,
-    permanence: String,
-    created_at: String,
+    facts: String,
 }
 
 impl FromRow<'_, SqliteRow> for FactRow {
     fn from_row(row: &SqliteRow) -> Result<FactRow, Error> {
         Ok(Self {
-            id: row.get("id"),
-            adventure_id: row.get("adventure_id"),
-            subject: row.get("subject"),
-            fact: row.get("fact"),
-            act_id: row.get("act_id"),
-            permanence: row.get("permanence"),
-            created_at: row.get("created_at"),
+            facts: row.get("facts"),
         })
     }
 }
 
-pub async fn insert_facts(
+fn parse_facts(text: &str) -> Result<Vec<Fact>, PersistenceError> {
+    if text.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    serde_json::from_str(text).map_err(PersistenceError::ParsingError)
+}
+
+pub async fn insert_default_facts(
     conn: &mut SqliteConnection,
+    id: Uuid,
+    adventure_id: Uuid,
+) -> Result<Vec<Fact>, PersistenceError> {
+    sqlx::query(
+        "INSERT INTO fact (id, adventure_id) VALUES (?1, ?2)
+         ON CONFLICT(adventure_id) DO NOTHING",
+    )
+    .bind(id.to_string())
+    .bind(adventure_id.to_string())
+    .execute(&mut *conn)
+    .await?;
+
+    Ok(Vec::new())
+}
+
+/// Replace the adventure's whole fact snapshot with `facts`.
+pub async fn upsert_facts(
+    conn: &mut SqliteConnection,
+    adventure_id: Uuid,
     facts: &[Fact],
 ) -> Result<(), PersistenceError> {
-    if facts.is_empty() {
-        return Ok(());
-    }
+    let encoded = serde_json::to_string(facts)?;
 
-    let mut qb = QueryBuilder::new(
-        "INSERT INTO fact (id, adventure_id, subject, fact, act_id, permanence, created_at) ",
-    );
+    sqlx::query(
+        "INSERT INTO fact (id, adventure_id, facts) VALUES (?1, ?2, ?3)
+         ON CONFLICT(adventure_id) DO UPDATE SET facts = excluded.facts",
+    )
+    .bind(Uuid::new_v4().to_string())
+    .bind(adventure_id.to_string())
+    .bind(encoded)
+    .execute(&mut *conn)
+    .await?;
 
-    qb.push_values(facts, |mut row, fact| {
-        row.push_bind(fact.id.to_string())
-            .push_bind(fact.adventure_id.to_string())
-            .push_bind(&fact.subject)
-            .push_bind(&fact.fact)
-            .push_bind(fact.act_id.to_string())
-            .push_bind(fact.permanence.as_str())
-            .push_bind(from_timestamp_to_str(&fact.created_at));
-    });
-
-    qb.build().execute(&mut *conn).await?;
     Ok(())
 }
 
 pub async fn get_facts(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
-    act_id: Uuid,
 ) -> Result<Vec<Fact>, PersistenceError> {
-    let rows = sqlx::query_as::<_, FactRow>(
-        "SELECT id, adventure_id, subject, fact, act_id, permanence, created_at
-         FROM fact
-         WHERE adventure_id = ?1 AND act_id = ?2
-         ORDER BY created_at ASC",
-    )
-    .bind(adventure_id.to_string())
-    .bind(act_id.to_string())
-    .fetch_all(&mut *conn)
-    .await?;
+    let row = sqlx::query_as::<_, FactRow>("SELECT facts FROM fact WHERE adventure_id = ?1")
+        .bind(adventure_id.to_string())
+        .fetch_optional(&mut *conn)
+        .await?;
 
-    rows.into_iter().map(Fact::try_from).collect()
-}
-
-impl TryFrom<FactRow> for Fact {
-    type Error = PersistenceError;
-
-    fn try_from(row: FactRow) -> Result<Self, Self::Error> {
-        let permanence = Permanence::from_str(&row.permanence).ok_or_else(|| {
-            PersistenceError::InvalidAdventure {
-                adventure: row.adventure_id.clone(),
-                reason: format!("unknown fact permanence `{}`", row.permanence),
-            }
-        })?;
-
-        Ok(Fact {
-            id: from_str_to_uuid(&row.id)?,
-            adventure_id: from_str_to_uuid(&row.adventure_id)?,
-            subject: row.subject,
-            fact: row.fact,
-            act_id: from_str_to_uuid(&row.act_id)?,
-            permanence,
-            created_at: from_str_to_timestamp(&row.created_at)?,
-        })
+    match row {
+        Some(row) => parse_facts(&row.facts),
+        None => Ok(Vec::new()),
     }
 }

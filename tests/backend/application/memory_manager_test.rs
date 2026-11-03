@@ -71,9 +71,9 @@ async fn full_pipeline_compress_distills_the_uncovered_tail_persists_memory_and_
     assert_eq!(act_from_seq(&pool, active_act.id).await, 0);
     assert_eq!(act_to_seq(&pool, active_act.id).await, 0);
 
-    // and: at least one fact is linked and a single live state row exists
+    // and: at least one fact is in the snapshot and a single live state row exists
     assert!(
-        fact_count_for_act(&pool, active_act.id).await >= 1,
+        !fact_snapshot(&pool, adventure.id).await.is_empty(),
         "expected at least one fact"
     );
     assert_eq!(state_count(&pool, adventure.id).await, 1);
@@ -116,7 +116,7 @@ async fn compress_is_a_noop_without_uncovered_messages() {
 
     // then: it succeeds without writing memory
     assert!(result.is_ok());
-    assert_eq!(fact_count(&pool).await, 0);
+    assert!(fact_snapshot(&pool, adventure.id).await.is_empty());
 }
 
 #[tokio::test]
@@ -157,7 +157,7 @@ async fn compress_is_a_noop_when_every_message_is_already_covered() {
     // then: it succeeds without advancing the watermark or writing facts
     assert!(result.is_ok());
     assert_eq!(act_checkpoint(&pool, act_id).await, Some(watermark as i64));
-    assert_eq!(fact_count(&pool).await, 0);
+    assert!(fact_snapshot(&pool, adventure.id).await.is_empty());
 }
 
 // ---------------------------------------------------------------- close current act
@@ -232,7 +232,7 @@ async fn full_pipeline_close_current_act_and_activates_the_next_one() {
 
     // and: the close distills at least one fact
     assert!(
-        fact_count_for_act(&pool, first_act.id).await >= 1,
+        !fact_snapshot(&pool, adventure.id).await.is_empty(),
         "expected at least one fact"
     );
 
@@ -293,13 +293,14 @@ async fn fact_count(pool: &SqlitePool) -> u16 {
         .expect("count facts")
 }
 
-async fn fact_count_for_act(pool: &SqlitePool, act_id: Uuid) -> u16 {
+async fn fact_snapshot(
+    pool: &SqlitePool,
+    adventure_id: Uuid,
+) -> Vec<living_voices::backend::domain::memory::Fact> {
     let mut conn = pool.acquire().await.expect("acquire");
-    query_scalar("SELECT COUNT(*) FROM fact WHERE act_id = ?1")
-        .bind(act_id.to_string())
-        .fetch_one(&mut *conn)
+    living_voices::backend::persistence::fact_persistence::get_facts(&mut conn, adventure_id)
         .await
-        .expect("count facts for act")
+        .expect("get facts")
 }
 
 async fn state_count(pool: &SqlitePool, adventure_id: Uuid) -> u16 {

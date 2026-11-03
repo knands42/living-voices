@@ -12,8 +12,7 @@ use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::Character;
 use living_voices::backend::domain::memory::{Fact, Permanence};
 use living_voices::backend::domain::message::Message;
-use living_voices::backend::persistence::act_persistence::get_active_act;
-use living_voices::backend::persistence::fact_persistence::insert_facts;
+use living_voices::backend::persistence::fact_persistence::upsert_facts;
 use living_voices::config::DirectorSettings;
 
 // region Autonomous prompt
@@ -227,7 +226,7 @@ async fn static_context_carries_the_running_digest_of_the_active_act() {
 }
 
 #[tokio::test]
-async fn static_context_renders_act_facts_under_the_current_act() {
+async fn static_context_renders_the_fact_snapshot() {
     let (pool, _db) = setup_db().await;
     let state = SharedState::new();
     let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
@@ -236,18 +235,10 @@ async fn static_context_renders_act_facts_under_the_current_act() {
         .expect("adventure to exist on the snapshot");
 
     let mut conn = pool.acquire().await.expect("acquire");
-    let active_act = get_active_act(&mut conn, adventure.id)
+    let fact = Fact::new("mira", "fears deep water", Permanence::Permanent);
+    upsert_facts(&mut conn, adventure.id, &[fact])
         .await
-        .expect("get active act")
-        .expect("has active act");
-    let fact = Fact::new(
-        adventure.id,
-        "mira",
-        "fears deep water",
-        active_act.id,
-        Permanence::Permanent,
-    );
-    insert_facts(&mut conn, &[fact]).await.expect("insert fact");
+        .expect("upsert fact");
 
     let turns = ContextBuilder::build_narrator_chat_prompt(
         &mut conn,
@@ -263,7 +254,7 @@ async fn static_context_renders_act_facts_under_the_current_act() {
         .map(|t| t.text.as_str())
         .collect::<Vec<_>>()
         .join("\n");
-    assert!(joined.contains("### CURRENT ACT"));
+    assert!(joined.contains("### FACTS"));
     assert!(joined.contains("mira: fears deep water -> permanent"));
 }
 

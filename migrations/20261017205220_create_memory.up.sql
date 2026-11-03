@@ -42,26 +42,28 @@ BEGIN
     WHERE id = OLD.id;
 END;
 
--- facts are rows, not prose
+-- exactly one live fact snapshot per adventure, same shape as state:
+-- a json array that the distiller fully replaces each time.
 CREATE TABLE fact
 (
     id           TEXT NOT NULL PRIMARY KEY,
-    adventure_id TEXT NOT NULL REFERENCES adventure (id) ON DELETE CASCADE,
-    subject      TEXT NOT NULL, -- "elara", "the crown", "the order"
-    fact         TEXT NOT NULL,
-    act_id       TEXT NOT NULL REFERENCES act (id) ON DELETE SET NULL,
-    permanence   TEXT NOT NULL, -- permanent | plot
-    created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    adventure_id TEXT NOT NULL UNIQUE REFERENCES adventure (id) ON DELETE CASCADE,
+    facts        TEXT NOT NULL DEFAULT "[]", -- json: [{"subject","fact","permanence"}]
+    updated_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
-    CONSTRAINT fact_id_is_uuid CHECK (length(id) = 36),
-    CONSTRAINT fact_subject_not_blank CHECK (length(trim(subject)) > 0),
-    CONSTRAINT fact_fact_not_blank CHECK (length(trim(fact)) > 0),
-    CONSTRAINT fact_permanence_known
-        CHECK (permanence IN ('permanent', 'plot'))
+    CONSTRAINT fact_id_is_uuid CHECK (length(id) = 36)
 );
 
-CREATE INDEX fact_adventure_subject_idx ON fact (adventure_id, subject);
-CREATE INDEX fact_act_idx ON fact (act_id);
+CREATE TRIGGER fact_touch_updated_at
+    AFTER UPDATE
+    ON fact
+    FOR EACH ROW
+    WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+    UPDATE fact
+    SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+    WHERE id = OLD.id;
+END;
 
 -- exactly one live row per adventure
 CREATE TABLE state

@@ -14,7 +14,7 @@ use crate::backend::domain::message::Message;
 use crate::backend::persistence::act_persistence::{
     activate_next_act, close_act, get_active_act, update_act_running_digest,
 };
-use crate::backend::persistence::fact_persistence::insert_facts;
+use crate::backend::persistence::fact_persistence::upsert_facts;
 use crate::backend::persistence::state_persistence::upsert_state;
 use crate::config::MemorySettings;
 
@@ -154,8 +154,8 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
     ) -> Result<(), MemoryManagerError> {
         let mut tx = conn.begin().await.map_err(PersistenceError::from)?;
 
-        let facts = DistilledFact::into_facts(adventure.id, act.id, distilled.facts);
-        insert_facts(&mut tx, &facts).await?;
+        let facts = DistilledFact::into_facts(distilled.facts);
+        upsert_facts(&mut tx, adventure.id, &facts).await?;
 
         let state = distilled.state.into_state(adventure.id);
         upsert_state(&mut tx, &state).await?;
@@ -196,8 +196,8 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
     ) -> Result<(), MemoryManagerError> {
         let mut tx = conn.begin().await.map_err(PersistenceError::from)?;
 
-        let facts = DistilledFact::into_facts(adventure.id, act.id, distilled.facts);
-        insert_facts(&mut tx, &facts).await?;
+        let facts = DistilledFact::into_facts(distilled.facts);
+        upsert_facts(&mut tx, adventure.id, &facts).await?;
 
         let state = distilled.state.into_state(adventure.id);
         upsert_state(&mut tx, &state).await?;
@@ -212,7 +212,7 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
             let mut guard = self.state.write()?;
             guard.current_act = refreshed_act;
             guard.current_state = Some(state);
-            guard.current_facts.extend(facts);
+            guard.current_facts = facts;
         }
         Ok(())
     }

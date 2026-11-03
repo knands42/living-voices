@@ -86,7 +86,7 @@ out, once its goal is genuinely met."#;
 
 pub(crate) const DISTILL_PROMPT: &str = r#"## DISTILL
 Below you are given the existing memory (## CONTEXT: the PAST ACTS and CURRENT ACT,
-each with its own facts as "subject: fact -> permanence", plus the CURRENT STATE)
+the single FACTS snapshot as "subject: fact -> permanence", plus the CURRENT STATE)
 followed by the latest conversation turns. The existing memory was true as of its
 last update; the conversation is what happened since.
 
@@ -94,7 +94,9 @@ Reconcile the two. Produce the memory record as it should stand NOW — not a re
 of only the new turns, and not a copy of the old one. Return JSON only, with exactly
 three fields:
 
-- "facts": the facts that are true now (at the current moment of the adventure). For each one decide:
+- "facts": the COMPLETE set of facts that are true now (at the current moment of the
+  adventure). This fully replaces the previous FACTS snapshot — return every fact that
+  still holds, not only the changed ones. For each one decide:
     - KEEP an existing fact unchanged if the conversation neither changed nor
       contradicted it, and it still matters.
     - OVERRIDE a fact when the conversation changes it: emit the new version with

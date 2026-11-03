@@ -18,7 +18,7 @@ use crate::backend::{
         characters_persistence::{insert_character, insert_relations},
         db::open_pool,
         error::PersistenceError,
-        fact_persistence::insert_facts,
+        fact_persistence::upsert_facts,
         lore_persistence::insert_lore,
         message_persistence::insert_message,
         narrator_persistence::insert_default_narrator,
@@ -669,7 +669,7 @@ async fn seed_connection(
         }
     }
 
-    let act_id_for_facts = active_act_id.ok_or_else(|| {
+    active_act_id.ok_or_else(|| {
         PersistenceError::invalid_seed(seed, "no active act declared for the adventure")
     })?;
 
@@ -696,17 +696,9 @@ async fn seed_connection(
     let facts: Vec<Fact> = seed
         .facts
         .iter()
-        .map(|seed_fact| {
-            Fact::new(
-                adventure_summary.id,
-                seed_fact.subject,
-                seed_fact.fact,
-                act_id_for_facts,
-                seed_fact.permanence,
-            )
-        })
+        .map(|seed_fact| Fact::new(seed_fact.subject, seed_fact.fact, seed_fact.permanence))
         .collect();
-    insert_facts(&mut *tx, &facts).await?;
+    upsert_facts(&mut *tx, adventure_summary.id, &facts).await?;
 
     for seed_message in seed.messages {
         let message = match seed_message.speaker {

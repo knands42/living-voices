@@ -12,7 +12,6 @@ use crate::backend::persistence::fact_persistence::get_facts;
 use crate::backend::persistence::state_persistence::get_state;
 use sqlx::SqliteConnection;
 use thiserror::Error;
-use uuid::Uuid;
 
 pub struct ContextBuilder;
 
@@ -82,19 +81,12 @@ impl ContextBuilder {
             let mut block = String::from("### PAST ACTS");
             for act in &past {
                 block.push_str(&format!("\n{}", act.render_digest_entry()));
-                if let Some(facts) = Self::render_act_facts(conn, adventure, act.id).await? {
-                    block.push_str(&format!("\n{facts}"));
-                }
             }
             sections.push(block);
         }
 
         if let Some(act) = current {
-            let mut block = format!("### CURRENT ACT\n{}", act.render_index());
-            if let Some(facts) = Self::render_act_facts(conn, adventure, act.id).await? {
-                block.push_str(&format!("\n{facts}"));
-            }
-            sections.push(block);
+            sections.push(format!("### CURRENT ACT\n{}", act.render_index()));
 
             let running = act.render_running_digest();
             if !running.trim().is_empty() {
@@ -102,15 +94,18 @@ impl ContextBuilder {
             }
         }
 
+        if let Some(facts) = Self::render_facts(conn, adventure).await? {
+            sections.push(format!("### FACTS\n{facts}"));
+        }
+
         Ok(sections.join("\n\n"))
     }
 
-    async fn render_act_facts(
+    async fn render_facts(
         conn: &mut SqliteConnection,
         adventure: &Adventure,
-        act_id: Uuid,
     ) -> Result<Option<String>, PersistenceError> {
-        let facts = get_facts(conn, adventure.id, act_id).await?;
+        let facts = get_facts(conn, adventure.id).await?;
         Ok(Fact::render(&facts))
     }
 

@@ -74,9 +74,7 @@ async fn create_adventure_creates_default_entities_and_initial_shared_state() {
     assert_eq!(act_row.last_closure_score, 0);
 
     // and: a fresh adventure carries no facts yet
-    let facts = get_facts(&mut conn, adventure.id, act_row.id)
-        .await
-        .expect("get facts");
+    let facts = get_facts(&mut conn, adventure.id).await.expect("get facts");
     assert!(facts.is_empty());
 
     // and: creating seeds the shared state with the same entities

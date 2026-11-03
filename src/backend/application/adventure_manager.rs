@@ -6,7 +6,7 @@ use crate::backend::persistence::act_persistence::{
 };
 use crate::backend::persistence::adventure_persistence::get_adventure_summaries;
 use crate::backend::persistence::characters_persistence::insert_default_player_character;
-use crate::backend::persistence::fact_persistence::get_facts;
+use crate::backend::persistence::fact_persistence::{get_facts, insert_default_facts};
 use crate::backend::persistence::lore_persistence::insert_default_lore;
 use crate::backend::persistence::message_persistence::{fetch_last_n, insert_message};
 use crate::backend::persistence::state_persistence::{get_state, insert_default_state};
@@ -71,6 +71,9 @@ impl AdventureManager {
         let state_id = Uuid::new_v4();
         let default_state = insert_default_state(&mut conn, state_id, adventure_summary.id).await?;
 
+        let fact_id = Uuid::new_v4();
+        insert_default_facts(&mut conn, fact_id, adventure_summary.id).await?;
+
         let player_character_id = Uuid::new_v4();
         let default_player_character =
             insert_default_player_character(&mut conn, player_character_id, adventure_summary.id)
@@ -133,7 +136,7 @@ impl AdventureManager {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         let current_act = activate_first_act(&mut conn, adventure_id).await?;
         let current_state = get_state(&mut conn, adventure_id).await?;
-        let current_facts = get_facts(&mut conn, adventure_id, current_act.id).await?;
+        let current_facts = get_facts(&mut conn, adventure_id).await?;
         let current_messages = fetch_last_n(&mut conn, adventure_id, 50).await?;
 
         let adventure = get_adventure(&mut conn, adventure_id).await?;

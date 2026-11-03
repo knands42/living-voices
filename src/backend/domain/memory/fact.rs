@@ -1,10 +1,10 @@
 use std::fmt::Display;
 
-use chrono::{DateTime, Utc};
-use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 
 /// How long a fact is expected to hold. Mirrors the vocabulary the DB enforces.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Permanence {
     Permanent,
     #[default]
@@ -34,34 +34,24 @@ impl Display for Permanence {
     }
 }
 
-/// A single durable fact. Outlives the episode that produced it; `source_episode_id` is provenance.
-#[derive(Clone, Debug)]
+/// A single atomic fact inside an adventure's fact snapshot.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Fact {
-    pub id: Uuid,
-    pub adventure_id: Uuid,
     pub subject: String,
     pub fact: String,
-    pub act_id: Uuid,
     pub permanence: Permanence,
-    pub created_at: DateTime<Utc>,
 }
 
 impl Fact {
     pub fn new(
-        adventure_id: Uuid,
         subject: impl Into<String>,
         fact: impl Into<String>,
-        act_id: Uuid,
         permanence: Permanence,
     ) -> Self {
         Self {
-            id: Uuid::new_v4(),
-            adventure_id,
             subject: subject.into(),
             fact: fact.into(),
-            act_id,
             permanence,
-            created_at: Utc::now(),
         }
     }
 
@@ -70,7 +60,7 @@ impl Fact {
             return None;
         }
 
-        let mut block = String::from("facts:");
+        let mut block = String::new();
         for fact in facts {
             block.push_str(&format!(
                 "\n- {}: {} -> {}",

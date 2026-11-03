@@ -36,21 +36,12 @@ pub struct DistilledFact {
 }
 
 impl DistilledFact {
-    pub fn into_facts(adventure_id: Uuid, act_id: Uuid, facts: Vec<Self>) -> Vec<Fact> {
-        facts
-            .into_iter()
-            .map(|fact| fact.into_fact(adventure_id, act_id))
-            .collect()
+    pub fn into_facts(facts: Vec<Self>) -> Vec<Fact> {
+        facts.into_iter().map(Self::into_fact).collect()
     }
 
-    fn into_fact(self, adventure_id: Uuid, act_id: Uuid) -> Fact {
-        Fact::new(
-            adventure_id,
-            self.subject.clone(),
-            self.fact.clone(),
-            act_id,
-            Permanence::from(self.permanence),
-        )
+    fn into_fact(self) -> Fact {
+        Fact::new(self.subject, self.fact, Permanence::from(self.permanence))
     }
 }
 
