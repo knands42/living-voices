@@ -18,6 +18,14 @@ run-debug: build
     rm *.db* | true
     ./target/debug/living_voices
 
+# Live-reload the whole app
+watch:
+    cargo watch -x run
+
+# Live-reload a single .slint component
+ui-preview component="BuilderPage" file="src/ui/sl/builder.slint":
+    slint-viewer --auto-reload --component {{ component }} {{ file }}
+
 run-release:
     cargo build --release
     ./target/release/living_voices

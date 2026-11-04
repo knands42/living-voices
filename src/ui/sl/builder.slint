@@ -1,0 +1,328 @@
+import { AppTheme } from "theme.slint";
+import { BuilderView, CharacterView } from "views.slint";
+
+// A single round initials badge, hue-tinted per character.
+component CastAvatar inherits Rectangle {
+    in property <string> initials;
+    in property <int> hue;
+
+    width: 36px;
+    height: 36px;
+    border-radius: AppTheme.radius-circle;
+    background: hsv(root.hue, 0.35, 0.45);
+    border-width: 1px;
+    border-color: hsv(root.hue, 0.5, 0.75);
+
+    Text {
+        text: root.initials;
+        color: AppTheme.text-light;
+        font-family: AppTheme.font-body;
+        font-size: AppTheme.font-label;
+    }
+}
+
+// One of the three part cards in the builder hub.
+component PartCard inherits TouchArea {
+    in property <string> glyph;
+    in property <string> title;
+    in property <string> blurb;
+    in property <string> status-label;
+    in property <bool> done;
+
+    Rectangle {
+        background: parent.has-hover ? AppTheme.bg-panel-alt : AppTheme.bg-panel;
+        border-radius: AppTheme.radius-card;
+        border-width: 1px;
+        border-color: root.done ? AppTheme.success : AppTheme.bronze;
+
+        VerticalLayout {
+            padding: 18px;
+            spacing: 8px;
+
+            HorizontalLayout {
+                Text {
+                    text: root.glyph;
+                    font-size: 22px;
+                    horizontal-stretch: 1;
+                }
+
+                Text {
+                    text: root.status-label;
+                    color: root.done ? AppTheme.success : AppTheme.text-muted;
+                    font-family: AppTheme.font-body;
+                    font-size: AppTheme.font-label;
+                    vertical-alignment: center;
+                }
+            }
+
+            Text {
+                text: root.title;
+                color: AppTheme.text-light;
+                font-family: AppTheme.font-display;
+                font-size: AppTheme.font-card-title;
+            }
+
+            Text {
+                text: root.blurb;
+                color: AppTheme.text-muted;
+                font-family: AppTheme.font-body;
+                font-size: AppTheme.font-label;
+                wrap: word-wrap;
+            }
+
+            // Slot for card-specific footer content.
+            @children
+        }
+    }
+}
+
+export component BuilderPage inherits Rectangle {
+    in property <BuilderView> builder;
+
+    callback back-requested();
+    callback edit-story();
+    callback edit-cast();
+    callback edit-act();
+    callback edit-opening();
+    callback publish();
+
+    property <bool> publishable: builder.story-done && builder.cast-done && builder.opening-done;
+
+    background: AppTheme.bg-deepest;
+
+    VerticalLayout {
+        // ---- hero ----
+        Rectangle {
+            background: AppTheme.bg-panel-alt;
+            border-width: 1px;
+            border-color: AppTheme.bronze;
+
+            VerticalLayout {
+                padding: 28px;
+                spacing: 18px;
+
+                HorizontalLayout {
+                    spacing: 16px;
+
+                    back-area := TouchArea {
+                        width: 40px;
+                        height: 40px;
+                        clicked => { root.back-requested(); }
+
+                        Rectangle {
+                            background: parent.has-hover ? AppTheme.btn-brown : transparent;
+                            border-radius: AppTheme.radius-pill;
+
+                            Text {
+                                text: "‹";
+                                color: AppTheme.gold;
+                                font-family: AppTheme.font-display;
+                                font-size: AppTheme.font-title;
+                            }
+                        }
+                    }
+
+                    VerticalLayout {
+                        spacing: 6px;
+                        horizontal-stretch: 1;
+
+                        Text {
+                            text: "Draft · " + builder.status;
+                            color: AppTheme.text-muted;
+                            font-family: AppTheme.font-brand;
+                            font-size: AppTheme.font-tiny;
+                        }
+
+                        Text {
+                            text: builder.title == "" ? "Untitled adventure" : builder.title;
+                            color: AppTheme.gold;
+                            font-family: AppTheme.font-display;
+                            font-size: AppTheme.font-title;
+                        }
+
+                        Text {
+                            text: builder.headline;
+                            color: AppTheme.text-light;
+                            font-family: AppTheme.font-body;
+                            font-size: AppTheme.font-label;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    VerticalLayout {
+                        alignment: start;
+                        spacing: 2px;
+
+                        Text {
+                            text: "READINESS";
+                            color: AppTheme.text-muted;
+                            font-family: AppTheme.font-brand;
+                            font-size: AppTheme.font-tiny;
+                            horizontal-alignment: right;
+                        }
+
+                        Text {
+                            text: builder.ready-count + " / 3";
+                            color: root.publishable ? AppTheme.success : AppTheme.amber-glow;
+                            font-family: AppTheme.font-display;
+                            font-size: AppTheme.font-title;
+                            horizontal-alignment: right;
+                        }
+                    }
+                }
+
+                // progress rail
+                HorizontalLayout {
+                    spacing: 6px;
+
+                    Rectangle {
+                        height: 5px;
+                        border-radius: 3px;
+                        background: builder.story-done ? AppTheme.success : AppTheme.bronze;
+                    }
+                    Rectangle {
+                        height: 5px;
+                        border-radius: 3px;
+                        background: builder.cast-done ? AppTheme.success : AppTheme.bronze;
+                    }
+                    Rectangle {
+                        height: 5px;
+                        border-radius: 3px;
+                        background: builder.opening-done ? AppTheme.success : AppTheme.bronze;
+                    }
+                }
+            }
+        }
+
+        // ---- three part cards ----
+        HorizontalLayout {
+            padding: 24px;
+            spacing: 16px;
+
+            PartCard {
+                glyph: "📖";
+                title: "The Story";
+                blurb: "Title, headline, lore, narrator voice and tone.";
+                done: builder.story-done;
+                status-label: builder.story-done ? "✓ done" : "○ to do";
+                clicked => { root.edit-story(); }
+
+                Rectangle {
+                    height: 1px;
+                    background: AppTheme.bronze;
+                }
+                Text {
+                    text: "Narrator: " + (builder.narrator-name == "" ? "—" : builder.narrator-name);
+                    color: AppTheme.text-muted;
+                    font-family: AppTheme.font-body;
+                    font-size: AppTheme.font-tiny;
+                }
+                Text {
+                    text: "Tone: " + (builder.tone == "" ? "—" : builder.tone);
+                    color: AppTheme.text-muted;
+                    font-family: AppTheme.font-body;
+                    font-size: AppTheme.font-tiny;
+                }
+            }
+
+            PartCard {
+                glyph: "🎭";
+                title: "The Cast";
+                blurb: "Characters, their traits and relationships.";
+                done: builder.cast-done;
+                status-label: builder.cast-done
+                    ? "✓ " + builder.cast.length + " cast"
+                    : "○ to do";
+                clicked => { root.edit-cast(); }
+
+                Rectangle {
+                    height: 1px;
+                    background: AppTheme.bronze;
+                }
+                HorizontalLayout {
+                    alignment: start;
+                    spacing: 6px;
+
+                    for member in builder.cast: CastAvatar {
+                        initials: member.name == "" ? "?" : member.name;
+                        hue: member.hue;
+                    }
+
+                    if builder.cast.length == 0: Text {
+                        text: "No cast yet";
+                        color: AppTheme.text-muted;
+                        font-family: AppTheme.font-body;
+                        font-size: AppTheme.font-tiny;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            PartCard {
+                glyph: "🌅";
+                title: "The Opening";
+                blurb: "Who is present at the start, and any opening messages.";
+                done: builder.opening-done;
+                status-label: builder.opening-done ? "✓ set" : "○ to do";
+                clicked => { root.edit-opening(); }
+
+                Rectangle {
+                    height: 1px;
+                    background: AppTheme.bronze;
+                }
+                Text {
+                    text: builder.opening-done ? "Opening is set up" : "Not set up yet";
+                    color: AppTheme.text-muted;
+                    font-family: AppTheme.font-body;
+                    font-size: AppTheme.font-tiny;
+                }
+            }
+        }
+
+        Rectangle { vertical-stretch: 1; }
+
+        // ---- footer action bar ----
+        Rectangle {
+            background: AppTheme.bg-panel;
+            border-width: 1px;
+            border-color: AppTheme.bronze;
+
+            HorizontalLayout {
+                padding: 18px;
+                spacing: 16px;
+
+                Text {
+                    text: root.publishable
+                        ? "Everything is ready — publish when you like."
+                        : "Finish all three parts to publish · edit any part in any order.";
+                    color: AppTheme.text-muted;
+                    font-family: AppTheme.font-body;
+                    font-size: AppTheme.font-label;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+
+                publish-area := TouchArea {
+                    width: publish-label.preferred-width + 40px;
+                    height: 40px;
+                    enabled: root.publishable;
+                    clicked => { root.publish(); }
+
+                    Rectangle {
+                        background: root.publishable
+                            ? (parent.has-hover ? AppTheme.gold-bright : AppTheme.gold)
+                            : AppTheme.btn-brown;
+                        border-radius: AppTheme.radius-pill;
+
+                        publish-label := Text {
+                            text: root.publishable ? "Publish" : "Publish (locked)";
+                            color: root.publishable ? AppTheme.text-ink : AppTheme.text-muted;
+                            font-family: AppTheme.font-brand;
+                            font-size: AppTheme.font-label;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,9 +1,10 @@
 import { AppTheme } from "theme.slint";
 import { MainPage, AdventureSummary } from "main.slint";
 import { ChatPage } from "chat.slint";
-import { AdventureView, ActView, StateView, FactView, MessageView } from "views.slint";
+import { BuilderPage } from "builder.slint";
+import { AdventureView, ActView, StateView, FactView, MessageView, BuilderView } from "views.slint";
 
-export { AdventureSummary, AdventureView, ActView, StateView, FactView, MessageView }
+export { AdventureSummary, AdventureView, ActView, StateView, FactView, MessageView, BuilderView }
 
 export component RootWindow inherits Window {
     title: "Living Voices";
@@ -25,8 +26,13 @@ export component RootWindow inherits Window {
     // Notifies Rust when the user submits the new-draft popup
     callback create-adventure(string, string);
 
-    // Simple router: "main" or "chat"
-    in-out property <string> current-page: "main";
+    // Simple router: "main", "builder" or "chat"
+    in-out property <string> current-page: "builder";
+    in property <BuilderView> current-builder;
+    callback edit-story();
+    callback edit-cast();
+    callback edit-opening();
+    callback publish-adventure();
     in property <AdventureView> current-adventure;
     in property <ActView> current-act;
     in property <StateView> current-state;
@@ -42,6 +48,15 @@ export component RootWindow inherits Window {
             root.adventure-selected(id);
         }
         create-adventure(title, headline) => { root.create-adventure(title, headline); }
+    }
+
+    if current-page == "builder": BuilderPage {
+        builder: root.current-builder;
+        back-requested => { root.current-page = "main"; }
+        edit-story => { root.edit-story(); }
+        edit-cast => { root.edit-cast(); }
+        edit-opening => { root.edit-opening(); }
+        publish => { root.publish-adventure(); }
     }
 
     if current-page == "chat": ChatPage {

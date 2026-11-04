@@ -6,7 +6,9 @@ use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, Fact, State};
 use crate::backend::domain::message::Message;
-use crate::ui::{ActView, AdventureView, CharacterView, FactView, MessageView, StateView};
+use crate::ui::{
+    ActView, AdventureView, BuilderView, CharacterView, FactView, MessageView, StateView,
+};
 use uuid::Uuid;
 
 pub fn adventure_view(adventure: Option<&Adventure>) -> AdventureView {
@@ -35,6 +37,60 @@ pub fn adventure_view(adventure: Option<&Adventure>) -> AdventureView {
         }
         None => AdventureView::default(),
     }
+}
+
+pub fn builder_view(adventure: Option<&Adventure>) -> BuilderView {
+    const PLACEHOLDER_TONE: &str = "neutral";
+
+    match adventure {
+        Some(adventure) => {
+            let cast: Vec<CharacterView> = adventure
+                .characters
+                .iter()
+                .filter(|c| !c.is_player)
+                .map(cast_badge_view)
+                .collect();
+
+            let story_done =
+                !adventure.headline.trim().is_empty() && adventure.tone.trim() != PLACEHOLDER_TONE;
+            let cast_done = !cast.is_empty();
+            let opening_done = false;
+            let ready_count = [story_done, cast_done, opening_done]
+                .iter()
+                .filter(|done| **done)
+                .count() as i32;
+
+            BuilderView {
+                id: SharedString::from(adventure.id.to_string()),
+                title: SharedString::from(adventure.title.clone()),
+                headline: SharedString::from(adventure.headline.clone()),
+                status: SharedString::from(adventure.status.to_string()),
+                narrator_name: SharedString::from(adventure.narrator.name.clone()),
+                tone: SharedString::from(adventure.tone.clone()),
+                cast: ModelRc::new(VecModel::from(cast)),
+                story_done,
+                cast_done,
+                opening_done,
+                ready_count,
+            }
+        }
+        None => BuilderView::default(),
+    }
+}
+
+// A cast badge shows two-letter initials rather than the full name.
+fn cast_badge_view(character: &Character) -> CharacterView {
+    CharacterView {
+        id: SharedString::from(character.id.to_string()),
+        name: SharedString::from(initials(&character.name)),
+        headline: SharedString::from(character.headline.clone()),
+        is_player: character.is_player,
+        hue: name_hue(&character.name),
+    }
+}
+
+fn initials(name: &str) -> String {
+    name.chars().take(2).collect::<String>().to_uppercase()
 }
 
 fn character_view(character: &Character) -> CharacterView {
