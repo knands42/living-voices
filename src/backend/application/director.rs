@@ -16,14 +16,18 @@ impl Director {
         &self,
         candidates: &[&Character],
         incoming: &Message,
-        messages_since_narration: u8,
+        messages_since_narration: Option<u8>,
     ) -> bool {
         // No cast to speak => narrator by necessity.
         if candidates.is_empty() {
             return true;
         }
 
-        // TODO: if narrator spoke last message, wait for at least 10 messages
+        if messages_since_narration
+            .is_some_and(|since| since < self.director_settings.narrator_min_gap)
+        {
+            return false;
+        }
 
         let roll = rand::random::<f32>();
         // If the incoming message is OOC, the narrator has a chance to speak.
@@ -31,7 +35,7 @@ impl Director {
             return roll < self.director_settings.narrator_change_if_ooc;
         }
 
-        roll < self.narrator_chance(messages_since_narration)
+        roll < self.narrator_chance(messages_since_narration.unwrap_or(u8::MAX))
     }
 
     pub fn pick_character<'a>(&self, candidates: &'a [&Character]) -> Option<&'a Character> {

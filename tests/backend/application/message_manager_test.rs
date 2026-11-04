@@ -252,6 +252,7 @@ fn director_pick_narrator() -> Director {
         narrator_change_if_ooc: 1.0,
         act_max_messages: 10_000,
         follow_up_chance: 0.0,
+        narrator_min_gap: 0,
         narrator_pick_chance_after_message_threshold_range: MessageThresholdRange {
             min: 0,
             max: 0,
