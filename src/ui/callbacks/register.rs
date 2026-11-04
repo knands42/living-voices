@@ -1,4 +1,5 @@
 use crate::ui::callbacks::adventure_selected::register_adventure_selected;
+use crate::ui::callbacks::create_adventure::register_create_adventure;
 use crate::ui::callbacks::message_send::register_message_sent;
 use crate::{
     app::AppContext,
@@ -18,4 +19,5 @@ pub fn register_callbacks<
 ) {
     register_adventure_selected(ui, ctx);
     register_message_sent(ui, ctx);
+    register_create_adventure(ui, ctx);
 }

@@ -4,7 +4,7 @@ use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler}
 use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
 use crate::backend::domain::message::Message;
 use crate::ui::{RootWindow, viewmodels};
-use slint::ComponentHandle;
+use slint::{ComponentHandle, SharedString};
 use tokio::runtime::Handle;
 use uuid::Uuid;
 
@@ -31,6 +31,7 @@ pub fn register_adventure_selected<
             Ok(snapshot) => snapshot,
             Err(err) => {
                 log::error!("could not open adventure {adventure_id}: {err}");
+                // TODO: Create a notification tooltip-like and return to main page
                 return;
             }
         };

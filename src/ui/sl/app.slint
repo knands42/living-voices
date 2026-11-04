@@ -22,8 +22,11 @@ export component RootWindow inherits Window {
     // Notifies Rust when the user picks an adventure
     callback adventure-selected(string);
 
-    // Simple SPA router: "main" or "chat"
-    property <string> current-page: "main";
+    // Notifies Rust when the user submits the new-draft popup
+    callback create-adventure(string, string);
+
+    // Simple router: "main" or "chat"
+    in-out property <string> current-page: "main";
     in property <AdventureView> current-adventure;
     in property <ActView> current-act;
     in property <StateView> current-state;
@@ -38,6 +41,7 @@ export component RootWindow inherits Window {
             root.current-page = "chat";
             root.adventure-selected(id);
         }
+        create-adventure(title, headline) => { root.create-adventure(title, headline); }
     }
 
     if current-page == "chat": ChatPage {
