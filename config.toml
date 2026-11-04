@@ -35,6 +35,9 @@ act_max_messages = 200
 [director]
 targeted_pick_chance = 0.8      # (0.0 - 1.0)
 narrator_change_if_ooc = 0.2    # (0.0 - 1.0)
+act_max_messages = 200
+follow_up_chance = 0.50
+follow_up_max_chain = 6
 
 [director.narrator_pick_chance_after_message_threshold_range]
 min = 20
