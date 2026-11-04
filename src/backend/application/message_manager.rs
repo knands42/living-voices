@@ -227,10 +227,11 @@ impl<
     ) -> Result<ChatReply, MessageManagerError> {
         let data = ContextData::load(conn, adventure.id).await?;
 
-        if self
-            .director
-            .should_narrator_speak(active_characters, incoming, messages_since_narration)
-        {
+        if self.director.should_narrator_speak(
+            active_characters,
+            incoming,
+            messages_since_narration,
+        ) {
             let context = ContextBuilder::build_narrator_chat_prompt(
                 adventure,
                 &self.director,

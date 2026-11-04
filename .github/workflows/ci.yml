@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  cargo-test:
+    name: cargo test
+    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'codeberg-medium' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Run tests
+        run: cargo test --locked
