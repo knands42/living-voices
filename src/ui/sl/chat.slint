@@ -98,62 +98,69 @@ export component ChatPage inherits Rectangle {
             vertical-stretch: 1;
             spacing: root.gap-md;
 
-            VerticalLayout {
+            Rectangle {
                 width: root.side-w;
                 vertical-stretch: 1;
-                spacing: root.gap-sm;
+                background: AppTheme.bg-panel;
+                border-radius: AppTheme.radius-card;
+                border-width: 1px;
 
-                Text {
-                    text: "Cast";
-                    color: AppTheme.gold;
-                    font-family: AppTheme.font-body;
-                    font-size: AppTheme.font-heading * root.scale;
-                }
+                VerticalLayout {
+                    padding: root.gap-md;
+                    spacing: root.gap-sm;
 
-                Flickable {
-                    vertical-stretch: 1;
+                    Text {
+                        text: "Cast";
+                        color: AppTheme.gold;
+                        font-family: AppTheme.font-body;
+                        font-size: AppTheme.font-heading * root.scale;
+                    }
 
-                    VerticalLayout {
-                        alignment: start;
-                        spacing: root.gap-md;
+                    Flickable {
+                        vertical-stretch: 1;
 
                         VerticalLayout {
-                            spacing: 2px * root.scale;
+                            alignment: start;
+                            spacing: root.gap-md;
 
-                            Text {
-                                text: root.adventure.player.name;
-                                color: hsv(root.adventure.player.hue, 0.45, 0.95);
-                                font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label * root.scale;
-                                font-weight: 600;
+                            VerticalLayout {
+                                spacing: 2px * root.scale;
+
+                                Text {
+                                    text: root.adventure.player.name;
+                                    color: hsv(root.adventure.player.hue, 0.45, 0.95);
+                                    font-family: AppTheme.font-body;
+                                    font-size: AppTheme.font-label * root.scale;
+                                    font-weight: 600;
+                                }
+
+                                Text {
+                                    text: root.adventure.player.headline;
+                                    color: AppTheme.text-muted;
+                                    font-family: AppTheme.font-body;
+                                    font-size: AppTheme.font-label * root.scale;
+                                    wrap: word-wrap;
+                                }
                             }
 
-                            Text {
-                                text: root.adventure.player.headline;
-                                color: AppTheme.text-muted;
-                                font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label * root.scale;
-                                wrap: word-wrap;
-                            }
-                        }
+                            for character in root.adventure.characters: VerticalLayout {
+                                spacing: 2px * root.scale;
 
-                        for character in root.adventure.characters: VerticalLayout {
-                            spacing: 2px * root.scale;
+                                Text {
+                                    text: character.name;
+                                    color: hsv(character.hue, 0.45, 0.95);
+                                    font-family: AppTheme.font-body;
+                                    font-size: AppTheme.font-label * root.scale;
+                                    font-weight: 600;
+                                }
 
-                            Text {
-                                text: character.name;
-                                color: hsv(character.hue, 0.45, 0.95);
-                                font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label * root.scale;
-                                font-weight: 600;
-                            }
-
-                            Text {
-                                text: character.headline;
-                                color: AppTheme.text-muted;
-                                font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label * root.scale;
-                                wrap: word-wrap;
+                                Text {
+                                    text: character.headline;
+                                    color: AppTheme.text-muted;
+                                    font-family: AppTheme.font-body;
+                                    font-size: AppTheme.font-label * root.scale;
+                                    wrap: word-wrap;
+                                }
                             }
                         }
                     }
@@ -161,164 +168,178 @@ export component ChatPage inherits Rectangle {
             }
 
             // chat
-            VerticalLayout {
+            Rectangle {
                 horizontal-stretch: 1;
                 vertical-stretch: 1;
-                spacing: root.gap-md;
+                background: AppTheme.bg-panel;
+                border-radius: AppTheme.radius-card;
+                border-width: 1px;
 
-                Flickable {
-                    vertical-stretch: 1;
+                VerticalLayout {
+                    padding: root.gap-lg;
+                    spacing: root.gap-md;
 
-                    VerticalLayout {
-                        alignment: start;
-                        spacing: root.gap-md;
+                    Flickable {
+                        vertical-stretch: 1;
 
-                        for message in root.messages: HorizontalLayout {
-                            alignment: message.is-narrator ? stretch
-                                : message.is-player ? end : start;
+                        VerticalLayout {
+                            alignment: start;
+                            spacing: root.gap-md;
 
-                            if message.is-narrator: NarratorBubble {
-                                text: message.text;
-                                scale: root.scale;
-                                horizontal-stretch: 1;
+                            for message in root.messages: HorizontalLayout {
+                                alignment: message.is-narrator ? stretch
+                                    : message.is-player ? end : start;
+
+                                if message.is-narrator: NarratorBubble {
+                                    text: message.text;
+                                    scale: root.scale;
+                                    horizontal-stretch: 1;
+                                }
+
+                                if !message.is-narrator: ChatBubble {
+                                    max-width: root.width * 0.45;
+                                    speaker: message.speaker;
+                                    text: message.text;
+                                    is-player: message.is-player;
+                                    hue: message.hue;
+                                    scale: root.scale;
+                                }
                             }
 
-                            if !message.is-narrator: ChatBubble {
-                                max-width: root.width * 0.45;
-                                speaker: message.speaker;
-                                text: message.text;
-                                is-player: message.is-player;
-                                hue: message.hue;
-                                scale: root.scale;
+                            if root.awaiting-reply: Text {
+                                text: "…";
+                                color: AppTheme.text-muted;
+                                font-family: AppTheme.font-body;
+                                font-size: AppTheme.font-heading * root.scale;
                             }
-                        }
-
-                        if root.awaiting-reply: Text {
-                            text: "…";
-                            color: AppTheme.text-muted;
-                            font-family: AppTheme.font-body;
-                            font-size: AppTheme.font-heading * root.scale;
                         }
                     }
-                }
 
-                composer := LineEdit {
-                    placeholder-text: "Say something…";
-                    font-family: AppTheme.font-body;
-                    font-size: 14px * root.scale;
-                    height: 50px * root.scale;
-                    enabled: !root.awaiting-reply;
-                    accepted(text) => {
-                        if (text != "") {
-                            root.message-sent(text);
-                            composer.text = "";
+                    composer := LineEdit {
+                        placeholder-text: "Say something…";
+                        font-family: AppTheme.font-body;
+                        font-size: 14px * root.scale;
+                        height: 50px * root.scale;
+                        enabled: !root.awaiting-reply;
+                        accepted(text) => {
+                            if (text != "") {
+                                root.message-sent(text);
+                                composer.text = "";
+                            }
                         }
                     }
                 }
             }
 
-            VerticalLayout {
+            Rectangle {
                 width: root.meta-w;
                 vertical-stretch: 1;
-                spacing: root.gap-md;
+                background: AppTheme.bg-panel;
+                border-radius: AppTheme.radius-card;
+                border-width: 1px;
 
-                Flickable {
-                    vertical-stretch: 1;
+                VerticalLayout {
+                    padding: root.gap-md;
+                    spacing: root.gap-md;
+
+                    Flickable {
+                        vertical-stretch: 1;
+
+                        VerticalLayout {
+                            alignment: start;
+                            spacing: root.gap-sm;
+
+                            Text {
+                                text: "What's going on";
+                                color: AppTheme.gold;
+                                font-family: AppTheme.font-body;
+                                font-size: AppTheme.font-heading * root.scale;
+                            }
+
+                            Text {
+                                text: "Conditions";
+                                color: AppTheme.amber-glow;
+                                font-family: AppTheme.font-body;
+                                font-size: AppTheme.font-label * root.scale;
+                            }
+
+                            for condition in root.state.conditions: Text {
+                                text: "· " + condition;
+                                color: AppTheme.text-muted;
+                                font-family: AppTheme.font-body;
+                                font-size: AppTheme.font-label * root.scale;
+                                wrap: word-wrap;
+                            }
+
+                            Text {
+                                text: "Open threads";
+                                color: AppTheme.amber-glow;
+                                font-family: AppTheme.font-body;
+                                font-size: AppTheme.font-label * root.scale;
+                            }
+
+                            for thread in root.state.open-threads: Text {
+                                text: "· " + thread;
+                                color: AppTheme.text-muted;
+                                font-family: AppTheme.font-body;
+                                font-size: AppTheme.font-label * root.scale;
+                                wrap: word-wrap;
+                            }
+
+                            Text {
+                                text: "Facts";
+                                color: AppTheme.amber-glow;
+                                font-family: AppTheme.font-body;
+                                font-size: AppTheme.font-label * root.scale;
+                            }
+
+                            for fact in root.facts: VerticalLayout {
+                                spacing: 2px * root.scale;
+
+                                Text {
+                                    text: fact.subject;
+                                    color: AppTheme.bronze;
+                                    font-family: AppTheme.font-body;
+                                    font-size: AppTheme.font-label * root.scale;
+                                }
+
+                                Text {
+                                    text: fact.fact;
+                                    color: AppTheme.text-muted;
+                                    font-family: AppTheme.font-body;
+                                    font-size: AppTheme.font-label * root.scale;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+                    }
 
                     VerticalLayout {
+                        vertical-stretch: 1;
                         alignment: start;
                         spacing: root.gap-sm;
 
                         Text {
-                            text: "What's going on";
+                            text: "Time and place";
                             color: AppTheme.gold;
                             font-family: AppTheme.font-body;
                             font-size: AppTheme.font-heading * root.scale;
                         }
 
                         Text {
-                            text: "Conditions";
-                            color: AppTheme.amber-glow;
+                            text: root.state.day;
+                            color: AppTheme.text-muted;
                             font-family: AppTheme.font-body;
                             font-size: AppTheme.font-label * root.scale;
                         }
 
-                        for condition in root.state.conditions: Text {
-                            text: "· " + condition;
+                        Text {
+                            text: root.state.place;
                             color: AppTheme.text-muted;
                             font-family: AppTheme.font-body;
                             font-size: AppTheme.font-label * root.scale;
                             wrap: word-wrap;
                         }
-
-                        Text {
-                            text: "Open threads";
-                            color: AppTheme.amber-glow;
-                            font-family: AppTheme.font-body;
-                            font-size: AppTheme.font-label * root.scale;
-                        }
-
-                        for thread in root.state.open-threads: Text {
-                            text: "· " + thread;
-                            color: AppTheme.text-muted;
-                            font-family: AppTheme.font-body;
-                            font-size: AppTheme.font-label * root.scale;
-                            wrap: word-wrap;
-                        }
-
-                        Text {
-                            text: "Facts";
-                            color: AppTheme.amber-glow;
-                            font-family: AppTheme.font-body;
-                            font-size: AppTheme.font-label * root.scale;
-                        }
-
-                        for fact in root.facts: VerticalLayout {
-                            spacing: 2px * root.scale;
-
-                            Text {
-                                text: fact.subject;
-                                color: AppTheme.bronze;
-                                font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label * root.scale;
-                            }
-
-                            Text {
-                                text: fact.fact;
-                                color: AppTheme.text-muted;
-                                font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-label * root.scale;
-                                wrap: word-wrap;
-                            }
-                        }
-                    }
-                }
-
-                VerticalLayout {
-                    vertical-stretch: 1;
-                    alignment: start;
-                    spacing: root.gap-sm;
-
-                    Text {
-                        text: "Time and place";
-                        color: AppTheme.gold;
-                        font-family: AppTheme.font-body;
-                        font-size: AppTheme.font-heading * root.scale;
-                    }
-
-                    Text {
-                        text: root.state.day;
-                        color: AppTheme.text-muted;
-                        font-family: AppTheme.font-body;
-                        font-size: AppTheme.font-label * root.scale;
-                    }
-
-                    Text {
-                        text: root.state.place;
-                        color: AppTheme.text-muted;
-                        font-family: AppTheme.font-body;
-                        font-size: AppTheme.font-label * root.scale;
-                        wrap: word-wrap;
                     }
                 }
             }

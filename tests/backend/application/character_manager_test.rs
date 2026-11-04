@@ -70,6 +70,84 @@ async fn full_pipeline_create_character_persists_to_database_and_shared_state_an
 }
 
 #[tokio::test]
+async fn update_character_overwrites_fields_traits_and_tags_in_db_and_state() {
+    // given: an adventure with a character already created
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let character_manager = setup_character_manager(pool.clone(), state.clone());
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = adventure_manager
+        .current_adventure()
+        .expect("current adventure to be available");
+
+    let mut character = Character::new(
+        Uuid::new_v4(),
+        "Mara Venn".to_string(),
+        adventure.id,
+        "A tide-singer",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
+    character.add_trait("sings in tidal registers".to_string());
+    character.add_tag("mystic".to_string());
+    character_manager
+        .create_character(character.clone())
+        .await
+        .expect("create character");
+
+    // when: editing its fields, replacing traits and tags, and going away
+    character.name = "Mara the Drowned".to_string();
+    character.headline = "A ghost of the harbour".to_string();
+    character.backstory = "She walked into the tide and kept walking.".to_string();
+    character.status = CharacterStatus::Away;
+    character.traits = vec!["speaks only in riddles".to_string()];
+    character.tags = vec!["ghost".to_string()];
+    character_manager
+        .update_character(character.clone())
+        .await
+        .expect("update character");
+
+    // then: the row carries the edited scalar fields
+    let (name, headline, status): (String, String, String) =
+        sqlx::query_as("SELECT name, headline, status FROM character WHERE id = ?1")
+            .bind(character.id.to_string())
+            .fetch_one(&pool)
+            .await
+            .expect("query character");
+    assert_eq!(name, "Mara the Drowned");
+    assert_eq!(headline, "A ghost of the harbour");
+    assert_eq!(status, "away");
+
+    // and: traits were replaced, not accumulated
+    let traits: Vec<String> = sqlx::query_scalar(
+        "SELECT value FROM character_trait WHERE character_id = ?1 ORDER BY position",
+    )
+    .bind(character.id.to_string())
+    .fetch_all(&pool)
+    .await
+    .expect("query traits");
+    assert_eq!(traits, vec!["speaks only in riddles".to_string()]);
+
+    // and: tags were replaced too
+    let tags: Vec<String> =
+        sqlx::query_scalar("SELECT tag FROM character_tag WHERE character_id = ?1")
+            .bind(character.id.to_string())
+            .fetch_all(&pool)
+            .await
+            .expect("query tags");
+    assert_eq!(tags, vec!["ghost".to_string()]);
+
+    // and: the shared state copy reflects the edit
+    let stored = stored_npcs(&state)
+        .into_iter()
+        .find(|c| c.id == character.id)
+        .expect("character in state");
+    assert_eq!(stored.name, "Mara the Drowned");
+    assert_eq!(stored.status, CharacterStatus::Away);
+}
+
+#[tokio::test]
 #[ignore = "requires a running Ollama server"]
 async fn create_character_portrait_image_generates_and_persists_the_prompt() {
     let (manager, state, _db, pool) = new_integration_manager().await;

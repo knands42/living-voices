@@ -1,10 +1,13 @@
+use crate::backend::domain::adventure::AdventureStatus;
 use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, ActStatus, Fact, State};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::act_persistence::{
     activate_first_act, get_active_act, insert_default_act, upsert_act,
 };
-use crate::backend::persistence::adventure_persistence::get_adventure_summaries;
+use crate::backend::persistence::adventure_persistence::{
+    get_adventure_summaries, update_adventure, update_adventure_status,
+};
 use crate::backend::persistence::characters_persistence::insert_default_player_character;
 use crate::backend::persistence::fact_persistence::{get_facts, insert_default_facts};
 use crate::backend::persistence::lore_persistence::insert_default_lore;
@@ -103,6 +106,45 @@ impl AdventureManager {
         }
 
         Ok(new_adventure)
+    }
+
+    pub async fn update_status(
+        &self,
+        adventure_id: Uuid,
+        status: AdventureStatus,
+    ) -> Result<(), AdventureManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        update_adventure_status(&mut conn, adventure_id, status).await?;
+
+        if let Ok(mut guard) = self.state.write() {
+            if let Some(adventure) = &mut guard.current_adventure {
+                if adventure.id == adventure_id {
+                    adventure.status = status;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn update_adventure(
+        &self,
+        adventure: &Adventure,
+    ) -> Result<Adventure, AdventureManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        update_adventure(&mut conn, adventure).await?;
+
+        let updated = get_adventure(&mut conn, adventure.id).await?;
+
+        if let Ok(mut guard) = self.state.write() {
+            if let Some(current) = &guard.current_adventure {
+                if current.id == updated.id {
+                    guard.current_adventure = Some(updated.clone());
+                }
+            }
+        }
+
+        Ok(updated)
     }
 
     pub async fn create_initial_messages(

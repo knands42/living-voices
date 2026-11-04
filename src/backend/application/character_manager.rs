@@ -14,7 +14,7 @@ use crate::backend::{
     persistence::adventure_persistence::get_adventure,
     persistence::characters_persistence::{
         insert_character, update_appearance_current_pose, update_appearance_full_body_prompt,
-        update_appearance_portrait_prompt,
+        update_appearance_portrait_prompt, update_character,
     },
     persistence::message_persistence::fetch_last_n,
     persistence::state_persistence::get_state,
@@ -76,6 +76,34 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
             &vec![],
         )
         .await?;
+
+        Ok(())
+    }
+
+    pub async fn update_character(
+        &self,
+        character: Character,
+    ) -> Result<(), CharacterManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        update_character(&mut conn, &character).await?;
+
+        {
+            let mut guard = self.state.write()?;
+            if let Some(adventure) = &mut guard.current_adventure {
+                if let Some(existing) = adventure
+                    .characters
+                    .iter_mut()
+                    .find(|c| c.id == character.id)
+                {
+                    *existing = character.clone();
+                }
+            }
+            if let Some(player) = &mut guard.player {
+                if player.id == character.id {
+                    *player = character.clone();
+                }
+            }
+        }
 
         Ok(())
     }

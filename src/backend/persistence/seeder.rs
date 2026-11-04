@@ -741,6 +741,7 @@ async fn seed_connection(
         narrator,
         adventure_summary.tone,
         lore,
+        adventure_summary.status,
         adventure_summary.created_at,
         adventure_summary.updated_at,
     );

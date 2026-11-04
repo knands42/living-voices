@@ -1,6 +1,6 @@
 use chrono::Utc;
 use living_voices::backend::application::state::{AppState, SharedState, StateError};
-use living_voices::backend::domain::adventure::Adventure;
+use living_voices::backend::domain::adventure::{Adventure, AdventureStatus};
 use living_voices::backend::domain::lore::Lore;
 use living_voices::backend::domain::narrator::Narrator;
 use uuid::Uuid;
@@ -13,6 +13,7 @@ fn new_adventure() -> Adventure {
         Narrator::new(Uuid::new_v4(), Uuid::new_v4(), "NARRATOR", ""),
         "",
         Lore::new(Uuid::new_v4(), ""),
+        AdventureStatus::Draft,
         Utc::now(),
         Utc::now(),
     )

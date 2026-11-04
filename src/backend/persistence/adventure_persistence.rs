@@ -1,4 +1,4 @@
-use crate::backend::domain::adventure::AdventureSummary;
+use crate::backend::domain::adventure::{AdventureStatus, AdventureSummary};
 use crate::backend::domain::character::{Character, CharacterStatus};
 use crate::backend::domain::lore::Lore;
 use crate::backend::domain::narrator::Narrator;
@@ -19,6 +19,7 @@ struct AdventureRow {
     title: String,
     headline: String,
     tone: String,
+    status: String,
     created_at: String,
     updated_at: String,
 }
@@ -30,6 +31,7 @@ impl FromRow<'_, SqliteRow> for AdventureRow {
             title: row.get("title"),
             headline: row.get("headline"),
             tone: row.get("tone"),
+            status: row.get("status"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         })
@@ -48,6 +50,7 @@ impl TryFrom<AdventureRow> for AdventureSummary {
             value.title,
             value.headline,
             value.tone,
+            AdventureStatus::from_str(&value.status),
             parsed_created_at,
             parsed_updated_at,
         ))
@@ -59,6 +62,7 @@ struct CompleteAdventureRow {
     adventure_title: String,
     adventure_headline: String,
     adventure_tone: String,
+    adventure_status: String,
     adventure_created_at: String,
     adventure_updated_at: String,
     adventure_tags: String,
@@ -90,6 +94,7 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
             adventure_title: row.get("adventure_title"),
             adventure_headline: row.get("adventure_headline"),
             adventure_tone: row.get("adventure_tone"),
+            adventure_status: row.get("adventure_status"),
             adventure_created_at: row.get("adventure_created_at"),
             adventure_updated_at: row.get("adventure_updated_at"),
             adventure_tags: row.get("adventure_tags"),
@@ -179,6 +184,7 @@ impl TryFrom<CompleteAdventureRow> for Adventure {
             narrator,
             value.adventure_tone.clone(),
             lore,
+            AdventureStatus::from_str(&value.adventure_status),
             adventure_created_at_utc,
             adventure_updated_at_utc,
         );
@@ -230,6 +236,7 @@ SELECT a.id                      AS adventure_id,
        a.title                   AS adventure_title,
        a.headline             AS adventure_headline,
        a.tone                   AS adventure_tone,
+       a.status                 AS adventure_status,
        a.created_at             AS adventure_created_at,
        a.updated_at             AS adventure_updated_at,
        COALESCE(at.tags, '[]')   AS adventure_tags,
@@ -320,6 +327,52 @@ pub async fn attach_tag(
         .bind(adventure_id.to_string())
         .bind(normalize(tag))
         .execute(conn)
+        .await?;
+
+    Ok(())
+}
+
+pub async fn update_adventure_status(
+    conn: &mut SqliteConnection,
+    adventure_id: Uuid,
+    status: AdventureStatus,
+) -> Result<(), PersistenceError> {
+    sqlx::query("UPDATE adventure SET status = ?1 WHERE id = ?2")
+        .bind(status.as_str())
+        .bind(adventure_id.to_string())
+        .execute(conn)
+        .await?;
+
+    Ok(())
+}
+
+pub async fn update_adventure(
+    conn: &mut SqliteConnection,
+    adventure: &Adventure,
+) -> Result<(), PersistenceError> {
+    sqlx::query(
+        "UPDATE adventure SET title = ?1, headline = ?2, tone = ?3, status = ?4 WHERE id = ?5",
+    )
+    .bind(&adventure.title)
+    .bind(&adventure.headline)
+    .bind(&adventure.tone)
+    .bind(adventure.status.as_str())
+    .bind(adventure.id.to_string())
+    .execute(&mut *conn)
+    .await?;
+
+    // TODO: This will move out when narrator manager exists
+    sqlx::query("UPDATE narrator SET name = ?1, tone = ?2 WHERE adventure_id = ?3")
+        .bind(&adventure.narrator.name)
+        .bind(&adventure.narrator.tone)
+        .bind(adventure.id.to_string())
+        .execute(&mut *conn)
+        .await?;
+
+    sqlx::query("UPDATE lore SET text = ?1 WHERE adventure_id = ?2")
+        .bind(&adventure.lore.text)
+        .bind(adventure.id.to_string())
+        .execute(&mut *conn)
         .await?;
 
     Ok(())

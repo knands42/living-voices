@@ -232,6 +232,51 @@ pub async fn update_appearance_current_pose(
     Ok(())
 }
 
+pub async fn update_character(
+    conn: &mut SqliteConnection,
+    character: &Character,
+) -> Result<(), PersistenceError> {
+    sqlx::query(
+        "UPDATE character
+         SET name = ?1, headline = ?2, backstory = ?3, appearance = ?4,
+             appearance_portrait_prompt = ?5, appearance_full_body_prompt = ?6,
+             appearance_current_pose = ?7, status = ?8, portrait_path = ?9, is_player = ?10
+         WHERE id = ?11",
+    )
+    .bind(&character.name)
+    .bind(&character.headline)
+    .bind(&character.backstory)
+    .bind(&character.appearance)
+    .bind(&character.appearance_portrait_prompt)
+    .bind(&character.appearance_full_body_prompt)
+    .bind(&character.appearance_current_pose)
+    .bind(character.status.as_str())
+    .bind(character.portrait_path.as_deref())
+    .bind(character.is_player)
+    .bind(character.id.to_string())
+    .execute(&mut *conn)
+    .await?;
+
+    sqlx::query("DELETE FROM character_trait WHERE character_id = ?1")
+        .bind(character.id.to_string())
+        .execute(&mut *conn)
+        .await?;
+    for (position, trait_) in character.traits.iter().enumerate() {
+        insert_trait(conn, character.id, position as u16, trait_).await?;
+    }
+
+    sqlx::query("DELETE FROM character_tag WHERE character_id = ?1")
+        .bind(character.id.to_string())
+        .execute(&mut *conn)
+        .await?;
+    for tag in &character.tags {
+        ensure_tag(conn, tag).await?;
+        attach_tag(conn, character.id, tag).await?;
+    }
+
+    Ok(())
+}
+
 pub async fn update_appearance(
     conn: &mut SqliteConnection,
     character_id: Uuid,

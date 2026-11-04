@@ -3,8 +3,10 @@ use living_voices::backend::application::{
     adventure_manager::{AdventureManager, AdventureManagerError},
     state::SharedState,
 };
+use living_voices::backend::domain::adventure::AdventureStatus;
 use living_voices::backend::domain::memory::{Act, ActStatus};
 use living_voices::backend::persistence::act_persistence::get_acts;
+use living_voices::backend::persistence::adventure_persistence::get_adventure;
 use living_voices::backend::persistence::fact_persistence::get_facts;
 use living_voices::backend::persistence::state_persistence::get_state;
 
@@ -147,6 +149,99 @@ async fn start_a_new_adventure_should_also_update_shared_state() {
     assert_eq!(current_act.goal, "Reach the frozen tavern");
     assert_eq!(current_act.status, ActStatus::Active);
     assert!(snapshot.current_facts.is_empty());
+}
+
+#[tokio::test]
+async fn create_adventure_starts_as_a_draft() {
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let adventure_manager = AdventureManager::new(state.clone(), pool.clone());
+
+    let adventure = adventure_manager
+        .create_adventure("Draft".into(), "A new tale".into(), "tense".into())
+        .await
+        .expect("create adventure");
+
+    assert_eq!(adventure.status, AdventureStatus::Draft);
+}
+
+#[tokio::test]
+async fn update_status_persists_and_refreshes_shared_state() {
+    // given: a freshly created draft adventure held in shared state
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let adventure_manager = AdventureManager::new(state.clone(), pool.clone());
+    let adventure = adventure_manager
+        .create_adventure("Draft".into(), "A new tale".into(), "tense".into())
+        .await
+        .expect("create adventure");
+
+    // when: publishing it
+    adventure_manager
+        .update_status(adventure.id, AdventureStatus::Public)
+        .await
+        .expect("update status");
+
+    // then: the change is persisted
+    let mut conn = pool.acquire().await.expect("acquire");
+    let reloaded = get_adventure(&mut conn, adventure.id)
+        .await
+        .expect("reload");
+    assert_eq!(reloaded.status, AdventureStatus::Public);
+
+    // and: the in-memory current adventure reflects it too
+    let snapshot = adventure_manager.current_snapshot();
+    assert_eq!(
+        snapshot
+            .current_adventure
+            .expect("current adventure")
+            .status,
+        AdventureStatus::Public
+    );
+}
+
+#[tokio::test]
+async fn update_adventure_overwrites_fields_narrator_and_lore() {
+    // given: a draft adventure with its default narrator and empty lore
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let adventure_manager = AdventureManager::new(state.clone(), pool.clone());
+    let mut adventure = adventure_manager
+        .create_adventure("Old title".into(), "Old headline".into(), "calm".into())
+        .await
+        .expect("create adventure");
+
+    // when: editing every owned field, including the narrator and the lore entity
+    adventure.title = "New title".to_string();
+    adventure.headline = "New headline".to_string();
+    adventure.tone = "tense".to_string();
+    adventure.status = AdventureStatus::Private;
+    adventure.narrator.name = "The Tide".to_string();
+    adventure.narrator.tone = "ominous".to_string();
+    adventure.lore.text = "The city drowned in a single night.".to_string();
+
+    let updated = adventure_manager
+        .update_adventure(&adventure)
+        .await
+        .expect("update adventure");
+
+    // then: the returned adventure carries the edits
+    assert_eq!(updated.title, "New title");
+    assert_eq!(updated.headline, "New headline");
+    assert_eq!(updated.tone, "tense");
+    assert_eq!(updated.status, AdventureStatus::Private);
+    assert_eq!(updated.narrator.name, "The Tide");
+    assert_eq!(updated.narrator.tone, "ominous");
+    assert_eq!(updated.lore.text, "The city drowned in a single night.");
+
+    // and: a fresh read from the database agrees
+    let mut conn = pool.acquire().await.expect("acquire");
+    let reloaded = get_adventure(&mut conn, adventure.id)
+        .await
+        .expect("reload");
+    assert_eq!(reloaded.title, "New title");
+    assert_eq!(reloaded.narrator.name, "The Tide");
+    assert_eq!(reloaded.lore.text, "The city drowned in a single night.");
 }
 
 #[tokio::test]

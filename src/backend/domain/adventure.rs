@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -5,11 +7,55 @@ use crate::backend::domain::{
     character::Character, lore::Lore, message::Message, narrator::Narrator,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AdventureStatus {
+    Draft,
+    Private,
+    Public,
+}
+
+impl AdventureStatus {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            AdventureStatus::Draft => "draft",
+            AdventureStatus::Private => "private",
+            AdventureStatus::Public => "public",
+        }
+    }
+
+    pub fn from_str(value: &str) -> Self {
+        match value {
+            "private" => AdventureStatus::Private,
+            "public" => AdventureStatus::Public,
+            _ => AdventureStatus::Draft,
+        }
+    }
+}
+
+impl Default for AdventureStatus {
+    fn default() -> Self {
+        AdventureStatus::Draft
+    }
+}
+
+impl Display for AdventureStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl From<String> for AdventureStatus {
+    fn from(value: String) -> Self {
+        AdventureStatus::from_str(value.as_str())
+    }
+}
+
 pub struct AdventureSummary {
     pub id: Uuid,
     pub title: String,
     pub headline: String,
     pub tone: String,
+    pub status: AdventureStatus,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -20,6 +66,7 @@ impl AdventureSummary {
         title: impl Into<String>,
         headline: impl Into<String>,
         tone: impl Into<String>,
+        status: AdventureStatus,
         created_at: DateTime<Utc>,
         updated_at: DateTime<Utc>,
     ) -> Self {
@@ -28,6 +75,7 @@ impl AdventureSummary {
             title: title.into(),
             headline: headline.into(),
             tone: tone.into(),
+            status,
             created_at,
             updated_at,
         }
@@ -42,6 +90,7 @@ pub struct Adventure {
     pub narrator: Narrator,
     pub lore: Lore,
     pub tone: String,
+    pub status: AdventureStatus,
     pub characters: Vec<Character>,
     pub tags: Vec<String>,
     pub created_at: DateTime<Utc>,
@@ -56,6 +105,7 @@ impl Adventure {
         narrator: Narrator,
         tone: impl Into<String>,
         lore: Lore,
+        status: AdventureStatus,
         created_at: DateTime<Utc>,
         updated_at: DateTime<Utc>,
     ) -> Self {
@@ -67,6 +117,7 @@ impl Adventure {
             lore,
             characters: Vec::new(),
             tone: tone.into(),
+            status,
             tags: Vec::new(),
             created_at,
             updated_at,

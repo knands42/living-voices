@@ -1,5 +1,5 @@
 use chrono::Utc;
-use living_voices::backend::domain::adventure::Adventure;
+use living_voices::backend::domain::adventure::{Adventure, AdventureStatus};
 use living_voices::backend::domain::character::{Character, CharacterStatus};
 use living_voices::backend::domain::lore::Lore;
 use living_voices::backend::domain::narrator::Narrator;
@@ -14,6 +14,7 @@ fn new_adventure() -> Adventure {
         Narrator::new(Uuid::new_v4(), Uuid::new_v4(), "NARRATOR", ""),
         "",
         Lore::new(Uuid::new_v4(), ""),
+        AdventureStatus::Draft,
         now,
         now,
     )
@@ -50,6 +51,26 @@ fn new_defaults_tone_to_empty() {
     let adventure = new_adventure();
 
     assert!(adventure.tone.is_empty());
+}
+
+#[test]
+fn status_round_trips_through_its_string_form() {
+    for status in [
+        AdventureStatus::Draft,
+        AdventureStatus::Private,
+        AdventureStatus::Public,
+    ] {
+        assert_eq!(AdventureStatus::from_str(status.as_str()), status);
+    }
+}
+
+#[test]
+fn status_defaults_to_draft_for_unknown_values() {
+    assert_eq!(
+        AdventureStatus::from_str("nonsense"),
+        AdventureStatus::Draft
+    );
+    assert_eq!(AdventureStatus::default(), AdventureStatus::Draft);
 }
 
 #[test]
