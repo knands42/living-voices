@@ -29,6 +29,8 @@ const DEFAULT_FOLLOW_UP_MAX_CHAIN: u8 = 6;
 const DEFAULT_NARRATOR_RAMP_MIN: u8 = 20;
 const DEFAULT_NARRATOR_RAMP_MAX: u8 = 30;
 
+const DEFAULT_NARRATOR_MIN_GAP: u8 = 10;
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct Settings {
@@ -121,6 +123,8 @@ pub struct DirectorSettings {
     pub follow_up_chance: f32,
     /// hard cap on NPC-to-NPC follow-ups chained off one player beat
     pub follow_up_max_chain: u8,
+    /// messages that must pass after a narrator turn before it may speak again
+    pub narrator_min_gap: u8,
     pub narrator_pick_chance_after_message_threshold_range: MessageThresholdRange,
 }
 
@@ -132,6 +136,7 @@ impl Default for DirectorSettings {
             act_max_messages: DEFAULT_ACT_MAX_MESSAGES,
             follow_up_chance: DEFAULT_FOLLOW_UP_CHANCE,
             follow_up_max_chain: DEFAULT_FOLLOW_UP_MAX_CHAIN,
+            narrator_min_gap: DEFAULT_NARRATOR_MIN_GAP,
             narrator_pick_chance_after_message_threshold_range: MessageThresholdRange::default(),
         }
     }

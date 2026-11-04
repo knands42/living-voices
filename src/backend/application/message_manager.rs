@@ -42,7 +42,7 @@ pub enum MessageManagerError {
 struct TurnInput {
     adventure: Adventure,
     present_names: Vec<String>,
-    messages_since_narration: u8,
+    messages_since_narration: Option<u8>,
     active_act: Option<Act>,
     uncovered_messages: Vec<Message>,
 }
@@ -222,16 +222,15 @@ impl<
         adventure: &Adventure,
         incoming: &Message,
         active_characters: &[&Character],
-        messages_since_narration: u8,
+        messages_since_narration: Option<u8>,
         uncovered_messages: &[Message],
     ) -> Result<ChatReply, MessageManagerError> {
         let data = ContextData::load(conn, adventure.id).await?;
 
-        if self.director.should_narrator_speak(
-            active_characters,
-            incoming,
-            messages_since_narration,
-        ) {
+        if self
+            .director
+            .should_narrator_speak(active_characters, incoming, messages_since_narration)
+        {
             let context = ContextBuilder::build_narrator_chat_prompt(
                 adventure,
                 &self.director,
