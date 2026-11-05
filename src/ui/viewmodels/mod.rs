@@ -7,7 +7,8 @@ use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, Fact, State};
 use crate::backend::domain::message::Message;
 use crate::ui::{
-    ActView, AdventureView, BuilderView, CharacterView, FactView, MessageView, StateView,
+    ActAuthorView, ActView, AdventureView, BuilderView, CharacterView, FactView, MessageView,
+    StateView,
 };
 use uuid::Uuid;
 
@@ -39,7 +40,7 @@ pub fn adventure_view(adventure: Option<&Adventure>) -> AdventureView {
     }
 }
 
-pub fn builder_view(adventure: Option<&Adventure>) -> BuilderView {
+pub fn builder_view(adventure: Option<&Adventure>, acts: &[Act]) -> BuilderView {
     const PLACEHOLDER_TONE: &str = "neutral";
 
     match adventure {
@@ -51,11 +52,14 @@ pub fn builder_view(adventure: Option<&Adventure>) -> BuilderView {
                 .map(cast_badge_view)
                 .collect();
 
+            let act_views: Vec<ActAuthorView> = acts.iter().map(act_author_view).collect();
+
             let story_done =
                 !adventure.headline.trim().is_empty() && adventure.tone.trim() != PLACEHOLDER_TONE;
             let cast_done = !cast.is_empty();
+            let acts_done = acts.iter().any(|act| act.is_valid_act());
             let opening_done = false;
-            let ready_count = [story_done, cast_done, opening_done]
+            let ready_count = [story_done, cast_done, acts_done, opening_done]
                 .iter()
                 .filter(|done| **done)
                 .count() as i32;
@@ -68,13 +72,24 @@ pub fn builder_view(adventure: Option<&Adventure>) -> BuilderView {
                 narrator_name: SharedString::from(adventure.narrator.name.clone()),
                 tone: SharedString::from(adventure.tone.clone()),
                 cast: ModelRc::new(VecModel::from(cast)),
+                acts: ModelRc::new(VecModel::from(act_views)),
                 story_done,
                 cast_done,
+                acts_done,
                 opening_done,
                 ready_count,
             }
         }
         None => BuilderView::default(),
+    }
+}
+
+fn act_author_view(act: &Act) -> ActAuthorView {
+    ActAuthorView {
+        ordinal: act.ordinal as i32,
+        goal: SharedString::from(act.goal.clone()),
+        trigger: SharedString::from(act.trigger.clone().unwrap_or_default()),
+        valid: act.is_valid_act(),
     }
 }
 

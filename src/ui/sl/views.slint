@@ -15,6 +15,13 @@ export struct AdventureView {
     player: CharacterView,
 }
 
+export struct ActAuthorView {
+    ordinal: int,
+    goal: string,
+    trigger: string,
+    valid: bool,
+}
+
 export struct BuilderView {
     id: string,
     title: string,
@@ -23,8 +30,10 @@ export struct BuilderView {
     narrator-name: string,
     tone: string,
     cast: [CharacterView],
+    acts: [ActAuthorView],
     story-done: bool,
     cast-done: bool,
+    acts-done: bool,
     opening-done: bool,
     ready-count: int,
 }

@@ -31,6 +31,7 @@ export component RootWindow inherits Window {
     in property <BuilderView> current-builder;
     callback edit-story();
     callback edit-cast();
+    callback edit-act();
     callback edit-opening();
     callback publish-adventure();
     in property <AdventureView> current-adventure;
@@ -55,6 +56,7 @@ export component RootWindow inherits Window {
         back-requested => { root.current-page = "main"; }
         edit-story => { root.edit-story(); }
         edit-cast => { root.edit-cast(); }
+        edit-act => { root.edit-act(); }
         edit-opening => { root.edit-opening(); }
         publish => { root.publish-adventure(); }
     }
