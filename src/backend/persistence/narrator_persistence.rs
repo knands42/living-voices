@@ -10,8 +10,6 @@ struct NarratorRow {
     adventure_id: String,
     name: String,
     tone: String,
-    created_at: String,
-    updated_at: String,
 }
 
 impl FromRow<'_, SqliteRow> for NarratorRow {
@@ -21,8 +19,6 @@ impl FromRow<'_, SqliteRow> for NarratorRow {
             adventure_id: row.get("adventure_id"),
             name: row.get("name"),
             tone: row.get("tone"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
         })
     }
 }
