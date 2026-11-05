@@ -3,7 +3,7 @@ use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler}
 use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
 use crate::backend::domain::character::CharacterStatus;
 use crate::backend::domain::message::Message;
-use crate::ui::{ChatVm, RootWindow, viewmodels};
+use crate::ui::{ChatGlobals, RootWindow, viewmodels};
 use slint::ComponentHandle;
 use tokio::runtime::Handle;
 use uuid::Uuid;
@@ -21,7 +21,7 @@ pub fn register_message_sent<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.global::<ChatVm>().on_message_sent(move |text| {
+    ui.global::<ChatGlobals>().on_message_sent(move |text| {
         let Some(adventure) = ctx.adventures.current_adventure() else {
             log::error!("message sent with no active adventure");
             return;
@@ -59,7 +59,7 @@ fn update_message_view(ui_weak: &slint::Weak<RootWindow>, player: &Message, play
             return;
         };
         push_message(&ui, view);
-        ui.global::<ChatVm>().set_awaiting_reply(true);
+        ui.global::<ChatGlobals>().set_awaiting_reply(true);
     });
 
     if let Err(err) = post {
@@ -77,7 +77,7 @@ fn post_reply(
         let Some(ui) = ui_weak.upgrade() else {
             return;
         };
-        ui.global::<ChatVm>().set_awaiting_reply(false);
+        ui.global::<ChatGlobals>().set_awaiting_reply(false);
         match reply {
             Ok(message) => push_message(&ui, viewmodels::message_view(&message, Some(player_id))),
             Err(err) => log::error!("send_message failed: {err}"),
@@ -91,7 +91,7 @@ fn post_reply(
 
 fn push_message(ui: &RootWindow, view: crate::ui::MessageView) {
     use slint::{Model, VecModel};
-    let chat = ui.global::<ChatVm>();
+    let chat = ui.global::<ChatGlobals>();
     let model = chat.get_messages();
     if let Some(vec_model) = model
         .as_any()

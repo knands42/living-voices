@@ -6,7 +6,7 @@ import {
 
 // The builder page's data in, and its events out. Rust talks to this directly.
 // The first argument of every callback is the adventure id.
-export global BuilderVm {
+export global BuilderGlobals {
     in property <BuilderView> builder;
     callback save-story(string, StoryInputView);
     callback save-character(string, CharacterInputView);
@@ -129,7 +129,7 @@ component SectionHeader inherits VerticalLayout {
 }
 
 export component BuilderPage inherits Rectangle {
-    in property <BuilderView> builder: BuilderVm.builder;
+    in property <BuilderView> builder: BuilderGlobals.builder;
 
     callback back-requested();
     // Page-local: each one opens its editor (no listener until those editors exist).
@@ -277,7 +277,7 @@ export component BuilderPage inherits Rectangle {
                     label: root.publishable ? "Publish" : "Publish (locked)";
                     enabled-look: root.publishable;
                     enabled: root.publishable;
-                    clicked => { BuilderVm.publish-adventure(root.builder.id); }
+                    clicked => { BuilderGlobals.publish-adventure(root.builder.id); }
                 }
             }
         }
@@ -331,7 +331,7 @@ export component BuilderPage inherits Rectangle {
                         }
 
                         Text {
-                            text: "Narrator";
+                            text: "Narrator Name";
                             color: AppTheme.text-muted;
                             font-family: AppTheme.font-brand;
                             font-size: AppTheme.font-tiny;

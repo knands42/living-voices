@@ -9,11 +9,12 @@ export struct AdventureSummaryView {
 }
 
 // The main page's data in, and its events out. Rust talks to this directly.
-export global MainVm {
+export global MainGlobals {
     in property <[AdventureSummaryView]> adventures-summary;
     callback adventure-selected(string);
     callback draft-adventure-selected(string);
-    callback create-adventure(string, string);
+    // Returns the new draft's id, or an empty string when it could not be created.
+    callback create-adventure(string, string) -> string;
 }
 
 component NewDraftOverlay inherits Rectangle {
@@ -135,7 +136,7 @@ component NewDraftOverlay inherits Rectangle {
 }
 
 export component MainPage inherits Rectangle {
-    in property <[AdventureSummaryView]> adventures-summary: MainVm.adventures-summary;
+    in property <[AdventureSummaryView]> adventures-summary: MainGlobals.adventures-summary;
 
     property <bool> show-draft: false;
 
@@ -187,9 +188,9 @@ export component MainPage inherits Rectangle {
             height: 72px;
             clicked => {
                 if (adventure-summary.status == "draft") {
-                    MainVm.draft-adventure-selected(adventure-summary.id);
+                    MainGlobals.draft-adventure-selected(adventure-summary.id);
                 } else {
-                    MainVm.adventure-selected(adventure-summary.id);
+                    MainGlobals.adventure-selected(adventure-summary.id);
                 }
             }
 
@@ -234,7 +235,12 @@ export component MainPage inherits Rectangle {
         y: 0;
         width: root.width;
         height: root.height;
-        submit(title, headline) => {  MainVm.create-adventure(title, headline); }
+        submit(title, headline) => {
+            let new-adventure-id = MainGlobals.create-adventure(title, headline);
+            if (new-adventure-id != "") {
+                MainGlobals.draft-adventure-selected(new-adventure-id);
+            }
+        }
         dismiss => { root.show-draft = false; }
     }
 }

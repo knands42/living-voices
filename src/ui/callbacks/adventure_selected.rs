@@ -4,7 +4,7 @@ use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler}
 use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
 use crate::backend::domain::message::Message;
 use crate::ui::callbacks::adventure_creation::{BuilderData, load_builder_data, show_builder};
-use crate::ui::{ChatVm, MainVm, RootWindow, viewmodels};
+use crate::ui::{ChatGlobals, MainGlobals, RootWindow, viewmodels};
 use slint::ComponentHandle;
 use tokio::runtime::Handle;
 use uuid::Uuid;
@@ -22,7 +22,7 @@ pub fn register_adventure_selected<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.global::<MainVm>().on_adventure_selected(move |id| {
+    ui.global::<MainGlobals>().on_adventure_selected(move |id| {
         let Ok(adventure_id) = Uuid::parse_str(id.as_str()) else {
             log::error!("invalid adventure id: {id}");
             return;
@@ -54,7 +54,7 @@ pub fn register_draft_adventure_selected<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.global::<MainVm>()
+    ui.global::<MainGlobals>()
         .on_draft_adventure_selected(move |id| {
             let Ok(adventure_id) = Uuid::parse_str(id.as_str()) else {
                 log::error!("invalid adventure id: {id}");
@@ -126,7 +126,7 @@ fn apply_snapshot(
         };
 
         if let Some(player) = snapshot.player {
-            let chat = ui.global::<ChatVm>();
+            let chat = ui.global::<ChatGlobals>();
             chat.set_adventure(viewmodels::adventure_view(
                 snapshot.current_adventure.as_ref(),
             ));

@@ -3,7 +3,7 @@ use crate::backend::application::adventure_manager::AdventureManagerError;
 use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
 use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
 use crate::backend::domain::adventure::Adventure;
-use crate::ui::{AdventureSummaryView, MainVm, RootWindow};
+use crate::ui::{AdventureSummaryView, MainGlobals, RootWindow};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use tokio::runtime::Handle;
 
@@ -22,23 +22,24 @@ pub fn register_create_adventure<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.global::<MainVm>()
+    ui.global::<MainGlobals>()
         .on_create_adventure(move |title, headline| {
             if title.trim().is_empty() {
                 log::error!("create adventure called without a title");
-                return;
+                return SharedString::new();
             }
 
             let adventure = match create_draft(&handle, &ctx, title.as_str(), headline.as_str()) {
                 Ok(adventure) => adventure,
                 Err(err) => {
                     log::error!("could not create draft adventure: {err}");
-                    return;
+                    return SharedString::new();
                 }
             };
 
             log::info!("draft adventure created: {}", adventure.id);
             append_summary(&ui_weak, &adventure);
+            SharedString::from(adventure.id.to_string())
         });
 }
 
@@ -76,7 +77,7 @@ fn append_summary(ui_weak: &slint::Weak<RootWindow>, adventure: &Adventure) {
             return;
         };
 
-        let main = ui.global::<MainVm>();
+        let main = ui.global::<MainGlobals>();
         let model = main.get_adventures_summary();
         if let Some(vec_model) = model
             .as_any()

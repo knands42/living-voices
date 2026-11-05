@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use sqlx::{Sqlite, SqlitePool};
 use uuid::Uuid;
 
+use crate::backend::domain::adventure::AdventureStatus;
+use crate::backend::persistence::adventure_persistence::update_adventure;
 use crate::backend::{
     domain::{
         adventure::Adventure,
@@ -741,7 +743,7 @@ async fn seed_connection(
         narrator,
         adventure_summary.tone,
         lore,
-        adventure_summary.status,
+        AdventureStatus::Private,
         adventure_summary.created_at,
         adventure_summary.updated_at,
     );
@@ -750,5 +752,6 @@ async fn seed_connection(
         adventure.add_character(character);
     }
 
+    update_adventure(&mut *tx, &adventure).await?;
     Ok(adventure)
 }

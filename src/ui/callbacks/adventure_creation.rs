@@ -9,7 +9,7 @@ use crate::backend::domain::character::{Character, CharacterStatus};
 use crate::backend::domain::memory::Act;
 use crate::backend::domain::message::Message;
 use crate::ui::{
-    ActInputView, BuilderVm, CharacterInputView, RootWindow, StoryInputView, viewmodels,
+    ActInputView, BuilderGlobals, CharacterInputView, RootWindow, StoryInputView, viewmodels,
 };
 use slint::ComponentHandle;
 use std::future::Future;
@@ -53,7 +53,7 @@ pub fn show_builder(ui_weak: &slint::Weak<RootWindow>, data: &BuilderData, open_
         return;
     };
 
-    ui.global::<BuilderVm>()
+    ui.global::<BuilderGlobals>()
         .set_builder(viewmodels::builder_view(
             Some(&data.adventure),
             &data.acts,
@@ -77,7 +77,7 @@ pub fn register_story_creation<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.global::<BuilderVm>()
+    ui.global::<BuilderGlobals>()
         .on_save_story(move |adventure_id, input| {
             let Some(adventure_id) = parse_id(adventure_id.as_str()) else {
                 return;
@@ -107,7 +107,7 @@ pub fn register_cast_creation<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.global::<BuilderVm>()
+    ui.global::<BuilderGlobals>()
         .on_save_character(move |adventure_id, input| {
             let Some(adventure_id) = parse_id(adventure_id.as_str()) else {
                 return;
@@ -137,7 +137,7 @@ pub fn register_act_creation<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.global::<BuilderVm>()
+    ui.global::<BuilderGlobals>()
         .on_save_act(move |adventure_id, input| {
             let Some(adventure_id) = parse_id(adventure_id.as_str()) else {
                 return;
@@ -167,7 +167,7 @@ pub fn register_adventure_opening<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.global::<BuilderVm>()
+    ui.global::<BuilderGlobals>()
         .on_save_opening(move |adventure_id, text| {
             let Some(adventure_id) = parse_id(adventure_id.as_str()) else {
                 return;
