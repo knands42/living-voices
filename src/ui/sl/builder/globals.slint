@@ -1,12 +1,21 @@
-import { BuilderView, StoryInputView, ActInputView, CharacterView } from "../views.slint";
+import { BuilderView, StoryInputView, ActInputView } from "../views.slint";
 
 // The builder page's data in, and its events out. Rust talks to this directly.
 // The first argument of every callback is the adventure id.
 export global BuilderGlobals {
     in property <BuilderView> builder;
+
+    // Lives here so it survives leaving the page (e.g. to edit a character).
+    // "story" | "cast" | "acts" | "opening"
+    in-out property <string> section: "story";
+
     callback save-story(string, StoryInputView);
-    callback save-character(string, CharacterView);
     callback save-act(string, ActInputView);
     callback save-opening(string, string);
     callback publish-adventure(string);
+
+    // Opens the character page for an existing character.
+    callback character-selected(string, string);
+    // Creates a new character and opens its page.
+    callback add-character(string);
 }

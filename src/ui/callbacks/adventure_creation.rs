@@ -1,16 +1,11 @@
-use crate::ai::integrations::text::chat::Chat;
 use crate::app::AppContext;
 use crate::backend::application::adventure_manager::{AdventureManager, AdventureManagerError};
-use crate::backend::application::character_manager::{CharacterManager, CharacterManagerError};
 use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
 use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
 use crate::backend::domain::adventure::Adventure;
-use crate::backend::domain::character::{Character, CharacterStatus};
 use crate::backend::domain::memory::Act;
 use crate::backend::domain::message::Message;
-use crate::ui::{
-    ActInputView, BuilderGlobals, CharacterView, RootWindow, StoryInputView, viewmodels,
-};
+use crate::ui::{ActInputView, BuilderGlobals, RootWindow, StoryInputView, viewmodels};
 use slint::ComponentHandle;
 use std::future::Future;
 use thiserror::Error;
@@ -23,12 +18,10 @@ enum CreationError {
     Invalid(&'static str),
     #[error(transparent)]
     Adventure(#[from] AdventureManagerError),
-    #[error(transparent)]
-    Character(#[from] CharacterManagerError),
 }
 
 pub struct BuilderData {
-    adventure: Adventure,
+    pub adventure: Adventure,
     acts: Vec<Act>,
     has_opening: bool,
 }
@@ -37,6 +30,7 @@ pub async fn load_builder_data(
     adventure_manager: &AdventureManager,
     adventure_id: Uuid,
 ) -> Result<BuilderData, AdventureManagerError> {
+    // TODO: Consider later to get from snapshot
     Ok(BuilderData {
         adventure: adventure_manager.get_adventure(adventure_id).await?,
         acts: adventure_manager.get_acts(adventure_id).await?,
@@ -60,6 +54,7 @@ pub fn show_builder(ui_weak: &slint::Weak<RootWindow>, data: &BuilderData, open_
             data.has_opening,
         ));
     if open_page {
+        ui.global::<BuilderGlobals>().set_section("story".into());
         ui.set_current_page("builder".into());
     }
 }
@@ -90,36 +85,6 @@ pub fn register_story_creation<
                 adventure_id,
                 "save story",
                 save_story(&ctx.adventures, adventure_id, input),
-            );
-        });
-}
-
-pub fn register_cast_creation<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
->(
-    ui: &RootWindow,
-    ctx: &AppContext<C, N, M, A>,
-) {
-    let ctx = ctx.clone();
-    let handle = Handle::current();
-    let ui_weak = ui.as_weak();
-
-    ui.global::<BuilderGlobals>()
-        .on_save_character(move |adventure_id, input| {
-            let Some(adventure_id) = parse_id(adventure_id.as_str()) else {
-                return;
-            };
-
-            save_and_refresh(
-                &handle,
-                &ctx.adventures,
-                &ui_weak,
-                adventure_id,
-                "save character",
-                save_character(&ctx.adventures, &ctx.characters, adventure_id, input),
             );
         });
 }
@@ -229,47 +194,6 @@ async fn save_story(
     Ok(())
 }
 
-async fn save_character(
-    adventures: &AdventureManager,
-    characters: &CharacterManager<Chat>,
-    adventure_id: Uuid,
-    input: CharacterView,
-) -> Result<(), CreationError> {
-    let name = input.name.trim();
-    if name.is_empty() {
-        return Err(CreationError::Invalid("character name"));
-    }
-
-    if input.id.is_empty() {
-        let character = Character::new(
-            Uuid::new_v4(),
-            name.to_string(),
-            adventure_id,
-            input.headline.trim(),
-            input.backstory.trim(),
-            CharacterStatus::Present,
-            false,
-        );
-        characters.create_character(character).await?;
-        return Ok(());
-    }
-
-    let character_id = parse_id(input.id.as_str()).ok_or(CreationError::Invalid("character id"))?;
-    let mut character = adventures
-        .get_adventure(adventure_id)
-        .await?
-        .characters
-        .into_iter()
-        .find(|character| character.id == character_id)
-        .ok_or(CreationError::Invalid("character id"))?;
-    character.name = name.to_string();
-    character.headline = input.headline.trim().to_string();
-    character.backstory = input.backstory.trim().to_string();
-
-    characters.update_character(character).await?;
-    Ok(())
-}
-
 async fn save_act(
     adventures: &AdventureManager,
     adventure_id: Uuid,
@@ -318,7 +242,7 @@ async fn save_opening(
     Ok(())
 }
 
-fn parse_id(id: &str) -> Option<Uuid> {
+pub fn parse_id(id: &str) -> Option<Uuid> {
     Uuid::parse_str(id)
         .map_err(|_| log::error!("invalid id: {id}"))
         .ok()

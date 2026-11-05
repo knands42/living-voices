@@ -8,7 +8,7 @@ use crate::backend::domain::memory::{Act, Fact, State};
 use crate::backend::domain::message::Message;
 use crate::ui::{
     ActAuthorView, ActView, AdventureSummaryView, AdventureView, BuilderView, CharacterChatView,
-    FactView, MessageView, StateView,
+    CharacterView, FactView, MessageView, StateView,
 };
 use uuid::Uuid;
 
@@ -109,6 +109,32 @@ fn act_author_view(act: &Act) -> ActAuthorView {
         trigger: SharedString::from(act.trigger.clone().unwrap_or_default()),
         valid: act.is_valid_act(),
     }
+}
+
+pub fn character_view(character: &Character) -> CharacterView {
+    CharacterView {
+        id: SharedString::from(character.id.to_string()),
+        adventure_id: SharedString::from(character.adventure_id.to_string()),
+        name: SharedString::from(character.name.clone()),
+        initials: SharedString::from(initials(&character.name)),
+        hue: name_hue(&character.name),
+        headline: SharedString::from(character.headline.clone()),
+        status: SharedString::from(character.status.as_str()),
+        backstory: SharedString::from(character.backstory.clone()),
+        appearance: SharedString::from(character.appearance.clone().unwrap_or_default()),
+        appearance_portrait_prompt: optional_text(&character.appearance_portrait_prompt),
+        appearance_full_body_prompt: optional_text(&character.appearance_full_body_prompt),
+        appearance_current_pose: optional_text(&character.appearance_current_pose),
+        portrait_path: optional_text(&character.portrait_path),
+        is_player: character.is_player,
+        traits: string_model(&character.traits),
+        tags: string_model(&character.tags),
+        relations: string_model(&character.relations),
+    }
+}
+
+fn optional_text(value: &Option<String>) -> SharedString {
+    SharedString::from(value.clone().unwrap_or_default())
 }
 
 fn initials(name: &str) -> String {

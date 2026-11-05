@@ -11,7 +11,10 @@ A local-first roleplay chat app built in **Rust**, with a terminal UI (ratatui) 
 
 ## Preview
 
+#### Incomplete version of the terminal version...
 ![Preview](./docs/chat-preview.png)
+
+> **NOTE:** Preview for the SLintUI soon
 
 ## Architecture
 
@@ -123,7 +126,7 @@ No vibecoding, any bug this project has, it's entirely my fault. AI is used deli
 - Getting unstuck on specific implementations (still learning Rust)
 - Troubleshooting (tons of UI wiring and state management on both SLintUI and RatatUI)
 - Writing/Improving tests
-- UI layouts
+- UI layouts (I like SLint and RatatUI, but damn I fell like a trainee once again when coding on them)
 - Boilerplate (specially AI integrations)
 
 ## Status

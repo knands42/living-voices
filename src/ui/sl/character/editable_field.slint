@@ -1,0 +1,129 @@
+import { LineEdit, TextEdit } from "std-widgets.slint";
+import { AppTheme } from "../theme.slint";
+
+// A small square button used for the confirm / cancel actions.
+export component IconButton inherits TouchArea {
+    in property <string> glyph;
+    in property <bool> primary: false;
+
+    width: 34px;
+    height: 34px;
+
+    Rectangle {
+        background: root.primary
+            ? (root.has-hover ? AppTheme.gold-bright : AppTheme.gold)
+            : (root.has-hover ? AppTheme.bg-panel-alt : AppTheme.btn-brown);
+        border-radius: 8px;
+
+        Text {
+            text: root.glyph;
+            color: root.primary ? AppTheme.text-ink : AppTheme.text-light;
+            font-size: 16px;
+        }
+    }
+}
+
+export component EditableField inherits VerticalLayout {
+    in property <string> value;
+    in property <string> placeholder: "Not set yet";
+    in property <bool> can-edit: false;
+    in property <bool> multiline: false;
+    in property <length> font-size: AppTheme.font-heading + 2px;
+    in property <string> font-family: AppTheme.font-body;
+    in property <color> text-color: AppTheme.text-light;
+    in property <TextHorizontalAlignment> text-alignment: left;
+    callback committed(string);
+
+    property <bool> editing: false;
+
+    function commit(text: string) {
+        if (text != root.value) {
+            root.committed(text);
+        }
+        root.editing = false;
+    }
+
+    if !root.editing: HorizontalLayout {
+        spacing: 10px;
+
+        Text {
+            text: root.value == "" ? root.placeholder : root.value;
+            color: root.value == "" ? AppTheme.text-muted : root.text-color;
+            font-family: root.font-family;
+            font-size: root.font-size;
+            font-italic: root.value == "";
+            wrap: word-wrap;
+            horizontal-alignment: root.text-alignment;
+            horizontal-stretch: 1;
+        }
+
+        if root.can-edit: VerticalLayout {
+            alignment: start;
+
+            pencil := TouchArea {
+                width: 30px;
+                height: 30px;
+                clicked => { root.editing = true; }
+
+                Rectangle {
+                    background: pencil.has-hover ? AppTheme.gold : AppTheme.bg-panel-alt;
+                    border-radius: AppTheme.radius-circle;
+
+                    Text {
+                        text: "✎";
+                        color: pencil.has-hover ? AppTheme.text-ink : AppTheme.gold;
+                        font-size: 14px;
+                    }
+                }
+            }
+        }
+    }
+
+    if root.editing && !root.multiline: HorizontalLayout {
+        spacing: 8px;
+
+        line-input := LineEdit {
+            text: root.value;
+            font-size: root.font-size;
+            horizontal-stretch: 1;
+            accepted(text) => { root.commit(text); }
+            init => { self.focus(); }
+        }
+        IconButton {
+            glyph: "✓";
+            primary: true;
+            clicked => { root.commit(line-input.text); }
+        }
+        IconButton {
+            glyph: "✕";
+            clicked => { root.editing = false; }
+        }
+    }
+
+    if root.editing && root.multiline: HorizontalLayout {
+        spacing: 8px;
+
+        area-input := TextEdit {
+            text: root.value;
+            wrap: word-wrap;
+            font-size: root.font-size;
+            min-height: 120px;
+            horizontal-stretch: 1;
+            init => { self.focus(); }
+        }
+        VerticalLayout {
+            alignment: start;
+            spacing: 6px;
+
+            IconButton {
+                glyph: "✓";
+                primary: true;
+                clicked => { root.commit(area-input.text); }
+            }
+            IconButton {
+                glyph: "✕";
+                clicked => { root.editing = false; }
+            }
+        }
+    }
+}

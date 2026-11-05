@@ -2,16 +2,17 @@ import { AppTheme } from "theme.slint";
 import { MainPage, MainGlobals, AdventureSummaryView } from "main.slint";
 import { ChatPage, ChatGlobals } from "chat.slint";
 import { BuilderPage, BuilderGlobals } from "builder/builder_page.slint";
+import { CharacterPage, CharacterGlobals } from "character/character_page.slint";
 import {
     AdventureView, ActView, StateView, FactView, MessageView, BuilderView,
-    StoryInputView, ActInputView,
+    StoryInputView, ActInputView, CharacterView, CharacterInputView,
 } from "views.slint";
 
 // Rust reaches each page through its own global.
-export { MainGlobals, ChatGlobals, BuilderGlobals }
+export { MainGlobals, ChatGlobals, BuilderGlobals, CharacterGlobals }
 export {
     AdventureSummaryView, AdventureView, ActView, StateView, FactView, MessageView, BuilderView,
-    StoryInputView, ActInputView,
+    StoryInputView, ActInputView, CharacterView, CharacterInputView,
 }
 
 // Only decides which page is on screen. No page data and no page events live here.
@@ -26,13 +27,17 @@ export component RootWindow inherits Window {
     default-font-size: 14px;
     default-font-weight: 400;
 
-    // "main", "builder" or "chat". Rust sets it after a page has loaded.
+    // "main", "builder", "character" or "chat". Rust sets it after a page has loaded.
     in-out property <string> current-page: "main";
 
     if current-page == "main": MainPage { }
 
     if current-page == "builder": BuilderPage {
         back-requested => { root.current-page = "main"; }
+    }
+
+    if current-page == "character": CharacterPage {
+        back-requested => { root.current-page = "builder"; }
     }
 
     if current-page == "chat": ChatPage {

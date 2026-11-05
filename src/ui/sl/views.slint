@@ -8,23 +8,34 @@ export struct CharacterChatView {
     hue: int,
 }
 
+// Everything the character page shows. Empty string means "not set".
 export struct CharacterView {
     id: string,
+    adventure-id: string,
     name: string,
+    initials: string,
+    hue: int,
     headline: string,
     status: string,
     backstory: string,
     appearance: string,
-
-    appearance_portrait_prompt: string, // optional
-    appearance_full_body_prompt: string, // optional
-    appearance_current_pose: string, // optional
-    portrait_path: string,
-
+    appearance-portrait-prompt: string,
+    appearance-full-body-prompt: string,
+    appearance-current-pose: string,
+    portrait-path: string,
     is-player: bool,
     traits: [string],
     tags: [string],
-    relations: [string]
+    relations: [string],
+}
+
+// The single-value fields of a character that the page edits one at a time.
+export struct CharacterInputView {
+    id: string,
+    name: string,
+    headline: string,
+    backstory: string,
+    appearance: string,
 }
 
 export struct AdventureView {

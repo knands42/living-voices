@@ -1,0 +1,133 @@
+import { AppTheme } from "../theme.slint";
+import { CharacterView } from "../views.slint";
+import { FieldCaption } from "../builder/components.slint";
+import { EditableField } from "editable_field.slint";
+import { EditableList } from "editable_list.slint";
+
+// One line of the "image prompts" readout.
+component PromptRow inherits HorizontalLayout {
+    in property <string> label;
+    in property <bool> ready;
+
+    Text {
+        text: root.label;
+        color: AppTheme.text-muted;
+        font-family: AppTheme.font-body;
+        font-size: AppTheme.font-label + 1px;
+        horizontal-stretch: 1;
+    }
+    Text {
+        text: root.ready ? "✓ ready" : "○ not made";
+        color: root.ready ? AppTheme.success : AppTheme.amber-glow;
+        font-family: AppTheme.font-body;
+        font-size: AppTheme.font-label + 1px;
+    }
+}
+
+// The left column: avatar, name, status, tags and image-prompt readiness.
+export component PortraitCard inherits Rectangle {
+    in property <CharacterView> character;
+    in property <bool> can-edit: false;
+    callback name-committed(string);
+    callback tag-added(string);
+    callback tag-removed(int);
+
+    background: @linear-gradient(170deg, AppTheme.card-leather 0%, AppTheme.bg-deepest 80%);
+    border-radius: 14px;
+    border-width: 1px;
+    border-color: AppTheme.bronze;
+
+    VerticalLayout {
+        padding: 24px;
+        spacing: 16px;
+        alignment: start;
+
+        HorizontalLayout {
+            alignment: center;
+
+            Rectangle {
+                width: 132px;
+                height: 132px;
+                border-radius: AppTheme.radius-circle;
+                background: hsv(root.character.hue, 0.35, 0.45);
+                border-width: 2px;
+                border-color: AppTheme.gold;
+                drop-shadow-blur: 30px;
+                drop-shadow-color: AppTheme.candle-glow;
+
+                Text {
+                    text: root.character.initials;
+                    color: AppTheme.text-light;
+                    font-family: AppTheme.font-display;
+                    font-size: 46px;
+                }
+            }
+        }
+
+        EditableField {
+            value: root.character.name;
+            can-edit: root.can-edit;
+            font-family: AppTheme.font-display;
+            font-size: 28px;
+            text-color: AppTheme.gold;
+            text-alignment: center;
+            committed(text) => { root.name-committed(text); }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+
+            Rectangle {
+                height: 28px;
+                width: status-text.preferred-width + 28px;
+                border-radius: AppTheme.radius-pill;
+                background: root.character.status == "present"
+                    ? AppTheme.success.with-alpha(0.18)
+                    : AppTheme.amber-glow.with-alpha(0.18);
+
+                status-text := Text {
+                    text: "● " + root.character.status;
+                    color: root.character.status == "present" ? AppTheme.success : AppTheme.amber-glow;
+                    font-family: AppTheme.font-brand;
+                    font-size: AppTheme.font-label;
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: AppTheme.bronze; }
+
+        VerticalLayout {
+            spacing: 8px;
+
+            FieldCaption { text: "TAGS"; }
+            EditableList {
+                items: root.character.tags;
+                can-edit: root.can-edit;
+                add-label: "+ add tag";
+                empty-text: "No tags yet";
+                added(text) => { root.tag-added(text); }
+                removed(index) => { root.tag-removed(index); }
+            }
+        }
+
+        Rectangle { height: 1px; background: AppTheme.bronze; }
+
+        VerticalLayout {
+            spacing: 6px;
+
+            FieldCaption { text: "IMAGE PROMPTS"; }
+            PromptRow {
+                label: "Portrait";
+                ready: root.character.appearance-portrait-prompt != "";
+            }
+            PromptRow {
+                label: "Full body";
+                ready: root.character.appearance-full-body-prompt != "";
+            }
+            PromptRow {
+                label: "Current pose";
+                ready: root.character.appearance-current-pose != "";
+            }
+        }
+    }
+}

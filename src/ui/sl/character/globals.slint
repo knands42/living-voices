@@ -1,0 +1,16 @@
+import { CharacterView, CharacterInputView } from "../views.slint";
+
+// The character page's data in, and its events out. Rust talks to this directly.
+// The first argument of every list callback is the character id.
+export global CharacterGlobals {
+    in property <CharacterView> character;
+
+    // Only the owner of the adventure sees the edit buttons.
+    in property <bool> can-edit: true;
+
+    callback save-character(CharacterInputView);
+    callback add-trait(string, string);
+    callback remove-trait(string, int);
+    callback add-tag(string, string);
+    callback remove-tag(string, int);
+}
