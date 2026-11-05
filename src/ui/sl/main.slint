@@ -8,6 +8,14 @@ export struct AdventureSummaryView {
     status: string
 }
 
+// The main page's data in, and its events out. Rust talks to this directly.
+export global MainVm {
+    in property <[AdventureSummaryView]> adventures-summary;
+    callback adventure-selected(string);
+    callback draft-adventure-selected(string);
+    callback create-adventure(string, string);
+}
+
 component NewDraftOverlay inherits Rectangle {
     callback submit(string, string);
     callback dismiss();
@@ -127,9 +135,7 @@ component NewDraftOverlay inherits Rectangle {
 }
 
 export component MainPage inherits Rectangle {
-    in property <[AdventureSummaryView]> adventures-summary;
-    callback adventure-selected(string);
-    callback create-adventure(string, string);
+    in property <[AdventureSummaryView]> adventures-summary: MainVm.adventures-summary;
 
     property <bool> show-draft: false;
 
@@ -179,7 +185,13 @@ export component MainPage inherits Rectangle {
 
         for adventure-summary in root.adventures-summary: TouchArea {
             height: 72px;
-            clicked => { root.adventure-selected(adventure-summary.id); }
+            clicked => {
+                if (adventure-summary.status == "draft") {
+                    MainVm.draft-adventure-selected(adventure-summary.id);
+                } else {
+                    MainVm.adventure-selected(adventure-summary.id);
+                }
+            }
 
             Rectangle {
                 background: parent.has-hover ? AppTheme.bg-panel-alt : AppTheme.bg-panel;
@@ -222,7 +234,7 @@ export component MainPage inherits Rectangle {
         y: 0;
         width: root.width;
         height: root.height;
-        submit(title, headline) => { root.create-adventure(title, headline); }
+        submit(title, headline) => {  MainVm.create-adventure(title, headline); }
         dismiss => { root.show-draft = false; }
     }
 }

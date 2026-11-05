@@ -3,7 +3,7 @@ use crate::backend::application::adventure_manager::AdventureManagerError;
 use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
 use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
 use crate::backend::domain::adventure::Adventure;
-use crate::ui::{AdventureSummaryView, RootWindow};
+use crate::ui::{AdventureSummaryView, MainVm, RootWindow};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use tokio::runtime::Handle;
 
@@ -22,23 +22,24 @@ pub fn register_create_adventure<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.on_create_adventure(move |title, headline| {
-        if title.trim().is_empty() {
-            log::error!("create adventure called without a title");
-            return;
-        }
-
-        let adventure = match create_draft(&handle, &ctx, title.as_str(), headline.as_str()) {
-            Ok(adventure) => adventure,
-            Err(err) => {
-                log::error!("could not create draft adventure: {err}");
+    ui.global::<MainVm>()
+        .on_create_adventure(move |title, headline| {
+            if title.trim().is_empty() {
+                log::error!("create adventure called without a title");
                 return;
             }
-        };
 
-        log::info!("draft adventure created: {}", adventure.id);
-        append_summary(&ui_weak, &adventure);
-    });
+            let adventure = match create_draft(&handle, &ctx, title.as_str(), headline.as_str()) {
+                Ok(adventure) => adventure,
+                Err(err) => {
+                    log::error!("could not create draft adventure: {err}");
+                    return;
+                }
+            };
+
+            log::info!("draft adventure created: {}", adventure.id);
+            append_summary(&ui_weak, &adventure);
+        });
 }
 
 fn create_draft<
@@ -75,7 +76,8 @@ fn append_summary(ui_weak: &slint::Weak<RootWindow>, adventure: &Adventure) {
             return;
         };
 
-        let model = ui.get_adventures_summary();
+        let main = ui.global::<MainVm>();
+        let model = main.get_adventures_summary();
         if let Some(vec_model) = model
             .as_any()
             .downcast_ref::<VecModel<AdventureSummaryView>>()
@@ -84,7 +86,7 @@ fn append_summary(ui_weak: &slint::Weak<RootWindow>, adventure: &Adventure) {
         } else {
             let mut items: Vec<AdventureSummaryView> = model.iter().collect();
             items.push(summary);
-            ui.set_adventures_summary(ModelRc::new(VecModel::from(items)));
+            main.set_adventures_summary(ModelRc::new(VecModel::from(items)));
         }
     });
 

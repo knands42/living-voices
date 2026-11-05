@@ -4,7 +4,7 @@ use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler}
 use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
 use crate::backend::domain::message::Message;
 use crate::ui::callbacks::adventure_creation::{BuilderData, load_builder_data, show_builder};
-use crate::ui::{RootWindow, viewmodels};
+use crate::ui::{ChatVm, MainVm, RootWindow, viewmodels};
 use slint::ComponentHandle;
 use tokio::runtime::Handle;
 use uuid::Uuid;
@@ -22,7 +22,7 @@ pub fn register_adventure_selected<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.on_adventure_selected(move |id| {
+    ui.global::<MainVm>().on_adventure_selected(move |id| {
         let Ok(adventure_id) = Uuid::parse_str(id.as_str()) else {
             log::error!("invalid adventure id: {id}");
             return;
@@ -54,23 +54,24 @@ pub fn register_draft_adventure_selected<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.on_draft_adventure_selected(move |id| {
-        let Ok(adventure_id) = Uuid::parse_str(id.as_str()) else {
-            log::error!("invalid adventure id: {id}");
-            return;
-        };
-
-        let data = match load_draft_adventure(&handle, &ctx, adventure_id) {
-            Ok(data) => data,
-            Err(err) => {
-                log::error!("could not open draft {adventure_id}: {err}");
-                // TODO: Create a notification tooltip-like and return to main page
+    ui.global::<MainVm>()
+        .on_draft_adventure_selected(move |id| {
+            let Ok(adventure_id) = Uuid::parse_str(id.as_str()) else {
+                log::error!("invalid adventure id: {id}");
                 return;
-            }
-        };
+            };
 
-        show_builder(&ui_weak, &data, true);
-    });
+            let data = match load_draft_adventure(&handle, &ctx, adventure_id) {
+                Ok(data) => data,
+                Err(err) => {
+                    log::error!("could not open draft {adventure_id}: {err}");
+                    // TODO: Create a notification tooltip-like and return to main page
+                    return;
+                }
+            };
+
+            show_builder(&ui_weak, &data, true);
+        });
 }
 
 fn load_and_start<
@@ -125,13 +126,15 @@ fn apply_snapshot(
         };
 
         if let Some(player) = snapshot.player {
-            ui.set_current_adventure(viewmodels::adventure_view(
+            let chat = ui.global::<ChatVm>();
+            chat.set_adventure(viewmodels::adventure_view(
                 snapshot.current_adventure.as_ref(),
             ));
-            ui.set_current_act(viewmodels::act_view(snapshot.current_act.as_ref()));
-            ui.set_current_state(viewmodels::state_view(snapshot.current_state.as_ref()));
-            ui.set_current_facts(viewmodels::facts_model(&snapshot.current_facts));
-            ui.set_current_messages(viewmodels::messages_model(&messages, Some(player.id)));
+            chat.set_act(viewmodels::act_view(snapshot.current_act.as_ref()));
+            chat.set_state(viewmodels::state_view(snapshot.current_state.as_ref()));
+            chat.set_facts(viewmodels::facts_model(&snapshot.current_facts));
+            chat.set_messages(viewmodels::messages_model(&messages, Some(player.id)));
+            ui.set_current_page("chat".into());
         };
     });
 

@@ -8,7 +8,9 @@ use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::{Character, CharacterStatus};
 use crate::backend::domain::memory::Act;
 use crate::backend::domain::message::Message;
-use crate::ui::{ActInputView, CharacterInputView, RootWindow, StoryInputView, viewmodels};
+use crate::ui::{
+    ActInputView, BuilderVm, CharacterInputView, RootWindow, StoryInputView, viewmodels,
+};
 use slint::ComponentHandle;
 use std::future::Future;
 use thiserror::Error;
@@ -51,11 +53,12 @@ pub fn show_builder(ui_weak: &slint::Weak<RootWindow>, data: &BuilderData, open_
         return;
     };
 
-    ui.set_current_builder(viewmodels::builder_view(
-        Some(&data.adventure),
-        &data.acts,
-        data.has_opening,
-    ));
+    ui.global::<BuilderVm>()
+        .set_builder(viewmodels::builder_view(
+            Some(&data.adventure),
+            &data.acts,
+            data.has_opening,
+        ));
     if open_page {
         ui.set_current_page("builder".into());
     }
@@ -74,20 +77,21 @@ pub fn register_story_creation<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.on_save_story(move |adventure_id, input| {
-        let Some(adventure_id) = parse_id(adventure_id.as_str()) else {
-            return;
-        };
+    ui.global::<BuilderVm>()
+        .on_save_story(move |adventure_id, input| {
+            let Some(adventure_id) = parse_id(adventure_id.as_str()) else {
+                return;
+            };
 
-        save_and_refresh(
-            &handle,
-            &ctx.adventures,
-            &ui_weak,
-            adventure_id,
-            "save story",
-            save_story(&ctx.adventures, adventure_id, input),
-        );
-    });
+            save_and_refresh(
+                &handle,
+                &ctx.adventures,
+                &ui_weak,
+                adventure_id,
+                "save story",
+                save_story(&ctx.adventures, adventure_id, input),
+            );
+        });
 }
 
 pub fn register_cast_creation<
@@ -103,20 +107,21 @@ pub fn register_cast_creation<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.on_save_character(move |adventure_id, input| {
-        let Some(adventure_id) = parse_id(adventure_id.as_str()) else {
-            return;
-        };
+    ui.global::<BuilderVm>()
+        .on_save_character(move |adventure_id, input| {
+            let Some(adventure_id) = parse_id(adventure_id.as_str()) else {
+                return;
+            };
 
-        save_and_refresh(
-            &handle,
-            &ctx.adventures,
-            &ui_weak,
-            adventure_id,
-            "save character",
-            save_character(&ctx.adventures, &ctx.characters, adventure_id, input),
-        );
-    });
+            save_and_refresh(
+                &handle,
+                &ctx.adventures,
+                &ui_weak,
+                adventure_id,
+                "save character",
+                save_character(&ctx.adventures, &ctx.characters, adventure_id, input),
+            );
+        });
 }
 
 pub fn register_act_creation<
@@ -132,20 +137,21 @@ pub fn register_act_creation<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.on_save_act(move |adventure_id, input| {
-        let Some(adventure_id) = parse_id(adventure_id.as_str()) else {
-            return;
-        };
+    ui.global::<BuilderVm>()
+        .on_save_act(move |adventure_id, input| {
+            let Some(adventure_id) = parse_id(adventure_id.as_str()) else {
+                return;
+            };
 
-        save_and_refresh(
-            &handle,
-            &ctx.adventures,
-            &ui_weak,
-            adventure_id,
-            "save act",
-            save_act(&ctx.adventures, adventure_id, input),
-        );
-    });
+            save_and_refresh(
+                &handle,
+                &ctx.adventures,
+                &ui_weak,
+                adventure_id,
+                "save act",
+                save_act(&ctx.adventures, adventure_id, input),
+            );
+        });
 }
 
 pub fn register_adventure_opening<
@@ -161,20 +167,21 @@ pub fn register_adventure_opening<
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
 
-    ui.on_save_opening(move |adventure_id, text| {
-        let Some(adventure_id) = parse_id(adventure_id.as_str()) else {
-            return;
-        };
+    ui.global::<BuilderVm>()
+        .on_save_opening(move |adventure_id, text| {
+            let Some(adventure_id) = parse_id(adventure_id.as_str()) else {
+                return;
+            };
 
-        save_and_refresh(
-            &handle,
-            &ctx.adventures,
-            &ui_weak,
-            adventure_id,
-            "save opening",
-            save_opening(&ctx.adventures, adventure_id, text.as_str()),
-        );
-    });
+            save_and_refresh(
+                &handle,
+                &ctx.adventures,
+                &ui_weak,
+                adventure_id,
+                "save opening",
+                save_opening(&ctx.adventures, adventure_id, text.as_str()),
+            );
+        });
 }
 
 /// Saves pending changes, reloads the adventure builder data, and refreshes the UI.

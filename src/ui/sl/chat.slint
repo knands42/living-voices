@@ -9,15 +9,25 @@ import {
     MessageView,
 } from "views.slint";
 
-export component ChatPage inherits Rectangle {
+// The chat page's data in, and its events out. Rust talks to this directly.
+export global ChatVm {
     in property <AdventureView> adventure;
     in property <ActView> act;
     in property <StateView> state;
     in property <[FactView]> facts;
     in property <[MessageView]> messages;
     in property <bool> awaiting-reply;
-    callback back-requested();
     callback message-sent(string);
+}
+
+export component ChatPage inherits Rectangle {
+    in property <AdventureView> adventure: ChatVm.adventure;
+    in property <ActView> act: ChatVm.act;
+    in property <StateView> state: ChatVm.state;
+    in property <[FactView]> facts: ChatVm.facts;
+    in property <[MessageView]> messages: ChatVm.messages;
+    in property <bool> awaiting-reply: ChatVm.awaiting-reply;
+    callback back-requested();
 
     property <float> scale: max(0.85, min(1.15, root.width / 1100px));
     property <length> gap-sm: 8px * root.scale;
@@ -27,7 +37,6 @@ export component ChatPage inherits Rectangle {
     property <length> side-w: 250px * root.scale;
     property <length> meta-w: 280px * root.scale;
 
-    awaiting-reply: false;
     background: AppTheme.bg-deepest;
 
     VerticalLayout {
@@ -223,7 +232,7 @@ export component ChatPage inherits Rectangle {
                         enabled: !root.awaiting-reply;
                         accepted(text) => {
                             if (text != "") {
-                                root.message-sent(text);
+                                ChatVm.message-sent(text);
                                 composer.text = "";
                             }
                         }

@@ -1,17 +1,20 @@
 import { AppTheme } from "theme.slint";
-import { MainPage, AdventureSummaryView } from "main.slint";
-import { ChatPage } from "chat.slint";
-import { BuilderPage } from "builder.slint";
+import { MainPage, MainVm, AdventureSummaryView } from "main.slint";
+import { ChatPage, ChatVm } from "chat.slint";
+import { BuilderPage, BuilderVm } from "builder.slint";
 import {
     AdventureView, ActView, StateView, FactView, MessageView, BuilderView,
     StoryInputView, CharacterInputView, ActInputView,
 } from "views.slint";
 
+// Rust reaches each page through its own global.
+export { MainVm, ChatVm, BuilderVm }
 export {
     AdventureSummaryView, AdventureView, ActView, StateView, FactView, MessageView, BuilderView,
     StoryInputView, CharacterInputView, ActInputView,
 }
 
+// Only decides which page is on screen. No page data and no page events live here.
 export component RootWindow inherits Window {
     title: "Living Voices";
     preferred-width: 1280px;
@@ -23,69 +26,16 @@ export component RootWindow inherits Window {
     default-font-size: 14px;
     default-font-weight: 400;
 
-    // Data from Rust
-    in property <[AdventureSummaryView]> adventures-summary;
-
-    // Notifies Rust when the user picks an adventure
-    callback adventure-selected(string);
-
-    // Selects a draft without starting it (opens the builder)
-    callback draft-adventure-selected(string);
-
-    // Builder saves: the first argument is always the adventure id
-    callback save-story(string, StoryInputView);
-    callback save-character(string, CharacterInputView);
-    callback save-act(string, ActInputView);
-    callback save-opening(string, string);
-
-    // Notifies Rust when the user submits the new-draft popup
-    callback create-adventure(string, string);
-
-
-    // TODO: Remove callbacks from here and add a callback listener to the Ui itself, keep app.slint clean
-    // Simple router: "main", "builder" or "chat"
+    // "main", "builder" or "chat". Rust sets it after a page has loaded.
     in-out property <string> current-page: "main";
-    in property <BuilderView> current-builder;
-    callback edit-story();
-    callback edit-cast();
-    callback edit-act();
-    callback edit-opening();
-    callback publish-adventure();
-    in property <AdventureView> current-adventure;
-    in property <ActView> current-act;
-    in property <StateView> current-state;
-    in property <[FactView]> current-facts;
-    in property <[MessageView]> current-messages;
-    in property <bool> awaiting-reply;
-    callback message-sent(string);
 
-    if current-page == "main": MainPage {
-        adventures-summary: root.adventures-summary;
-        adventure-selected(id) => {
-            root.current-page = "chat";
-            root.adventure-selected(id);
-        }
-        create-adventure(title, headline) => { root.create-adventure(title, headline); }
-    }
+    if current-page == "main": MainPage { }
 
     if current-page == "builder": BuilderPage {
-        builder: root.current-builder;
         back-requested => { root.current-page = "main"; }
-        edit-story => { root.edit-story(); }
-        edit-cast => { root.edit-cast(); }
-        edit-act => { root.edit-act(); }
-        edit-opening => { root.edit-opening(); }
-        publish => { root.publish-adventure(); }
     }
 
     if current-page == "chat": ChatPage {
-        adventure: root.current-adventure;
-        act: root.current-act;
-        state: root.current-state;
-        facts: root.current-facts;
-        messages: root.current-messages;
-        awaiting-reply: root.awaiting-reply;
-        message-sent(text) => { root.message-sent(text); }
         back-requested => { root.current-page = "main"; }
     }
 }

@@ -1,5 +1,19 @@
 import { AppTheme } from "theme.slint";
-import { BuilderView, CharacterView, ActAuthorView } from "views.slint";
+import {
+    BuilderView, CharacterView, ActAuthorView,
+    StoryInputView, CharacterInputView, ActInputView,
+} from "views.slint";
+
+// The builder page's data in, and its events out. Rust talks to this directly.
+// The first argument of every callback is the adventure id.
+export global BuilderVm {
+    in property <BuilderView> builder;
+    callback save-story(string, StoryInputView);
+    callback save-character(string, CharacterInputView);
+    callback save-act(string, ActInputView);
+    callback save-opening(string, string);
+    callback publish-adventure(string);
+}
 
 // A round initials badge, hue-tinted per character.
 component CastAvatar inherits Rectangle {
@@ -115,14 +129,14 @@ component SectionHeader inherits VerticalLayout {
 }
 
 export component BuilderPage inherits Rectangle {
-    in property <BuilderView> builder;
+    in property <BuilderView> builder: BuilderVm.builder;
 
     callback back-requested();
+    // Page-local: each one opens its editor (no listener until those editors exist).
     callback edit-story();
     callback edit-cast();
     callback edit-act();
     callback edit-opening();
-    callback publish();
 
     // Which section the main panel shows: "story" | "cast" | "acts" | "opening".
     property <string> section: "story";
@@ -263,7 +277,7 @@ export component BuilderPage inherits Rectangle {
                     label: root.publishable ? "Publish" : "Publish (locked)";
                     enabled-look: root.publishable;
                     enabled: root.publishable;
-                    clicked => { root.publish(); }
+                    clicked => { BuilderVm.publish-adventure(root.builder.id); }
                 }
             }
         }
