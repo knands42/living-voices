@@ -84,12 +84,16 @@ Layering rules the code actually follows:
   repo working dir, release from `$HOME/.living-voice`. `config-local.toml` is gitignored and
   copied from `config.toml` by `just dev-requirements`.
 - `appearance` is prose and is fed to the **chat** prompt through `Character::render()`
-  (`chat_context.rs`), while `appearance_portrait_prompt` / `appearance_full_body_prompt` /
-  `appearance_current_pose` are machine prompts produced by `CharacterManager` and consumed by
-  `ImageHandler`. They are not interchangeable; see the note below.
+  (`chat_context.rs`). The image side is three separate generated fragments, split by how
+  often they change: `appearance_identity_prompt` (face/hair/build, never), `appearance_current_outfit`
+  (per scene), `appearance_current_pose` (per beat). Never write clothing or framing into the
+  identity prompt and never repeat the body in the outfit or pose prompts — the layers are
+  concatenated by `ContextBuilder::compose_character_image_prompt`, so duplicates fight and the
+  image model blends the contradiction.
 - Image backend: `ImageModelWorkflow` (FluxQ4/FluxQ8/Qwen) selects a hard-coded ComfyUI JSON
-  graph and injects the prompt at the `CLIPTextEncode` node; framing is decided by the caller via
-  `generate_character_portrait` vs `generate_character_image`.
+  graph and injects the prompt at the `CLIPTextEncode` node. `ImageHandler` has one character
+  entry point; framing (`ImageFraming::Portrait` vs `FullBody`) is applied when the prompt is
+  composed, not by the adapter.
 
 ## Testing
 
@@ -107,8 +111,34 @@ Layering rules the code actually follows:
   `just test-ignored` pins `--test-threads=1`.
 - Tests are commented `// given` / `// when` / `// then` blocks — keep that shape.
 
-## Working preference
+## Working preference: teach, don't hand over
 
-`.kiro/skills/guide-me/SKILL.md` (gitignored, local) defines a teaching mode: on "let me take
-control", "guide me", "teach me", the user writes the core logic and agents supply scaffolding,
-tests, and explanation only. Switch back to handing over code if they ask for it explicitly.
+**Default mode is teaching.** Unless the user explicitly asks for finished code ("just write it",
+"give me the code", "do it for me", "stop guiding"), do not dump complete implementations. Explain
+the approach, name the parts and how they connect, point at where the code goes and what it must
+do, offer hints or a sketch, then let the user write it and review what they wrote.
+
+Explicit hand-over requests that switch the mode off: "just write it", "give me the code", "do it
+for me", "stop guiding", "implement it".
+
+Boilerplate, scaffolding, config, and **tests** are fine to write outright — the learning value is
+in the feature logic, not in the glue. `.kiro/skills/guide-me/SKILL.md` (gitignored, local) holds
+the long form of this mode.
+
+### Where the user is strong and where not
+
+- **Slint UI: inexperienced.** They understand the idea (declarative components, `.slint` + Rust
+  glue) but do not have the syntax at their fingertips. Always explain Slint work step by step:
+  what each property/callback does, how the Rust side binds to it (`viewmodels/mod.rs`,
+  `callbacks/register.rs`), and why kebab-case in `.slint` becomes snake_case in Rust. Prefer
+  showing a small component in isolation, and remember `just ui-preview <Component> <file>` for a
+  live window. Do not assume they can read a Slint layout at a glance.
+- **Rust: comfortable.** No need to explain ownership basics, `Result`, or traits. But when a
+  change touches performance, memory, or concurrency, surface the tradeoff and say why the chosen
+  shape is cheaper — stack vs heap, clone vs borrow, `Arc`/`RwLock` contention, holding a lock or a
+  pooled connection across an `.await` (see the gotchas above), N+1 queries, needless `String`
+  allocation. Only when it actually fits the change; no unsolicited lectures.
+
+Everything else: default to teaching, stay concise, and when a request is ambiguous (e.g. "can
+you improve my code" with no "just do it"), teach the shape of the fix instead of silently
+rewriting their files. Reviewing and pointing out what breaks beats replacing their code.

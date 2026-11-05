@@ -29,18 +29,6 @@ async fn generate_scene_queues_a_scene_prompt() {
 
 #[tokio::test]
 #[ignore = "requires a running ComfyUI server with the Qwen workflow model"]
-async fn generate_character_portrait_queues_a_portrait_prompt() {
-    comfy()
-        .generate_character_portrait(
-            "Portrait of an elderly lighthouse keeper, long grey beard, heavy wool \
-             coat, storm-grey eyes, painterly fantasy illustration.",
-        )
-        .await
-        .expect("generate_character_portrait");
-}
-
-#[tokio::test]
-#[ignore = "requires a running ComfyUI server with the Qwen workflow model"]
 async fn generate_character_image_queues_a_character_prompt() {
     comfy()
         .generate_character_image(

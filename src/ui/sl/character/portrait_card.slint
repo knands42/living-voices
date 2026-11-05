@@ -117,12 +117,12 @@ export component PortraitCard inherits Rectangle {
 
             FieldCaption { text: "IMAGE PROMPTS"; }
             PromptRow {
-                label: "Portrait";
-                ready: root.character.appearance-portrait-prompt != "";
+                label: "Identity";
+                ready: root.character.appearance-identity-prompt != "";
             }
             PromptRow {
-                label: "Full body";
-                ready: root.character.appearance-full-body-prompt != "";
+                label: "Outfit";
+                ready: root.character.appearance-current-outfit != "";
             }
             PromptRow {
                 label: "Current pose";

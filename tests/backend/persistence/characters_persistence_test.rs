@@ -7,8 +7,8 @@ use crate::backend::application::helper::setup_db;
 use living_voices::backend::domain::character::{Character, CharacterStatus};
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::persistence::characters_persistence::{
-    insert_character, insert_relations, update_appearance_current_pose,
-    update_appearance_full_body_prompt, update_appearance_portrait_prompt,
+    insert_character, insert_relations, update_appearance_current_outfit,
+    update_appearance_current_pose, update_appearance_identity_prompt,
 };
 
 async fn setup_adventure(pool: &SqlitePool) -> Uuid {
@@ -178,19 +178,19 @@ async fn update_appearance_prompts_writes_each_column() {
         .await
         .expect("insert");
 
-    update_appearance_portrait_prompt(&mut conn, character.id, "portrait prompt")
+    update_appearance_identity_prompt(&mut conn, character.id, "identity prompt")
         .await
-        .expect("update portrait prompt");
-    update_appearance_full_body_prompt(&mut conn, character.id, "full-body prompt")
+        .expect("update identity prompt");
+    update_appearance_current_outfit(&mut conn, character.id, "outfit prompt")
         .await
-        .expect("update full-body prompt");
+        .expect("update outfit prompt");
     update_appearance_current_pose(&mut conn, character.id, "pose prompt")
         .await
         .expect("update pose prompt");
 
-    let (portrait, full_body, pose): (Option<String>, Option<String>, Option<String>) =
+    let (identity, outfit, pose): (Option<String>, Option<String>, Option<String>) =
         sqlx::query_as(
-            "SELECT appearance_portrait_prompt, appearance_full_body_prompt,
+            "SELECT appearance_identity_prompt, appearance_current_outfit,
                     appearance_current_pose
              FROM character WHERE id = ?1",
         )
@@ -199,7 +199,7 @@ async fn update_appearance_prompts_writes_each_column() {
         .await
         .expect("query character");
 
-    assert_eq!(portrait.as_deref(), Some("portrait prompt"));
-    assert_eq!(full_body.as_deref(), Some("full-body prompt"));
+    assert_eq!(identity.as_deref(), Some("identity prompt"));
+    assert_eq!(outfit.as_deref(), Some("outfit prompt"));
     assert_eq!(pose.as_deref(), Some("pose prompt"));
 }

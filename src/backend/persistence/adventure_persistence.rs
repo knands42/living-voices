@@ -73,8 +73,8 @@ struct CompleteAdventureRow {
     character_description: String,
     character_backstory: String,
     character_appearance: Option<String>,
-    character_appearance_portrait_prompt: Option<String>,
-    character_appearance_full_body_prompt: Option<String>,
+    character_appearance_identity_prompt: Option<String>,
+    character_appearance_current_outfit: Option<String>,
     character_appearance_current_pose: Option<String>,
     character_status: String,
     character_portrait_path: Option<String>,
@@ -105,8 +105,8 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
             character_description: row.get("character_description"),
             character_backstory: row.get("character_backstory"),
             character_appearance: row.get("character_appearance"),
-            character_appearance_portrait_prompt: row.get("character_appearance_portrait_prompt"),
-            character_appearance_full_body_prompt: row.get("character_appearance_full_body_prompt"),
+            character_appearance_identity_prompt: row.get("character_appearance_identity_prompt"),
+            character_appearance_current_outfit: row.get("character_appearance_current_outfit"),
             character_appearance_current_pose: row.get("character_appearance_current_pose"),
             character_status: row.get("character_status"),
             character_portrait_path: row.get("character_portrait_path"),
@@ -138,8 +138,8 @@ fn character_from_row(value: &CompleteAdventureRow) -> Result<Character, Persist
         value.character_is_player,
     );
     character.appearance = value.character_appearance.clone();
-    character.appearance_portrait_prompt = value.character_appearance_portrait_prompt.clone();
-    character.appearance_full_body_prompt = value.character_appearance_full_body_prompt.clone();
+    character.appearance_identity_prompt = value.character_appearance_identity_prompt.clone();
+    character.appearance_current_outfit = value.character_appearance_current_outfit.clone();
     character.appearance_current_pose = value.character_appearance_current_pose.clone();
     character.portrait_path = value.character_portrait_path.clone();
 
@@ -247,8 +247,8 @@ SELECT a.id                      AS adventure_id,
        c.headline                AS character_description,
        c.backstory                AS character_backstory,
        c.appearance               AS character_appearance,
-       c.appearance_portrait_prompt AS character_appearance_portrait_prompt,
-       c.appearance_full_body_prompt AS character_appearance_full_body_prompt,
+       c.appearance_identity_prompt AS character_appearance_identity_prompt,
+       c.appearance_current_outfit AS character_appearance_current_outfit,
        c.appearance_current_pose AS character_appearance_current_pose,
        c.status                   AS character_status,
        c.portrait_path AS character_portrait_path,

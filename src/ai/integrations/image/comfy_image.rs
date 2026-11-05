@@ -56,10 +56,6 @@ impl ImageHandler for ComfyImage {
         self.queue(prompt, "scenes").await
     }
 
-    async fn generate_character_portrait(&self, prompt: &str) -> Result<(), ImageError> {
-        self.queue(prompt, "portraits").await
-    }
-
     async fn generate_character_image(&self, prompt: &str) -> Result<(), ImageError> {
         self.queue(prompt, "characters").await
     }

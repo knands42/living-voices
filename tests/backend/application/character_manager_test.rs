@@ -149,7 +149,7 @@ async fn update_character_overwrites_fields_traits_and_tags_in_db_and_state() {
 
 #[tokio::test]
 #[ignore = "requires a running Ollama server"]
-async fn create_character_portrait_image_generates_and_persists_the_prompt() {
+async fn create_character_identity_prompt_generates_and_persists_the_prompt() {
     let (manager, state, _db, pool) = new_integration_manager().await;
     let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
     let adventure = adventure_manager
@@ -169,12 +169,12 @@ async fn create_character_portrait_image_generates_and_persists_the_prompt() {
 
     manager.create_character(character.clone()).await.unwrap();
     manager
-        .create_character_portrait_image(&character)
+        .create_character_identity_prompt(&character)
         .await
         .unwrap();
 
     let stored: Option<String> =
-        sqlx::query_scalar("SELECT appearance_portrait_prompt FROM character WHERE id = ?1")
+        sqlx::query_scalar("SELECT appearance_identity_prompt FROM character WHERE id = ?1")
             .bind(character.id.to_string())
             .fetch_one(&pool)
             .await
@@ -183,7 +183,7 @@ async fn create_character_portrait_image_generates_and_persists_the_prompt() {
         stored
             .as_deref()
             .is_some_and(|prompt| !prompt.trim().is_empty()),
-        "portrait prompt was not persisted"
+        "identity prompt was not persisted"
     );
 
     let stored_character = stored_npcs(&state)
@@ -192,16 +192,16 @@ async fn create_character_portrait_image_generates_and_persists_the_prompt() {
         .expect("character in state");
     assert!(
         stored_character
-            .appearance_portrait_prompt
+            .appearance_identity_prompt
             .as_deref()
             .is_some_and(|prompt| !prompt.trim().is_empty()),
-        "portrait prompt was not written to state"
+        "identity prompt was not written to state"
     );
 }
 
 #[tokio::test]
 #[ignore = "requires a running Ollama server"]
-async fn create_character_full_body_image_generates_and_persists_the_prompt() {
+async fn create_character_outfit_prompt_uses_messages_and_persists_the_prompt() {
     let (manager, state, _db, pool) = new_integration_manager().await;
     let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
     let adventure = adventure_manager
@@ -220,13 +220,28 @@ async fn create_character_full_body_image_generates_and_persists_the_prompt() {
     .with_appearance("Copper hair, a salt-stained coat, grey eyes");
 
     manager.create_character(character.clone()).await.unwrap();
+
+    let mut conn = pool.acquire().await.expect("acquire");
+    let message = Message::new(
+        adventure.id,
+        Some(character.id),
+        None,
+        character.name.clone(),
+        "*strips off the soaked oilskin coat and hangs it by the stove*".to_string(),
+        false,
+    );
+    insert_message(&mut conn, &message)
+        .await
+        .expect("insert message");
+    drop(conn);
+
     manager
-        .create_character_full_body_image(&character)
+        .create_character_outfit_prompt(&character)
         .await
         .unwrap();
 
     let stored: Option<String> =
-        sqlx::query_scalar("SELECT appearance_full_body_prompt FROM character WHERE id = ?1")
+        sqlx::query_scalar("SELECT appearance_current_outfit FROM character WHERE id = ?1")
             .bind(character.id.to_string())
             .fetch_one(&pool)
             .await
@@ -235,7 +250,7 @@ async fn create_character_full_body_image_generates_and_persists_the_prompt() {
         stored
             .as_deref()
             .is_some_and(|prompt| !prompt.trim().is_empty()),
-        "full-body prompt was not persisted"
+        "outfit prompt was not persisted"
     );
 
     let stored_character = stored_npcs(&state)
@@ -244,16 +259,16 @@ async fn create_character_full_body_image_generates_and_persists_the_prompt() {
         .expect("character in state");
     assert!(
         stored_character
-            .appearance_full_body_prompt
+            .appearance_current_outfit
             .as_deref()
             .is_some_and(|prompt| !prompt.trim().is_empty()),
-        "full-body prompt was not written to state"
+        "outfit prompt was not written to state"
     );
 }
 
 #[tokio::test]
 #[ignore = "requires a running Ollama server"]
-async fn create_character_pose_image_uses_messages_and_persists_the_prompt() {
+async fn create_character_pose_prompt_uses_messages_and_persists_the_prompt() {
     let (manager, state, _db, pool) = new_integration_manager().await;
     let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
     let adventure = adventure_manager
@@ -288,7 +303,7 @@ async fn create_character_pose_image_uses_messages_and_persists_the_prompt() {
     drop(conn);
 
     manager
-        .create_character_pose_image(&character)
+        .create_character_pose_prompt(&character)
         .await
         .unwrap();
 
