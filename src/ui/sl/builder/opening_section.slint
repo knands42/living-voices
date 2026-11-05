@@ -1,0 +1,39 @@
+import { AppTheme } from "../theme.slint";
+import { BuilderView } from "../views.slint";
+import { PillButton, SectionHeader } from "components.slint";
+
+export component OpeningSection inherits VerticalLayout {
+    in property <BuilderView> builder;
+    callback setup-requested();
+
+    padding: 28px;
+    spacing: 20px;
+
+    HorizontalLayout {
+        SectionHeader {
+            title: "The Opening";
+            subtitle: "Who is present at the start, and any opening messages.";
+            horizontal-stretch: 1;
+        }
+        PillButton {
+            label: "Set up opening";
+            width: 150px;
+            clicked => { root.setup-requested(); }
+        }
+    }
+
+    Rectangle {
+        background: AppTheme.bg-panel;
+        border-radius: AppTheme.radius-card;
+        border-width: 1px;
+        border-color: AppTheme.bronze;
+        vertical-stretch: 1;
+
+        Text {
+            text: builder.opening-done ? "Opening is set up." : "Not set up yet.";
+            color: AppTheme.text-muted;
+            font-family: AppTheme.font-body;
+            font-size: AppTheme.font-label;
+        }
+    }
+}

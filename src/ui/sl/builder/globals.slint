@@ -1,0 +1,12 @@
+import { BuilderView, StoryInputView, ActInputView, CharacterView } from "../views.slint";
+
+// The builder page's data in, and its events out. Rust talks to this directly.
+// The first argument of every callback is the adventure id.
+export global BuilderGlobals {
+    in property <BuilderView> builder;
+    callback save-story(string, StoryInputView);
+    callback save-character(string, CharacterView);
+    callback save-act(string, ActInputView);
+    callback save-opening(string, string);
+    callback publish-adventure(string);
+}

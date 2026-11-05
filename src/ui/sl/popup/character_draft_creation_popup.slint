@@ -1,0 +1,17 @@
+import { CharacterView } from "../views.slint";
+export component CraracterDraftCreationPopup {
+    callback submit(string, CharacterView);
+    callback dismiss();
+
+    // Dismiss when the screen behind the card is clicked.
+    TouchArea {
+        clicked => { root.dismiss(); }
+    }
+
+    Rectangle {
+
+        // Swallow clicks so tapping the card does not dismiss the overlay.
+        TouchArea {}
+
+    }
+}

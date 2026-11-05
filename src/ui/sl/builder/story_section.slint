@@ -1,0 +1,126 @@
+import { LineEdit, TextEdit } from "std-widgets.slint";
+import { AppTheme } from "../theme.slint";
+import { BuilderView, StoryInputView } from "../views.slint";
+import { PillButton, SectionHeader, FieldCaption } from "components.slint";
+
+// Editable story fields. Unsaved edits are dropped when the section is left.
+export component StorySection inherits VerticalLayout {
+    in property <BuilderView> builder;
+    callback save(StoryInputView);
+
+    property <bool> dirty:
+        title-field.text != root.builder.title
+        || headline-field.text != root.builder.headline
+        || narrator-field.text != root.builder.narrator-name
+        || tone-field.text != root.builder.tone
+        || lore-field.text != root.builder.lore;
+    property <bool> can-save: root.dirty && title-field.text != "";
+
+    padding: 28px;
+    padding-top: 40px;
+    spacing: 20px;
+
+    HorizontalLayout {
+        spacing: 16px;
+
+        SectionHeader {
+            title: "The Story";
+            subtitle: "Title, headline, lore, narrator voice and tone.";
+            horizontal-stretch: 1;
+        }
+
+        Text {
+            text: root.dirty ? "Unsaved changes" : "All changes saved";
+            color: root.dirty ? AppTheme.amber-glow : AppTheme.text-muted;
+            font-family: AppTheme.font-body;
+            font-size: AppTheme.font-label + 1px;
+            vertical-alignment: center;
+        }
+
+        PillButton {
+            label: "Save story";
+            width: 130px;
+            enabled-look: root.can-save;
+            enabled: root.can-save;
+            clicked => {
+                root.save({
+                    title: title-field.text,
+                    headline: headline-field.text,
+                    tone: tone-field.text,
+                    narrator-name: narrator-field.text,
+                    lore: lore-field.text,
+                });
+            }
+        }
+    }
+
+    Rectangle {
+        vertical-stretch: 1;
+        background: AppTheme.bg-panel;
+        border-radius: AppTheme.radius-card;
+        border-width: 1px;
+        border-color: AppTheme.bronze;
+
+        VerticalLayout {
+            padding: 28px;
+            spacing: 22px;
+
+            VerticalLayout {
+                spacing: 8px;
+                FieldCaption { text: "TITLE"; }
+                title-field := LineEdit {
+                    text: root.builder.title;
+                    placeholder-text: "Name your adventure…";
+                    font-size: AppTheme.font-heading + 1px;
+                }
+            }
+
+            VerticalLayout {
+                spacing: 8px;
+                FieldCaption { text: "HEADLINE"; }
+                headline-field := LineEdit {
+                    text: root.builder.headline;
+                    placeholder-text: "A one-line hook…";
+                    font-size: AppTheme.font-heading + 1px;
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 24px;
+
+                VerticalLayout {
+                    spacing: 8px;
+                    horizontal-stretch: 1;
+                    FieldCaption { text: "NARRATOR NAME"; }
+                    narrator-field := LineEdit {
+                        text: root.builder.narrator-name;
+                        placeholder-text: "Who tells the story?";
+                        font-size: AppTheme.font-heading + 1px;
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 8px;
+                    horizontal-stretch: 1;
+                    FieldCaption { text: "TONE"; }
+                    tone-field := LineEdit {
+                        text: root.builder.tone;
+                        placeholder-text: "grim, whimsical, tense…";
+                        font-size: AppTheme.font-heading + 1px;
+                    }
+                }
+            }
+
+            VerticalLayout {
+                spacing: 8px;
+                vertical-stretch: 1;
+                FieldCaption { text: "LORE"; }
+                lore-field := TextEdit {
+                    text: root.builder.lore;
+                    wrap: word-wrap;
+                    font-size: AppTheme.font-heading + 1px;
+                }
+            }
+        }
+    }
+}

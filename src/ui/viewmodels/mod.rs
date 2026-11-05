@@ -7,7 +7,7 @@ use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, Fact, State};
 use crate::backend::domain::message::Message;
 use crate::ui::{
-    ActAuthorView, ActView, AdventureSummaryView, AdventureView, BuilderView, CharacterView,
+    ActAuthorView, ActView, AdventureSummaryView, AdventureView, BuilderView, CharacterChatView,
     FactView, MessageView, StateView,
 };
 use uuid::Uuid;
@@ -15,16 +15,16 @@ use uuid::Uuid;
 pub fn adventure_view(adventure: Option<&Adventure>) -> AdventureView {
     match adventure {
         Some(adventure) => {
-            let characters: Vec<CharacterView> = adventure
+            let characters: Vec<CharacterChatView> = adventure
                 .characters
                 .iter()
-                .filter_map(|char| (!char.is_player).then(|| character_view(char)))
+                .filter_map(|char| (!char.is_player).then(|| character_chat_view(char)))
                 .collect();
             let player = adventure
                 .characters
                 .iter()
                 .find(|c| c.is_player)
-                .map(character_view)
+                .map(character_chat_view)
                 .unwrap_or_default();
 
             AdventureView {
@@ -62,11 +62,11 @@ pub fn builder_view(adventure: Option<&Adventure>, acts: &[Act], has_opening: bo
 
     match adventure {
         Some(adventure) => {
-            let cast: Vec<CharacterView> = adventure
+            let cast: Vec<CharacterChatView> = adventure
                 .characters
                 .iter()
                 .filter(|c| !c.is_player)
-                .map(cast_badge_view)
+                .map(character_chat_view)
                 .collect();
 
             let act_views: Vec<ActAuthorView> = acts.iter().map(act_author_view).collect();
@@ -88,6 +88,7 @@ pub fn builder_view(adventure: Option<&Adventure>, acts: &[Act], has_opening: bo
                 status: SharedString::from(adventure.status.to_string()),
                 narrator_name: SharedString::from(adventure.narrator.name.clone()),
                 tone: SharedString::from(adventure.tone.clone()),
+                lore: SharedString::from(adventure.lore.text.clone()),
                 cast: ModelRc::new(VecModel::from(cast)),
                 acts: ModelRc::new(VecModel::from(act_views)),
                 story_done,
@@ -110,25 +111,15 @@ fn act_author_view(act: &Act) -> ActAuthorView {
     }
 }
 
-// A cast badge shows two-letter initials rather than the full name.
-fn cast_badge_view(character: &Character) -> CharacterView {
-    CharacterView {
-        id: SharedString::from(character.id.to_string()),
-        name: SharedString::from(initials(&character.name)),
-        headline: SharedString::from(character.headline.clone()),
-        is_player: character.is_player,
-        hue: name_hue(&character.name),
-    }
-}
-
 fn initials(name: &str) -> String {
     name.chars().take(2).collect::<String>().to_uppercase()
 }
 
-fn character_view(character: &Character) -> CharacterView {
-    CharacterView {
+fn character_chat_view(character: &Character) -> CharacterChatView {
+    CharacterChatView {
         id: SharedString::from(character.id.to_string()),
         name: SharedString::from(character.name.clone()),
+        initials: SharedString::from(initials(&character.name)),
         headline: SharedString::from(character.headline.clone()),
         is_player: character.is_player,
         hue: name_hue(&character.name),

@@ -23,7 +23,7 @@ watch:
     cargo watch -x run
 
 # Live-reload a single .slint component
-ui-preview component="BuilderPage" file="src/ui/sl/builder.slint":
+ui-preview component="BuilderPage" file="src/ui/sl/builder/builder_page.slint":
     slint-viewer --auto-reload --component {{ component }} {{ file }}
 
 run-release:

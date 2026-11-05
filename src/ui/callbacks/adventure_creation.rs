@@ -9,7 +9,7 @@ use crate::backend::domain::character::{Character, CharacterStatus};
 use crate::backend::domain::memory::Act;
 use crate::backend::domain::message::Message;
 use crate::ui::{
-    ActInputView, BuilderGlobals, CharacterInputView, RootWindow, StoryInputView, viewmodels,
+    ActInputView, BuilderGlobals, CharacterView, RootWindow, StoryInputView, viewmodels,
 };
 use slint::ComponentHandle;
 use std::future::Future;
@@ -233,7 +233,7 @@ async fn save_character(
     adventures: &AdventureManager,
     characters: &CharacterManager<Chat>,
     adventure_id: Uuid,
-    input: CharacterInputView,
+    input: CharacterView,
 ) -> Result<(), CreationError> {
     let name = input.name.trim();
     if name.is_empty() {

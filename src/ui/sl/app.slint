@@ -1,17 +1,17 @@
 import { AppTheme } from "theme.slint";
 import { MainPage, MainGlobals, AdventureSummaryView } from "main.slint";
 import { ChatPage, ChatGlobals } from "chat.slint";
-import { BuilderPage, BuilderGlobals } from "builder.slint";
+import { BuilderPage, BuilderGlobals } from "builder/builder_page.slint";
 import {
     AdventureView, ActView, StateView, FactView, MessageView, BuilderView,
-    StoryInputView, CharacterInputView, ActInputView,
+    StoryInputView, ActInputView,
 } from "views.slint";
 
 // Rust reaches each page through its own global.
 export { MainGlobals, ChatGlobals, BuilderGlobals }
 export {
     AdventureSummaryView, AdventureView, ActView, StateView, FactView, MessageView, BuilderView,
-    StoryInputView, CharacterInputView, ActInputView,
+    StoryInputView, ActInputView,
 }
 
 // Only decides which page is on screen. No page data and no page events live here.

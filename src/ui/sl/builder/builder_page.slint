@@ -1,0 +1,73 @@
+import { AppTheme } from "../theme.slint";
+import { BuilderView, CharacterView } from "../views.slint";
+import { CraracterDraftCreationPopup } from "../popup/character_draft_creation_popup.slint";
+import { BuilderGlobals } from "globals.slint";
+import { BuilderSidebar } from "sidebar.slint";
+import { StorySection } from "story_section.slint";
+import { CastSection } from "cast_section.slint";
+import { ActsSection } from "acts_section.slint";
+import { OpeningSection } from "opening_section.slint";
+
+export { BuilderGlobals }
+
+export component BuilderPage inherits Rectangle {
+    in property <BuilderView> builder: BuilderGlobals.builder;
+
+    property <bool> show-character-popup: false;
+
+    callback back-requested();
+    // Page-local: each one opens its editor (no listener until those editors exist).
+    callback edit-cast();
+    callback edit-character(string);
+    callback edit-act();
+    callback edit-opening();
+
+    // Which section the main panel shows: "story" | "cast" | "acts" | "opening".
+    property <string> section: "story";
+
+    background: AppTheme.bg-deepest;
+
+    HorizontalLayout {
+        BuilderSidebar {
+            builder: root.builder;
+            section <=> root.section;
+            back-requested => { root.back-requested(); }
+            publish => { BuilderGlobals.publish-adventure(root.builder.id); }
+        }
+
+        Rectangle {
+            background: AppTheme.bg-deepest;
+
+            if root.section == "story": StorySection {
+                builder: root.builder;
+                save(input) => { BuilderGlobals.save-story(root.builder.id, input); }
+            }
+
+            if root.section == "cast": CastSection {
+                builder: root.builder;
+                add-requested => { root.edit-cast(); }
+                character-clicked(id) => { root.edit-character(id); }
+            }
+
+            if root.section == "acts": ActsSection {
+                builder: root.builder;
+                add-requested => { root.edit-act(); }
+            }
+
+            if root.section == "opening": OpeningSection {
+                builder: root.builder;
+                setup-requested => { root.edit-opening(); }
+            }
+        }
+    }
+
+    if show-character-popup: CraracterDraftCreationPopup {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+        submit(string, CharacterView) => {
+            BuilderGlobals.save-character(string, CharacterView)
+        }
+    }
+}
