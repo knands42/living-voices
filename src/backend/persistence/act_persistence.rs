@@ -77,7 +77,8 @@ pub async fn get_acts(
     let row = sqlx::query_as::<_, ActRow>(
         "SELECT id, adventure_id, ordinal, goal, trigger, status, index_line, digest, running_digest, digest_to_seq, from_seq, to_seq, last_closure_score, created_at, updated_at
          FROM act
-         WHERE adventure_id = ?1",
+         WHERE adventure_id = ?1 
+         ORDER BY ordinal ASC",
     )
         .bind(adventure_id.to_string())
         .fetch_all(&mut *conn)

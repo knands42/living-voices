@@ -2,9 +2,15 @@ import { AppTheme } from "theme.slint";
 import { MainPage, AdventureSummary } from "main.slint";
 import { ChatPage } from "chat.slint";
 import { BuilderPage } from "builder.slint";
-import { AdventureView, ActView, StateView, FactView, MessageView, BuilderView } from "views.slint";
+import {
+    AdventureView, ActView, StateView, FactView, MessageView, BuilderView,
+    StoryInputView, CharacterInputView, ActInputView,
+} from "views.slint";
 
-export { AdventureSummary, AdventureView, ActView, StateView, FactView, MessageView, BuilderView }
+export {
+    AdventureSummary, AdventureView, ActView, StateView, FactView, MessageView, BuilderView,
+    StoryInputView, CharacterInputView, ActInputView,
+}
 
 export component RootWindow inherits Window {
     title: "Living Voices";
@@ -22,6 +28,15 @@ export component RootWindow inherits Window {
 
     // Notifies Rust when the user picks an adventure
     callback adventure-selected(string);
+
+    // Selects a draft without starting it (opens the builder)
+    callback draft-adventure-selected(string);
+
+    // Builder saves: the first argument is always the adventure id
+    callback save-story(string, StoryInputView);
+    callback save-character(string, CharacterInputView);
+    callback save-act(string, ActInputView);
+    callback save-opening(string, string);
 
     // Notifies Rust when the user submits the new-draft popup
     callback create-adventure(string, string);

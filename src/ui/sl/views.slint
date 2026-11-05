@@ -13,6 +13,30 @@ export struct AdventureView {
     tone: string,
     characters: [CharacterView],
     player: CharacterView,
+    lore: string
+}
+
+export struct StoryInputView {
+    title: string,
+    headline: string,
+    tone: string,
+    narrator-name: string,
+    lore: string,
+}
+
+// An empty id means a new character.
+export struct CharacterInputView {
+    id: string,
+    name: string,
+    headline: string,
+    backstory: string,
+}
+
+// An empty id means a new act.
+export struct ActInputView {
+    id: string,
+    goal: string,
+    trigger: string,
 }
 
 export struct ActAuthorView {

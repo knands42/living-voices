@@ -1,4 +1,10 @@
-use crate::ui::callbacks::adventure_selected::register_adventure_selected;
+use crate::ui::callbacks::adventure_creation::{
+    register_act_creation, register_adventure_opening, register_cast_creation,
+    register_story_creation,
+};
+use crate::ui::callbacks::adventure_selected::{
+    register_adventure_selected, register_draft_adventure_selected,
+};
 use crate::ui::callbacks::create_adventure::register_create_adventure;
 use crate::ui::callbacks::message_send::register_message_sent;
 use crate::{
@@ -18,6 +24,11 @@ pub fn register_callbacks<
     ctx: &AppContext<C, N, M, A>,
 ) {
     register_adventure_selected(ui, ctx);
+    register_draft_adventure_selected(ui, ctx);
     register_message_sent(ui, ctx);
     register_create_adventure(ui, ctx);
+    register_story_creation(ui, ctx);
+    register_cast_creation(ui, ctx);
+    register_act_creation(ui, ctx);
+    register_adventure_opening(ui, ctx);
 }

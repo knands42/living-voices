@@ -33,6 +33,7 @@ pub fn adventure_view(adventure: Option<&Adventure>) -> AdventureView {
                 headline: SharedString::from(adventure.headline.clone()),
                 tone: SharedString::from(adventure.tone.clone()),
                 characters: ModelRc::new(VecModel::from(characters)),
+                lore: SharedString::from(adventure.lore.text.clone()),
                 player,
             }
         }
@@ -40,7 +41,7 @@ pub fn adventure_view(adventure: Option<&Adventure>) -> AdventureView {
     }
 }
 
-pub fn builder_view(adventure: Option<&Adventure>, acts: &[Act]) -> BuilderView {
+pub fn builder_view(adventure: Option<&Adventure>, acts: &[Act], has_opening: bool) -> BuilderView {
     const PLACEHOLDER_TONE: &str = "neutral";
 
     match adventure {
@@ -58,7 +59,7 @@ pub fn builder_view(adventure: Option<&Adventure>, acts: &[Act]) -> BuilderView 
                 !adventure.headline.trim().is_empty() && adventure.tone.trim() != PLACEHOLDER_TONE;
             let cast_done = !cast.is_empty();
             let acts_done = acts.iter().any(|act| act.is_valid_act());
-            let opening_done = false;
+            let opening_done = has_opening;
             let ready_count = [story_done, cast_done, acts_done, opening_done]
                 .iter()
                 .filter(|done| **done)

@@ -245,31 +245,95 @@ async fn update_adventure_overwrites_fields_narrator_and_lore() {
 }
 
 #[tokio::test]
-async fn start_a_new_adventure_without_an_act_goal() {
-    // given: creating an adventure
+async fn load_adventure_fills_shared_state_without_starting_the_adventure() {
+    // given: a draft whose only act still has the placeholder goal
     let (pool, _db) = setup_db().await;
-    let state = SharedState::new();
-    let adventure_manager = AdventureManager::new(state.clone(), pool.clone());
+    let adventure_manager = AdventureManager::new(SharedState::new(), pool.clone());
     let adventure = adventure_manager
-        .create_adventure(
-            "Test adventure".into(),
-            "A drowned city".into(),
-            "tense".into(),
-        )
+        .create_adventure("Draft".into(), "A new tale".into(), "tense".into())
         .await
         .expect("create adventure");
 
-    // when: the active act still has the default placeholder goal
+    // when: loading it into a fresh manager's state
+    let other_manager = AdventureManager::new(SharedState::new(), pool.clone());
+    let snapshot = other_manager
+        .load_adventure(adventure.id)
+        .await
+        .expect("load adventure");
+
+    // then: the adventure and its first act are in state
+    assert_eq!(
+        snapshot.current_adventure.expect("adventure").id,
+        adventure.id
+    );
+    let loaded_act = snapshot.current_act.expect("first act");
+    assert_eq!(loaded_act.ordinal, 0);
+
+    // and: the act was not activated, in state or in the database
+    assert_eq!(loaded_act.status, ActStatus::Unstarted);
+    let mut conn = pool.acquire().await.expect("acquire");
+    let acts = get_acts(&mut conn, adventure.id).await.expect("get acts");
+    assert!(acts.iter().all(|act| act.status == ActStatus::Unstarted));
+}
+
+#[tokio::test]
+async fn start_adventure_requires_every_act_to_have_a_goal() {
+    // given: a draft with a valid first act and a second act left on the placeholder
+    let (pool, _db) = setup_db().await;
+    let adventure_manager = AdventureManager::new(SharedState::new(), pool.clone());
+    let adventure = adventure_manager
+        .create_adventure("Draft".into(), "A new tale".into(), "tense".into())
+        .await
+        .expect("create adventure");
+
+    let mut first = adventure_manager
+        .get_acts(adventure.id)
+        .await
+        .expect("acts")[0]
+        .clone();
+    first.goal = "Reach the frozen tavern".to_string();
+    adventure_manager
+        .upsert_act(&first)
+        .await
+        .expect("save first act");
+    adventure_manager
+        .upsert_act(&Act::new(adventure.id, 1, Act::DEFAULT_ACT_GOAL))
+        .await
+        .expect("save second act");
+
+    // when: starting
     let error = adventure_manager
         .start_adventure(adventure.id)
         .await
-        .expect_err("an adventure without an act goal must not start");
+        .expect_err("a placeholder act must block the start");
 
-    // then: starting fails because the act has no real goal
-    match error {
-        AdventureManagerError::AdventureIncomplete(message) => {
-            assert_eq!(message, "no active act found");
-        }
-        other => panic!("expected an incomplete adventure, got {other:?}"),
-    }
+    // then: it is refused, and nothing was activated
+    assert!(matches!(
+        error,
+        AdventureManagerError::AdventureIncomplete(_)
+    ));
+    let acts = adventure_manager
+        .get_acts(adventure.id)
+        .await
+        .expect("acts");
+    assert!(acts.iter().all(|act| act.status == ActStatus::Unstarted));
+
+    // and: once the second act has a goal, starting activates the first act only
+    let mut second = acts[1].clone();
+    second.goal = "Bargain with the still crowd".to_string();
+    adventure_manager
+        .upsert_act(&second)
+        .await
+        .expect("fix second act");
+    adventure_manager
+        .start_adventure(adventure.id)
+        .await
+        .expect("start adventure");
+
+    let acts = adventure_manager
+        .get_acts(adventure.id)
+        .await
+        .expect("acts");
+    assert_eq!(acts[0].status, ActStatus::Active);
+    assert_eq!(acts[1].status, ActStatus::Unstarted);
 }
