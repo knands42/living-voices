@@ -1,10 +1,11 @@
 import { LineEdit } from "std-widgets.slint";
 import { AppTheme } from "theme.slint";
 
-export struct AdventureSummary {
+export struct AdventureSummaryView {
     id: string,
     title: string,
     description: string,
+    status: string
 }
 
 component NewDraftOverlay inherits Rectangle {
@@ -126,7 +127,7 @@ component NewDraftOverlay inherits Rectangle {
 }
 
 export component MainPage inherits Rectangle {
-    in property <[AdventureSummary]> adventures;
+    in property <[AdventureSummaryView]> adventures-summary;
     callback adventure-selected(string);
     callback create-adventure(string, string);
 
@@ -169,16 +170,16 @@ export component MainPage inherits Rectangle {
             }
         }
 
-        if root.adventures.length == 0: Text {
+        if root.adventures-summary.length == 0: Text {
             text: "No adventures yet.";
             color: AppTheme.text-muted;
             font-family: AppTheme.font-body;
             horizontal-alignment: center;
         }
 
-        for adventure in root.adventures: TouchArea {
+        for adventure-summary in root.adventures-summary: TouchArea {
             height: 72px;
-            clicked => { root.adventure-selected(adventure.id); }
+            clicked => { root.adventure-selected(adventure-summary.id); }
 
             Rectangle {
                 background: parent.has-hover ? AppTheme.bg-panel-alt : AppTheme.bg-panel;
@@ -191,18 +192,24 @@ export component MainPage inherits Rectangle {
                     spacing: 4px;
 
                     Text {
-                        text: adventure.title;
+                        text: adventure-summary.title;
                         color: AppTheme.text-light;
                         font-family: AppTheme.font-display;
                         font-size: AppTheme.font-card-title;
                     }
 
                     Text {
-                        text: adventure.description;
+                        text: adventure-summary.description;
                         color: AppTheme.text-muted;
                         font-family: AppTheme.font-body;
                         font-size: AppTheme.font-label;
                         wrap: word-wrap;
+                    }
+
+                    Text {
+                        text: adventure-summary.status;
+                        font-family: AppTheme.font-brand;
+                        font-size: AppTheme.font-tiny;
                     }
                 }
             }

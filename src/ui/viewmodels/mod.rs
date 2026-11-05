@@ -2,13 +2,13 @@ use std::hash::{Hash, Hasher};
 
 use slint::{ModelRc, SharedString, VecModel};
 
-use crate::backend::domain::adventure::Adventure;
+use crate::backend::domain::adventure::{Adventure, AdventureSummary};
 use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, Fact, State};
 use crate::backend::domain::message::Message;
 use crate::ui::{
-    ActAuthorView, ActView, AdventureView, BuilderView, CharacterView, FactView, MessageView,
-    StateView,
+    ActAuthorView, ActView, AdventureSummaryView, AdventureView, BuilderView, CharacterView,
+    FactView, MessageView, StateView,
 };
 use uuid::Uuid;
 
@@ -34,11 +34,27 @@ pub fn adventure_view(adventure: Option<&Adventure>) -> AdventureView {
                 tone: SharedString::from(adventure.tone.clone()),
                 characters: ModelRc::new(VecModel::from(characters)),
                 lore: SharedString::from(adventure.lore.text.clone()),
+                status: SharedString::from(adventure.status.as_str()),
                 player,
             }
         }
         None => AdventureView::default(),
     }
+}
+
+pub fn adventure_summaries_model(
+    adventure_summaries: &[AdventureSummary],
+) -> ModelRc<AdventureSummaryView> {
+    let items: Vec<AdventureSummaryView> = adventure_summaries
+        .iter()
+        .map(|a| AdventureSummaryView {
+            id: SharedString::from(a.id.to_string()),
+            title: SharedString::from(a.title.clone()),
+            description: SharedString::from(a.headline.clone()),
+            status: SharedString::from(a.status.as_str()),
+        })
+        .collect();
+    ModelRc::new(VecModel::from(items))
 }
 
 pub fn builder_view(adventure: Option<&Adventure>, acts: &[Act], has_opening: bool) -> BuilderView {

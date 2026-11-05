@@ -1,5 +1,5 @@
 import { AppTheme } from "theme.slint";
-import { MainPage, AdventureSummary } from "main.slint";
+import { MainPage, AdventureSummaryView } from "main.slint";
 import { ChatPage } from "chat.slint";
 import { BuilderPage } from "builder.slint";
 import {
@@ -8,7 +8,7 @@ import {
 } from "views.slint";
 
 export {
-    AdventureSummary, AdventureView, ActView, StateView, FactView, MessageView, BuilderView,
+    AdventureSummaryView, AdventureView, ActView, StateView, FactView, MessageView, BuilderView,
     StoryInputView, CharacterInputView, ActInputView,
 }
 
@@ -24,7 +24,7 @@ export component RootWindow inherits Window {
     default-font-weight: 400;
 
     // Data from Rust
-    in property <[AdventureSummary]> adventures;
+    in property <[AdventureSummaryView]> adventures-summary;
 
     // Notifies Rust when the user picks an adventure
     callback adventure-selected(string);
@@ -41,8 +41,10 @@ export component RootWindow inherits Window {
     // Notifies Rust when the user submits the new-draft popup
     callback create-adventure(string, string);
 
+
+    // TODO: Remove callbacks from here and add a callback listener to the Ui itself, keep app.slint clean
     // Simple router: "main", "builder" or "chat"
-    in-out property <string> current-page: "builder";
+    in-out property <string> current-page: "main";
     in property <BuilderView> current-builder;
     callback edit-story();
     callback edit-cast();
@@ -58,7 +60,7 @@ export component RootWindow inherits Window {
     callback message-sent(string);
 
     if current-page == "main": MainPage {
-        adventures: root.adventures;
+        adventures-summary: root.adventures-summary;
         adventure-selected(id) => {
             root.current-page = "chat";
             root.adventure-selected(id);

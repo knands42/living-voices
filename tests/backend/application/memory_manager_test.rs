@@ -287,16 +287,6 @@ fn setup_memory_manager(
     )
 }
 
-async fn seed_unstarted_act(pool: &SqlitePool, adventure_id: Uuid, ordinal: u16) -> Uuid {
-    let act = Act::new(adventure_id, ordinal, "the next chapter").with_status(ActStatus::Unstarted);
-    let act_id = act.id;
-    let mut conn = pool.acquire().await.expect("acquire");
-    upsert_act(&mut conn, &act)
-        .await
-        .expect("insert unstarted act");
-    act_id
-}
-
 async fn fact_count(pool: &SqlitePool) -> u16 {
     let mut conn = pool.acquire().await.expect("acquire");
     query_scalar("SELECT COUNT(*) FROM fact")
