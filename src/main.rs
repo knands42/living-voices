@@ -34,7 +34,7 @@ async fn main() {
     let config = Config::new().expect("Failed to initialize config");
     log::info!("Config loaded from {}", config.config_file.display());
 
-    let pool = match open_pool(&config.db_path.to_string_lossy().as_ref()).await {
+    let pool = match open_pool(config.db_path.to_string_lossy().as_ref()).await {
         Ok(pool) => pool,
         Err(e) => {
             eprintln!("Failed to open database pool: {}", e);
@@ -61,14 +61,14 @@ async fn main() {
 
         log::info!("Seeding demo world: {}", seed_titles().join(", "));
 
-        match run_seeds(&config.db_path.to_string_lossy().as_ref()).await {
+        match run_seeds(config.db_path.to_string_lossy().as_ref()).await {
             Ok(adventures) => {
                 log::info!("Seeded {} adventures", adventures.len());
-                if let Some(first) = adventures.into_iter().next() {
-                    if let Err(err) = app.load_adventure(first).await {
-                        eprintln!("Could not open seeded adventure: {err}");
-                        std::process::exit(1);
-                    }
+                if let Some(first) = adventures.into_iter().next()
+                    && let Err(err) = app.load_adventure(first).await
+                {
+                    eprintln!("Could not open seeded adventure: {err}");
+                    std::process::exit(1);
                 }
             }
             Err(err) => {

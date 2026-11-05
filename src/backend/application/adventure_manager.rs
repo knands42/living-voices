@@ -116,12 +116,11 @@ impl AdventureManager {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         update_adventure_status(&mut conn, adventure_id, status).await?;
 
-        if let Ok(mut guard) = self.state.write() {
-            if let Some(adventure) = &mut guard.current_adventure {
-                if adventure.id == adventure_id {
-                    adventure.status = status;
-                }
-            }
+        if let Ok(mut guard) = self.state.write()
+            && let Some(adventure) = &mut guard.current_adventure
+            && adventure.id == adventure_id
+        {
+            adventure.status = status;
         }
 
         Ok(())
@@ -136,12 +135,11 @@ impl AdventureManager {
 
         let updated = get_adventure(&mut conn, adventure.id).await?;
 
-        if let Ok(mut guard) = self.state.write() {
-            if let Some(current) = &guard.current_adventure {
-                if current.id == updated.id {
-                    guard.current_adventure = Some(updated.clone());
-                }
-            }
+        if let Ok(mut guard) = self.state.write()
+            && let Some(current) = &guard.current_adventure
+            && current.id == updated.id
+        {
+            guard.current_adventure = Some(updated.clone());
         }
 
         Ok(updated)

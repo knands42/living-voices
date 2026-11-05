@@ -71,8 +71,8 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
         update_character_presence(
             &mut conn,
             character.adventure_id,
-            &vec![character.name.as_str()],
-            &vec![],
+            &[character.name.as_str()],
+            &[],
         )
         .await?;
 
@@ -88,19 +88,18 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
 
         {
             let mut guard = self.state.write()?;
-            if let Some(adventure) = &mut guard.current_adventure {
-                if let Some(existing) = adventure
+            if let Some(adventure) = &mut guard.current_adventure
+                && let Some(existing) = adventure
                     .characters
                     .iter_mut()
                     .find(|c| c.id == character.id)
-                {
-                    *existing = character.clone();
-                }
+            {
+                *existing = character.clone();
             }
-            if let Some(player) = &mut guard.player {
-                if player.id == character.id {
-                    *player = character.clone();
-                }
+            if let Some(player) = &mut guard.player
+                && player.id == character.id
+            {
+                *player = character.clone();
             }
         }
 
@@ -151,7 +150,7 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
 
         let prompt = match kind {
             ImagePromptKind::Identity => {
-                (ContextBuilder::build_identity_char_prompt(&adventure, character, conditions)?)
+                ContextBuilder::build_identity_char_prompt(&adventure, character, conditions)?
             }
             ImagePromptKind::Outfit => {
                 let messages = fetch_last_n(&mut conn, character.adventure_id, 50).await?;
@@ -205,20 +204,19 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
     ) -> Result<(), StateError> {
         let mut guard = self.state.write()?;
 
-        if let Some(adventure) = &mut guard.current_adventure {
-            if let Some(character) = adventure
+        if let Some(adventure) = &mut guard.current_adventure
+            && let Some(character) = adventure
                 .characters
                 .iter_mut()
                 .find(|character| character.id == character_id)
-            {
-                set_image_prompt(character, kind, prompt);
-            }
+        {
+            set_image_prompt(character, kind, prompt);
         }
 
-        if let Some(player) = &mut guard.player {
-            if player.id == character_id {
-                set_image_prompt(player, kind, prompt);
-            }
+        if let Some(player) = &mut guard.player
+            && player.id == character_id
+        {
+            set_image_prompt(player, kind, prompt);
         }
 
         Ok(())

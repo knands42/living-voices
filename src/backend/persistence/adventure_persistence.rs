@@ -169,7 +169,7 @@ impl TryFrom<CompleteAdventureRow> for Adventure {
 
         let narrator = Narrator::new(
             narrator_id_uuid,
-            adventure_id_uuid.clone(),
+            adventure_id_uuid,
             value.narrator_name.clone(),
             value.narrator_tone.clone(),
         );
@@ -212,9 +212,9 @@ pub async fn insert_adventure(
          RETURNING *",
     )
     .bind(id.to_string())
-    .bind(&title)
-    .bind(&headline)
-    .bind(&tone)
+    .bind(title)
+    .bind(headline)
+    .bind(tone)
     .fetch_one(&mut *conn)
     .await?;
 
@@ -223,7 +223,7 @@ pub async fn insert_adventure(
         attach_tag(conn, id, tag).await?;
     }
 
-    Ok(AdventureSummary::try_from(adventure_row)?)
+    AdventureSummary::try_from(adventure_row)
 }
 
 pub async fn get_adventure(

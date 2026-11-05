@@ -2,8 +2,9 @@ use std::{fmt::Display, vec};
 
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum CharacterStatus {
+    #[default]
     Present,
     Away,
     Unavailable,
@@ -48,12 +49,6 @@ impl From<String> for CharacterStatus {
 impl Display for CharacterStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_str())
-    }
-}
-
-impl Default for CharacterStatus {
-    fn default() -> Self {
-        CharacterStatus::Present
     }
 }
 

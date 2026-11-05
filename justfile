@@ -7,6 +7,7 @@ build:
 
 lint:
     cargo fmt
+    cargo clippy --fix
 
 test:
     cargo test

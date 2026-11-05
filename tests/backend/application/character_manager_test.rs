@@ -41,7 +41,7 @@ async fn full_pipeline_create_character_persists_to_database_and_shared_state_an
         .unwrap();
 
     // then: validate if it was persisted to database
-    let (count, name): (u16, String) =
+    let (count, _): (u16, String) =
         sqlx::query_as("SELECT COUNT(*), name FROM character WHERE adventure_id = ?1")
             .bind(adventure.id.to_string())
             .fetch_one(&pool)

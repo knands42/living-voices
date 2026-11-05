@@ -18,7 +18,8 @@ pub fn adventure_view(adventure: Option<&Adventure>) -> AdventureView {
             let characters: Vec<CharacterChatView> = adventure
                 .characters
                 .iter()
-                .filter_map(|char| (!char.is_player).then(|| character_chat_view(char)))
+                .filter(|&char| (!char.is_player))
+                .map(|char| character_chat_view(char))
                 .collect();
             let player = adventure
                 .characters

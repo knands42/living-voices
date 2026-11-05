@@ -10,7 +10,7 @@ use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::memory::{Act, ActStatus};
 use living_voices::backend::persistence::act_persistence::{
-    get_active_act, update_act_running_digest, upsert_act,
+    get_active_act, update_act_running_digest,
 };
 use living_voices::backend::persistence::message_persistence::fetch_since;
 use living_voices::backend::persistence::state_persistence::get_state;

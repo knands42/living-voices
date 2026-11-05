@@ -1,9 +1,6 @@
 use sqlx::{SqliteConnection, sqlite::SqlitePool};
 
-use crate::backend::application::helper::{
-    CharacterSpec, create_characters, setup_db, start_adventure_with_default_cast,
-};
-use living_voices::backend::application::adventure_manager::AdventureManager;
+use crate::backend::application::helper::{setup_db, start_adventure_with_default_cast};
 use living_voices::backend::application::context::{ContextBuilder, ContextData};
 use living_voices::backend::application::director::Director;
 use living_voices::backend::application::port::chat_port::{PromptTurn, Speaker};

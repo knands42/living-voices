@@ -71,7 +71,7 @@ pub fn scatter_runes(area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buf
             let hash = (x as u32)
                 .wrapping_mul(73)
                 .wrapping_add((y as u32).wrapping_mul(179));
-            if hash % density == 0 {
+            if hash.is_multiple_of(density) {
                 let glyph = GLYPHS[(hash / density) as usize % GLYPHS.len()];
                 let cell = &mut buf[(x, y)];
                 if cell.symbol() == " " {
