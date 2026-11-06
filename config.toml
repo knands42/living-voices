@@ -2,7 +2,7 @@
 #
 # Paths are not configurable here. They follow the build profile:
 #   debug   -> this project directory
-#   release -> $HOME/.living-voice
+#   release -> $HOME/.living-voices
 #
 # Every text endpoint speaks the OpenAI chat-completions API, so any
 # OpenAI-compatible server (Ollama, llama.cpp, LM Studio) works unchanged.

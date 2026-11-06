@@ -262,5 +262,5 @@ pub fn base_dir() -> &'static Path {
 #[cfg(not(debug_assertions))]
 pub fn base_dir() -> PathBuf {
     let home = std::env::var("HOME").expect("Fail to get home directory");
-    PathBuf::from(home).join(".living-voice")
+    PathBuf::from(home).join(".living-voices")
 }
