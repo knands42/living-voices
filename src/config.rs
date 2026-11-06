@@ -60,6 +60,8 @@ impl Default for Models {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct TextModel {
+    /// Fallback endpoint. A provisioned text engine replaces it through
+    /// [`Config::with_text_engine`].
     pub base_url: String,
     pub model: String,
     pub temperature: f32,
@@ -82,6 +84,11 @@ impl TextModel {
             base_url: DEFAULT_CHAT_MEMORY_URL.to_string(),
             ..Self::default()
         }
+    }
+
+    pub fn with_endpoint(mut self, base_url: &str) -> Self {
+        self.base_url = format!("{}/v1", base_url.trim_end_matches('/'));
+        self
     }
 }
 
@@ -224,6 +231,13 @@ impl Config {
             config_file,
             db_path,
         })
+    }
+
+    /// Route every text model (chat and memory) at `base_url`.
+    pub fn with_text_engine(mut self, base_url: &str) -> Self {
+        self.settings.models.chat = self.settings.models.chat.with_endpoint(base_url);
+        self.settings.models.memory = self.settings.models.memory.with_endpoint(base_url);
+        self
     }
 
     fn load_config_into_file(path: &Path) -> Settings {

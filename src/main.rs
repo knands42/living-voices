@@ -34,7 +34,7 @@ async fn main() {
     let config = Config::new().expect("Failed to initialize config");
     log::info!("Config loaded from {}", config.config_file.display());
 
-    let _engine = match living_voices::provision::entrypoint::start_text_engine().await {
+    let engine = match living_voices::provision::entrypoint::start_text_engine().await {
         Ok(engine) => {
             log::info!("text engine answering on {}", engine.base_url());
             Some(engine)
@@ -42,6 +42,14 @@ async fn main() {
         Err(err) => {
             log::warn!("text engine unavailable: {err}");
             None
+        }
+    };
+
+    let config = match &engine {
+        Some(engine) => config.with_text_engine(engine.base_url()),
+        None => {
+            log::warn!("using configured text endpoints instead of the engine");
+            config
         }
     };
 

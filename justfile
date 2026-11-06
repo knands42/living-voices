@@ -158,10 +158,12 @@ chat-test:
         --data-binary @./tests/ai/chat-example.json | jq -r .choices[0].message.content
 
 # -------------------- comfy (external alternative) -------------------- #
+# TODO: Everyting inside /comfyui on the root of this project or ~/.living-voices/comfyui (<base_root>/comfyui) on release
 comfy-requirements:
     {{ comfy_python }} -m venv {{ comfy_venv }}
     {{ comfy_venv }}/bin/pip install --upgrade pip comfy-cli
-    {{ comfy_bin }} --workspace {{ comfy_ws }} install --nvidia --restore
+    comfy install
+    yes | {{ comfy_bin }} --workspace {{ comfy_ws }} install --nvidia --restore --extra-index-url https://download.pytorch.org/whl/cu130
     {{ comfy_venv }}/bin/pip install -r {{ comfy_ws }}/requirements.txt
     {{ comfy_venv }}/bin/pip install torch torchvision torchaudio comfy_aimdo comfy_kitchen
     @echo "ComfyUI installed at {{ comfy_ws }} ($({{ comfy_venv }}/bin/python --version))"
