@@ -57,21 +57,23 @@ Each model has one job:
 ### Prerequisites
 - Rust (stable)
 - `just` command line for running tasks
-- `python` to setup comfy for image generation
+- `python 3.12` to setup comfy for image/audio/video generation (newer versions might break some audio models)
 
 ### Install test coverage dependencies
 ```bash
 just dev-requirements
 ```
 
-### Installation of Llama.cpp for text generation
+### Provision the text engine (llama.cpp)
 ```bash
-just chat-requirements
+just provision-llama       # build the engine into ./llama/llama-server
+just provision-llama-model # download the GGUF into ./llama/models
 ```
 
-### Installation of ComfyUI for image generation
+### Provision ComfyUI (image / video / audio engine)
 ```bash
-just comfy-requirements
+just provision-comfy   # pinned ComfyUI v0.44.1 + venv into ./comfyui
+just image-models-all  # then the models you need: video-model-all, audio-model-all
 ```
 
 ### Execute the App

@@ -25,10 +25,10 @@ Everything goes through `just` (root `justfile`, which imports `comfy-image.just
 | `just coverage` | `cargo llvm-cov`, ignores `src/ui/`, `src/cli/`, `app.rs` |
 | `just provision-status` | what `./llama` and `./provision` already have, and the recipe to fix each gap |
 | `just provision-llama` | fetch → extract → cmake build → install `llama/llama-server` (what the app runs) |
-| `just provision-model` | download the GGUF the app uses into `llama/models` (same bytes the app fetches on first run) |
-| `just comfy-requirements` | venv + ComfyUI + torch into `provision/comfy_ui` |
+| `just provision-llama-model` | download the GGUF the app uses into `llama/models` (same bytes the app fetches on first run) |
+| `just provision-comfy` | clone ComfyUI + venv into `comfyui/` (base engine; models stay in `image-models-all`, `video-model-all`, `audio-model-all`) |
 | `just provision` | all of the above; the same steps the release job runs |
-| `just provision-clean` | delete `./provision` and `./llama` |
+| `just provision-clean` | delete `./provision`, `./llama` and `./comfyui` |
 
 - `.githooks/pre-commit` runs `cargo fmt`, `git add -u`, then `cargo test` — staged formatting
   changes land in the commit automatically.
