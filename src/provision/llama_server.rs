@@ -5,8 +5,8 @@ use tokio::io::AsyncWriteExt;
 use flate2::read::GzDecoder;
 
 use crate::provision::helper::{
-    LLAMA_ARCHIVE_FILE, LLAMA_SERVER_URL, human_bytes, provision_llama_archive_path,
-    provision_llama_path,
+    LLAMA_ARCHIVE_FILE, LLAMA_SERVER_URL, human_bytes, llama_server_binary,
+    provision_llama_archive_path, provision_llama_path,
 };
 
 /// Print a progress line at most once per this many bytes.
@@ -15,6 +15,7 @@ const PROGRESS_EVERY_BYTES: u64 = 16 * 1024 * 1024;
 pub enum LlamaStep {
     Fetch,
     Extract,
+    Build,
 }
 
 impl LlamaStep {
@@ -25,6 +26,7 @@ impl LlamaStep {
                 .exists(),
 
             LlamaStep::Extract => provision_llama_path().exists(),
+            LlamaStep::Build => llama_server_binary().exists(),
         }
     }
 }
@@ -33,6 +35,7 @@ pub enum Event {
     Skipped,
     Started,
     Bytes(String),
+    Building,
     Finished,
 }
 
@@ -42,6 +45,7 @@ impl Event {
             Event::Skipped => println!("Step is already done"),
             Event::Started => println!("Llama setup is starting"),
             Event::Bytes(b) => println!("Llama downloaded {b}"),
+            Event::Building => println!("Llama is being built"),
             Event::Finished => println!("Llama setup is finished"),
         }
     }
@@ -67,6 +71,11 @@ pub async fn run_llama_pipeline<F: FnMut(Event)>(steps: &[LlamaStep], mut on_cha
             }
             LlamaStep::Extract => {
                 extract(&mut on_change);
+
+                on_change(Event::Finished);
+            }
+            LlamaStep::Build => {
+                build(&mut on_change);
 
                 on_change(Event::Finished);
             }
@@ -160,13 +169,6 @@ pub async fn download<F: FnMut(Event)>(on_change: &mut F) -> i32 {
     0
 }
 
-fn progress(written: u64, total: Option<u64>) -> String {
-    match total {
-        Some(total) => format!("{} / {}", human_bytes(written), human_bytes(total)),
-        None => human_bytes(written),
-    }
-}
-
 pub fn extract<F: FnMut(Event)>(_on_change: &mut F) -> i32 {
     let archive = provision_llama_archive_path().join(LLAMA_ARCHIVE_FILE);
     if !archive.is_file() {
@@ -224,6 +226,17 @@ pub fn extract<F: FnMut(Event)>(_on_change: &mut F) -> i32 {
     let _ = fs::remove_dir_all(&staging);
 
     0
+}
+
+fn build<F: FnMut(Event)>(_on_change: F) -> i32 {
+    todo!()
+}
+
+fn progress(written: u64, total: Option<u64>) -> String {
+    match total {
+        Some(total) => format!("{} / {}", human_bytes(written), human_bytes(total)),
+        None => human_bytes(written),
+    }
 }
 
 pub fn unpack(archive: &Path, into: &Path) -> Result<(), String> {

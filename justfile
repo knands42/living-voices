@@ -64,7 +64,71 @@ coverage-html:
 coverage-all:
     cargo llvm-cov --ignore-filename-regex '{{ cov_ignore }}' -- --include-ignored
 
-# -------------------- llama.cpp (text) -------------------- #
+# -------------------- provisioning layout -------------------- #
+# Everything the app installs lives under ./provision, relative to this project:
+# the same layout a release bundle ships, so development and release share one
+# setup. These recipes are the single definition of "install"; the release job
+# runs these same commands and packs the result next to the binary.
+provision_dir := "provision"
+provision_archive := provision_dir / "archive"
+
+llama_archive_dir := provision_archive / "llama_archive"
+llama_tarball := llama_archive_dir / "llama.tar.gz"
+llama_url := env_var_or_default("LLAMA_URL", "https://github.com/ggml-org/llama.cpp/archive/refs/tags/v0.9.0.tar.gz")
+llama_src := provision_dir / "llama"
+llama_build := llama_src / "build"
+llama_server := llama_build / "bin" / "llama-server"
+llama_cmake_flags := env_var_or_default("LLAMA_CMAKE_FLAGS", "-DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=ON")
+
+comfy_python := env_var_or_default("COMFY_PYTHON", "python3.12")
+comfy_ws := provision_dir / "comfy_ui"
+comfy_venv := comfy_ws / "venv"
+comfy_bin := comfy_venv / "bin" / "comfy"
+comfy_host := "127.0.0.1"
+comfy_port := "8188"
+comfy_url := "http://" + comfy_host + ":" + comfy_port
+comfy_log := provision_dir / "comfy_ui.log"
+
+# What the tree already has and what is still missing
+provision-status:
+    @echo "provision root: $(pwd)/{{ provision_dir }}"
+    @test -f {{ llama_tarball }} && echo "  archive:      ok" || echo "  archive:      missing -> just provision-llama-fetch"
+    @test -x {{ llama_server }} && echo "  llama-server: ok" || echo "  llama-server: missing -> just provision-llama-build"
+    @test -f {{ comfy_ws }}/main.py && echo "  ComfyUI:      ok" || echo "  ComfyUI:      missing -> just comfy-requirements"
+    @test -x {{ comfy_venv }}/bin/python && echo "  comfy venv:   ok" || echo "  comfy venv:   missing -> just comfy-requirements"
+
+provision-clean:
+    rm -rf {{ provision_dir }}
+    @echo "removed {{ provision_dir }}"
+
+# -------------------- llama.cpp (text engine) -------------------- #
+# The archive is the source tree, so the engine only exists after the build.
+provision-llama-fetch:
+    mkdir -p {{ llama_archive_dir }}
+    test -f {{ llama_tarball }} || curl -fL {{ llama_url }} -o {{ llama_tarball }}
+    @echo "archive: {{ llama_tarball }}"
+
+# --strip-components=1 is the same flattening the app does at runtime, so both
+# paths end with the source tree sitting directly inside provision/llama.
+provision-llama-extract: provision-llama-fetch
+    rm -rf {{ llama_src }}
+    mkdir -p {{ llama_src }}
+    tar -xzf {{ llama_tarball }} -C {{ llama_src }} --strip-components=1
+    @echo "source: {{ llama_src }}"
+
+provision-llama-build: provision-llama-extract
+    cmake -B {{ llama_build }} -S {{ llama_src }} {{ llama_cmake_flags }}
+    cmake --build {{ llama_build }} --config Release -j
+    test -x {{ llama_server }}
+    @echo "engine: {{ llama_server }}"
+
+provision-llama: provision-llama-build
+
+# Everything a release bundle contains that can be prepared locally
+provision: provision-llama comfy-requirements
+    @echo "provisioning complete under {{ provision_dir }}"
+
+# -------------------- ollama (external alternative) -------------------- #
 chat-requirements:
     curl -fsSL https://ollama.com/install.sh | sh
     ollama run llama3.1:8b
@@ -79,15 +143,6 @@ chat-test:
         --data-binary @./tests/ai/chat-example.json | jq -r .choices[0].message.content
 
 # -------------------- comfy (image/video/audio) -------------------- #
-comfy_python := env_var_or_default("COMFY_PYTHON", "python3.12")
-comfy_home := env_var_or_default("COMFY_HOME", env_var("HOME") / ".living-voices" / "comfy")
-comfy_venv := comfy_home / "venv"
-comfy_ws := comfy_home / "ComfyUI"
-comfy_bin := comfy_venv / "bin" / "comfy"
-comfy_host := "127.0.0.1"
-comfy_port := "8188"
-comfy_url := "http://" + comfy_host + ":" + comfy_port
-
 comfy-requirements:
     {{ comfy_python }} -m venv {{ comfy_venv }}
     {{ comfy_venv }}/bin/pip install --upgrade pip comfy-cli
@@ -105,8 +160,8 @@ comfy-down:
     @echo "ComfyUI stopped"
 
 comfy-start:
-    cd {{ comfy_ws }} && setsid {{ comfy_venv }}/bin/python main.py --listen {{ comfy_host }} --port {{ comfy_port }} --disable-auto-launch {{ env_var_or_default("COMFY_EXTRA", "") }} > {{ comfy_home }}/comfyui.log 2>&1 < /dev/null &
-    @echo "ComfyUI starting on {{ comfy_url }} (log: {{ comfy_home }}/comfyui.log)"
+    cd {{ comfy_ws }} && setsid {{ comfy_venv }}/bin/python main.py --listen {{ comfy_host }} --port {{ comfy_port }} --disable-auto-launch {{ env_var_or_default("COMFY_EXTRA", "") }} > {{ comfy_log }} 2>&1 < /dev/null &
+    @echo "ComfyUI starting on {{ comfy_url }} (log: {{ comfy_log }})"
 
 comfy-up: comfy-down comfy-start comfy-wait
 
@@ -114,4 +169,4 @@ comfy-test workflow="tests/ai/image-example-flux-q4.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
-    @echo "Output will be generated at $HOME/.living-voices/comfy/ComfyUI/output"
+    @echo "Output will be generated at {{ comfy_ws }}/output"
