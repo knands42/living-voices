@@ -6,11 +6,15 @@ use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::memory::Act;
 use crate::backend::domain::message::Message;
 use crate::ui::callbacks::builder_page::BuilderPageContext;
-use crate::ui::{ActInputView, BuilderGlobals, RootWindow, StoryInputView};
-use slint::ComponentHandle;
+use crate::ui::{
+    ActInputView, AdventureSummaryView, BuilderGlobals, MainGlobals, RootWindow, StoryInputView,
+};
+use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use thiserror::Error;
 use tokio::runtime::Handle;
 use uuid::Uuid;
+
+const DEFAULT_TONE: &str = "neutral";
 
 #[derive(Error, Debug)]
 enum CreationError {
@@ -51,6 +55,40 @@ pub fn register_story_creation<
         });
 }
 
+pub fn register_create_adventure<
+    C: ChatHandler + Clone + 'static,
+    N: NarratorHandler + Clone + 'static,
+    M: MemoryDistiller + Clone + 'static,
+    A: ActCloser + Clone + 'static,
+>(
+    ui: &RootWindow,
+    ctx: &AppContext<C, N, M, A>,
+) {
+    let ctx = ctx.clone();
+    let handle = Handle::current();
+    let ui_weak = ui.as_weak();
+
+    ui.global::<MainGlobals>()
+        .on_create_adventure(move |title, headline| {
+            if title.trim().is_empty() {
+                log::error!("create adventure called without a title");
+                return SharedString::new();
+            }
+
+            let adventure = match create_draft(&handle, &ctx, title.as_str(), headline.as_str()) {
+                Ok(adventure) => adventure,
+                Err(err) => {
+                    log::error!("could not create draft adventure: {err}");
+                    return SharedString::new();
+                }
+            };
+
+            log::info!("draft adventure created: {}", adventure.id);
+            append_summary(&ui_weak, &adventure);
+            SharedString::from(adventure.id.to_string())
+        });
+}
+
 pub fn register_act_creation<
     C: ChatHandler + Clone + 'static,
     N: NarratorHandler + Clone + 'static,
@@ -71,16 +109,12 @@ pub fn register_act_creation<
                 return;
             };
 
-            let acts = builder.acts();
             let result = tokio::task::block_in_place(|| {
-                handle.block_on(save_act(&adventures, adventure_id, input, acts))
+                handle.block_on(save_act(&adventures, adventure_id, input))
             });
 
             match result {
-                Ok(()) => {
-                    builder.reload_acts();
-                    builder.show(None);
-                }
+                Ok(()) => builder.show(None),
                 Err(err) => log::error!("could not save an act of {adventure_id}: {err}"),
             }
         });
@@ -111,10 +145,7 @@ pub fn register_adventure_opening<
             });
 
             match result {
-                Ok(()) => {
-                    builder.mark_opening_written();
-                    builder.show(None);
-                }
+                Ok(()) => builder.show(None),
                 Err(err) => log::error!("could not save the opening of {adventure_id}: {err}"),
             }
         });
@@ -149,7 +180,6 @@ async fn save_act(
     adventures: &AdventureManager,
     adventure_id: Uuid,
     input: ActInputView,
-    acts: Vec<Act>,
 ) -> Result<(), CreationError> {
     let goal = input.goal.trim();
     if goal.is_empty() {
@@ -159,6 +189,7 @@ async fn save_act(
         .filter(|trigger| !trigger.is_empty())
         .map(str::to_string);
 
+    let acts = adventures.get_acts(adventure_id).await?;
     let mut act = if input.id.is_empty() {
         let ordinal = acts.iter().map(|act| act.ordinal + 1).max().unwrap_or(0);
         Act::new(adventure_id, ordinal, goal)
@@ -206,4 +237,57 @@ pub fn parse_id(id: &str) -> Option<Uuid> {
     Uuid::parse_str(id)
         .map_err(|_| log::error!("invalid id: {id}"))
         .ok()
+}
+
+fn create_draft<
+    C: ChatHandler + Clone + 'static,
+    N: NarratorHandler + Clone + 'static,
+    M: MemoryDistiller + Clone + 'static,
+    A: ActCloser + Clone + 'static,
+>(
+    handle: &Handle,
+    ctx: &AppContext<C, N, M, A>,
+    title: &str,
+    headline: &str,
+) -> Result<Adventure, AdventureManagerError> {
+    tokio::task::block_in_place(|| {
+        handle.block_on(ctx.adventures.create_adventure(
+            title.to_string(),
+            headline.to_string(),
+            DEFAULT_TONE.to_string(),
+        ))
+    })
+}
+
+fn append_summary(ui_weak: &slint::Weak<RootWindow>, adventure: &Adventure) {
+    let summary = AdventureSummaryView {
+        id: SharedString::from(adventure.id.to_string()),
+        title: SharedString::from(adventure.title.clone()),
+        description: SharedString::from(adventure.headline.clone()),
+        status: SharedString::from(adventure.status.as_str()),
+    };
+
+    let ui_weak = ui_weak.clone();
+    let post = slint::invoke_from_event_loop(move || {
+        let Some(ui) = ui_weak.upgrade() else {
+            return;
+        };
+
+        let main = ui.global::<MainGlobals>();
+        let model = main.get_adventures_summary();
+        if let Some(vec_model) = model
+            .as_any()
+            .downcast_ref::<VecModel<AdventureSummaryView>>()
+        {
+            vec_model.push(summary);
+        } else {
+            let mut items: Vec<AdventureSummaryView> = model.iter().collect();
+            items.push(summary);
+            main.set_adventures_summary(ModelRc::new(VecModel::from(items)));
+        }
+    });
+
+    if let Err(err) = post {
+        log::error!("could not add draft to the adventure list: {err}");
+    }
 }

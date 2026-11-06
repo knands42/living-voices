@@ -97,21 +97,22 @@ Layering rules the code actually follows:
 
 ## UI data flow (do not re-read per edit)
 
-The backend snapshot is the UI's cache: `SharedState.current_adventure` is patched by every
-write (`update_adventure`, `create_character`, `update_character`, and `CharacterManager`'s
-prompt writers), so reading `AdventureManager::current_adventure()` costs no I/O and there is
-never a stale second copy.
+`AppState` holds only the **ongoing adventure**: `current_adventure`, `current_act`,
+`current_state`, `current_facts`, `player`. It is not a general-purpose cache — do not put
+builder/authoring data in it. The writes that touch it (`load_adventure`, `update_adventure`,
+`upsert_act`, `CharacterManager`) keep it current, so reading it costs no I/O.
 
-The rule the callbacks follow:
+The builder deliberately keeps nothing: `BuilderPageContext` (`ui/callbacks/builder_page.rs`)
+holds no data at all and reads what the view needs on render.
 
-- **Fetch when a page is entered, render from memory everywhere else.**
-  `BuilderPageContext::open` (`ui/callbacks/builder_page.rs`) runs the one expensive load
-  (`load_adventure` + acts + has-opening). `show()` re-renders the Slint `BuilderView` from the
-  snapshot + cached acts with no queries; `enter()` is the "page is visible again" path.
-- **Saves write once and never reload the builder.** Story, acts, opening and character edits
-  call `show(None)` (or nothing at all per character field) instead of re-running
-  `load_builder_data` — the old per-save double `get_adventure` (an 8-way join) is what made
-  typing feel heavy.
+- **`open(adventure_id)`** is the one expensive read: `load_adventure` (the 8-way join) warms the
+  snapshot, then the first `show`.
+- **`show(section)`** renders from two sources: the adventure from the snapshot (free), the acts
+  and "is there an opening" from two small indexed queries (`get_acts`,
+  `get_messages(adventure_id, 1)`). That is the whole cost of a render — never re-run
+  `get_adventure` per save.
+- **Saves write once, then `show(None)`.** The re-render is what keeps `StorySection`'s `dirty`
+  indicator honest.
 - Slint never mutates navigation state itself: the sidebar raises `section-requested`, the
   character page raises `builder-entered` (`app.slint`), and Rust renders *then* sets `section`
   / `current-page`. Do not reintroduce a `<=>` binding on `BuilderGlobals.section`.

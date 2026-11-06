@@ -1,11 +1,11 @@
 use crate::ai::integrations::text::chat::Chat;
 use crate::app::AppContext;
+use crate::backend::application::adventure_manager::AdventureManager;
 use crate::backend::application::character_manager::{CharacterManager, CharacterManagerError};
 use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
 use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
 use crate::backend::domain::character::Character;
 use crate::ui::callbacks::adventure_creation::parse_id;
-use crate::ui::callbacks::builder_page::BuilderPageContext;
 use crate::ui::{BuilderGlobals, CharacterGlobals, RootWindow, viewmodels};
 use slint::ComponentHandle;
 use thiserror::Error;
@@ -28,8 +28,8 @@ enum CharacterPageError {
 #[derive(Clone)]
 struct CharacterPageContext {
     handle: Handle,
+    adventures: AdventureManager,
     characters: CharacterManager<Chat>,
-    builder: BuilderPageContext,
     ui_weak: slint::Weak<RootWindow>,
 }
 
@@ -51,12 +51,12 @@ impl CharacterPageContext {
         }
     }
 
-    /// The character the page shows, taken from the snapshot the builders share.
+    /// The character the page shows, taken from the backend snapshot.
     fn shown(&self) -> Option<Character> {
         let character_id = self.shown_id()?;
 
-        self.builder
-            .adventure()?
+        self.adventures
+            .current_adventure()?
             .characters
             .into_iter()
             .find(|character| character.id == character_id)
@@ -76,8 +76,8 @@ impl CharacterPageContext {
         let character_id =
             parse_id(character_id).ok_or(CharacterPageError::Invalid("character id"))?;
         let mut character = self
-            .builder
-            .adventure()
+            .adventures
+            .current_adventure()
             .and_then(|adventure| {
                 adventure
                     .characters
@@ -107,12 +107,11 @@ pub fn register_character_page<
 >(
     ui: &RootWindow,
     ctx: &AppContext<C, N, M, A>,
-    builder: &BuilderPageContext,
 ) {
     let env = CharacterPageContext {
         handle: Handle::current(),
+        adventures: ctx.adventures.clone(),
         characters: ctx.characters.clone(),
-        builder: builder.clone(),
         ui_weak: ui.as_weak(),
     };
 
@@ -130,12 +129,15 @@ fn register_open(ui: &RootWindow, env: &CharacterPageContext) {
             return;
         };
 
-        let character = open_env.builder.adventure().and_then(|adventure| {
-            adventure
-                .characters
-                .into_iter()
-                .find(|character| character.id == character_id)
-        });
+        let character = open_env
+            .adventures
+            .current_adventure()
+            .and_then(|adventure| {
+                adventure
+                    .characters
+                    .into_iter()
+                    .find(|character| character.id == character_id)
+            });
 
         match character {
             Some(character) => open_env.open(&character),
@@ -281,8 +283,8 @@ fn register_edit(ui: &RootWindow, env: &CharacterPageContext) {
         let result = tokio::task::block_in_place(|| {
             env_appearance.handle.block_on(async {
                 let character = env_appearance
-                    .builder
-                    .adventure()
+                    .adventures
+                    .current_adventure()
                     .and_then(|adventure| {
                         adventure
                             .characters

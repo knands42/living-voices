@@ -15,7 +15,7 @@ use crate::backend::persistence::message_persistence::{fetch_last_n, insert_mess
 use crate::backend::persistence::state_persistence::{get_state, insert_default_state};
 use crate::backend::{
     PersistenceError,
-    application::state::{SharedState, StateError},
+    application::state::{AppState, SharedState, StateError},
     domain::adventure::{Adventure, AdventureSummary},
     persistence::{
         adventure_persistence::{get_adventure, insert_adventure},
@@ -174,12 +174,10 @@ impl AdventureManager {
         adventure_id: Uuid,
     ) -> Result<MemorySnapshot, AdventureManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        let acts = get_acts(&mut conn, adventure_id).await?;
         let current_act = match get_active_act(&mut conn, adventure_id).await? {
             Some(act) => Some(act),
-            None => get_acts(&mut conn, adventure_id)
-                .await?
-                .into_iter()
-                .min_by_key(|act| act.ordinal),
+            None => acts.iter().min_by_key(|act| act.ordinal).cloned(),
         };
         let current_state = get_state(&mut conn, adventure_id).await?;
         let current_facts = get_facts(&mut conn, adventure_id).await?;
@@ -276,13 +274,7 @@ impl AdventureManager {
 
     pub fn current_snapshot(&self) -> MemorySnapshot {
         match self.state.read() {
-            Ok(guard) => MemorySnapshot::new(
-                guard.current_adventure.clone(),
-                guard.current_act.clone(),
-                guard.current_state.clone(),
-                guard.current_facts.clone(),
-                guard.player.clone(),
-            ),
+            Ok(guard) => MemorySnapshot::from_state(&guard),
             Err(_) => MemorySnapshot::default(),
         }
     }
@@ -298,19 +290,13 @@ pub struct MemorySnapshot {
 }
 
 impl MemorySnapshot {
-    fn new(
-        current_adventure: Option<Adventure>,
-        current_act: Option<Act>,
-        current_state: Option<State>,
-        current_facts: Vec<Fact>,
-        player: Option<Character>,
-    ) -> Self {
+    fn from_state(state: &AppState) -> Self {
         Self {
-            current_adventure,
-            current_act,
-            current_state,
-            current_facts,
-            player,
+            current_adventure: state.current_adventure.clone(),
+            current_act: state.current_act.clone(),
+            current_state: state.current_state.clone(),
+            current_facts: state.current_facts.clone(),
+            player: state.player.clone(),
         }
     }
 }
