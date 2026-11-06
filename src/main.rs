@@ -29,18 +29,21 @@ async fn main() {
     env_logger::init();
     log_panics::init();
 
-    #[cfg(feature = "provision")]
-    {
-        let code = provision_llama().await;
-        if code != 0 {
-            std::process::exit(code);
-        }
-    }
-
     let frontend = Frontend::from_args();
 
     let config = Config::new().expect("Failed to initialize config");
     log::info!("Config loaded from {}", config.config_file.display());
+
+    let _engine = match living_voices::provision::entrypoint::start_text_engine().await {
+        Ok(engine) => {
+            log::info!("text engine answering on {}", engine.base_url());
+            Some(engine)
+        }
+        Err(err) => {
+            log::warn!("text engine unavailable: {err}");
+            None
+        }
+    };
 
     let pool = match open_pool(config.db_path.to_string_lossy().as_ref()).await {
         Ok(pool) => pool,

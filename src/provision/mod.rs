@@ -1,7 +1,7 @@
 pub mod entrypoint;
+pub mod fetch;
 mod helper;
-mod llama_server;
+pub mod model;
 pub mod server;
 
-pub use llama_server::unpack;
-pub use server::{LlamaServer, PREFERRED_PORT, first_free_port};
+pub use server::{LlamaServer, PREFERRED_PORT};

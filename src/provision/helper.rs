@@ -1,45 +1,30 @@
 use crate::config::base_dir;
 use std::path::PathBuf;
 
-pub const LLAMA_SERVER_URL: &str =
-    "https://github.com/ggml-org/llama.cpp/archive/refs/tags/v0.9.0.tar.gz";
+pub const MODEL_FILE: &str = "qwen2.5-7b-memory-distiller.Q4_K_M.gguf";
+pub const MODEL_URL: &str = "https://huggingface.co/sennaLLMLearner/qwen2.5-7b-memory-distiller/resolve/main/qwen2.5-7b-memory-distiller.Q4_K_M.gguf";
+/// What `--alias` reports through `/v1/models`, and what `config.toml` must say.
+pub const MODEL_ALIAS: &str = "qwen2.5-7b-memory-distiller:Q4_K_M";
 
-/// Name the archive is saved as inside [`provision_llama_archive_path`].
-pub const LLAMA_ARCHIVE_FILE: &str = "llama.tar.gz";
-
-/// The executable a source build produces.
+/// The engine binary, shipped next to `models/`.
 pub const LLAMA_SERVER_BIN: &str = "llama-server";
 
-fn provision_path() -> PathBuf {
-    base_dir().join("provision")
+/// `{base_dir}/llama`: the runtime engine dir, both in debug (project root) and
+/// in a release bundle (next to the executable's data dir).
+pub fn llama_dir() -> PathBuf {
+    base_dir().join("llama")
 }
 
-fn provision_archive_path() -> PathBuf {
-    provision_path().join("archive")
+pub fn llama_models_dir() -> PathBuf {
+    llama_dir().join("models")
 }
 
-pub fn provision_llama_archive_path() -> PathBuf {
-    provision_archive_path().join("llama_archive")
-}
-
-pub fn provision_comfy_ui_archive_path() -> PathBuf {
-    provision_archive_path().join("comfy_ui_archive")
-}
-
-pub fn provision_llama_path() -> PathBuf {
-    provision_path().join("llama")
-}
-
-/// Where a `cmake --build` of the source tree puts the binaries.
 pub fn llama_server_binary() -> PathBuf {
-    provision_llama_path()
-        .join("build")
-        .join("bin")
-        .join(LLAMA_SERVER_BIN)
-}
+    #[cfg(windows)]
+    return llama_dir().join(format!("{LLAMA_SERVER_BIN}.exe"));
 
-pub fn provision_comfy_ui_path() -> PathBuf {
-    provision_path().join("comfy_ui")
+    #[cfg(not(windows))]
+    llama_dir().join(LLAMA_SERVER_BIN)
 }
 
 /// Sizes for progress lines: `0 B`, `1023 B`, `1.5 KiB`, `6.0 GiB`.
@@ -58,30 +43,5 @@ pub fn human_bytes(bytes: u64) -> String {
         format!("{bytes} B")
     } else {
         format!("{value:.1} {}", UNITS[unit])
-    }
-}
-
-pub enum GPUVendor {
-    Nvidia,
-    AMD,
-    Intel,
-    Unknown,
-}
-
-impl PartialEq for GPUVendor {
-    fn eq(&self, other: &Self) -> bool {
-        self == other
-    }
-}
-
-impl GPUVendor {
-    #[cfg(target_os = "linux")]
-    pub fn detect_vendor() -> GPUVendor {
-        GPUVendor::Nvidia
-    }
-
-    #[cfg(target_os = "windows")]
-    pub fn detect_vendor() -> GPUVendor {
-        GPUVendor::Nvidia
     }
 }

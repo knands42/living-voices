@@ -23,11 +23,12 @@ Everything goes through `just` (root `justfile`, which imports `comfy-image.just
 | `just create-migration <name>` | `sqlx migrate add -r <name>` |
 | `just db` / `just db-tables` / `just db-reset` | sqlite3 shell / list tables / delete `$DB` (default `living_voices.db`) |
 | `just coverage` | `cargo llvm-cov`, ignores `src/ui/`, `src/cli/`, `app.rs` |
-| `just provision-status` | what `./provision` already has, and the recipe to fix each gap |
-| `just provision-llama` | fetch → extract → cmake build the engine into `provision/llama/build/bin/llama-server` |
+| `just provision-status` | what `./llama` and `./provision` already have, and the recipe to fix each gap |
+| `just provision-llama` | fetch → extract → cmake build → install `llama/llama-server` (what the app runs) |
+| `just provision-model` | download the GGUF the app uses into `llama/models` (same bytes the app fetches on first run) |
 | `just comfy-requirements` | venv + ComfyUI + torch into `provision/comfy_ui` |
-| `just provision` | both of the above; the same steps the release job runs |
-| `just provision-clean` | delete `./provision` |
+| `just provision` | all of the above; the same steps the release job runs |
+| `just provision-clean` | delete `./provision` and `./llama` |
 
 - `.githooks/pre-commit` runs `cargo fmt`, `git add -u`, then `cargo test` — staged formatting
   changes land in the commit automatically.
