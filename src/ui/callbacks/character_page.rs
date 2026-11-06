@@ -52,7 +52,7 @@ impl CharacterPageContext {
     }
 
     /// The character the page shows, taken from the backend snapshot.
-    fn shown(&self) -> Option<Character> {
+    fn current_character(&self) -> Option<Character> {
         let character_id = self.shown_id()?;
 
         self.adventures
@@ -303,7 +303,7 @@ fn register_edit(ui: &RootWindow, env: &CharacterPageContext) {
 
         match result {
             // The manager wrote the new prompt into the snapshot, so re-read it there.
-            Ok(()) => match env_appearance.shown() {
+            Ok(()) => match env_appearance.current_character() {
                 Some(character) => env_appearance.show(&character),
                 None => log::error!("character {character_id} vanished while its prompt ran"),
             },

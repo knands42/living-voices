@@ -3,4 +3,5 @@
 .idea/
 *.db*
 .kiro/
+.ai-jail
 config-local.toml
