@@ -23,10 +23,12 @@ Everything goes through `just` (root `justfile`, which imports `comfy-image.just
 | `just create-migration <name>` | `sqlx migrate add -r <name>` |
 | `just db` / `just db-tables` / `just db-reset` | sqlite3 shell / list tables / delete `$DB` (default `living_voices.db`) |
 | `just coverage` | `cargo llvm-cov`, ignores `src/ui/`, `src/cli/`, `app.rs` |
-| `just provision-status` | what `./llama` and `./provision` already have, and the recipe to fix each gap |
+| `just provision-status` | what `./llama`, `./comfyui` and `./provision` already have, and the recipe to fix each gap |
 | `just provision-llama` | fetch → extract → cmake build → install `llama/llama-server` (what the app runs) |
 | `just provision-llama-model` | download the GGUF the app uses into `llama/models` (same bytes the app fetches on first run) |
-| `just provision-comfy` | clone ComfyUI + venv into `comfyui/` (base engine; models stay in `image-models-all`, `video-model-all`, `audio-model-all`) |
+| `just provision-comfy` | pinned ComfyUI checkout + `comfyui/python` (python-build-standalone) + venv from `comfy-requirements.lock`, all inside `comfyui/`; models stay in `image-models-all`, `video-model-all`, `audio-model-all` |
+| `just provision-comfy-lock` | re-freeze `comfy-requirements.lock` from a working venv; do it whenever the pinned version/commit moves |
+| `just provision-comfy-bundle` | the release artifact: `provision/comfyui-<version>.tar.zst` (source + interpreter, no venv, no models) plus its `.sha256` |
 | `just provision` | all of the above; the same steps the release job runs |
 | `just provision-clean` | delete `./provision`, `./llama` and `./comfyui` |
 

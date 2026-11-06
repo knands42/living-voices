@@ -72,9 +72,19 @@ just provision-llama-model # download the GGUF into ./llama/models
 
 ### Provision ComfyUI (image / video / audio engine)
 ```bash
-just provision-comfy   # pinned ComfyUI v0.44.1 + venv into ./comfyui
+just provision-comfy   # pinned ComfyUI v0.44.1 + its own CPython + locked deps into ./comfyui
 just image-models-all  # then the models you need: video-model-all, audio-model-all
 ```
+
+The engine never borrows the system python: `./comfyui/python` is a
+python-build-standalone 3.12, the venv is built from it, and every package comes
+from `comfy-requirements.lock` (exact pins). First setup downloads ~4 GB of
+torch/nvidia wheels; after that the tree is self-contained.
+
+`just provision-comfy-bundle` produces what the release ships, and nothing else:
+`provision/comfyui-v0.44.1.tar.zst` (checkout + interpreter, 66 MB) plus the
+lock. No venv and no models go in the bundle, the user's first run builds the
+venv from the lock.
 
 ### Execute the App
 ```bash
