@@ -78,7 +78,7 @@ llama_url := env_var_or_default("LLAMA_URL", "https://github.com/ggml-org/llama.
 llama_src := provision_dir / "llama"
 llama_build := llama_src / "build"
 llama_server := llama_build / "bin" / "llama-server"
-llama_cmake_flags := env_var_or_default("LLAMA_CMAKE_FLAGS", "-DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=ON -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF")
+llama_cmake_flags := env_var_or_default("LLAMA_CMAKE_FLAGS", "-DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON -DGGML_NATIVE=ON -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF")
 
 # What the app itself expects on disk at runtime: {base_dir}/llama, which in a
 # debug build is this project root.
@@ -110,6 +110,7 @@ comfy_arch := env_var_or_default("COMFY_ARCH", "x86_64-unknown-linux-gnu")
 # the engine never borrows the host's python. This is the interpreter the app
 # spawns, and the one every venv below is built from.
 comfy_python_version := env_var_or_default("COMFY_PYTHON_VERSION", "3.12.16")
+comfy_python_minor := env_var_or_default("COMFY_PYTHON_MINOR", "3.12")
 comfy_python_release := env_var_or_default("COMFY_PYTHON_RELEASE", "20261026")
 comfy_python_asset := "cpython-" + comfy_python_version + "+" + comfy_python_release + "-" + comfy_arch + "-install_only_stripped.tar.gz"
 comfy_python_url := env_var_or_default("COMFY_PYTHON_URL", "https://github.com/astral-sh/python-build-standalone/releases/download/" + comfy_python_release + "/" + comfy_python_asset)
@@ -124,7 +125,10 @@ comfy_venv := comfy_runtime / "venv"
 comfy_bin := comfy_venv / "bin" / "comfy"
 # absolute, because comfy-start runs from inside the engine dir
 comfy_venv_python := justfile_directory() / comfy_venv / "bin" / "python"
+# hashed lock: every pin carries the sha256 of the wheel it may install, so a
+# mirrored or hijacked index cannot swap a package under the same version
 comfy_lock := "comfy-requirements.lock"
+comfy_lock_pins := provision_dir / "comfy-pins.txt"
 comfy_runtime_lock := comfy_runtime / comfy_lock
 comfy_pip_version := env_var_or_default("COMFY_PIP_VERSION", "26.3")
 comfy_bundle := provision_dir / ("comfyui-" + comfy_version + ".tar.zst")
@@ -143,7 +147,7 @@ provision-status:
     @test -x {{ comfy_python }} && echo "  comfy python: ok ($({{ comfy_python }} --version))" || echo "  comfy python: missing -> just provision-comfy"
     @test -x {{ comfy_venv }}/bin/python && echo "  comfy venv:   ok" || echo "  comfy venv:   missing -> just provision-comfy"
     @if [ -x {{ comfy_venv }}/bin/python ] && ! grep -q '{{ comfy_python }}' {{ comfy_venv }}/pyvenv.cfg 2>/dev/null; then echo "  comfy venv:   built from the host python -> just provision-clean && just provision-comfy"; fi
-    @test -f {{ comfy_runtime_lock }} && echo "  comfy lock:   ok" || echo "  comfy lock:   missing -> just provision-comfy"
+    @test -f {{ comfy_runtime_lock }} && echo "  comfy lock:   ok ($(grep -c 'hash=' {{ comfy_runtime_lock }}) hashes)" || echo "  comfy lock:   missing -> just provision-comfy"
     @test -n "$(ls -A {{ comfy_ws }}/models/unet 2>/dev/null | grep -v '^put_')" && echo "  comfy models: ok" || echo "  comfy models: missing -> just image-models-all (or video-/audio-)"
 
 provision-clean:
@@ -183,11 +187,18 @@ provision-llama: provision-llama-install provision-llama-model
 # Base engine only; models live in comfy-image.just / comfy-video.just /
 # comfy-audio.just. Same split as llama.cpp: source, interpreter, deps, install.
 
+# a tree extracted from the release bundle has no .git, only .comfy-source
 provision-comfy-fetch:
-    test -d {{ comfy_runtime }}/.git || git clone --filter=blob:none --no-checkout {{ comfy_repo }} {{ comfy_runtime }}
-    git -C {{ comfy_runtime }} fetch --depth 1 origin {{ comfy_commit }}
-    git -C {{ comfy_runtime }} checkout --detach --quiet FETCH_HEAD
-    test "$(git -C {{ comfy_runtime }} rev-parse HEAD)" = "{{ comfy_commit }}" || (echo "checkout is not at {{ comfy_commit }}" && exit 1)
+    test -f {{ comfy_main }} || git clone --filter=blob:none --no-checkout {{ comfy_repo }} {{ comfy_runtime }}
+    @if test -d {{ comfy_runtime }}/.git; then \
+        git -C {{ comfy_runtime }} fetch --depth 1 origin {{ comfy_commit }} && \
+        git -C {{ comfy_runtime }} checkout --detach --quiet FETCH_HEAD && \
+        test "$(git -C {{ comfy_runtime }} rev-parse HEAD)" = "{{ comfy_commit }}" || \
+        (echo "checkout is not at {{ comfy_commit }}" && exit 1); \
+    else \
+        grep -q "{{ comfy_commit }}" {{ comfy_runtime }}/.comfy-source || \
+        (echo "{{ comfy_runtime }} is not {{ comfy_commit }} -> just provision-clean" && exit 1); \
+    fi
     @echo "source: {{ comfy_runtime }} @ {{ comfy_version }} ({{ comfy_commit }})"
 
 provision-comfy-python:
@@ -202,8 +213,8 @@ provision-comfy-venv: provision-comfy-fetch provision-comfy-python
     test -f {{ comfy_lock }} || (echo "no {{ comfy_lock }} -> just provision-comfy-lock" && exit 1)
     test -x {{ comfy_venv }}/bin/python || {{ comfy_python }} -m venv {{ comfy_venv }}
     cp {{ comfy_lock }} {{ comfy_runtime_lock }}
-    {{ comfy_venv }}/bin/pip install --upgrade "pip=={{ comfy_pip_version }}"
-    {{ comfy_venv }}/bin/pip install --requirement {{ comfy_runtime_lock }} --extra-index-url {{ comfy_torch_index }}
+    test "$({{ comfy_venv }}/bin/pip --version | cut -d' ' -f2)" = "{{ comfy_pip_version }}" || {{ comfy_venv }}/bin/pip install --upgrade "pip=={{ comfy_pip_version }}"
+    {{ comfy_venv }}/bin/pip install --require-hashes --requirement {{ comfy_runtime_lock }} --extra-index-url {{ comfy_torch_index }}
     @echo "env: {{ comfy_venv }} ($({{ comfy_venv }}/bin/python --version), torch $({{ comfy_venv }}/bin/python -c 'import torch; print(torch.__version__)'))"
 
 provision-comfy-install: provision-comfy-venv
@@ -214,16 +225,27 @@ provision-comfy-install: provision-comfy-venv
 
 provision-comfy: provision-comfy-install
 
-# maintainer step: re-freeze the committed lock when version/commit move
 provision-comfy-lock:
-    {{ comfy_venv }}/bin/pip freeze > {{ comfy_lock }}
-    @echo "lock: {{ comfy_lock }} ($(wc -l < {{ comfy_lock }}) pins)"
+    mkdir -p {{ provision_dir }}
+    {{ comfy_venv }}/bin/pip freeze --exclude-editable > {{ comfy_lock_pins }}
+    {{ comfy_venv }}/bin/uv pip compile \
+        --generate-hashes \
+        --no-header \
+        --no-build \
+        --python-version {{ comfy_python_minor }} \
+        --index-strategy unsafe-best-match \
+        --extra-index-url {{ comfy_torch_index }} \
+        {{ comfy_lock_pins }} \
+        --output-file {{ comfy_lock }}
+    rm -f {{ comfy_lock_pins }}
+    @echo "lock: {{ comfy_lock }} ($(grep -c '^[a-zA-Z0-9]' {{ comfy_lock }}) pins, $(grep -c 'hash=' {{ comfy_lock }}) hashes)"
 
 # release artifact: source + interpreter, no venv, no models
 provision-comfy-bundle: provision-comfy-install
+    echo "{{ comfy_repo }} {{ comfy_commit }} ({{ comfy_version }})" > {{ comfy_runtime }}/.comfy-source
     tar --create --zstd --file {{ comfy_bundle }} \
         --exclude=./venv --exclude=./models --exclude=./output --exclude=./input --exclude=./user \
-        --exclude=__pycache__ --exclude=./comfy_ui.log \
+        --exclude=./.git --exclude=__pycache__ --exclude=./comfy_ui.log \
         --directory {{ comfy_runtime }} .
     sha256sum {{ comfy_bundle }} > {{ comfy_bundle }}.sha256
     @echo "bundle: {{ comfy_bundle }} ($(du -h {{ comfy_bundle }} | cut -f1)), lock: {{ comfy_lock }}"

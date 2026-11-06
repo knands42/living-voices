@@ -10,8 +10,16 @@ use crate::provision::helper::llama_server_binary;
 pub const PREFERRED_PORT: u16 = 11_435;
 const PORT_SEARCH_LIMIT: u16 = 10;
 
-/// Prompt plus reply has to fit: llama.cpp's own default is far too small.
+/// Prompt plus reply has to fit: llama.cpp's own default is far too small
 const CONTEXT_SIZE: u16 = 8_192;
+
+/// Offload every layer that fits in VRAM and keep the rest on the CPU
+const GPU_LAYERS: &str = "auto";
+
+/// Quantised KV cache roughly halves the context footprint, which is what lets
+/// `CONTEXT_SIZE` fit an 8 GiB budget
+const FLASH_ATTENTION: &str = "on";
+const KV_CACHE_TYPE: &str = "q8_0";
 
 const READY_TIMEOUT: Duration = Duration::from_secs(180);
 const READY_POLL: Duration = Duration::from_millis(500);
@@ -55,6 +63,11 @@ impl LlamaServer {
             .arg(CONTEXT_SIZE.to_string())
             .arg("--alias")
             .arg(alias)
+            .args(["--gpu-layers", GPU_LAYERS])
+            .args(["--flash-attn", FLASH_ATTENTION])
+            .args(["--cache-type-k", KV_CACHE_TYPE])
+            .args(["--cache-type-v", KV_CACHE_TYPE])
+            .arg("--jinja")
             .stdin(Stdio::null())
             .stdout(stdout)
             .stderr(stderr)
@@ -168,6 +181,36 @@ mod test {
         std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
     }
 
+    /// Same stand-in, but it spills the arguments it was given into `argv`.
+    #[cfg(unix)]
+    fn recording_server(path: &Path, argv: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("dirs");
+        let script = format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}'\nexec sleep 30\n",
+            argv.display()
+        );
+        std::fs::write(path, script).expect("write");
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    }
+
+    /// The child writes the file itself, so reading it needs to wait for the shell.
+    #[cfg(unix)]
+    fn wait_for_argv(argv: &Path) -> Vec<String> {
+        for _ in 0..100 {
+            if let Ok(text) = std::fs::read_to_string(argv)
+                && !text.is_empty()
+            {
+                return text.lines().map(str::to_string).collect();
+            }
+
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+
+        panic!("the fake server never recorded its arguments");
+    }
+
     #[test]
     fn spawn_reports_a_missing_binary() {
         // given a model but nothing built yet
@@ -236,6 +279,57 @@ mod test {
         assert!(!server.is_running(), "child should be dead");
 
         std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn spawn_hands_the_engine_its_offload_and_cache_flags() {
+        // given a binary that reports what it was called with
+        let base = scratch("flags");
+        let binary = base.join("llama-server");
+        let argv = base.join("argv.txt");
+        let port = LlamaServer::get_available_port();
+        recording_server(&binary, &argv);
+
+        let model = base.join("model.gguf");
+        std::fs::write(&model, b"GGUF").expect("write");
+
+        // when
+        let mut server = LlamaServer::spawn_at(&binary, &model, "test-model", port).expect("spawn");
+        let recorded = wait_for_argv(&argv);
+
+        // then the model, context and alias survive the refactor
+        assert!(recorded.iter().any(|arg| arg == "8192"), "{recorded:?}");
+        assert!(
+            recorded.iter().any(|arg| arg == "test-model"),
+            "{recorded:?}"
+        );
+
+        // and the GPU offload, Flash Attention, quantised cache and jinja are set
+        assert_pair(&recorded, "--gpu-layers", "auto");
+        assert_pair(&recorded, "--flash-attn", "on");
+        assert_pair(&recorded, "--cache-type-k", "q8_0");
+        assert_pair(&recorded, "--cache-type-v", "q8_0");
+        assert!(recorded.iter().any(|arg| arg == "--jinja"), "{recorded:?}");
+
+        // when
+        server.stop();
+
+        std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[cfg(unix)]
+    fn assert_pair(argv: &[String], flag: &str, value: &str) {
+        let at = argv
+            .iter()
+            .position(|arg| arg == flag)
+            .unwrap_or_else(|| panic!("missing {flag} in {argv:?}"));
+
+        assert_eq!(
+            argv.get(at + 1).map(String::as_str),
+            Some(value),
+            "{flag} should be followed by {value}: {argv:?}"
+        );
     }
 
     #[test]

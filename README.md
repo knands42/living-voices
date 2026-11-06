@@ -78,13 +78,15 @@ just image-models-all  # then the models you need: video-model-all, audio-model-
 
 The engine never borrows the system python: `./comfyui/python` is a
 python-build-standalone 3.12, the venv is built from it, and every package comes
-from `comfy-requirements.lock` (exact pins). First setup downloads ~4 GB of
+from `comfy-requirements.lock` (exact pins, each with the sha256 of the wheel it
+may install, so installs run `--require-hashes`). First setup downloads ~4 GB of
 torch/nvidia wheels; after that the tree is self-contained.
 
 `just provision-comfy-bundle` produces what the release ships, and nothing else:
-`provision/comfyui-v0.44.1.tar.zst` (checkout + interpreter, 66 MB) plus the
-lock. No venv and no models go in the bundle, the user's first run builds the
-venv from the lock.
+`provision/comfyui-v0.44.1.tar.zst` (checkout + interpreter + hashed lock, 45 MB,
+no `.git`) plus its `.sha256`. No venv and no models go in the bundle; the user's
+first run builds the venv from the lock, and `comfyui/.comfy-source` records the
+commit the tree came from.
 
 ### Execute the App
 ```bash
