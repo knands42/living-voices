@@ -29,6 +29,14 @@ async fn main() {
     env_logger::init();
     log_panics::init();
 
+    #[cfg(feature = "provision")]
+    {
+        let code = provision_llama().await;
+        if code != 0 {
+            std::process::exit(code);
+        }
+    }
+
     let frontend = Frontend::from_args();
 
     let config = Config::new().expect("Failed to initialize config");
