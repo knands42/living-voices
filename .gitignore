@@ -3,4 +3,8 @@
 .idea/
 *.db*
 .kiro/
+.crush/
+.ai-jail
 config-local.toml
+llama/
+provision/

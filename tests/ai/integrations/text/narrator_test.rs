@@ -16,6 +16,7 @@ fn narrator() -> Narrator {
 }
 
 #[tokio::test]
+#[ignore = "requires a running Ollama server"]
 async fn narrator_respond_returns_a_non_empty_narration() {
     let context = [
         PromptTurn::system(
@@ -40,6 +41,7 @@ async fn narrator_respond_returns_a_non_empty_narration() {
 }
 
 #[tokio::test]
+#[ignore = "requires a running Ollama server"]
 async fn narrator_respond_answers_the_latest_player_turn() {
     // A short exchange that ends on the player, so the narrator has a concrete
     // beat to answer rather than a dangling assistant turn.

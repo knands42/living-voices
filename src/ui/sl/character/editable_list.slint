@@ -1,0 +1,106 @@
+import { LineEdit } from "std-widgets.slint";
+import { AppTheme } from "../theme.slint";
+import { IconButton } from "editable_field.slint";
+
+// A vertical list of short texts. With `can-edit` each item gets a ×,
+// and a "+ add" row turns into an input.
+export component EditableList inherits VerticalLayout {
+    in property <[string]> items;
+    in property <bool> can-edit: false;
+    in property <string> add-label: "+ add";
+    in property <string> add-placeholder: "";
+    in property <string> empty-text: "None yet";
+    callback added(string);
+    callback removed(int);
+
+    property <bool> adding: false;
+
+    spacing: 8px;
+
+    for item[index] in root.items: Rectangle {
+        height: 38px;
+        background: AppTheme.field-bg;
+        border-radius: AppTheme.radius-pill;
+        border-width: 1px;
+        border-color: AppTheme.field-border;
+
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 6px;
+            spacing: 8px;
+
+            Text {
+                text: item;
+                color: AppTheme.text-light;
+                font-family: AppTheme.font-body;
+                font-size: AppTheme.font-heading;
+                vertical-alignment: center;
+                overflow: elide;
+                horizontal-stretch: 1;
+            }
+
+            if root.can-edit: remove-area := TouchArea {
+                width: 26px;
+                clicked => { root.removed(index); }
+
+                Text {
+                    text: "×";
+                    color: remove-area.has-hover ? AppTheme.danger : AppTheme.text-muted;
+                    font-size: 20px;
+                }
+            }
+        }
+    }
+
+    if root.items.length == 0 && !root.can-edit: Text {
+        text: root.empty-text;
+        color: AppTheme.text-muted;
+        font-family: AppTheme.font-body;
+        font-size: AppTheme.font-heading;
+        font-italic: true;
+    }
+
+    if root.can-edit && !root.adding: add-area := TouchArea {
+        height: 34px;
+        clicked => { root.adding = true; }
+
+        Text {
+            text: root.add-label;
+            color: add-area.has-hover ? AppTheme.gold-bright : AppTheme.gold;
+            font-family: AppTheme.font-body;
+            font-size: AppTheme.font-heading;
+            horizontal-alignment: left;
+        }
+    }
+
+    if root.can-edit && root.adding: HorizontalLayout {
+        spacing: 8px;
+
+        add-input := LineEdit {
+            placeholder-text: root.add-placeholder;
+            font-size: AppTheme.font-heading;
+            horizontal-stretch: 1;
+            accepted(text) => {
+                if (text != "") {
+                    root.added(text);
+                }
+                root.adding = false;
+            }
+            init => { self.focus(); }
+        }
+        IconButton {
+            glyph: "✓";
+            primary: true;
+            clicked => {
+                if (add-input.text != "") {
+                    root.added(add-input.text);
+                }
+                root.adding = false;
+            }
+        }
+        IconButton {
+            glyph: "✕";
+            clicked => { root.adding = false; }
+        }
+    }
+}

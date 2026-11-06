@@ -15,15 +15,10 @@ use crate::backend::{
         narrator::Narrator,
     },
     persistence::{
-        act_persistence::upsert_act,
-        adventure_persistence::insert_adventure,
-        characters_persistence::{insert_character, insert_relations},
-        db::open_pool,
-        error::PersistenceError,
-        fact_persistence::upsert_facts,
-        lore_persistence::insert_lore,
-        message_persistence::insert_message,
-        narrator_persistence::insert_default_narrator,
+        act_persistence::upsert_act, adventure_persistence::insert_adventure,
+        characters_persistence::insert_character, db::open_pool, error::PersistenceError,
+        fact_persistence::upsert_facts, lore_persistence::insert_lore,
+        message_persistence::insert_message, narrator_persistence::insert_default_narrator,
         state_persistence::upsert_state,
     },
 };
@@ -33,7 +28,8 @@ pub struct SeedCharacter {
     pub description: &'static str,
     pub backstory: &'static str,
     pub appearance: &'static str,
-    pub appearance_prompt: &'static str,
+    pub identity_prompt: &'static str,
+    pub current_outfit: &'static str,
     pub status: &'static str,
     pub traits: &'static [&'static str],
     pub tags: &'static [&'static str],
@@ -106,12 +102,13 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                              copper hair braided tight under a tarred sou'wester. Wears \
                              an oilskin coat two sizes too big, salt-stained at the hem, \
                              and keeps a stub of pencil behind one ear.",
-                appearance_prompt: "Portrait of a young woman in her early twenties, \
-                                    sun-weathered freckled skin, copper hair braided \
-                                    tight under a tarred sou'wester hat, oversized \
-                                    salt-stained oilskin coat, stub of pencil behind one \
-                                    ear, lighthouse lamp room backdrop, painterly fantasy \
-                                    illustration, dramatic lamplight",
+                identity_prompt: "young woman in her early twenties, sun-weathered \
+                                  freckled skin, copper hair braided tight, sharp grey \
+                                  eyes, wiry build, painterly fantasy illustration, \
+                                  dramatic lamplight",
+                current_outfit: "tarred sou'wester hat over the braid, oversized oilskin \
+                                 coat two sizes too big, hem frayed and salt-stained, \
+                                 stub of pencil tucked behind one ear",
                 status: "active",
                 traits: &["Insists on writing everything down", "Afraid of deep water"],
                 tags: &["protagonist", "grounded"],
@@ -125,11 +122,11 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 appearance: "Gaunt old man with a long grey beard and a face lined like \
                              driftwood. Storm-grey eyes, hunched shoulders, and a heavy \
                              wool coat worn over a lamplighter's leather apron.",
-                appearance_prompt: "Portrait of a gaunt old lighthouse keeper, long grey \
-                                    beard, face lined like driftwood, storm-grey eyes, \
-                                    hunched shoulders, heavy wool coat over a \
-                                    lamplighter's leather apron, dim lamp room, painterly \
-                                    fantasy illustration",
+                identity_prompt: "gaunt old man, long grey beard, face lined like \
+                                  driftwood, storm-grey eyes, weathered skin, stooped \
+                                  build, painterly fantasy illustration, dim lamplight",
+                current_outfit: "heavy wool coat worn over a lamplighter's leather apron, \
+                                 worn leather gloves",
                 status: "active",
                 traits: &[
                     "Speaks only in tidal registers",
@@ -148,11 +145,11 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                              spectacles pushed up into her hair. High-collared dark \
                              dress, ink-stained fingers, a tide ledger always tucked \
                              under one arm.",
-                appearance_prompt: "Portrait of a stout elderly harbour clerk, steel-grey \
-                                    bun, wire spectacles pushed up into hair, \
-                                    high-collared dark dress, ink-stained fingers, tide \
-                                    ledger tucked under one arm, harbour office interior, \
-                                    painterly fantasy illustration",
+                identity_prompt: "stout elderly clerk, steel-grey bun, round lined face, \
+                                  wire spectacles pushed up into her hair, ink-stained \
+                                  fingers, painterly fantasy illustration",
+                current_outfit: "high-collared dark dress, a tide ledger tucked under one \
+                                 arm",
                 status: "active",
                 traits: &["Correct about everything inconvenient"],
                 tags: &["ally"],
@@ -251,11 +248,11 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                              greying at the temples and a sharp, sleepless face. Wears a \
                              grey station jumpsuit with commander's tabs and one \
                              perpetually rolled-up sleeve.",
-                appearance_prompt: "Portrait of a woman in her mid-forties, close-cropped \
-                                    black hair greying at the temples, sharp sleepless \
-                                    face, grey station jumpsuit with commander's tabs, one \
-                                    sleeve rolled up, sci-fi observation blister, cinematic \
-                                    lighting",
+                identity_prompt: "woman in her mid-forties, close-cropped black hair \
+                                  greying at the temples, sharp sleepless face, dark \
+                                  tired eyes, spare build, cinematic sci-fi illustration",
+                current_outfit: "grey station jumpsuit with commander's tabs, one sleeve \
+                                 rolled up",
                 status: "active",
                 traits: &["Counts things twice", "Sleeps in the observation blister"],
                 tags: &["protagonist", "gritty"],
@@ -271,11 +268,11 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                              thin scar along one jaw. Engineer's coveralls with rolled \
                              sleeves, a tool harness across his chest, and a battered \
                              wristwatch on each arm.",
-                appearance_prompt: "Portrait of a lean man in his late twenties, undercut \
-                                    black hair, thin scar along one jaw, engineer's \
-                                    coveralls with rolled sleeves, tool harness across the \
-                                    chest, a battered wristwatch on each arm, sci-fi \
-                                    station interior, cinematic lighting",
+                identity_prompt: "lean man in his late twenties, undercut black hair, thin \
+                                  scar along one jaw, dark eyes, wiry build, cinematic \
+                                  sci-fi illustration",
+                current_outfit: "engineer's coveralls with rolled sleeves, tool harness \
+                                 across the chest, a battered wristwatch on each arm",
                 status: "active",
                 traits: &["Keeps a private clock", "Hums when he recalibrates"],
                 tags: &["ally"],
@@ -289,11 +286,12 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 appearance: "Not humanoid: a column of pale station-light threaded with \
                              floating glass panels and thin blue wireframe lines. Where a \
                              face should be, a single blinking audit cursor.",
-                appearance_prompt: "Non-humanoid entity: a column of pale station light \
-                                    threaded with floating glass panels and thin blue \
-                                    wireframe lines, a single blinking audit cursor where \
-                                    a face would be, dark sci-fi station interior, cinematic \
-                                    lighting",
+                identity_prompt: "non-humanoid entity, a column of pale station light \
+                                  threaded with floating glass panels and thin blue \
+                                  wireframe lines, a single blinking audit cursor where a \
+                                  face would be, cinematic sci-fi illustration",
+                current_outfit: "glass panel housings hanging open, blue wireframe cables \
+                                 trailing down to the deck",
                 status: "active",
                 traits: &[
                     "Answers only to a named officer",
@@ -401,11 +399,10 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                              back from hollow cheeks. Charcoal-grey coat with ash on the \
                              cuffs, dark gloves, and the fixed stillness of someone \
                              used to waiting.",
-                appearance_prompt: "Portrait of a tall stooped man in his late thirties, \
-                                    black hair swept back from hollow cheeks, charcoal-grey \
-                                    coat with ash on the cuffs, dark gloves, fixed watchful \
-                                    stillness, ash-court antechamber, dark historical \
-                                    painterly illustration",
+                identity_prompt: "tall stooped man in his late thirties, black hair swept \
+                                  back from hollow cheeks, pale watchful eyes, long drawn \
+                                  face, dark historical painterly illustration",
+                current_outfit: "charcoal-grey coat with ash on the cuffs, dark gloves",
                 status: "active",
                 traits: &["Patient past reason", "Cannot read aloud"],
                 tags: &["protagonist", "political"],
@@ -419,10 +416,10 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 appearance: "Broad-shouldered younger man with a shaved head and a burn \
                              scar running up one forearm. Dark wool coat, bare hands, and \
                              eyes that do not look away.",
-                appearance_prompt: "Portrait of a broad-shouldered young man with a shaved \
-                                    head, burn scar running up one forearm, dark wool coat, \
-                                    bare hands, unwavering gaze, ash-court antechamber, dark \
-                                    historical painterly illustration",
+                identity_prompt: "broad-shouldered young man, shaved head, burn scar \
+                                  running up one forearm, unwavering pale eyes, square jaw, \
+                                  dark historical painterly illustration",
+                current_outfit: "dark wool coat, bare hands",
                 status: "active",
                 traits: &["Reads aloud without flinching", "Counts ash-book entries"],
                 tags: &["protagonist", "action-heavy"],
@@ -436,11 +433,11 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 appearance: "Androgynous figure of indeterminate age in ash-grey robes, \
                              face smudged with soot, one eye clouded white. Carries a \
                              cinder-stained book pressed flat against the chest.",
-                appearance_prompt: "Portrait of an androgynous figure of indeterminate age \
-                                    in ash-grey robes, face smudged with soot, one eye \
-                                    clouded white, cinder-stained book pressed flat against \
-                                    the chest, ash-court, dark historical painterly \
-                                    illustration",
+                identity_prompt: "androgynous figure of indeterminate age, face smudged \
+                                  with soot, one eye clouded white, gaunt build, dark \
+                                  historical painterly illustration",
+                current_outfit: "ash-grey robes, cinder-stained book pressed flat against \
+                                 the chest",
                 status: "inactive",
                 traits: &["Answers to no one in particular"],
                 tags: &["mentor"],
@@ -602,7 +599,8 @@ async fn seed_connection(
             false,
         )
         .with_appearance(seed_character.appearance)
-        .with_appearance_portrait_prompt(seed_character.appearance_prompt);
+        .with_appearance_identity_prompt(seed_character.identity_prompt)
+        .with_appearance_current_outfit(seed_character.current_outfit);
 
         for trait_ in seed_character.traits {
             character.add_trait((*trait_).to_string());
@@ -638,23 +636,20 @@ async fn seed_connection(
     );
     characters.push(player);
 
-    for character in &characters {
-        insert_character(&mut *tx, adventure_summary.id, character).await?;
-    }
-
+    // Relations are free text on the character row, so they must be set before the
+    // insert; the cast is only used to catch a seed that points at an unknown name.
     for (seed_character, character) in seed.characters.iter().zip(characters.iter_mut()) {
-        let mut relations = HashMap::new();
         for (target_name, relation) in seed_character.relations {
-            let target_id = *ids_by_name
-                .get(*target_name)
-                .ok_or_else(|| PersistenceError::unknown_seed_character(seed, target_name))?;
+            if !ids_by_name.contains_key(*target_name) {
+                return Err(PersistenceError::unknown_seed_character(seed, target_name));
+            }
 
-            relations.insert(target_id, (*relation).to_string());
             character.add_relation(format!("{relation}: {target_name}"));
         }
-        if !relations.is_empty() {
-            insert_relations(&mut *tx, character.id, &relations).await?;
-        }
+    }
+
+    for character in &characters {
+        insert_character(&mut *tx, adventure_summary.id, character).await?;
     }
 
     let mut active_act_id: Option<Uuid> = None;

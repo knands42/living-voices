@@ -7,24 +7,25 @@ use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, Fact, State};
 use crate::backend::domain::message::Message;
 use crate::ui::{
-    ActAuthorView, ActView, AdventureSummaryView, AdventureView, BuilderView, CharacterView,
-    FactView, MessageView, StateView,
+    ActAuthorView, ActView, AdventureSummaryView, AdventureView, BuilderView, CharacterChatView,
+    CharacterView, FactView, MessageView, StateView,
 };
 use uuid::Uuid;
 
 pub fn adventure_view(adventure: Option<&Adventure>) -> AdventureView {
     match adventure {
         Some(adventure) => {
-            let characters: Vec<CharacterView> = adventure
+            let characters: Vec<CharacterChatView> = adventure
                 .characters
                 .iter()
-                .filter_map(|char| (!char.is_player).then(|| character_view(char)))
+                .filter(|&char| !char.is_player)
+                .map(character_chat_view)
                 .collect();
             let player = adventure
                 .characters
                 .iter()
                 .find(|c| c.is_player)
-                .map(character_view)
+                .map(character_chat_view)
                 .unwrap_or_default();
 
             AdventureView {
@@ -62,18 +63,25 @@ pub fn builder_view(adventure: Option<&Adventure>, acts: &[Act], has_opening: bo
 
     match adventure {
         Some(adventure) => {
-            let cast: Vec<CharacterView> = adventure
+            let cast_members: Vec<&Character> = adventure
                 .characters
                 .iter()
-                .filter(|c| !c.is_player)
-                .map(cast_badge_view)
+                .filter(|character| !character.is_player)
+                .collect();
+            let cast: Vec<CharacterChatView> = cast_members
+                .iter()
+                .map(|character| character_chat_view(character))
                 .collect();
 
             let act_views: Vec<ActAuthorView> = acts.iter().map(act_author_view).collect();
 
-            let story_done =
-                !adventure.headline.trim().is_empty() && adventure.tone.trim() != PLACEHOLDER_TONE;
-            let cast_done = !cast.is_empty();
+            let story_done = !adventure.headline.trim().is_empty()
+                && !adventure.lore.text.trim().is_empty()
+                && adventure.tone.trim() != PLACEHOLDER_TONE;
+            // A character whose page was opened but never filled in is not a cast yet.
+            let cast_done = cast_members
+                .iter()
+                .any(|character| !character.is_placeholder());
             let acts_done = acts.iter().any(|act| act.is_valid_act());
             let opening_done = has_opening;
             let ready_count = [story_done, cast_done, acts_done, opening_done]
@@ -88,6 +96,7 @@ pub fn builder_view(adventure: Option<&Adventure>, acts: &[Act], has_opening: bo
                 status: SharedString::from(adventure.status.to_string()),
                 narrator_name: SharedString::from(adventure.narrator.name.clone()),
                 tone: SharedString::from(adventure.tone.clone()),
+                lore: SharedString::from(adventure.lore.text.clone()),
                 cast: ModelRc::new(VecModel::from(cast)),
                 acts: ModelRc::new(VecModel::from(act_views)),
                 story_done,
@@ -110,25 +119,41 @@ fn act_author_view(act: &Act) -> ActAuthorView {
     }
 }
 
-// A cast badge shows two-letter initials rather than the full name.
-fn cast_badge_view(character: &Character) -> CharacterView {
+pub fn character_view(character: &Character) -> CharacterView {
     CharacterView {
         id: SharedString::from(character.id.to_string()),
-        name: SharedString::from(initials(&character.name)),
-        headline: SharedString::from(character.headline.clone()),
-        is_player: character.is_player,
+        adventure_id: SharedString::from(character.adventure_id.to_string()),
+        name: SharedString::from(character.name.clone()),
+        initials: SharedString::from(initials(&character.name)),
         hue: name_hue(&character.name),
+        headline: SharedString::from(character.headline.clone()),
+        status: SharedString::from(character.status.as_str()),
+        backstory: SharedString::from(character.backstory.clone()),
+        appearance: SharedString::from(character.appearance.clone().unwrap_or_default()),
+        appearance_identity_prompt: optional_text(&character.appearance_identity_prompt),
+        appearance_current_outfit: optional_text(&character.appearance_current_outfit),
+        appearance_current_pose: optional_text(&character.appearance_current_pose),
+        portrait_path: optional_text(&character.portrait_path),
+        is_player: character.is_player,
+        traits: string_model(&character.traits),
+        tags: string_model(&character.tags),
+        relations: string_model(&character.relations),
     }
+}
+
+fn optional_text(value: &Option<String>) -> SharedString {
+    SharedString::from(value.clone().unwrap_or_default())
 }
 
 fn initials(name: &str) -> String {
     name.chars().take(2).collect::<String>().to_uppercase()
 }
 
-fn character_view(character: &Character) -> CharacterView {
-    CharacterView {
+fn character_chat_view(character: &Character) -> CharacterChatView {
+    CharacterChatView {
         id: SharedString::from(character.id.to_string()),
         name: SharedString::from(character.name.clone()),
+        initials: SharedString::from(initials(&character.name)),
         headline: SharedString::from(character.headline.clone()),
         is_player: character.is_player,
         hue: name_hue(&character.name),

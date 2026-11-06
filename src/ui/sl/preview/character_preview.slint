@@ -1,0 +1,24 @@
+import { CharacterPage } from "../character/character_page.slint";
+
+export component CharacterPagePreview inherits CharacterPage {
+    can-edit: true;
+    character: {
+        id: "c-1",
+        adventure-id: "adv-1",
+        name: "Mara Venn",
+        initials: "MA",
+        hue: 38,
+        headline: "A wary smuggler with salt in her coat",
+        status: "present",
+        backstory: "Her brother walked out on the tide flat one night and never came home. She has read every chart since, and trusts none of them.",
+        appearance: "Copper hair braided against the wind, grey eyes that count the exits before she sits.",
+        appearance-portrait-prompt: "portrait of a copper-haired smuggler",
+        appearance-full-body-prompt: "",
+        appearance-current-pose: "",
+        portrait-path: "",
+        is-player: false,
+        traits: ["speaks in tidal registers", "never sits with her back to a door"],
+        tags: ["smuggler", "wary", "tide-born"],
+        relations: ["rival: Kael", "owes a debt: You"],
+    };
+}

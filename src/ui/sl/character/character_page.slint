@@ -1,0 +1,204 @@
+import { AppTheme } from "../theme.slint";
+import { CharacterView } from "../views.slint";
+import { FieldCaption } from "../builder/components.slint";
+import { CharacterGlobals } from "globals.slint";
+import { EditableField } from "editable_field.slint";
+import { EditableList } from "editable_list.slint";
+import { PortraitCard } from "portrait_card.slint";
+
+export { CharacterGlobals }
+
+// A titled card holding one field.
+component InfoCard inherits Rectangle {
+    in property <string> caption;
+
+    background: AppTheme.bg-panel;
+    border-radius: AppTheme.radius-card;
+    border-width: 1px;
+    border-color: AppTheme.field-border;
+
+    VerticalLayout {
+        padding: 18px;
+        spacing: 8px;
+
+        FieldCaption { text: root.caption; }
+        @children
+    }
+}
+
+// Read-only for everyone; the owner gets a pencil on each field.
+export component CharacterPage inherits Rectangle {
+    in property <CharacterView> character: CharacterGlobals.character;
+    in property <bool> can-edit: CharacterGlobals.can-edit;
+    callback back-requested();
+
+    // Every field is saved on its own, so the other values are sent unchanged.
+    // The character being edited is whatever the page shows, so no id travels here.
+    function save(name: string, headline: string, backstory: string, appearance: string) {
+        CharacterGlobals.save-character({
+            name: name,
+            headline: headline,
+            backstory: backstory,
+            appearance: appearance,
+        });
+    }
+
+    background: AppTheme.bg-deepest;
+
+    VerticalLayout {
+        Rectangle {
+            height: 64px;
+            background: AppTheme.bg-panel;
+            border-width: 1px;
+            border-color: AppTheme.bronze;
+
+            HorizontalLayout {
+                padding-left: 22px;
+                padding-right: 22px;
+                spacing: 12px;
+
+                back-area := TouchArea {
+                    width: 32px;
+                    clicked => { root.back-requested(); }
+
+                    Text {
+                        text: "‹";
+                        color: back-area.has-hover ? AppTheme.gold-bright : AppTheme.gold;
+                        font-family: AppTheme.font-display;
+                        font-size: AppTheme.font-title + 6px;
+                    }
+                }
+
+                Text {
+                    text: "CAST";
+                    color: AppTheme.text-muted;
+                    font-family: AppTheme.font-brand;
+                    font-size: AppTheme.font-label + 1px;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: root.character.name;
+                    color: AppTheme.gold;
+                    font-family: AppTheme.font-display;
+                    font-size: AppTheme.font-title;
+                    vertical-alignment: center;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                }
+
+                if root.can-edit: Rectangle {
+                    width: owner-label.preferred-width + 28px;
+                    height: 28px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: AppTheme.radius-pill;
+                    border-width: 1px;
+                    border-color: AppTheme.gold;
+
+                    owner-label := Text {
+                        text: "OWNER · EDITING";
+                        color: AppTheme.gold;
+                        font-family: AppTheme.font-brand;
+                        font-size: AppTheme.font-label;
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            padding: 22px;
+            spacing: 20px;
+
+            PortraitCard {
+                width: 290px;
+                character: root.character;
+                can-edit: root.can-edit;
+                name-committed(text) => {
+                    root.save(text, root.character.headline, root.character.backstory,
+                        root.character.appearance);
+                }
+                tag-added(text) => { CharacterGlobals.add-tag(root.character.id, text); }
+                tag-removed(index) => { CharacterGlobals.remove-tag(root.character.id, index); }
+            }
+
+            Flickable {
+                horizontal-stretch: 1;
+
+                VerticalLayout {
+                    alignment: start;
+                    spacing: 14px;
+
+                    InfoCard {
+                        caption: "HEADLINE";
+                        EditableField {
+                            value: root.character.headline;
+                            can-edit: root.can-edit;
+                            committed(text) => {
+                                root.save(root.character.name, text, root.character.backstory,
+                                    root.character.appearance);
+                            }
+                        }
+                    }
+
+                    InfoCard {
+                        caption: "BACKSTORY";
+                        EditableField {
+                            value: root.character.backstory;
+                            can-edit: root.can-edit;
+                            multiline: true;
+                            committed(text) => {
+                                root.save(root.character.name, root.character.headline, text,
+                                    root.character.appearance);
+                            }
+                        }
+                    }
+
+                    InfoCard {
+                        caption: "APPEARANCE";
+                        EditableField {
+                            value: root.character.appearance;
+                            can-edit: root.can-edit;
+                            multiline: true;
+                            committed(text) => {
+                                root.save(root.character.name, root.character.headline,
+                                    root.character.backstory, text);
+                            }
+                        }
+                    }
+
+                    InfoCard {
+                        caption: "TRAITS";
+                        EditableList {
+                            items: root.character.traits;
+                            can-edit: root.can-edit;
+                            add-label: "+ add trait";
+                            add-placeholder: "speaks only in tidal registers";
+                            empty-text: "speaks like is singing";
+                            added(text) => { CharacterGlobals.add-trait(root.character.id, text); }
+                            removed(index) => {
+                                CharacterGlobals.remove-trait(root.character.id, index);
+                            }
+                        }
+                    }
+
+                    InfoCard {
+                        caption: "RELATIONS";
+                        EditableList {
+                            items: root.character.relations;
+                            can-edit: root.can-edit;
+                            add-label: "+ add relation";
+                            add-placeholder: "father of the Duke";
+                            empty-text: "No relations yet";
+                            added(text) => {
+                                CharacterGlobals.add-relation(root.character.id, text);
+                            }
+                            removed(index) => {
+                                CharacterGlobals.remove-relation(root.character.id, index);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

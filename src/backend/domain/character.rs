@@ -2,8 +2,9 @@ use std::{fmt::Display, vec};
 
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum CharacterStatus {
+    #[default]
     Present,
     Away,
     Unavailable,
@@ -51,10 +52,12 @@ impl Display for CharacterStatus {
     }
 }
 
-impl Default for CharacterStatus {
-    fn default() -> Self {
-        CharacterStatus::Present
-    }
+/// How much of the character an image should show. None of the image prompt slots
+/// know about framing: it is applied when the finished prompt is assembled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageFraming {
+    Portrait,
+    FullBody,
 }
 
 #[derive(Clone, Debug)]
@@ -67,9 +70,11 @@ pub struct Character {
     pub backstory: String,
     /// Used for a "poetic" description of the character
     pub appearance: Option<String>,
-    /// Used for image generation
-    pub appearance_portrait_prompt: Option<String>,
-    pub appearance_full_body_prompt: Option<String>,
+    /// Face, hair, build and marks: who the character is, without clothing or pose.
+    pub appearance_identity_prompt: Option<String>,
+    /// What the character wears right now, kept apart from identity so it can change.
+    pub appearance_current_outfit: Option<String>,
+    /// The pose and action of the current moment.
     pub appearance_current_pose: Option<String>,
     pub portrait_path: Option<String>,
     pub is_player: bool,
@@ -80,6 +85,9 @@ pub struct Character {
 
 impl Character {
     pub const DEFAULT_PLAYER_NAME: &'static str = "You";
+    /// The name a character carries from the moment its page opens until the
+    /// player types a real one. A character still wearing it is not a cast member.
+    pub const PLACEHOLDER_NAME: &'static str = "New character";
 
     pub fn new(
         id: Uuid,
@@ -97,8 +105,8 @@ impl Character {
             headline: headline.into(),
             backstory: backstory.into(),
             appearance: None,
-            appearance_portrait_prompt: None,
-            appearance_full_body_prompt: None,
+            appearance_identity_prompt: None,
+            appearance_current_outfit: None,
             appearance_current_pose: None,
             status,
             portrait_path: None,
@@ -107,6 +115,26 @@ impl Character {
             tags: vec![],
             relations: vec![],
         }
+    }
+
+    /// The character a fresh page edits. It is persisted immediately so every field
+    /// can be saved on its own, but it carries nothing yet — the name is a
+    /// placeholder the player is expected to replace.
+    pub fn draft(adventure_id: Uuid) -> Self {
+        Self::new(
+            Uuid::new_v4(),
+            Self::PLACEHOLDER_NAME.to_string(),
+            adventure_id,
+            "",
+            "",
+            CharacterStatus::Present,
+            false,
+        )
+    }
+
+    /// True while the character is still the placeholder its page opened with.
+    pub fn is_placeholder(&self) -> bool {
+        self.name == Self::PLACEHOLDER_NAME
     }
 
     pub fn with_portrait(mut self, portrait_path: impl Into<String>) -> Self {
@@ -119,19 +147,19 @@ impl Character {
         self
     }
 
-    pub fn with_appearance_portrait_prompt(
+    pub fn with_appearance_identity_prompt(
         mut self,
-        appearance_portrait_prompt: impl Into<String>,
+        appearance_identity_prompt: impl Into<String>,
     ) -> Self {
-        self.appearance_portrait_prompt = Some(appearance_portrait_prompt.into());
+        self.appearance_identity_prompt = Some(appearance_identity_prompt.into());
         self
     }
 
-    pub fn with_appearance_full_body_prompt(
+    pub fn with_appearance_current_outfit(
         mut self,
-        appearance_full_body_prompt: impl Into<String>,
+        appearance_current_outfit: impl Into<String>,
     ) -> Self {
-        self.appearance_full_body_prompt = Some(appearance_full_body_prompt.into());
+        self.appearance_current_outfit = Some(appearance_current_outfit.into());
         self
     }
 
@@ -157,6 +185,14 @@ impl Character {
 
     pub fn add_relation(&mut self, relation: String) {
         self.relations.push(relation);
+    }
+
+    /// The visual source an image prompt is built from: the generated identity, or
+    /// the author's own description when they chose to keep theirs as-is.
+    pub fn image_identity(&self) -> Option<&str> {
+        self.appearance_identity_prompt
+            .as_deref()
+            .or(self.appearance.as_deref())
     }
 
     pub fn render(&self) -> String {

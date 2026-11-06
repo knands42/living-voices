@@ -1,0 +1,17 @@
+import { CharacterView, CharacterCreationInput } from "../views.slint";
+
+export global CharacterGlobals {
+    in property <CharacterView> character;
+
+    // Only the owner of     the adventure sees the edit buttons.
+    in property <bool> can-edit: true;
+
+    callback save-character(CharacterCreationInput);
+    callback add-trait(string, string);
+    callback remove-trait(string, int);
+    callback add-tag(string, string);
+    callback remove-tag(string, int);
+    callback add-relation(string, string);
+    callback remove-relation(string, int);
+    callback add-appearance-prompt(string);
+}

@@ -255,12 +255,12 @@ impl Config {
 }
 
 #[cfg(debug_assertions)]
-fn base_dir() -> &'static Path {
+pub fn base_dir() -> &'static Path {
     Path::new(env!("CARGO_MANIFEST_DIR"))
 }
 
 #[cfg(not(debug_assertions))]
-fn base_dir() -> PathBuf {
+pub fn base_dir() -> PathBuf {
     let home = std::env::var("HOME").expect("Fail to get home directory");
-    PathBuf::from(home).join(".living-voice")
+    PathBuf::from(home).join(".living-voices")
 }

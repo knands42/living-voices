@@ -56,7 +56,7 @@ pub fn from_str_to_timestamp(s: &str) -> Result<DateTime<Utc>, PersistenceError>
 }
 
 pub fn from_str_to_uuid(s: &str) -> Result<Uuid, PersistenceError> {
-    Uuid::parse_str(&s).map_err(|e| PersistenceError::Database(sqlx::Error::Decode(Box::new(e))))
+    Uuid::parse_str(s).map_err(|e| PersistenceError::Database(sqlx::Error::Decode(Box::new(e))))
 }
 
 pub fn parse_json_array(value: Option<&str>) -> Result<Vec<String>, PersistenceError> {

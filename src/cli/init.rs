@@ -24,7 +24,7 @@ pub fn run(app: &App<Chat, Narrator, MemoryUpdate, ActClose>) -> io::Result<()> 
     let mut terminal = setup_terminal()?;
     let mut state = CliState::default();
     let runtime = tokio::runtime::Handle::current();
-    let result = event_loop(&mut terminal, &mut state, &app.ctx(), &runtime);
+    let result = event_loop(&mut terminal, &mut state, app.ctx(), &runtime);
     restore_terminal(&mut terminal)?;
     result
 }

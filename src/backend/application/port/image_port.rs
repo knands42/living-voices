@@ -11,11 +11,8 @@ pub enum ImageError {
 pub trait ImageHandler: Send + Sync {
     fn generate_scene(&self, prompt: &str) -> impl Future<Output = Result<(), ImageError>> + Send;
 
-    fn generate_character_portrait(
-        &self,
-        prompt: &str,
-    ) -> impl Future<Output = Result<(), ImageError>> + Send;
-
+    /// One call for every character shot: the caller already decided the framing
+    /// and composed the layers, so the adapter only queues what it is given.
     fn generate_character_image(
         &self,
         prompt: &str,

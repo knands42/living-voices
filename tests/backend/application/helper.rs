@@ -38,26 +38,6 @@ pub async fn setup_db() -> (SqlitePool, TempDb) {
 }
 
 /// One character to create: its name and whether it is the player-controlled one.
-pub struct CharacterSpec {
-    pub name: String,
-    pub is_player: bool,
-}
-
-impl CharacterSpec {
-    pub fn npc(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            is_player: false,
-        }
-    }
-}
-
-impl From<&str> for CharacterSpec {
-    fn from(name: &str) -> Self {
-        CharacterSpec::npc(name)
-    }
-}
-
 pub async fn start_adventure_with_default_cast(
     pool: &SqlitePool,
     state: &SharedState,
@@ -144,39 +124,6 @@ pub async fn start_adventure_with_default_cast(
         .expect("start adventure");
 
     adventure_mgr
-}
-
-pub async fn create_characters(
-    pool: &SqlitePool,
-    adventure_id: Uuid,
-    specs: &[CharacterSpec],
-) -> Vec<Character> {
-    let characters: Vec<Character> = specs
-        .iter()
-        .map(|spec| {
-            Character::new(
-                Uuid::new_v4(),
-                spec.name.clone(),
-                adventure_id,
-                "A diver",
-                "",
-                CharacterStatus::Present,
-                spec.is_player,
-            )
-        })
-        .collect();
-
-    let state = SharedState::new();
-    let text_model_config = Config::new().expect("load config").settings.models.chat;
-    let chat_handler = Chat::new(text_model_config);
-    let character_mgr = CharacterManager::new(state, pool.clone(), chat_handler);
-    for character in &characters {
-        character_mgr
-            .create_character(character.clone())
-            .await
-            .expect("create character");
-    }
-    characters
 }
 
 pub struct SeedLine {

@@ -1,0 +1,72 @@
+import { AppTheme } from "../theme.slint";
+
+// A round initials badge, hue-tinted per character.
+export component CastAvatar inherits Rectangle {
+    in property <string> initials;
+    in property <int> hue;
+
+    width: 36px;
+    height: 36px;
+    border-radius: AppTheme.radius-circle;
+    background: hsv(root.hue, 0.35, 0.45);
+    border-width: 1px;
+    border-color: hsv(root.hue, 0.5, 0.75);
+
+    Text {
+        text: root.initials;
+        color: AppTheme.text-light;
+        font-family: AppTheme.font-body;
+        font-size: root.height * 0.38;
+    }
+}
+
+// A pill-shaped gold action button.
+export component PillButton inherits TouchArea {
+    in property <string> label;
+    in property <bool> enabled-look: true;
+
+    height: 36px;
+
+    Rectangle {
+        background: !root.enabled-look
+            ? AppTheme.btn-brown
+            : (parent.has-hover ? AppTheme.gold-bright : AppTheme.gold);
+        border-radius: AppTheme.radius-pill;
+
+        Text {
+            text: root.label;
+            color: root.enabled-look ? AppTheme.text-ink : AppTheme.text-muted;
+            font-family: AppTheme.font-brand;
+            font-size: AppTheme.font-label;
+        }
+    }
+}
+
+// The heading shown at the top of each main-panel section.
+export component SectionHeader inherits VerticalLayout {
+    in property <string> title;
+    in property <string> subtitle;
+
+    spacing: 2px;
+
+    Text {
+        text: root.title;
+        color: AppTheme.gold;
+        font-family: AppTheme.font-display;
+        font-size: AppTheme.font-title;
+    }
+    Text {
+        text: root.subtitle;
+        color: AppTheme.text-muted;
+        font-family: AppTheme.font-body;
+        font-size: AppTheme.font-label;
+        wrap: word-wrap;
+    }
+}
+
+// A small caps caption above a field.
+export component FieldCaption inherits Text {
+    color: AppTheme.text-muted;
+    font-family: AppTheme.font-brand;
+    font-size: AppTheme.font-label + 1px;
+}

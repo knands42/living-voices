@@ -7,9 +7,10 @@ CREATE TABLE character
     headline                    TEXT    NOT NULL DEFAULT '',
     backstory                   TEXT    NOT NULL DEFAULT '',
     appearance                  TEXT    NULL,
-    appearance_portrait_prompt  TEXT    NULL,
-    appearance_full_body_prompt TEXT    NULL,
+    appearance_identity_prompt  TEXT    NULL,
+    appearance_current_outfit   TEXT    NULL,
     appearance_current_pose     TEXT    NULL,
+    relations                   TEXT    NOT NULL DEFAULT '[]', -- json: ["Brother of Otho"]
     status                      TEXT    NOT NULL DEFAULT 'present',
     portrait_path               TEXT,
     is_player                   INTEGER NOT NULL DEFAULT 0,
@@ -61,21 +62,6 @@ CREATE TRIGGER character_tag_ignore_duplicate_insert
 BEGIN
     SELECT RAISE(IGNORE);
 END;
-
--- Character.relations is a HashMap<Uuid, String>, so there is exactly one
--- relation per target character per direction.
-CREATE TABLE character_relation
-(
-    character_id         TEXT NOT NULL REFERENCES character (id) ON DELETE CASCADE,
-    related_character_id TEXT NOT NULL REFERENCES character (id) ON DELETE CASCADE,
-    relation             TEXT NOT NULL,
-    created_at           TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-
-    PRIMARY KEY (character_id, related_character_id),
-
-    CONSTRAINT character_relation_not_self CHECK (character_id <> related_character_id),
-    CONSTRAINT character_relation_not_blank CHECK (length(trim(relation)) > 0)
-) WITHOUT ROWID;
 
 CREATE TRIGGER character_touch_updated_at
     AFTER UPDATE

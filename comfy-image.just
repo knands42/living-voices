@@ -57,4 +57,4 @@ image-test workflow="tests/ai/image-example-flux-q4.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
-    @echo "Output will be generated at $HOME/.living-voices/comfy/ComfyUI/output"
+    @echo "Output will be generated at {{ comfy_ws }}/output"

@@ -7,8 +7,9 @@ use crate::backend::domain::{
     character::Character, lore::Lore, message::Message, narrator::Narrator,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum AdventureStatus {
+    #[default]
     Draft,
     Private,
     Public,
@@ -29,12 +30,6 @@ impl AdventureStatus {
             "public" => AdventureStatus::Public,
             _ => AdventureStatus::Draft,
         }
-    }
-}
-
-impl Default for AdventureStatus {
-    fn default() -> Self {
-        AdventureStatus::Draft
     }
 }
 
@@ -206,10 +201,10 @@ impl Adventure {
         let mut s = replier.trim();
 
         // Drop a leading header tag like `[CHARACTER]` or `[NARRATOR]`.
-        if let Some(end) = s.find(']') {
-            if s.starts_with('[') {
-                s = s[end + 1..].trim_start();
-            }
+        if let Some(end) = s.find(']')
+            && s.starts_with('[')
+        {
+            s = s[end + 1..].trim_start();
         }
 
         // Drop a trailing `| target: ...` or any trailing `|`/`:` qualifier.

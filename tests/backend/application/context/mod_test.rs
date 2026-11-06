@@ -1,19 +1,17 @@
 use sqlx::{SqliteConnection, sqlite::SqlitePool};
 
-use crate::backend::application::helper::{
-    CharacterSpec, create_characters, setup_db, start_adventure_with_default_cast,
-};
-use living_voices::backend::application::adventure_manager::AdventureManager;
+use crate::backend::application::helper::{setup_db, start_adventure_with_default_cast};
 use living_voices::backend::application::context::{ContextBuilder, ContextData};
 use living_voices::backend::application::director::Director;
-use living_voices::backend::application::port::chat_port::Speaker;
+use living_voices::backend::application::port::chat_port::{PromptTurn, Speaker};
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
-use living_voices::backend::domain::character::Character;
+use living_voices::backend::domain::character::{Character, CharacterStatus, ImageFraming};
 use living_voices::backend::domain::memory::{Fact, Permanence};
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::fact_persistence::upsert_facts;
 use living_voices::config::DirectorSettings;
+use uuid::Uuid;
 
 // region Autonomous prompt
 
@@ -340,6 +338,133 @@ async fn distill_prompt_leads_with_the_distill_instruction_and_the_turns() {
     assert!(joined.contains("Hero: We fled."));
     assert!(joined.contains("Mira: They followed."));
 }
+// endregion
+
+// region Image prompt composition
+
+fn mara(adventure_id: Uuid) -> Character {
+    Character::new(
+        Uuid::new_v4(),
+        "Mara Venn".to_string(),
+        adventure_id,
+        "A tide-singer",
+        "",
+        CharacterStatus::Present,
+        false,
+    )
+    .with_appearance("Copper hair, grey eyes, a salt-stained coat")
+}
+
+fn joined(turns: &[PromptTurn]) -> String {
+    turns
+        .iter()
+        .map(|turn| turn.text.as_str())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[tokio::test]
+async fn identity_prompt_asks_for_identity_only_and_hands_over_the_author_description() {
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = adventure_manager
+        .current_adventure()
+        .expect("adventure to exist on the snapshot");
+    let character = mara(adventure.id);
+
+    let turns = ContextBuilder::build_identity_char_prompt(&adventure, &character, vec![])
+        .expect("identity prompt");
+    let prompt = joined(&turns);
+
+    assert!(turns[0].text.contains("## CHARACTER IDENTITY"));
+    assert!(prompt.contains("Mara Venn"));
+    assert!(prompt.contains("Copper hair, grey eyes, a salt-stained coat"));
+    // Identity never frames the shot: framing is decided when the image is asked for.
+    assert!(!prompt.to_lowercase().contains("head-and-shoulders"));
+}
+
+#[tokio::test]
+async fn outfit_prompt_carries_the_scene_messages() {
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = adventure_manager
+        .current_adventure()
+        .expect("adventure to exist on the snapshot");
+    let character = mara(adventure.id);
+    let messages = vec![Message::new(
+        adventure.id,
+        Some(character.id),
+        None,
+        "Mara Venn".to_string(),
+        "*throws the soaked coat onto the fire*".to_string(),
+        false,
+    )];
+
+    let turns = ContextBuilder::build_outfit_char_prompt(&adventure, &character, vec![], &messages)
+        .expect("outfit prompt");
+    let prompt = joined(&turns);
+
+    assert!(turns[0].text.contains("## CHARACTER CURRENT OUTFIT"));
+    assert!(prompt.contains("*throws the soaked coat onto the fire*"));
+}
+
+#[test]
+fn composed_prompt_stacks_framing_identity_outfit_and_pose() {
+    let mut character = mara(Uuid::new_v4())
+        .with_appearance_identity_prompt("copper hair, grey eyes, wiry build")
+        .with_appearance_current_outfit("oilskin coat two sizes too big")
+        .with_appearance_current_pose("reaching up to trim the lamp wick");
+
+    let full_body =
+        ContextBuilder::compose_character_image_prompt(&character, ImageFraming::FullBody)
+            .expect("composed prompt");
+
+    assert!(full_body.starts_with("full body"));
+    assert!(full_body.contains("copper hair, grey eyes, wiry build"));
+    assert!(full_body.contains("oilskin coat two sizes too big"));
+    assert!(full_body.contains("reaching up to trim the lamp wick"));
+
+    // The pose layer describes a whole-body action, so a portrait drops it.
+    character.appearance_current_pose = Some("reaching up to trim the lamp wick".into());
+    let portrait =
+        ContextBuilder::compose_character_image_prompt(&character, ImageFraming::Portrait)
+            .expect("composed prompt");
+
+    assert!(portrait.starts_with("head and shoulders portrait"));
+    assert!(portrait.contains("oilskin coat two sizes too big"));
+    assert!(!portrait.contains("reaching up to trim the lamp wick"));
+}
+
+#[test]
+fn composed_prompt_falls_back_to_the_author_description() {
+    let character = mara(Uuid::new_v4());
+
+    let prompt = ContextBuilder::compose_character_image_prompt(&character, ImageFraming::Portrait)
+        .expect("composed prompt");
+
+    assert!(prompt.contains("Copper hair, grey eyes, a salt-stained coat"));
+}
+
+#[test]
+fn composed_prompt_is_none_without_any_visual_source() {
+    let character = Character::new(
+        Uuid::new_v4(),
+        "Nameless".to_string(),
+        Uuid::new_v4(),
+        "",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
+
+    assert!(
+        ContextBuilder::compose_character_image_prompt(&character, ImageFraming::FullBody)
+            .is_none()
+    );
+}
+
 // endregion
 
 // region DB fixtures

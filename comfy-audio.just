@@ -17,13 +17,13 @@ audio-music-test workflow="tests/ai/audio-example-ace.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
-    @echo "Output will be generated at $HOME/.living-voices/comfy/ComfyUI/output"
+    @echo "Output will be generated at {{ comfy_ws }}/output"
 
 audio-song-test workflow="tests/ai/audio-example-ace15xl-song.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
-    @echo "Output will be generated at $HOME/.living-voices/comfy/ComfyUI/output"
+    @echo "Output will be generated at {{ comfy_ws }}/output"
 
 # ---- F5-TTS (character speech) ----
 # Install the ComfyUI-F5-TTS custom.
@@ -42,7 +42,7 @@ audio-tts-test workflow="tests/ai/audio-example-f5tts.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
-    @echo "Output will be generated at $HOME/.living-voices/comfy/ComfyUI/output"
+    @echo "Output will be generated at {{ comfy_ws }}/output"
 
 # ---- IndexTTS-2 (character speech, emotion control) ----
 # One voice clip -> 8 emotion dials + emotion-from-text.
@@ -64,7 +64,7 @@ audio-index-test workflow="tests/ai/audio-example-index.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
-    @echo "Output will be generated at $HOME/.living-voices/comfy/ComfyUI/output"
+    @echo "Output will be generated at {{ comfy_ws }}/output"
 
 
 audio-model-all: audio-index-model audio-model-ace15xl audio-index-node

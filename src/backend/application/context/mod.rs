@@ -74,7 +74,7 @@ impl ContextBuilder {
     }
 
     fn build_static_context(data: &ContextData) -> String {
-        let final_prompt = vec![
+        let final_prompt = [
             "## CONTEXT".to_string(),
             Self::build_acts_prompt(data),
             Self::build_current_state(data),
@@ -122,10 +122,10 @@ impl ContextBuilder {
     }
 
     fn build_current_state(data: &ContextData) -> String {
-        if let Some(state) = &data.state {
-            if let Some(rendered) = state.render() {
-                return format!("### CURRENT STATE\n{rendered}");
-            }
+        if let Some(state) = &data.state
+            && let Some(rendered) = state.render()
+        {
+            return format!("### CURRENT STATE\n{rendered}");
         }
 
         String::new()

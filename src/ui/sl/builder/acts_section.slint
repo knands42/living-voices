@@ -1,0 +1,103 @@
+import { AppTheme } from "../theme.slint";
+import { BuilderView } from "../views.slint";
+import { PillButton, SectionHeader } from "components.slint";
+
+export component ActsSection inherits VerticalLayout {
+    in property <BuilderView> builder;
+    callback add-requested();
+
+    padding: 28px;
+    spacing: 20px;
+
+    HorizontalLayout {
+        SectionHeader {
+            title: "Acts";
+            subtitle: "The story's movements, in order. Each act has a goal.";
+            horizontal-stretch: 1;
+        }
+        PillButton {
+            label: "+ Add act";
+            width: 120px;
+            clicked => { root.add-requested(); }
+        }
+    }
+
+    if builder.acts.length == 0: Rectangle {
+        background: AppTheme.bg-panel;
+        border-radius: AppTheme.radius-card;
+        border-width: 1px;
+        border-color: AppTheme.bronze;
+        vertical-stretch: 1;
+
+        Text {
+            text: "No acts yet — add the first movement.";
+            color: AppTheme.text-muted;
+            font-family: AppTheme.font-body;
+            font-size: AppTheme.font-label;
+        }
+    }
+
+    if builder.acts.length > 0: VerticalLayout {
+        spacing: 10px;
+        alignment: start;
+        vertical-stretch: 1;
+
+        for act in builder.acts: Rectangle {
+            height: 66px;
+            background: AppTheme.bg-panel;
+            border-radius: AppTheme.radius-card;
+            border-width: 1px;
+            border-color: act.valid ? AppTheme.bronze : AppTheme.amber-glow;
+
+            HorizontalLayout {
+                padding: 14px;
+                spacing: 14px;
+
+                Rectangle {
+                    width: 30px;
+                    height: 30px;
+                    border-radius: AppTheme.radius-circle;
+                    background: AppTheme.bg-panel-alt;
+                    border-width: 1px;
+                    border-color: AppTheme.gold;
+
+                    Text {
+                        text: act.ordinal + 1;
+                        color: AppTheme.gold;
+                        font-family: AppTheme.font-display;
+                        font-size: AppTheme.font-label;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 2px;
+                    horizontal-stretch: 1;
+
+                    Text {
+                        text: act.valid ? act.goal : "— needs a goal —";
+                        color: act.valid ? AppTheme.text-light : AppTheme.amber-glow;
+                        font-family: AppTheme.font-body;
+                        font-size: AppTheme.font-heading;
+                        wrap: word-wrap;
+                    }
+                    Text {
+                        text: act.trigger == ""
+                            ? "no trigger — follows on"
+                            : "trigger: " + act.trigger;
+                        color: AppTheme.text-muted;
+                        font-family: AppTheme.font-body;
+                        font-size: AppTheme.font-tiny;
+                    }
+                }
+            }
+        }
+    }
+
+    Text {
+        text: "At least one act with a real goal is required.";
+        color: AppTheme.text-muted;
+        font-family: AppTheme.font-body;
+        font-size: AppTheme.font-tiny;
+    }
+}

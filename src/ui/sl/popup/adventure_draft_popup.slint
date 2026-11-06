@@ -1,0 +1,120 @@
+import { LineEdit } from "std-widgets.slint";
+import { AppTheme } from "../theme.slint";
+
+export component AdventureDraftCreationPopup inherits Rectangle {
+    callback submit(string, string);
+    callback dismiss();
+
+    background: AppTheme.scrim;
+
+    // Dismiss when the screen behind the card is clicked.
+    TouchArea {
+        clicked => { root.dismiss(); }
+    }
+
+    Rectangle {
+        width: 440px;
+        height: card-layout.preferred-height;
+        background: AppTheme.bg-panel;
+        border-radius: AppTheme.radius-card;
+        border-width: 1px;
+        border-color: AppTheme.bronze;
+
+        // Swallow clicks so tapping the card does not dismiss the overlay.
+        TouchArea {}
+
+        card-layout := VerticalLayout {
+            padding: 24px;
+            spacing: 16px;
+
+            Text {
+                text: "New adventure";
+                color: AppTheme.gold;
+                font-family: AppTheme.font-brand;
+                font-size: AppTheme.font-title;
+            }
+
+            VerticalLayout {
+                spacing: 6px;
+
+                Text {
+                    text: "Title";
+                    color: AppTheme.text-muted;
+                    font-family: AppTheme.font-body;
+                    font-size: AppTheme.font-label;
+                }
+
+                title-field := LineEdit {
+                    placeholder-text: "Name your adventure…";
+                    font-family: AppTheme.font-body;
+                }
+            }
+
+            VerticalLayout {
+                spacing: 6px;
+
+                Text {
+                    text: "Headline";
+                    color: AppTheme.text-muted;
+                    font-family: AppTheme.font-body;
+                    font-size: AppTheme.font-label;
+                }
+
+                headline-field := LineEdit {
+                    placeholder-text: "A one-line hook…";
+                    font-family: AppTheme.font-body;
+                }
+            }
+
+            HorizontalLayout {
+                alignment: end;
+                spacing: 12px;
+
+                cancel-area := TouchArea {
+                    width: cancel-label.preferred-width + 32px;
+                    height: 36px;
+                    clicked => { root.dismiss(); }
+
+                    Rectangle {
+                        background: parent.has-hover ? AppTheme.bg-panel-alt : AppTheme.btn-brown;
+                        border-radius: AppTheme.radius-pill;
+                        border-width: 1px;
+                        border-color: AppTheme.bronze;
+
+                        cancel-label := Text {
+                            text: "Cancel";
+                            color: AppTheme.text-light;
+                            font-family: AppTheme.font-body;
+                        }
+                    }
+                }
+
+                create-area := TouchArea {
+                    property <bool> can-submit: title-field.text != "";
+                    width: create-label.preferred-width + 32px;
+                    height: 36px;
+                    enabled: self.can-submit;
+                    clicked => {
+                        root.submit(title-field.text, headline-field.text);
+                        title-field.text = "";
+                        headline-field.text = "";
+                        root.dismiss();
+                    }
+
+                    Rectangle {
+                        background: !create-area.can-submit
+                            ? AppTheme.btn-brown
+                            : (parent.has-hover ? AppTheme.gold-bright : AppTheme.gold);
+                        border-radius: AppTheme.radius-pill;
+
+                        create-label := Text {
+                            text: "Create";
+                            color: create-area.can-submit ? AppTheme.text-ink : AppTheme.text-muted;
+                            font-family: AppTheme.font-body;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

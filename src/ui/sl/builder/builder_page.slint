@@ -1,0 +1,57 @@
+import { AppTheme } from "../theme.slint";
+import { BuilderView } from "../views.slint";
+import { BuilderGlobals } from "globals.slint";
+import { BuilderSidebar } from "sidebar.slint";
+import { StorySection } from "story_section.slint";
+import { CastSection } from "cast_section.slint";
+import { ActsSection } from "acts_section.slint";
+import { OpeningSection } from "opening_section.slint";
+
+export { BuilderGlobals }
+
+export component BuilderPage inherits Rectangle {
+    in property <BuilderView> builder: BuilderGlobals.builder;
+
+    callback back-requested();
+    callback edit-act();
+    callback edit-opening();
+
+    background: AppTheme.bg-deepest;
+
+    HorizontalLayout {
+        BuilderSidebar {
+            builder: root.builder;
+            section: BuilderGlobals.section;
+            back-requested => { root.back-requested(); }
+            section-requested(section) => { BuilderGlobals.section-requested(section); }
+            publish => { BuilderGlobals.publish-adventure(root.builder.id); }
+        }
+
+        Rectangle {
+            background: AppTheme.bg-deepest;
+
+            if BuilderGlobals.section == "story": StorySection {
+                builder: root.builder;
+                save(input) => { BuilderGlobals.save-story(root.builder.id, input); }
+            }
+
+            if BuilderGlobals.section == "cast": CastSection {
+                builder: root.builder;
+                add-requested => { BuilderGlobals.add-character(root.builder.id); }
+                character-clicked(id) => {
+                    BuilderGlobals.character-selected(root.builder.id, id);
+                }
+            }
+
+            if BuilderGlobals.section == "acts": ActsSection {
+                builder: root.builder;
+                add-requested => { root.edit-act(); }
+            }
+
+            if BuilderGlobals.section == "opening": OpeningSection {
+                builder: root.builder;
+                setup-requested => { root.edit-opening(); }
+            }
+        }
+    }
+}

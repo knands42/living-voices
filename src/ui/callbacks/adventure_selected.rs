@@ -3,7 +3,7 @@ use crate::backend::application::adventure_manager::{AdventureManagerError, Memo
 use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
 use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
 use crate::backend::domain::message::Message;
-use crate::ui::callbacks::adventure_creation::{BuilderData, load_builder_data, show_builder};
+use crate::ui::callbacks::builder_page::BuilderPageContext;
 use crate::ui::{ChatGlobals, MainGlobals, RootWindow, viewmodels};
 use slint::ComponentHandle;
 use tokio::runtime::Handle;
@@ -41,18 +41,9 @@ pub fn register_adventure_selected<
     });
 }
 
-pub fn register_draft_adventure_selected<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
->(
-    ui: &RootWindow,
-    ctx: &AppContext<C, N, M, A>,
-) {
-    let ctx = ctx.clone();
-    let handle = Handle::current();
-    let ui_weak = ui.as_weak();
+/// The builder owns the load, so this needs no context of its own.
+pub fn register_draft_adventure_selected(ui: &RootWindow, builder: &BuilderPageContext) {
+    let builder = builder.clone();
 
     ui.global::<MainGlobals>()
         .on_draft_adventure_selected(move |id| {
@@ -61,16 +52,12 @@ pub fn register_draft_adventure_selected<
                 return;
             };
 
-            let data = match load_draft_adventure(&handle, &ctx, adventure_id) {
-                Ok(data) => data,
-                Err(err) => {
-                    log::error!("could not open draft {adventure_id}: {err}");
-                    // TODO: Create a notification tooltip-like and return to main page
-                    return;
-                }
-            };
+            let result = builder.open(adventure_id);
 
-            show_builder(&ui_weak, &data, true);
+            if let Err(err) = result {
+                log::error!("could not open draft {adventure_id}: {err}");
+                // TODO: Create a notification tooltip-like and return to main page
+            }
         });
 }
 
@@ -92,24 +79,6 @@ fn load_and_start<
             log::info!("adventure started: {adventure_id}");
 
             Ok((ctx.adventures.current_snapshot(), messages))
-        })
-    })
-}
-
-fn load_draft_adventure<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
->(
-    handle: &Handle,
-    ctx: &AppContext<C, N, M, A>,
-    adventure_id: Uuid,
-) -> Result<BuilderData, AdventureManagerError> {
-    tokio::task::block_in_place(|| {
-        handle.block_on(async {
-            ctx.adventures.load_adventure(adventure_id).await?;
-            load_builder_data(&ctx.adventures, adventure_id).await
         })
     })
 }

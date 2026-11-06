@@ -1,0 +1,202 @@
+import { AppTheme } from "../theme.slint";
+import { BuilderView } from "../views.slint";
+import { PillButton } from "components.slint";
+
+// A navigation row in the left sidebar.
+component NavRow inherits TouchArea {
+    in property <string> label;
+    in property <bool> done;
+    in property <bool> active;
+    in property <string> trailing;
+
+    height: 50px;
+
+    Rectangle {
+        background: root.active
+            ? AppTheme.bg-panel-alt
+            : (parent.has-hover ? AppTheme.bg-panel-alt : transparent);
+        border-radius: AppTheme.radius-card;
+        border-width: root.active ? 1px : 0px;
+        border-color: AppTheme.gold;
+
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 14px;
+            spacing: 12px;
+
+            Text {
+                text: root.done ? "✓" : "○";
+                color: root.done ? AppTheme.success : AppTheme.text-muted;
+                font-family: AppTheme.font-body;
+                font-size: AppTheme.font-card-title;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+
+            Text {
+                text: root.label;
+                color: root.active ? AppTheme.gold : AppTheme.text-light;
+                font-family: AppTheme.font-body;
+                font-size: AppTheme.font-heading + 2px;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+
+            Text {
+                text: root.trailing;
+                color: AppTheme.text-muted;
+                font-family: AppTheme.font-body;
+                font-size: AppTheme.font-label + 1px;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+// Section navigation, readiness and the publish button.
+// `section` is "story" | "cast" | "acts" | "opening".
+export component BuilderSidebar inherits Rectangle {
+    in property <BuilderView> builder;
+    in property <string> section;
+    callback back-requested();
+    callback section-requested(string);
+    callback publish();
+
+    property <bool> publishable:
+        builder.story-done && builder.cast-done && builder.acts-done && builder.opening-done;
+
+    width: 240px;
+    background: AppTheme.bg-panel;
+    border-width: 1px;
+    border-color: AppTheme.bronze;
+
+    VerticalLayout {
+        padding: 16px;
+        padding-top: 28px;
+        spacing: 12px;
+
+        // draft title + back
+        HorizontalLayout {
+            spacing: 8px;
+
+            back-area := TouchArea {
+                width: 32px;
+                height: 32px;
+                clicked => { root.back-requested(); }
+
+                Rectangle {
+                    background: parent.has-hover ? AppTheme.btn-brown : transparent;
+                    border-radius: AppTheme.radius-pill;
+
+                    Text {
+                        text: "‹";
+                        color: AppTheme.gold;
+                        font-family: AppTheme.font-display;
+                        font-size: AppTheme.font-title;
+                    }
+                }
+            }
+
+            VerticalLayout {
+                spacing: 2px;
+                horizontal-stretch: 1;
+
+                Text {
+                    text: "DRAFT · " + builder.status;
+                    color: AppTheme.text-muted;
+                    font-family: AppTheme.font-brand;
+                    font-size: AppTheme.font-tiny;
+                }
+                Text {
+                    text: builder.title == "" ? "Untitled adventure" : builder.title;
+                    color: AppTheme.gold;
+                    font-family: AppTheme.font-display;
+                    font-size: AppTheme.font-card-title;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: AppTheme.bronze; }
+
+        Rectangle { height: 8px; }
+
+        // nav rows
+        NavRow {
+            label: "Story";
+            done: builder.story-done;
+            active: root.section == "story";
+            clicked => { root.section-requested("story"); }
+        }
+        NavRow {
+            label: "Cast";
+            done: builder.cast-done;
+            active: root.section == "cast";
+            trailing: builder.cast.length > 0 ? builder.cast.length : "";
+            clicked => { root.section-requested("cast"); }
+        }
+        NavRow {
+            label: "Acts";
+            done: builder.acts-done;
+            active: root.section == "acts";
+            trailing: builder.acts.length > 0 ? builder.acts.length : "";
+            clicked => { root.section-requested("acts"); }
+        }
+        NavRow {
+            label: "Opening";
+            done: builder.opening-done;
+            active: root.section == "opening";
+            clicked => { root.section-requested("opening"); }
+        }
+
+        Rectangle { vertical-stretch: 1; }
+
+        // readiness + publish
+        Rectangle { height: 1px; background: AppTheme.bronze; }
+
+        HorizontalLayout {
+            Text {
+                text: "READINESS";
+                color: AppTheme.text-muted;
+                font-family: AppTheme.font-brand;
+                font-size: AppTheme.font-tiny;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            Text {
+                text: builder.ready-count + " / 4";
+                color: root.publishable ? AppTheme.success : AppTheme.amber-glow;
+                font-family: AppTheme.font-display;
+                font-size: AppTheme.font-card-title;
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 4px;
+
+            Rectangle {
+                height: 4px; border-radius: 2px;
+                background: builder.story-done ? AppTheme.success : AppTheme.bronze;
+            }
+            Rectangle {
+                height: 4px; border-radius: 2px;
+                background: builder.cast-done ? AppTheme.success : AppTheme.bronze;
+            }
+            Rectangle {
+                height: 4px; border-radius: 2px;
+                background: builder.acts-done ? AppTheme.success : AppTheme.bronze;
+            }
+            Rectangle {
+                height: 4px; border-radius: 2px;
+                background: builder.opening-done ? AppTheme.success : AppTheme.bronze;
+            }
+        }
+
+        PillButton {
+            label: root.publishable ? "Publish" : "Publish (locked)";
+            enabled-look: root.publishable;
+            enabled: root.publishable;
+            clicked => { root.publish(); }
+        }
+    }
+}

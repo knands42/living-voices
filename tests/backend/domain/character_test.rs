@@ -21,8 +21,8 @@ fn new_sets_name_description_and_empty_fields() {
     assert_eq!(character.headline, "A lighthouse keeper");
     assert_eq!(character.backstory, "");
     assert_eq!(character.appearance, None);
-    assert_eq!(character.appearance_portrait_prompt, None);
-    assert_eq!(character.appearance_full_body_prompt, None);
+    assert_eq!(character.appearance_identity_prompt, None);
+    assert_eq!(character.appearance_current_outfit, None);
     assert_eq!(character.appearance_current_pose, None);
     assert!(character.traits.is_empty());
     assert!(character.tags.is_empty());
@@ -221,24 +221,24 @@ fn with_appearance_sets_the_appearance() {
 }
 
 #[test]
-fn with_appearance_portrait_prompt_sets_the_portrait_prompt() {
+fn with_appearance_identity_prompt_sets_the_identity_prompt() {
     let character =
-        new_character().with_appearance_portrait_prompt("head-and-shoulders portrait, copper hair");
+        new_character().with_appearance_identity_prompt("copper hair, grey eyes, wiry build");
 
     assert_eq!(
-        character.appearance_portrait_prompt.as_deref(),
-        Some("head-and-shoulders portrait, copper hair")
+        character.appearance_identity_prompt.as_deref(),
+        Some("copper hair, grey eyes, wiry build")
     );
 }
 
 #[test]
-fn with_appearance_full_body_prompt_sets_the_full_body_prompt() {
+fn with_appearance_current_outfit_sets_the_outfit() {
     let character = new_character()
-        .with_appearance_full_body_prompt("full body, standing on a lighthouse stair");
+        .with_appearance_current_outfit("oilskin coat two sizes too big, sou'wester");
 
     assert_eq!(
-        character.appearance_full_body_prompt.as_deref(),
-        Some("full body, standing on a lighthouse stair")
+        character.appearance_current_outfit.as_deref(),
+        Some("oilskin coat two sizes too big, sou'wester")
     );
 }
 

@@ -136,15 +136,8 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
             0
         };
 
-        self.persist_close(
-            &mut conn,
-            &adventure,
-            &act,
-            distilled,
-            closed,
-            digest_to_seq,
-        )
-        .await
+        self.persist_close(&mut conn, &adventure, act, distilled, closed, digest_to_seq)
+            .await
     }
 
     async fn persist_close(

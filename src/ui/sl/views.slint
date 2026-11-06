@@ -1,9 +1,39 @@
-export struct CharacterView {
+// TODO: later this one will contain more fields, similar to CharacterView
+export struct CharacterChatView {
     id: string,
     name: string,
+    initials: string,
     headline: string,
     is-player: bool,
     hue: int,
+}
+
+// Everything the character page shows. Empty string means "not set".
+export struct CharacterView {
+    id: string,
+    adventure-id: string,
+    name: string,
+    initials: string,
+    hue: int,
+    headline: string,
+    status: string,
+    backstory: string,
+    appearance: string,
+    appearance-identity-prompt: string,
+    appearance-current-outfit: string,
+    appearance-current-pose: string,
+    portrait-path: string,
+    is-player: bool,
+    traits: [string],
+    tags: [string],
+    relations: [string],
+}
+
+export struct CharacterCreationInput {
+    name: string,
+    headline: string,
+    backstory: string,
+    appearance: string,
 }
 
 export struct AdventureView {
@@ -11,8 +41,8 @@ export struct AdventureView {
     title: string,
     headline: string,
     tone: string,
-    characters: [CharacterView],
-    player: CharacterView,
+    characters: [CharacterChatView],
+    player: CharacterChatView,
     lore: string,
     status: string
 }
@@ -23,14 +53,6 @@ export struct StoryInputView {
     tone: string,
     narrator-name: string,
     lore: string,
-}
-
-// An empty id means a new character.
-export struct CharacterInputView {
-    id: string,
-    name: string,
-    headline: string,
-    backstory: string,
 }
 
 // An empty id means a new act.
@@ -54,7 +76,8 @@ export struct BuilderView {
     status: string,
     narrator-name: string,
     tone: string,
-    cast: [CharacterView],
+    lore: string,
+    cast: [CharacterChatView],
     acts: [ActAuthorView],
     story-done: bool,
     cast-done: bool,

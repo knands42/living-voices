@@ -1,3 +1,4 @@
+//! Creates a draft character, persists it, updates local adventure state,
 use sqlx::SqlitePool;
 use thiserror::Error;
 use uuid::Uuid;
@@ -10,11 +11,10 @@ use crate::backend::{
     application::state::{SharedState, StateError},
     domain::character::Character,
     domain::memory::CharacterCondition,
-    domain::message::Message,
     persistence::adventure_persistence::get_adventure,
     persistence::characters_persistence::{
-        insert_character, update_appearance_current_pose, update_appearance_full_body_prompt,
-        update_appearance_portrait_prompt, update_character,
+        insert_character, update_appearance_current_outfit, update_appearance_current_pose,
+        update_appearance_identity_prompt, update_character,
     },
     persistence::message_persistence::fetch_last_n,
     persistence::state_persistence::get_state,
@@ -34,8 +34,8 @@ pub enum CharacterManagerError {
 
 #[derive(Clone, Copy)]
 enum ImagePromptKind {
-    Portrait,
-    FullBody,
+    Identity,
+    Outfit,
     Pose,
 }
 
@@ -72,12 +72,23 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
         update_character_presence(
             &mut conn,
             character.adventure_id,
-            &vec![character.name.as_str()],
-            &vec![],
+            &[character.name.as_str()],
+            &[],
         )
         .await?;
 
         Ok(())
+    }
+
+    /// Opens a page's worth of character: persisted straight away so every field
+    /// saves on its own, returned so the page never reads it back.
+    pub async fn create_draft(
+        &self,
+        adventure_id: Uuid,
+    ) -> Result<Character, CharacterManagerError> {
+        let character = Character::draft(adventure_id);
+        self.create_character(character.clone()).await?;
+        Ok(character)
     }
 
     pub async fn update_character(
@@ -89,42 +100,41 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
 
         {
             let mut guard = self.state.write()?;
-            if let Some(adventure) = &mut guard.current_adventure {
-                if let Some(existing) = adventure
+            if let Some(adventure) = &mut guard.current_adventure
+                && let Some(existing) = adventure
                     .characters
                     .iter_mut()
                     .find(|c| c.id == character.id)
-                {
-                    *existing = character.clone();
-                }
+            {
+                *existing = character.clone();
             }
-            if let Some(player) = &mut guard.player {
-                if player.id == character.id {
-                    *player = character.clone();
-                }
+            if let Some(player) = &mut guard.player
+                && player.id == character.id
+            {
+                *player = character.clone();
             }
         }
 
         Ok(())
     }
 
-    pub async fn create_character_portrait_image(
+    pub async fn create_character_identity_prompt(
         &self,
         character: &Character,
     ) -> Result<(), CharacterManagerError> {
-        self.create_character_image_prompt(character, ImagePromptKind::Portrait)
+        self.create_character_image_prompt(character, ImagePromptKind::Identity)
             .await
     }
 
-    pub async fn create_character_full_body_image(
+    pub async fn create_character_outfit_prompt(
         &self,
         character: &Character,
     ) -> Result<(), CharacterManagerError> {
-        self.create_character_image_prompt(character, ImagePromptKind::FullBody)
+        self.create_character_image_prompt(character, ImagePromptKind::Outfit)
             .await
     }
 
-    pub async fn create_character_pose_image(
+    pub async fn create_character_pose_prompt(
         &self,
         character: &Character,
     ) -> Result<(), CharacterManagerError> {
@@ -150,21 +160,22 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
             })
             .unwrap_or_default();
 
-        let messages: Vec<Message> = match kind {
-            ImagePromptKind::Pose => fetch_last_n(&mut conn, character.adventure_id, 50).await?,
-            ImagePromptKind::Portrait | ImagePromptKind::FullBody => Vec::new(),
-        };
-
         let prompt = match kind {
-            ImagePromptKind::Portrait => {
-                ContextBuilder::build_portrait_char_prompt(&adventure, character, conditions)?
+            ImagePromptKind::Identity => {
+                ContextBuilder::build_identity_char_prompt(&adventure, character, conditions)?
             }
-            ImagePromptKind::FullBody => {
-                ContextBuilder::build_full_body_char_prompt(&adventure, character, conditions)?
+            ImagePromptKind::Outfit => {
+                let messages = fetch_last_n(&mut conn, character.adventure_id, 50).await?;
+                ContextBuilder::build_outfit_char_prompt(
+                    &adventure, character, conditions, &messages,
+                )?
             }
-            ImagePromptKind::Pose => ContextBuilder::build_pose_body_prompt(
-                &adventure, character, conditions, &messages,
-            )?,
+            ImagePromptKind::Pose => {
+                let messages = fetch_last_n(&mut conn, character.adventure_id, 50).await?;
+                ContextBuilder::build_pose_body_prompt(
+                    &adventure, character, conditions, &messages,
+                )?
+            }
         };
 
         // Do not hold the database connection while the model call is in flight.
@@ -179,13 +190,12 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         match kind {
-            ImagePromptKind::Portrait => {
-                update_appearance_portrait_prompt(&mut conn, character.id, &generated_prompt)
+            ImagePromptKind::Identity => {
+                update_appearance_identity_prompt(&mut conn, character.id, &generated_prompt)
                     .await?
             }
-            ImagePromptKind::FullBody => {
-                update_appearance_full_body_prompt(&mut conn, character.id, &generated_prompt)
-                    .await?
+            ImagePromptKind::Outfit => {
+                update_appearance_current_outfit(&mut conn, character.id, &generated_prompt).await?
             }
             ImagePromptKind::Pose => {
                 update_appearance_current_pose(&mut conn, character.id, &generated_prompt).await?
@@ -206,20 +216,19 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
     ) -> Result<(), StateError> {
         let mut guard = self.state.write()?;
 
-        if let Some(adventure) = &mut guard.current_adventure {
-            if let Some(character) = adventure
+        if let Some(adventure) = &mut guard.current_adventure
+            && let Some(character) = adventure
                 .characters
                 .iter_mut()
                 .find(|character| character.id == character_id)
-            {
-                set_image_prompt(character, kind, prompt);
-            }
+        {
+            set_image_prompt(character, kind, prompt);
         }
 
-        if let Some(player) = &mut guard.player {
-            if player.id == character_id {
-                set_image_prompt(player, kind, prompt);
-            }
+        if let Some(player) = &mut guard.player
+            && player.id == character_id
+        {
+            set_image_prompt(player, kind, prompt);
         }
 
         Ok(())
@@ -228,8 +237,8 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
 
 fn set_image_prompt(character: &mut Character, kind: ImagePromptKind, prompt: &str) {
     let slot = match kind {
-        ImagePromptKind::Portrait => &mut character.appearance_portrait_prompt,
-        ImagePromptKind::FullBody => &mut character.appearance_full_body_prompt,
+        ImagePromptKind::Identity => &mut character.appearance_identity_prompt,
+        ImagePromptKind::Outfit => &mut character.appearance_current_outfit,
         ImagePromptKind::Pose => &mut character.appearance_current_pose,
     };
     *slot = Some(prompt.to_string());

@@ -1,0 +1,27 @@
+import { BuilderView, StoryInputView, ActInputView } from "../views.slint";
+
+// The builder page's data in, and its events out. Rust talks to this directly.
+// The first argument of every callback is the adventure id.
+export global BuilderGlobals {
+    in property <BuilderView> builder;
+
+    // Lives here so it survives leaving the page (e.g. to edit a character).
+    // "story" | "cast" | "acts" | "opening". Rust owns it: the sidebar asks, Rust sets.
+    in-out property <string> section: "story";
+
+    // The sidebar wants another tab. Rust renders that tab from its cache, then sets
+    // `section`, so what is on screen is always what was rendered.
+    callback section-requested(string);
+    // The builder page is visible again (e.g. back from a character page).
+    callback builder-entered();
+
+    callback save-story(string, StoryInputView);
+    callback save-act(string, ActInputView);
+    callback save-opening(string, string);
+    callback publish-adventure(string);
+
+    // Opens the character page for an existing character.
+    callback character-selected(string, string);
+    // Opens the page of a new character.
+    callback add-character(string);
+}

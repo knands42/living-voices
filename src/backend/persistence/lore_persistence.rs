@@ -7,10 +7,9 @@ use crate::backend::{domain::lore::Lore, persistence::error::PersistenceError};
 
 struct LoreRow {
     id: String,
+    #[allow(dead_code)]
     adventure_id: String,
     text: String,
-    created_at: String,
-    updated_at: String,
 }
 
 impl FromRow<'_, SqliteRow> for LoreRow {
@@ -19,8 +18,6 @@ impl FromRow<'_, SqliteRow> for LoreRow {
             id: row.get("id"),
             adventure_id: row.get("adventure_id"),
             text: row.get("text"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
         })
     }
 }

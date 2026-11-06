@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-
 use sqlx::sqlite::SqliteRow;
 use sqlx::{FromRow, Row, SqliteConnection};
 use uuid::Uuid;
 
 use crate::backend::domain::character::CharacterStatus;
-use crate::backend::persistence::db::from_str_to_uuid;
+use crate::backend::persistence::db::{from_str_to_uuid, parse_json_array};
 use crate::backend::{
     domain::character::Character,
     persistence::{
@@ -21,9 +19,10 @@ struct CharacterRow {
     headline: String,
     backstory: String,
     appearance: Option<String>,
-    appearance_portrait_prompt: Option<String>,
-    appearance_full_body_prompt: Option<String>,
+    appearance_identity_prompt: Option<String>,
+    appearance_current_outfit: Option<String>,
     appearance_current_pose: Option<String>,
+    relations: String,
     status: String,
     portrait_path: Option<String>,
     is_player: bool,
@@ -38,9 +37,10 @@ impl FromRow<'_, SqliteRow> for CharacterRow {
             headline: row.get("headline"),
             backstory: row.get("backstory"),
             appearance: row.get("appearance"),
-            appearance_portrait_prompt: row.get("appearance_portrait_prompt"),
-            appearance_full_body_prompt: row.get("appearance_full_body_prompt"),
+            appearance_identity_prompt: row.get("appearance_identity_prompt"),
+            appearance_current_outfit: row.get("appearance_current_outfit"),
             appearance_current_pose: row.get("appearance_current_pose"),
+            relations: row.get("relations"),
             status: row.get("status"),
             portrait_path: row.get("portrait_path"),
             is_player: row.get("is_player"),
@@ -63,9 +63,10 @@ impl TryFrom<CharacterRow> for Character {
             value.is_player,
         );
         character.appearance = value.appearance;
-        character.appearance_portrait_prompt = value.appearance_portrait_prompt;
-        character.appearance_full_body_prompt = value.appearance_full_body_prompt;
+        character.appearance_identity_prompt = value.appearance_identity_prompt;
+        character.appearance_current_outfit = value.appearance_current_outfit;
         character.appearance_current_pose = value.appearance_current_pose;
+        character.relations = parse_json_array(Some(value.relations.as_str()))?;
         character.portrait_path = value.portrait_path;
         Ok(character)
     }
@@ -77,8 +78,8 @@ pub async fn insert_character(
     character: &Character,
 ) -> Result<(), PersistenceError> {
     sqlx::query(
-        "INSERT INTO character (id, adventure_id, name, headline, backstory, appearance, appearance_portrait_prompt, appearance_full_body_prompt, appearance_current_pose, status, portrait_path, is_player)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        "INSERT INTO character (id, adventure_id, name, headline, backstory, appearance, appearance_identity_prompt, appearance_current_outfit, appearance_current_pose, relations, status, portrait_path, is_player)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
     )
     .bind(character.id.to_string())
     .bind(adventure_id.to_string())
@@ -86,9 +87,10 @@ pub async fn insert_character(
     .bind(&character.headline)
     .bind(&character.backstory)
     .bind(&character.appearance)
-    .bind(&character.appearance_portrait_prompt)
-    .bind(&character.appearance_full_body_prompt)
+    .bind(&character.appearance_identity_prompt)
+    .bind(&character.appearance_current_outfit)
     .bind(&character.appearance_current_pose)
+    .bind(serde_json::to_string(&character.relations)?)
     .bind(character.status.as_str())
     .bind(character.portrait_path.as_deref())
     .bind(character.is_player)
@@ -159,44 +161,13 @@ pub async fn attach_tag(
     Ok(())
 }
 
-pub async fn insert_relation(
+pub async fn update_appearance_identity_prompt(
     conn: &mut SqliteConnection,
     character_id: Uuid,
-    related_character_id: Uuid,
-    relation: &str,
+    appearance_identity_prompt: &str,
 ) -> Result<(), PersistenceError> {
-    sqlx::query(
-        "INSERT INTO character_relation (character_id, related_character_id, relation)
-         VALUES (?1, ?2, ?3)",
-    )
-    .bind(character_id.to_string())
-    .bind(related_character_id.to_string())
-    .bind(relation)
-    .execute(conn)
-    .await?;
-
-    Ok(())
-}
-
-pub async fn insert_relations(
-    conn: &mut SqliteConnection,
-    character_id: Uuid,
-    relations: &HashMap<Uuid, String>,
-) -> Result<(), PersistenceError> {
-    for (related_character_id, relation) in relations {
-        insert_relation(conn, character_id, *related_character_id, relation).await?;
-    }
-
-    Ok(())
-}
-
-pub async fn update_appearance_portrait_prompt(
-    conn: &mut SqliteConnection,
-    character_id: Uuid,
-    appearance_portrait_prompt: &str,
-) -> Result<(), PersistenceError> {
-    sqlx::query("UPDATE character SET appearance_portrait_prompt = ?1 WHERE id = ?2")
-        .bind(appearance_portrait_prompt)
+    sqlx::query("UPDATE character SET appearance_identity_prompt = ?1 WHERE id = ?2")
+        .bind(appearance_identity_prompt)
         .bind(character_id.to_string())
         .execute(conn)
         .await?;
@@ -204,13 +175,13 @@ pub async fn update_appearance_portrait_prompt(
     Ok(())
 }
 
-pub async fn update_appearance_full_body_prompt(
+pub async fn update_appearance_current_outfit(
     conn: &mut SqliteConnection,
     character_id: Uuid,
-    appearance_full_body_prompt: &str,
+    appearance_current_outfit: &str,
 ) -> Result<(), PersistenceError> {
-    sqlx::query("UPDATE character SET appearance_full_body_prompt = ?1 WHERE id = ?2")
-        .bind(appearance_full_body_prompt)
+    sqlx::query("UPDATE character SET appearance_current_outfit = ?1 WHERE id = ?2")
+        .bind(appearance_current_outfit)
         .bind(character_id.to_string())
         .execute(conn)
         .await?;
@@ -239,17 +210,19 @@ pub async fn update_character(
     sqlx::query(
         "UPDATE character
          SET name = ?1, headline = ?2, backstory = ?3, appearance = ?4,
-             appearance_portrait_prompt = ?5, appearance_full_body_prompt = ?6,
-             appearance_current_pose = ?7, status = ?8, portrait_path = ?9, is_player = ?10
-         WHERE id = ?11",
+             appearance_identity_prompt = ?5, appearance_current_outfit = ?6,
+             appearance_current_pose = ?7, relations = ?8, status = ?9,
+             portrait_path = ?10, is_player = ?11
+         WHERE id = ?12",
     )
     .bind(&character.name)
     .bind(&character.headline)
     .bind(&character.backstory)
     .bind(&character.appearance)
-    .bind(&character.appearance_portrait_prompt)
-    .bind(&character.appearance_full_body_prompt)
+    .bind(&character.appearance_identity_prompt)
+    .bind(&character.appearance_current_outfit)
     .bind(&character.appearance_current_pose)
+    .bind(serde_json::to_string(&character.relations)?)
     .bind(character.status.as_str())
     .bind(character.portrait_path.as_deref())
     .bind(character.is_player)
@@ -273,28 +246,6 @@ pub async fn update_character(
         ensure_tag(conn, tag).await?;
         attach_tag(conn, character.id, tag).await?;
     }
-
-    Ok(())
-}
-
-pub async fn update_appearance(
-    conn: &mut SqliteConnection,
-    character_id: Uuid,
-    appearance: &str,
-    appearance_portrait_prompt: &str,
-    appearance_full_body_prompt: &str,
-    appearance_current_pose: &str,
-) -> Result<(), PersistenceError> {
-    sqlx::query(
-        "UPDATE character SET appearance = ?1, appearance_portrait_prompt = ?2, appearance_full_body_prompt = ?3, appearance_current_pose = ?4 WHERE id = ?5",
-    )
-    .bind(appearance)
-    .bind(appearance_portrait_prompt)
-    .bind(appearance_full_body_prompt)
-    .bind(appearance_current_pose)
-    .bind(character_id.to_string())
-    .execute(conn)
-    .await?;
 
     Ok(())
 }
