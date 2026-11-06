@@ -5,14 +5,14 @@ import { BuilderPage, BuilderGlobals } from "builder/builder_page.slint";
 import { CharacterPage, CharacterGlobals } from "character/character_page.slint";
 import {
     AdventureView, ActView, StateView, FactView, MessageView, BuilderView,
-    StoryInputView, ActInputView, CharacterView, CharacterInputView,
+    StoryInputView, ActInputView, CharacterView, CharacterCreationInput,
 } from "views.slint";
 
 // Rust reaches each page through its own global.
 export { MainGlobals, ChatGlobals, BuilderGlobals, CharacterGlobals }
 export {
     AdventureSummaryView, AdventureView, ActView, StateView, FactView, MessageView, BuilderView,
-    StoryInputView, ActInputView, CharacterView, CharacterInputView,
+    StoryInputView, ActInputView, CharacterView, CharacterCreationInput,
 }
 
 // Only decides which page is on screen. No page data and no page events live here.
@@ -37,7 +37,9 @@ export component RootWindow inherits Window {
     }
 
     if current-page == "character": CharacterPage {
-        back-requested => { root.current-page = "builder"; }
+        // Rust renders the builder from its cache and then switches the page, so the
+        // cast reflects whatever the character page just saved.
+        back-requested => { BuilderGlobals.builder-entered(); }
     }
 
     if current-page == "chat": ChatPage {

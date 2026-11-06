@@ -133,16 +133,14 @@ impl AdventureManager {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         update_adventure(&mut conn, adventure).await?;
 
-        let updated = get_adventure(&mut conn, adventure.id).await?;
-
         if let Ok(mut guard) = self.state.write()
             && let Some(current) = &guard.current_adventure
-            && current.id == updated.id
+            && current.id == adventure.id
         {
-            guard.current_adventure = Some(updated.clone());
+            guard.current_adventure = Some(adventure.clone());
         }
 
-        Ok(updated)
+        Ok(adventure.clone())
     }
 
     pub async fn create_initial_messages(

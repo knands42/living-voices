@@ -8,6 +8,7 @@ export component EditableList inherits VerticalLayout {
     in property <[string]> items;
     in property <bool> can-edit: false;
     in property <string> add-label: "+ add";
+    in property <string> add-placeholder: "";
     in property <string> empty-text: "None yet";
     callback added(string);
     callback removed(int);
@@ -76,6 +77,7 @@ export component EditableList inherits VerticalLayout {
         spacing: 8px;
 
         add-input := LineEdit {
+            placeholder-text: root.add-placeholder;
             font-size: AppTheme.font-heading;
             horizontal-stretch: 1;
             accepted(text) => {

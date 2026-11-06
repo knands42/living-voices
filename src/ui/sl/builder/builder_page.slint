@@ -22,8 +22,9 @@ export component BuilderPage inherits Rectangle {
     HorizontalLayout {
         BuilderSidebar {
             builder: root.builder;
-            section <=> BuilderGlobals.section;
+            section: BuilderGlobals.section;
             back-requested => { root.back-requested(); }
+            section-requested(section) => { BuilderGlobals.section-requested(section); }
             publish => { BuilderGlobals.publish-adventure(root.builder.id); }
         }
 

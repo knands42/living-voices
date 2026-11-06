@@ -6,8 +6,14 @@ export global BuilderGlobals {
     in property <BuilderView> builder;
 
     // Lives here so it survives leaving the page (e.g. to edit a character).
-    // "story" | "cast" | "acts" | "opening"
+    // "story" | "cast" | "acts" | "opening". Rust owns it: the sidebar asks, Rust sets.
     in-out property <string> section: "story";
+
+    // The sidebar wants another tab. Rust renders that tab from its cache, then sets
+    // `section`, so what is on screen is always what was rendered.
+    callback section-requested(string);
+    // The builder page is visible again (e.g. back from a character page).
+    callback builder-entered();
 
     callback save-story(string, StoryInputView);
     callback save-act(string, ActInputView);
@@ -16,6 +22,6 @@ export global BuilderGlobals {
 
     // Opens the character page for an existing character.
     callback character-selected(string, string);
-    // Creates a new character and opens its page.
+    // Opens the page of a new character.
     callback add-character(string);
 }

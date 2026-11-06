@@ -57,8 +57,9 @@ component NavRow inherits TouchArea {
 // `section` is "story" | "cast" | "acts" | "opening".
 export component BuilderSidebar inherits Rectangle {
     in property <BuilderView> builder;
-    in-out property <string> section;
+    in property <string> section;
     callback back-requested();
+    callback section-requested(string);
     callback publish();
 
     property <bool> publishable:
@@ -125,27 +126,27 @@ export component BuilderSidebar inherits Rectangle {
             label: "Story";
             done: builder.story-done;
             active: root.section == "story";
-            clicked => { root.section = "story"; }
+            clicked => { root.section-requested("story"); }
         }
         NavRow {
             label: "Cast";
             done: builder.cast-done;
             active: root.section == "cast";
             trailing: builder.cast.length > 0 ? builder.cast.length : "";
-            clicked => { root.section = "cast"; }
+            clicked => { root.section-requested("cast"); }
         }
         NavRow {
             label: "Acts";
             done: builder.acts-done;
             active: root.section == "acts";
             trailing: builder.acts.length > 0 ? builder.acts.length : "";
-            clicked => { root.section = "acts"; }
+            clicked => { root.section-requested("acts"); }
         }
         NavRow {
             label: "Opening";
             done: builder.opening-done;
             active: root.section == "opening";
-            clicked => { root.section = "opening"; }
+            clicked => { root.section-requested("opening"); }
         }
 
         Rectangle { vertical-stretch: 1; }

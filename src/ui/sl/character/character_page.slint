@@ -33,9 +33,9 @@ export component CharacterPage inherits Rectangle {
     callback back-requested();
 
     // Every field is saved on its own, so the other values are sent unchanged.
+    // The character being edited is whatever the page shows, so no id travels here.
     function save(name: string, headline: string, backstory: string, appearance: string) {
         CharacterGlobals.save-character({
-            id: root.character.id,
             name: name,
             headline: headline,
             backstory: backstory,
@@ -172,6 +172,7 @@ export component CharacterPage inherits Rectangle {
                             items: root.character.traits;
                             can-edit: root.can-edit;
                             add-label: "+ add trait";
+                            add-placeholder: "speaks only in tidal registers";
                             empty-text: "speaks like is singing";
                             added(text) => { CharacterGlobals.add-trait(root.character.id, text); }
                             removed(index) => {
@@ -182,23 +183,17 @@ export component CharacterPage inherits Rectangle {
 
                     InfoCard {
                         caption: "RELATIONS";
-                        VerticalLayout {
-                            spacing: 6px;
-
-                            for relation in root.character.relations: Text {
-                                text: "· " + relation;
-                                color: AppTheme.text-light;
-                                font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-heading + 1px;
-                                wrap: word-wrap;
+                        EditableList {
+                            items: root.character.relations;
+                            can-edit: root.can-edit;
+                            add-label: "+ add relation";
+                            add-placeholder: "father of the Duke";
+                            empty-text: "No relations yet";
+                            added(text) => {
+                                CharacterGlobals.add-relation(root.character.id, text);
                             }
-
-                            if root.character.relations.length == 0: Text {
-                                text: "No relations yet";
-                                color: AppTheme.text-muted;
-                                font-family: AppTheme.font-body;
-                                font-size: AppTheme.font-heading;
-                                font-italic: true;
+                            removed(index) => {
+                                CharacterGlobals.remove-relation(root.character.id, index);
                             }
                         }
                     }

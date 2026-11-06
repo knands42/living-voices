@@ -15,15 +15,10 @@ use crate::backend::{
         narrator::Narrator,
     },
     persistence::{
-        act_persistence::upsert_act,
-        adventure_persistence::insert_adventure,
-        characters_persistence::{insert_character, insert_relations},
-        db::open_pool,
-        error::PersistenceError,
-        fact_persistence::upsert_facts,
-        lore_persistence::insert_lore,
-        message_persistence::insert_message,
-        narrator_persistence::insert_default_narrator,
+        act_persistence::upsert_act, adventure_persistence::insert_adventure,
+        characters_persistence::insert_character, db::open_pool, error::PersistenceError,
+        fact_persistence::upsert_facts, lore_persistence::insert_lore,
+        message_persistence::insert_message, narrator_persistence::insert_default_narrator,
         state_persistence::upsert_state,
     },
 };
@@ -641,23 +636,20 @@ async fn seed_connection(
     );
     characters.push(player);
 
-    for character in &characters {
-        insert_character(&mut *tx, adventure_summary.id, character).await?;
-    }
-
+    // Relations are free text on the character row, so they must be set before the
+    // insert; the cast is only used to catch a seed that points at an unknown name.
     for (seed_character, character) in seed.characters.iter().zip(characters.iter_mut()) {
-        let mut relations = HashMap::new();
         for (target_name, relation) in seed_character.relations {
-            let target_id = *ids_by_name
-                .get(*target_name)
-                .ok_or_else(|| PersistenceError::unknown_seed_character(seed, target_name))?;
+            if !ids_by_name.contains_key(*target_name) {
+                return Err(PersistenceError::unknown_seed_character(seed, target_name));
+            }
 
-            relations.insert(target_id, (*relation).to_string());
             character.add_relation(format!("{relation}: {target_name}"));
         }
-        if !relations.is_empty() {
-            insert_relations(&mut *tx, character.id, &relations).await?;
-        }
+    }
+
+    for character in &characters {
+        insert_character(&mut *tx, adventure_summary.id, character).await?;
     }
 
     let mut active_act_id: Option<Uuid> = None;

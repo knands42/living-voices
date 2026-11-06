@@ -1,3 +1,4 @@
+//! Creates a draft character, persists it, updates local adventure state,
 use sqlx::SqlitePool;
 use thiserror::Error;
 use uuid::Uuid;
@@ -77,6 +78,17 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
         .await?;
 
         Ok(())
+    }
+
+    /// Opens a page's worth of character: persisted straight away so every field
+    /// saves on its own, returned so the page never reads it back.
+    pub async fn create_draft(
+        &self,
+        adventure_id: Uuid,
+    ) -> Result<Character, CharacterManagerError> {
+        let character = Character::draft(adventure_id);
+        self.create_character(character.clone()).await?;
+        Ok(character)
     }
 
     pub async fn update_character(

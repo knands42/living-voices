@@ -85,6 +85,9 @@ pub struct Character {
 
 impl Character {
     pub const DEFAULT_PLAYER_NAME: &'static str = "You";
+    /// The name a character carries from the moment its page opens until the
+    /// player types a real one. A character still wearing it is not a cast member.
+    pub const PLACEHOLDER_NAME: &'static str = "New character";
 
     pub fn new(
         id: Uuid,
@@ -112,6 +115,26 @@ impl Character {
             tags: vec![],
             relations: vec![],
         }
+    }
+
+    /// The character a fresh page edits. It is persisted immediately so every field
+    /// can be saved on its own, but it carries nothing yet — the name is a
+    /// placeholder the player is expected to replace.
+    pub fn draft(adventure_id: Uuid) -> Self {
+        Self::new(
+            Uuid::new_v4(),
+            Self::PLACEHOLDER_NAME.to_string(),
+            adventure_id,
+            "",
+            "",
+            CharacterStatus::Present,
+            false,
+        )
+    }
+
+    /// True while the character is still the placeholder its page opened with.
+    pub fn is_placeholder(&self) -> bool {
+        self.name == Self::PLACEHOLDER_NAME
     }
 
     pub fn with_portrait(mut self, portrait_path: impl Into<String>) -> Self {

@@ -5,9 +5,9 @@ use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller}
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::memory::Act;
 use crate::backend::domain::message::Message;
-use crate::ui::{ActInputView, BuilderGlobals, RootWindow, StoryInputView, viewmodels};
+use crate::ui::callbacks::builder_page::BuilderPageContext;
+use crate::ui::{ActInputView, BuilderGlobals, RootWindow, StoryInputView};
 use slint::ComponentHandle;
-use std::future::Future;
 use thiserror::Error;
 use tokio::runtime::Handle;
 use uuid::Uuid;
@@ -20,45 +20,6 @@ enum CreationError {
     Adventure(#[from] AdventureManagerError),
 }
 
-pub struct BuilderData {
-    pub adventure: Adventure,
-    acts: Vec<Act>,
-    has_opening: bool,
-}
-
-pub async fn load_builder_data(
-    adventure_manager: &AdventureManager,
-    adventure_id: Uuid,
-) -> Result<BuilderData, AdventureManagerError> {
-    // TODO: Consider later to get from snapshot
-    Ok(BuilderData {
-        adventure: adventure_manager.get_adventure(adventure_id).await?,
-        acts: adventure_manager.get_acts(adventure_id).await?,
-        has_opening: !adventure_manager
-            .get_messages(adventure_id, 1)
-            .await?
-            .is_empty(),
-    })
-}
-
-// Callbacks run on the UI thread, so the window can be updated directly.
-pub fn show_builder(ui_weak: &slint::Weak<RootWindow>, data: &BuilderData, open_page: bool) {
-    let Some(ui) = ui_weak.upgrade() else {
-        return;
-    };
-
-    ui.global::<BuilderGlobals>()
-        .set_builder(viewmodels::builder_view(
-            Some(&data.adventure),
-            &data.acts,
-            data.has_opening,
-        ));
-    if open_page {
-        ui.global::<BuilderGlobals>().set_section("story".into());
-        ui.set_current_page("builder".into());
-    }
-}
-
 pub fn register_story_creation<
     C: ChatHandler + Clone + 'static,
     N: NarratorHandler + Clone + 'static,
@@ -67,10 +28,11 @@ pub fn register_story_creation<
 >(
     ui: &RootWindow,
     ctx: &AppContext<C, N, M, A>,
+    builder: &BuilderPageContext,
 ) {
-    let ctx = ctx.clone();
+    let adventures = ctx.adventures.clone();
     let handle = Handle::current();
-    let ui_weak = ui.as_weak();
+    let builder = builder.clone();
 
     ui.global::<BuilderGlobals>()
         .on_save_story(move |adventure_id, input| {
@@ -78,14 +40,14 @@ pub fn register_story_creation<
                 return;
             };
 
-            save_and_refresh(
-                &handle,
-                &ctx.adventures,
-                &ui_weak,
-                adventure_id,
-                "save story",
-                save_story(&ctx.adventures, adventure_id, input),
-            );
+            let result = tokio::task::block_in_place(|| {
+                handle.block_on(save_story(&adventures, adventure_id, input))
+            });
+
+            match result {
+                Ok(()) => builder.show(None),
+                Err(err) => log::error!("could not save the story of {adventure_id}: {err}"),
+            }
         });
 }
 
@@ -97,10 +59,11 @@ pub fn register_act_creation<
 >(
     ui: &RootWindow,
     ctx: &AppContext<C, N, M, A>,
+    builder: &BuilderPageContext,
 ) {
-    let ctx = ctx.clone();
+    let adventures = ctx.adventures.clone();
     let handle = Handle::current();
-    let ui_weak = ui.as_weak();
+    let builder = builder.clone();
 
     ui.global::<BuilderGlobals>()
         .on_save_act(move |adventure_id, input| {
@@ -108,14 +71,18 @@ pub fn register_act_creation<
                 return;
             };
 
-            save_and_refresh(
-                &handle,
-                &ctx.adventures,
-                &ui_weak,
-                adventure_id,
-                "save act",
-                save_act(&ctx.adventures, adventure_id, input),
-            );
+            let acts = builder.acts();
+            let result = tokio::task::block_in_place(|| {
+                handle.block_on(save_act(&adventures, adventure_id, input, acts))
+            });
+
+            match result {
+                Ok(()) => {
+                    builder.reload_acts();
+                    builder.show(None);
+                }
+                Err(err) => log::error!("could not save an act of {adventure_id}: {err}"),
+            }
         });
 }
 
@@ -127,10 +94,11 @@ pub fn register_adventure_opening<
 >(
     ui: &RootWindow,
     ctx: &AppContext<C, N, M, A>,
+    builder: &BuilderPageContext,
 ) {
-    let ctx = ctx.clone();
+    let adventures = ctx.adventures.clone();
     let handle = Handle::current();
-    let ui_weak = ui.as_weak();
+    let builder = builder.clone();
 
     ui.global::<BuilderGlobals>()
         .on_save_opening(move |adventure_id, text| {
@@ -138,39 +106,22 @@ pub fn register_adventure_opening<
                 return;
             };
 
-            save_and_refresh(
-                &handle,
-                &ctx.adventures,
-                &ui_weak,
-                adventure_id,
-                "save opening",
-                save_opening(&ctx.adventures, adventure_id, text.as_str()),
-            );
+            let result = tokio::task::block_in_place(|| {
+                handle.block_on(save_opening(&adventures, adventure_id, text.as_str()))
+            });
+
+            match result {
+                Ok(()) => {
+                    builder.mark_opening_written();
+                    builder.show(None);
+                }
+                Err(err) => log::error!("could not save the opening of {adventure_id}: {err}"),
+            }
         });
 }
 
-/// Saves pending changes, reloads the adventure builder data, and refreshes the UI.
-fn save_and_refresh(
-    handle: &Handle,
-    adventures: &AdventureManager,
-    ui_weak: &slint::Weak<RootWindow>,
-    adventure_id: Uuid,
-    action: &str,
-    save: impl Future<Output = Result<(), CreationError>>,
-) {
-    let result = tokio::task::block_in_place(|| {
-        handle.block_on(async {
-            save.await?;
-            Ok::<_, CreationError>(load_builder_data(adventures, adventure_id).await?)
-        })
-    });
-
-    match result {
-        Ok(data) => show_builder(ui_weak, &data, false),
-        Err(err) => log::error!("could not {action} for adventure {adventure_id}: {err}"),
-    }
-}
-
+/// The story fields live on the adventure, which the snapshot already holds, so this
+/// reads memory and writes once. The write refreshes the snapshot in turn.
 async fn save_story(
     adventures: &AdventureManager,
     adventure_id: Uuid,
@@ -181,7 +132,7 @@ async fn save_story(
         return Err(CreationError::Invalid("title"));
     }
 
-    let mut adventure = adventures.get_adventure(adventure_id).await?;
+    let mut adventure = current_adventure(adventures, adventure_id)?;
     adventure.title = title.to_string();
     adventure.headline = input.headline.trim().to_string();
     adventure.tone = input.tone.trim().to_string();
@@ -198,6 +149,7 @@ async fn save_act(
     adventures: &AdventureManager,
     adventure_id: Uuid,
     input: ActInputView,
+    acts: Vec<Act>,
 ) -> Result<(), CreationError> {
     let goal = input.goal.trim();
     if goal.is_empty() {
@@ -207,7 +159,6 @@ async fn save_act(
         .filter(|trigger| !trigger.is_empty())
         .map(str::to_string);
 
-    let acts = adventures.get_acts(adventure_id).await?;
     let mut act = if input.id.is_empty() {
         let ordinal = acts.iter().map(|act| act.ordinal + 1).max().unwrap_or(0);
         Act::new(adventure_id, ordinal, goal)
@@ -225,7 +176,7 @@ async fn save_act(
 }
 
 async fn save_opening(
-    adventure_manager: &AdventureManager,
+    adventures: &AdventureManager,
     adventure_id: Uuid,
     text: &str,
 ) -> Result<(), CreationError> {
@@ -234,12 +185,21 @@ async fn save_opening(
         return Err(CreationError::Invalid("opening"));
     }
 
-    let adventure = adventure_manager.get_adventure(adventure_id).await?;
+    let adventure = current_adventure(adventures, adventure_id)?;
     let message = adventure.message_from_reply(Message::NARRATOR_SPEAKER_NAME, text);
-    adventure_manager
-        .create_initial_messages(&[message])
-        .await?;
+    adventures.create_initial_messages(&[message]).await?;
     Ok(())
+}
+
+/// The adventure the page edits, read from the snapshot rather than the database.
+fn current_adventure(
+    adventures: &AdventureManager,
+    adventure_id: Uuid,
+) -> Result<Adventure, CreationError> {
+    adventures
+        .current_adventure()
+        .filter(|adventure| adventure.id == adventure_id)
+        .ok_or(CreationError::Invalid("adventure"))
 }
 
 pub fn parse_id(id: &str) -> Option<Uuid> {

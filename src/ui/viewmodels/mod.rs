@@ -63,18 +63,25 @@ pub fn builder_view(adventure: Option<&Adventure>, acts: &[Act], has_opening: bo
 
     match adventure {
         Some(adventure) => {
-            let cast: Vec<CharacterChatView> = adventure
+            let cast_members: Vec<&Character> = adventure
                 .characters
                 .iter()
-                .filter(|c| !c.is_player)
-                .map(character_chat_view)
+                .filter(|character| !character.is_player)
+                .collect();
+            let cast: Vec<CharacterChatView> = cast_members
+                .iter()
+                .map(|character| character_chat_view(character))
                 .collect();
 
             let act_views: Vec<ActAuthorView> = acts.iter().map(act_author_view).collect();
 
-            let story_done =
-                !adventure.headline.trim().is_empty() && adventure.tone.trim() != PLACEHOLDER_TONE;
-            let cast_done = !cast.is_empty();
+            let story_done = !adventure.headline.trim().is_empty()
+                && !adventure.lore.text.trim().is_empty()
+                && adventure.tone.trim() != PLACEHOLDER_TONE;
+            // A character whose page was opened but never filled in is not a cast yet.
+            let cast_done = cast_members
+                .iter()
+                .any(|character| !character.is_placeholder());
             let acts_done = acts.iter().any(|act| act.is_valid_act());
             let opening_done = has_opening;
             let ready_count = [story_done, cast_done, acts_done, opening_done]

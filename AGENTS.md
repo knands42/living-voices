@@ -95,6 +95,31 @@ Layering rules the code actually follows:
   entry point; framing (`ImageFraming::Portrait` vs `FullBody`) is applied when the prompt is
   composed, not by the adapter.
 
+## UI data flow (do not re-read per edit)
+
+The backend snapshot is the UI's cache: `SharedState.current_adventure` is patched by every
+write (`update_adventure`, `create_character`, `update_character`, and `CharacterManager`'s
+prompt writers), so reading `AdventureManager::current_adventure()` costs no I/O and there is
+never a stale second copy.
+
+The rule the callbacks follow:
+
+- **Fetch when a page is entered, render from memory everywhere else.**
+  `BuilderPageContext::open` (`ui/callbacks/builder_page.rs`) runs the one expensive load
+  (`load_adventure` + acts + has-opening). `show()` re-renders the Slint `BuilderView` from the
+  snapshot + cached acts with no queries; `enter()` is the "page is visible again" path.
+- **Saves write once and never reload the builder.** Story, acts, opening and character edits
+  call `show(None)` (or nothing at all per character field) instead of re-running
+  `load_builder_data` — the old per-save double `get_adventure` (an 8-way join) is what made
+  typing feel heavy.
+- Slint never mutates navigation state itself: the sidebar raises `section-requested`, the
+  character page raises `builder-entered` (`app.slint`), and Rust renders *then* sets `section`
+  / `current-page`. Do not reintroduce a `<=>` binding on `BuilderGlobals.section`.
+- A new character is created immediately via `CharacterManager::create_draft`, which persists
+  `Character::draft(adventure_id)` and returns it so the page never reads it back. Its name is
+  `Character::PLACEHOLDER_NAME` until the player types one, and `builder_view` does not count a
+  placeholder as a filled cast (`is_placeholder`).
+
 ## Testing
 
 - Tests are integration-style under `tests/`, mirroring the `src/` tree, all pulled in from

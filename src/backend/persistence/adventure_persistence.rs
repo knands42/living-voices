@@ -255,7 +255,7 @@ SELECT a.id                      AS adventure_id,
        c.is_player AS character_is_player,
        COALESCE(ctag.tags, '[]') AS character_tags,
        COALESCE(ct.trait, '[]')  AS character_traits,
-       COALESCE(crl.rels, '[]')  AS character_relations,
+       c.relations AS character_relations,
        n.id AS narrator_id, n.name AS narrator_name, n.tone AS narrator_tone
 FROM adventure AS a
          LEFT JOIN (SELECT adventure_id,
@@ -277,12 +277,6 @@ FROM adventure AS a
                            '[' || GROUP_CONCAT('"' || value || '"', ',') || ']' AS trait
                     FROM character_trait GROUP BY character_id) AS ct
                    ON ct.character_id = c.id
-         LEFT JOIN (SELECT cr.character_id,
-                           '[' || GROUP_CONCAT('"' || cr.relation || ': ' || o.name || '"', ',') || ']' AS rels
-                    FROM character_relation cr
-                             JOIN character o ON o.id = cr.related_character_id   -- adjust to your column name
-                    GROUP BY cr.character_id) AS crl
-                   ON crl.character_id = c.id
          LEFT JOIN narrator AS n ON n.adventure_id = a.id
 WHERE a.id = ?
 ORDER BY a.updated_at DESC, c.name DESC;
