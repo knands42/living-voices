@@ -1,6 +1,6 @@
 import { AppTheme } from "../theme.slint";
 import { CharacterView } from "../views.slint";
-import { FieldCaption, PillButton } from "../builder/components.slint";
+import { FieldCaption } from "../builder/components.slint";
 import { EditableField } from "editable_field.slint";
 import { EditableList } from "editable_list.slint";
 
@@ -29,11 +29,9 @@ component PromptRow inherits HorizontalLayout {
 export component PortraitCard inherits Rectangle {
     in property <CharacterView> character;
     in property <bool> can-edit: false;
-    in-out property <bool> is-appearance-field-updated;
     callback name-committed(string);
     callback tag-added(string);
     callback tag-removed(int);
-    callback update-appearance-prompt();
 
     background: @linear-gradient(170deg, AppTheme.card-leather 0%, AppTheme.bg-deepest 80%);
     border-radius: 14px;
@@ -139,14 +137,6 @@ export component PortraitCard inherits Rectangle {
             PromptRow {
                 label: "Outfit";
                 ready: root.character.appearance-current-outfit != "";
-            }
-
-            if root.character.appearance-identity-prompt != "" && is-appearance-field-updated: PillButton {
-                label: "Update appearance prompt";
-                clicked => {
-                    root.update-appearance-prompt();
-                    root.is-appearance-field-updated = false;
-                }
             }
         }
     }

@@ -33,7 +33,6 @@ component InfoCard inherits Rectangle {
 export component CharacterPage inherits Rectangle {
     in property <CharacterView> character: CharacterGlobals.character;
     in property <bool> can-edit: CharacterGlobals.can-edit;
-    property <bool> is-appearance-field-updated: false;
     callback back-requested();
 
     // Every field is saved on its own, so the other values are sent unchanged.
@@ -117,16 +116,12 @@ export component CharacterPage inherits Rectangle {
                 width: 290px;
                 character: root.character;
                 can-edit: root.can-edit;
-                is-appearance-field-updated: root.is-appearance-field-updated;
                 name-committed(text) => {
                     root.save(text, root.character.headline, root.character.backstory,
                         root.character.appearance, ChangedField.character-name);
                 }
                 tag-added(text) => { CharacterGlobals.add-tag(root.character.id, text); }
                 tag-removed(index) => { CharacterGlobals.remove-tag(root.character.id, index); }
-                update-appearance-prompt => {
-                    CharacterGlobals.update-appearance-prompt(root.character.id);
-                }
             }
 
             Flickable {
@@ -166,10 +161,10 @@ export component CharacterPage inherits Rectangle {
                         EditableField {
                             value: root.character.appearance;
                             placeholder: "Face, hair, build, and what they wear when the story opens";
-                            can-edit: root.can-edit;
+                            can-edit: root.can-edit && !CharacterGlobals.generating-prompts;
+                            opacity: CharacterGlobals.generating-prompts ? 0.45 : 1;
                             multiline: true;
                             committed(text) => {
-                                root.is-appearance-field-updated = true;
                                 root.save(root.character.name, root.character.headline,
                                     root.character.backstory, text, ChangedField.appearance);
                             }

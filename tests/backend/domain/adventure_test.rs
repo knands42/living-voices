@@ -103,7 +103,7 @@ fn find_character_returns_matching_character() {
     let (adventure, mira) = adventure_with_character("Mira");
 
     // When looking the character up by name
-    let found = adventure.find_character("Mira");
+    let found = adventure.find_character(mira.id);
 
     // Then the stored character is returned
     assert!(found.is_some());
@@ -117,7 +117,7 @@ fn find_character_returns_none_for_unknown_name() {
 
     // When looking up a name that is not in the cast
     // Then nothing is returned
-    assert!(adventure.find_character("Nobody").is_none());
+    assert!(adventure.find_character(Uuid::new_v4()).is_none());
 }
 
 #[test]

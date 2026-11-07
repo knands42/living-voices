@@ -98,24 +98,16 @@ impl CharacterPageContext {
         Ok(())
     }
 
-    /// The first pass over a prose that was just written: it only runs while a layer is
-    /// still missing, so saving the field again costs no model call.
+    /// The appearance prose is what the two image layers are distilled from, so every save
+    /// of the field rebuilds both of them in the background. The field stays dimmed while
+    /// that runs, which is the only signal the player gets that a model call is in flight.
     fn start_image_prompts(&self, character_id: Uuid) {
         let Some(character) = self.character(character_id) else {
             return;
         };
-        if character.is_placeholder() || !character.needs_image_prompts() {
+        if character.is_placeholder() || character.appearance.is_none() {
             return;
         }
-
-        self.spawn_appearance_prompts(character);
-    }
-
-    /// The player rewrote the prose the layers were distilled from and asked for them again.
-    fn update_image_prompts(&self, character_id: Uuid) {
-        let Some(character) = self.character(character_id) else {
-            return;
-        };
 
         self.spawn_appearance_prompts(character);
     }
@@ -135,30 +127,34 @@ impl CharacterPageContext {
         let adventures = self.adventures.clone();
         let ui_weak = self.ui_weak.clone();
 
-        self.handle.spawn(async move {
-            // TODO: make the two calls parallel
-            if let Err(err) = characters
-                .create_character_identity_prompt(&character)
-                .await
-            {
-                log::error!("could not generate the appearance prompts of {character_id}: {err}");
-            }
+        if let Some(ui) = ui_weak.upgrade() {
+            ui.global::<CharacterGlobals>().set_generating_prompts(true);
+        }
 
-            if let Err(err) = characters.create_character_outfit_prompt(&character).await {
-                log::error!("could not generate the appearance prompts of {character_id}: {err}");
+        self.handle.spawn(async move {
+            let (identity, outfit) = tokio::join!(
+                characters.create_character_identity_prompt(&character),
+                characters.create_character_outfit_prompt(&character),
+            );
+
+            if let Err(err) = identity {
+                log::error!("could not generate the identity prompt of {character_id}: {err}");
+            }
+            if let Err(err) = outfit {
+                log::error!("could not generate the outfit prompt of {character_id}: {err}");
             }
 
             let update_post = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else {
                     return;
                 };
-                if parse_id(ui.global::<CharacterGlobals>().get_character().id.as_str())
-                    != Some(character_id)
-                {
+                let character_page = ui.global::<CharacterGlobals>();
+                character_page.set_generating_prompts(false);
+
+                if parse_id(character_page.get_character().id.as_str()) != Some(character_id) {
                     return;
                 }
 
-                // get the updated character image from shared state to update the UI portrait
                 let refreshed = adventures.current_adventure().and_then(|adventure| {
                     adventure
                         .characters
@@ -167,8 +163,7 @@ impl CharacterPageContext {
                 });
 
                 if let Some(character) = refreshed {
-                    ui.global::<CharacterGlobals>()
-                        .set_character(viewmodels::character_view(&character));
+                    character_page.set_character(viewmodels::character_view(&character));
                 }
             });
 
@@ -275,13 +270,6 @@ fn register_edit(ui: &RootWindow, env: &CharacterPageContext) {
 
         if changed_field == ChangedField::Appearance {
             save_env.start_image_prompts(character_id);
-        }
-    });
-
-    let env_update_prompt = env.clone();
-    page.on_update_appearance_prompt(move |character_id| {
-        if let Some(character_id) = parse_id(character_id.as_str()) {
-            env_update_prompt.update_image_prompts(character_id);
         }
     });
 

@@ -10,6 +10,9 @@ export global CharacterGlobals {
     // Only the owner of     the adventure sees the edit buttons.
     in property <bool> can-edit: true;
 
+    // The appearance prompt run is in flight; the field it was read from stays dimmed.
+    in property <bool> generating-prompts: false;
+
     callback save-character(CharacterCreationInput, ChangedField);
     callback add-trait(string, string);
     callback remove-trait(string, int);
@@ -18,5 +21,4 @@ export global CharacterGlobals {
     callback add-relation(string, string);
     callback remove-relation(string, int);
     callback add-appearance-prompt(string);
-    callback update-appearance-prompt(string);
 }

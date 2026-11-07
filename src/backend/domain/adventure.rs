@@ -127,8 +127,8 @@ impl Adventure {
         self.tags.extend(tags);
     }
 
-    pub fn find_character(&self, name: &str) -> Option<&Character> {
-        self.characters.iter().find(|c| c.name == name)
+    pub fn find_character(&self, character_id: Uuid) -> Option<&Character> {
+        self.characters.iter().find(|c| c.id == character_id)
     }
 
     pub fn active_characters(&self, present_names: &[String]) -> Vec<&Character> {

@@ -138,13 +138,6 @@ impl Character {
         self.name == Self::PLACEHOLDER_NAME
     }
 
-    /// A layer distilled from the prose is missing, so the first pass has work to do.
-    pub fn needs_image_prompts(&self) -> bool {
-        self.appearance.is_some()
-            && (self.appearance_identity_prompt.is_none()
-                || self.appearance_current_outfit.is_none())
-    }
-
     pub fn with_portrait(mut self, portrait_path: impl Into<String>) -> Self {
         self.portrait_path = Some(portrait_path.into());
         self
