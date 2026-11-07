@@ -66,8 +66,7 @@ just dev-requirements
 
 ### Provision the text engine (llama.cpp)
 ```bash
-just provision-llama       # build the engine into ./llama/llama-server
-just provision-llama-model # download the GGUF into ./llama/models
+just provision-llama       # build the engine into ./llama/llama-server and download the GGUF into ./llama/models
 ```
 
 ### Provision ComfyUI (image / video / audio engine)

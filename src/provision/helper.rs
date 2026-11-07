@@ -1,10 +1,10 @@
 use crate::config::base_dir;
 use std::path::PathBuf;
 
-pub const MODEL_FILE: &str = "qwen2.5-7b-memory-distiller.Q4_K_M.gguf";
-pub const MODEL_URL: &str = "https://huggingface.co/sennaLLMLearner/qwen2.5-7b-memory-distiller/resolve/main/qwen2.5-7b-memory-distiller.Q4_K_M.gguf";
+pub const MODEL_FILE: &str = "L3-8B-Stheno-v3.2-Q5_K_M.gguf";
+pub const MODEL_URL: &str = "https://huggingface.co/bartowski/L3-8B-Stheno-v3.2-GGUF/resolve/main/L3-8B-Stheno-v3.2-Q5_K_M.gguf";
 /// What `--alias` reports through `/v1/models`, and what `config.toml` must say.
-pub const MODEL_ALIAS: &str = "qwen2.5-7b-memory-distiller:Q4_K_M";
+pub const MODEL_ALIAS: &str = "L3-8B-Stheno-v3.2-Q5_K_M.gguf";
 
 /// The engine binary, shipped next to `models/`.
 pub const LLAMA_SERVER_BIN: &str = "llama-server";

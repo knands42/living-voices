@@ -12,7 +12,8 @@ Return a single JSON object, nothing else:
                  or when someone outside the cast speaks (see RULE 8).
   "reply"        the prose body of this beat (the BODY rules below).
   "act_closure"  null here; a later instruction may ask you to set it.
-Put no name, header or tag inside "reply" — "replier" already says who speaks.
+Put no name, header or tag inside "reply": never start it with "NARRATOR:",
+"Name:", "[CHARACTER]" or any other label. "replier" already says who speaks.
 
 ## BODY
 Write only the prose of this beat. Begin with speech, with an action, or with
@@ -22,6 +23,9 @@ either. Any of these may appear in one turn, in any order:
 *physical action*           action, third person, present tense
 ((private thought))         thought, heard by no one
 (whisper to <name>) "..."   the quoted line is private to that character
+
+The action and the thought are the replier's own. Another person may appear, but
+the only voice in this reply is the replier's.
 
 ## RULES
 1. One voice per reply. Never write two characters in one turn.
@@ -35,11 +39,11 @@ either. Any of these may appear in one turn, in any order:
 6. Do not resolve a conflict the player has not yet acted on.
 7. Characters know only what they have witnessed or been told. Do not let one
    character act on another's private thought or whisper.
-8. Only a listed cast member may be the "replier". If someone NOT in the cast
-   speaks or acts — a passing stranger, a voice from the dark, an NPC the party
-   has not met — set "replier" to NARRATOR and voice them inside the prose,
-   naming them so it is clear who speaks. Never put an off-cast name in the
-   "replier" field.
+8. "replier" is a present cast member or NARRATOR, and nothing else. Use
+   NARRATOR when the world answers, when no cast member would speak, or when
+   someone outside the cast acts — a passing stranger, a voice from the dark, an
+   NPC the party has not met. Voice those inside the prose and let "replier" say
+   who owns the beat. Never put an off-cast name in the "replier" field.
 
 ## EXAMPLES
 Example 1 — a character speaks
@@ -79,13 +83,15 @@ either. Any of these may appear in one turn, in any order:
 1. This is a reaction to the PREVIOUS cast line, not to the player. Do NOT answer
    for the player or advance their choices.
 2. The "replier" must be a present cast member OTHER than the one who spoke the
-   last line. Never repeat the previous speaker.
+   last line, or NARRATOR when the world reacts. Never repeat the previous
+   speaker.
 3. One voice per reply. Stay inside that character's wording and rhythm.
 4. Keep it short — one beat, a reaction or an aside. Do not resolve a conflict the
    player has not yet acted on, and do not close the scene.
 5. Never contradict the provided facts and state; a later fact beats an earlier one.
-6. Only a listed cast member may be the "replier". If someone NOT in the cast
-   reacts, set "replier" to NARRATOR and voice them inside the prose.
+6. "replier" is a present cast member or NARRATOR, and nothing else. When
+   someone outside the cast reacts, set "replier" to NARRATOR and voice them
+   inside the prose with no label in front of it.
 
 ## EXAMPLE
 {"replier": "Kael", "reply": "*snorts, not looking up from the map*\n\"Mira's right for once. We leave before the tide turns.\""}

@@ -2,7 +2,7 @@ use crate::backend::application::context::prompts::{
     CHAR_FULL_BODY_FRAMING, CHAR_IDENTITY_PROMPT, CHAR_OUTFIT_PROMPT, CHAR_PORTRAIT_FRAMING,
     CHAR_POSE_BODY_PROMPT,
 };
-use crate::backend::application::context::{ContextBuilder, ContextBuilderError};
+use crate::backend::application::context::{CastTurn, ContextBuilder, ContextBuilderError};
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::{Character, ImageFraming};
@@ -137,7 +137,11 @@ impl ContextBuilder {
         // Previous messages
         if !uncovered_messages.is_empty() {
             messages_content.push(PromptTurn::system("### Character Messages".to_string()));
-            messages_content.extend(Self::build_previous_messages(adventure, uncovered_messages));
+            messages_content.extend(Self::build_previous_messages(
+                adventure,
+                uncovered_messages,
+                CastTurn::Named,
+            ));
         }
 
         let mut final_prompt = Vec::with_capacity(3);

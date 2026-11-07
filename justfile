@@ -54,6 +54,7 @@ dev-requirements:
     rustup component add llvm-tools-preview
     cargo install cargo-llvm-cov
     cp config.toml config-local.toml
+    sudo pacman -S vulkan-headers spirv-headers
 
 coverage:
     cargo llvm-cov --summary-only --ignore-filename-regex '{{ cov_ignore }}'
@@ -78,17 +79,21 @@ llama_url := env_var_or_default("LLAMA_URL", "https://github.com/ggml-org/llama.
 llama_src := provision_dir / "llama"
 llama_build := llama_src / "build"
 llama_server := llama_build / "bin" / "llama-server"
-llama_cmake_flags := env_var_or_default("LLAMA_CMAKE_FLAGS", "-DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON -DGGML_NATIVE=ON -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF")
+# Vulkan, not CUDA: one build serves NVIDIA, AMD and Intel, it needs no CUDA toolkit
+# at build time, and no libcudart/libcublas at run time for the people we ship to.
+# Requires vulkan-headers, spirv-headers and glslc. Add -DGGML_CUDA=ON (plus the
+# toolkit and a GCC that nvcc accepts) only if you want CUDA's prefill on NVIDIA.
+llama_cmake_flags := env_var_or_default("LLAMA_CMAKE_FLAGS", "-DBUILD_SHARED_LIBS=OFF -DGGML_VULKAN=ON -DGGML_NATIVE=ON -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF")
 
 # What the app itself expects on disk at runtime: {base_dir}/llama, which in a
 # debug build is this project root.
 llama_runtime := "llama"
 llama_runtime_bin := llama_runtime / "llama-server"
 model_dir := llama_runtime / "models"
-model_file := "qwen2.5-7b-memory-distiller.Q4_K_M.gguf"
-model_path := model_dir / model_file
-model_url := env_var_or_default("MODEL_URL", "https://huggingface.co/sennaLLMLearner/qwen2.5-7b-memory-distiller/resolve/main/qwen2.5-7b-memory-distiller.Q4_K_M.gguf")
-model_size := "4683073824"
+model_roleplay_url := env_var_or_default("MODEL_ROLEPLAY_URL", "https://huggingface.co/bartowski/L3-8B-Stheno-v3.2-GGUF/resolve/main/L3-8B-Stheno-v3.2-Q5_K_M.gguf")
+model_roleplay_name := "L3-8B-Stheno-v3.2-Q5_K_M.gguf"
+model_memory_url := env_var_or_default("MODEL_MEMORY_URL", "https://huggingface.co/sennaLLMLearner/qwen2.5-7b-memory-distiller/resolve/main/qwen2.5-7b-memory-distiller.Q4_K_M.gguf")
+model_memory_name := "qwen2.5-7b-memory-distiller.Q4_K_M.gguf"
 
 # ComfyUI is python: the checkout is the artifact, the venv is the "build", and
 # both live in the runtime dir the app expects, {base_dir}/comfyui, so custom
@@ -142,7 +147,8 @@ comfy_url := "http://" + comfy_host + ":" + comfy_port
 provision-status:
     @echo "runtime dir: $(pwd)"
     @test -x {{ llama_runtime_bin }} && echo "  llama-server: ok" || echo "  llama-server: missing -> just provision-llama-install"
-    @test -f {{ model_path }} && echo "  llama model:  ok" || echo "  llama model:  missing -> just provision-llama-model (the app downloads it too)"
+    @test -f {{ model_dir }}/{{ model_roleplay_name }} && echo "  roleplay model: ok" || echo "  roleplay model: missing -> just provision-llama-model"
+    @test -f {{ model_dir }}/{{ model_memory_name }} && echo "  memory model: ok" || echo "  memory model: missing -> just provision-llama-model"
     @test -f {{ comfy_main }} && echo "  ComfyUI:      ok" || echo "  ComfyUI:      missing -> just provision-comfy"
     @test -x {{ comfy_python }} && echo "  comfy python: ok ($({{ comfy_python }} --version))" || echo "  comfy python: missing -> just provision-comfy"
     @test -x {{ comfy_venv }}/bin/python && echo "  comfy venv:   ok" || echo "  comfy venv:   missing -> just provision-comfy"
@@ -177,9 +183,9 @@ provision-llama-install: provision-llama-build
 
 provision-llama-model:
     mkdir -p {{ model_dir }}
-    test -f {{ model_path }} || curl -fL --continue-at - -o {{ model_path }} {{ model_url }}
-    test "$(stat -c %s {{ model_path }})" = "{{ model_size }}" || (echo "size mismatch: $(stat -c %s {{ model_path }}) != {{ model_size }}" && exit 1)
-    @echo "model: {{ model_path }}"
+    test -f {{ model_dir }}/{{ model_roleplay_name }} || curl -fL --continue-at - -o {{ model_dir }}/{{ model_roleplay_name }} {{ model_roleplay_url }}
+    test -f {{ model_dir }}/{{ model_memory_name }} || curl -fL --continue-at - -o {{ model_dir }}/{{ model_memory_name }} {{ model_memory_url }}
+    @echo "models: {{ model_roleplay_name }}, {{ model_memory_name }}"
 
 provision-llama: provision-llama-install provision-llama-model
 
@@ -263,7 +269,7 @@ comfy-start:
     cd {{ comfy_runtime }} && setsid {{ comfy_venv_python }} main.py --listen {{ comfy_host }} --port {{ comfy_port }} --disable-auto-launch {{ env_var_or_default("COMFY_EXTRA", "") }} > {{ comfy_log_file }} 2>&1 < /dev/null &
     @echo "ComfyUI starting on {{ comfy_url }} (log: {{ comfy_log }})"
 
-provision: provision-llama provision-llama-model provision-comfy
+provision: provision-llama provision-comfy
     @echo "provisioning complete under {{ provision_dir }} and {{ comfy_runtime }}"
 
 chat-test:

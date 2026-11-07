@@ -1,5 +1,5 @@
 use crate::backend::application::context::prompts::*;
-use crate::backend::application::context::{ContextBuilder, ContextData};
+use crate::backend::application::context::{CastTurn, ContextBuilder, ContextData};
 use crate::backend::application::director::Director;
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::domain::adventure::Adventure;
@@ -23,7 +23,14 @@ impl ContextBuilder {
             Self::build_characters_prompt(adventure),
         ];
 
-        Self::assemble(adventure, director, data, &head, messages)
+        Self::assemble(
+            adventure,
+            director,
+            data,
+            &head,
+            messages,
+            CastTurn::Replied,
+        )
     }
 
     pub fn build_single_character_chat_prompt(
@@ -45,7 +52,7 @@ impl ContextBuilder {
             head.push(format!("{MESSAGE_EXAMPLE_PROMPT}\n{example}"));
         }
 
-        Self::assemble(adventure, director, data, &head, messages)
+        Self::assemble(adventure, director, data, &head, messages, CastTurn::Named)
     }
 
     pub fn build_narrator_chat_prompt(
@@ -60,7 +67,7 @@ impl ContextBuilder {
             NARRATOR_CHAT_INSTRUCTIONS.to_string(),
         ];
 
-        Self::assemble(adventure, director, data, &head, messages)
+        Self::assemble(adventure, director, data, &head, messages, CastTurn::Named)
     }
 
     /// An NPC-to-NPC follow-up beat.
@@ -78,7 +85,11 @@ impl ContextBuilder {
 
         let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
         turns.push(PromptTurn::system(Self::build_static_context(data)));
-        turns.extend(Self::build_previous_messages(adventure, messages));
+        turns.extend(Self::build_previous_messages(
+            adventure,
+            messages,
+            CastTurn::FollowedUp,
+        ));
         turns
     }
 
@@ -108,11 +119,14 @@ impl ContextBuilder {
         data: &ContextData,
         head: &[String],
         messages: &[Message],
+        cast_turn: CastTurn,
     ) -> Vec<PromptTurn> {
         let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
 
         turns.push(PromptTurn::system(Self::build_static_context(data)));
-        turns.extend(Self::build_previous_messages(adventure, messages));
+        turns.extend(Self::build_previous_messages(
+            adventure, messages, cast_turn,
+        ));
 
         let messages_in_act = data.messages_in_act;
         let max_messages = director.get_max_act_messages();

@@ -142,7 +142,10 @@ async fn previous_messages_classify_player_and_cast_turns() {
         .iter()
         .find(|t| t.speaker == Speaker::Cast)
         .expect("a cast turn");
-    assert_eq!(cast_turn.text, "Mira: It creaks.");
+    assert_eq!(
+        cast_turn.text,
+        r#"{"act_closure":null,"replier":"Mira","reply":"It creaks."}"#
+    );
 }
 
 #[tokio::test]

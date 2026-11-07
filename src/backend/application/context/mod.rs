@@ -16,6 +16,14 @@ use uuid::Uuid;
 
 pub struct ContextBuilder;
 
+/// How a past cast turn is written into the history
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CastTurn {
+    Named,
+    Replied,
+    FollowedUp,
+}
+
 #[derive(Error, Debug)]
 pub enum ContextBuilderError {
     #[error("Database error: {0}")]
@@ -132,19 +140,44 @@ impl ContextBuilder {
     }
 
     /// The dynamic messaging setup to differentiate the user from the cast.
-    fn build_previous_messages(adventure: &Adventure, messages: &[Message]) -> Vec<PromptTurn> {
+    fn build_previous_messages(
+        adventure: &Adventure,
+        messages: &[Message],
+        cast_turn: CastTurn,
+    ) -> Vec<PromptTurn> {
         messages
             .iter()
-            .map(|message| Self::message_to_turn(adventure, message))
+            .map(|message| Self::message_to_turn(adventure, message, cast_turn))
             .collect()
     }
 
     /// Classify a stored message. Does it come from the player or NPC?
-    fn message_to_turn(adventure: &Adventure, message: &Message) -> PromptTurn {
+    fn message_to_turn(
+        adventure: &Adventure,
+        message: &Message,
+        cast_turn: CastTurn,
+    ) -> PromptTurn {
         if Self::is_player_message(adventure, message) {
             PromptTurn::player(message.text.clone())
         } else {
-            PromptTurn::cast(format!("{}: {}", message.speaker_name, message.text))
+            PromptTurn::cast(Self::render_cast_turn(message, cast_turn))
+        }
+    }
+
+    fn render_cast_turn(message: &Message, cast_turn: CastTurn) -> String {
+        match cast_turn {
+            CastTurn::Named => format!("{}: {}", message.speaker_name, message.text),
+            CastTurn::Replied => serde_json::json!({
+                "replier": message.speaker_name,
+                "reply": message.text,
+                "act_closure": null,
+            })
+            .to_string(),
+            CastTurn::FollowedUp => serde_json::json!({
+                "replier": message.speaker_name,
+                "reply": message.text,
+            })
+            .to_string(),
         }
     }
 

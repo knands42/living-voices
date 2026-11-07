@@ -1,4 +1,5 @@
 import { AppTheme } from "theme.slint";
+import { SelectableText } from "selectable_text.slint";
 
 export component ChatBubble inherits Rectangle {
     in property <string> speaker;
@@ -29,12 +30,11 @@ export component ChatBubble inherits Rectangle {
             font-weight: 600;
         }
 
-        Text {
+        SelectableText {
             text: root.text;
             color: AppTheme.text-light;
             font-family: AppTheme.font-body;
             font-size: 14px * root.scale;
-            wrap: word-wrap;
         }
     }
 }
@@ -52,14 +52,13 @@ export component NarratorBubble inherits Rectangle {
         alignment: center;
         padding: root.pad;
 
-        Text {
+        SelectableText {
             text: root.text;
             color: AppTheme.text-light;
             font-family: AppTheme.font-display;
             font-size: 15px * root.scale;
             font-italic: true;
             horizontal-alignment: center;
-            wrap: word-wrap;
         }
     }
 }
