@@ -1,7 +1,7 @@
 import { AppTheme } from "../theme.slint";
 import { CharacterView } from "../views.slint";
 import { FieldCaption } from "../builder/components.slint";
-import { CharacterGlobals } from "globals.slint";
+import { CharacterGlobals, ChangedField } from "globals.slint";
 import { EditableField } from "editable_field.slint";
 import { EditableList } from "editable_list.slint";
 import { PortraitCard } from "portrait_card.slint";
@@ -21,7 +21,10 @@ component InfoCard inherits Rectangle {
         padding: 18px;
         spacing: 8px;
 
-        FieldCaption { text: root.caption; }
+        FieldCaption {
+            text: root.caption;
+        }
+
         @children
     }
 }
@@ -30,17 +33,18 @@ component InfoCard inherits Rectangle {
 export component CharacterPage inherits Rectangle {
     in property <CharacterView> character: CharacterGlobals.character;
     in property <bool> can-edit: CharacterGlobals.can-edit;
+    property <bool> is-appearance-field-updated: false;
     callback back-requested();
 
     // Every field is saved on its own, so the other values are sent unchanged.
     // The character being edited is whatever the page shows, so no id travels here.
-    function save(name: string, headline: string, backstory: string, appearance: string) {
+    function save(name: string, headline: string, backstory: string, appearance: string, changed-field: ChangedField) {
         CharacterGlobals.save-character({
             name: name,
             headline: headline,
             backstory: backstory,
             appearance: appearance,
-        });
+        }, changed-field);
     }
 
     background: AppTheme.bg-deepest;
@@ -113,12 +117,16 @@ export component CharacterPage inherits Rectangle {
                 width: 290px;
                 character: root.character;
                 can-edit: root.can-edit;
+                is-appearance-field-updated: root.is-appearance-field-updated;
                 name-committed(text) => {
                     root.save(text, root.character.headline, root.character.backstory,
-                        root.character.appearance);
+                        root.character.appearance, ChangedField.character-name);
                 }
                 tag-added(text) => { CharacterGlobals.add-tag(root.character.id, text); }
                 tag-removed(index) => { CharacterGlobals.remove-tag(root.character.id, index); }
+                update-appearance-prompt => {
+                    CharacterGlobals.update-appearance-prompt(root.character.id);
+                }
             }
 
             Flickable {
@@ -135,7 +143,7 @@ export component CharacterPage inherits Rectangle {
                             can-edit: root.can-edit;
                             committed(text) => {
                                 root.save(root.character.name, text, root.character.backstory,
-                                    root.character.appearance);
+                                    root.character.appearance, ChangedField.headline);
                             }
                         }
                     }
@@ -148,7 +156,7 @@ export component CharacterPage inherits Rectangle {
                             multiline: true;
                             committed(text) => {
                                 root.save(root.character.name, root.character.headline, text,
-                                    root.character.appearance);
+                                    root.character.appearance, ChangedField.backstory);
                             }
                         }
                     }
@@ -161,8 +169,9 @@ export component CharacterPage inherits Rectangle {
                             can-edit: root.can-edit;
                             multiline: true;
                             committed(text) => {
+                                root.is-appearance-field-updated = true;
                                 root.save(root.character.name, root.character.headline,
-                                    root.character.backstory, text);
+                                    root.character.backstory, text, ChangedField.appearance);
                             }
                         }
                     }

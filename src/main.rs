@@ -1,12 +1,8 @@
-use std::fs::File;
-use std::path::Path;
-
-use env_logger::{Builder, Target};
 use living_voices::{
     app::App,
     backend::{open_pool, run_migrations, seed_titles},
     cli,
-    config::{self, Config},
+    config::Config,
 };
 
 #[derive(Clone, Copy, Debug)]

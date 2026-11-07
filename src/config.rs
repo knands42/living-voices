@@ -1,6 +1,6 @@
-use crate::config;
 use env_logger::{Builder, Target};
 use serde::{Deserialize, Serialize};
+#[cfg(not(debug_assertions))]
 use std::fs::File;
 use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
@@ -236,18 +236,23 @@ impl Config {
     }
 
     pub fn init_logging() {
-        let path = &config::base_dir().join("living-voices.log");
-        if let Some(parent) = path.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        match File::create(path) {
-            Ok(file) => {
-                Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-                    .target(Target::Pipe(Box::new(file)))
-                    .init();
+        let mut builder = Builder::from_env(env_logger::Env::default().default_filter_or("info"));
+
+        #[cfg(debug_assertions)]
+        builder.target(Target::Stdout);
+
+        #[cfg(not(debug_assertions))]
+        {
+            let path = base_dir().join("living-voices.log");
+            if let Some(parent) = path.parent() {
+                let _ = std::fs::create_dir_all(parent);
             }
-            Err(_) => env_logger::init(),
+            if let Ok(file) = File::create(path) {
+                builder.target(Target::Pipe(Box::new(file)));
+            }
         }
+
+        builder.init();
     }
 
     /// Route every text model (chat and memory) at `base_url`.

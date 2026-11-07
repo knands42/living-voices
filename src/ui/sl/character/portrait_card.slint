@@ -1,6 +1,6 @@
 import { AppTheme } from "../theme.slint";
 import { CharacterView } from "../views.slint";
-import { FieldCaption } from "../builder/components.slint";
+import { FieldCaption, PillButton } from "../builder/components.slint";
 import { EditableField } from "editable_field.slint";
 import { EditableList } from "editable_list.slint";
 
@@ -16,6 +16,7 @@ component PromptRow inherits HorizontalLayout {
         font-size: AppTheme.font-label + 1px;
         horizontal-stretch: 1;
     }
+
     Text {
         text: root.ready ? "✓ ready" : "○ not made";
         color: root.ready ? AppTheme.success : AppTheme.amber-glow;
@@ -28,9 +29,11 @@ component PromptRow inherits HorizontalLayout {
 export component PortraitCard inherits Rectangle {
     in property <CharacterView> character;
     in property <bool> can-edit: false;
+    in-out property <bool> is-appearance-field-updated;
     callback name-committed(string);
     callback tag-added(string);
     callback tag-removed(int);
+    callback update-appearance-prompt();
 
     background: @linear-gradient(170deg, AppTheme.card-leather 0%, AppTheme.bg-deepest 80%);
     border-radius: 14px;
@@ -94,12 +97,18 @@ export component PortraitCard inherits Rectangle {
             }
         }
 
-        Rectangle { height: 1px; background: AppTheme.bronze; }
+        Rectangle {
+            height: 1px;
+            background: AppTheme.bronze;
+        }
 
         VerticalLayout {
             spacing: 8px;
 
-            FieldCaption { text: "TAGS"; }
+            FieldCaption {
+                text: "TAGS";
+            }
+
             EditableList {
                 items: root.character.tags;
                 can-edit: root.can-edit;
@@ -110,23 +119,34 @@ export component PortraitCard inherits Rectangle {
             }
         }
 
-        Rectangle { height: 1px; background: AppTheme.bronze; }
+        Rectangle {
+            height: 1px;
+            background: AppTheme.bronze;
+        }
 
         VerticalLayout {
             spacing: 6px;
 
-            FieldCaption { text: "IMAGE PROMPTS"; }
+            FieldCaption {
+                text: "IMAGE PROMPTS";
+            }
+
             PromptRow {
                 label: "Identity";
                 ready: root.character.appearance-identity-prompt != "";
             }
+
             PromptRow {
                 label: "Outfit";
                 ready: root.character.appearance-current-outfit != "";
             }
-            PromptRow {
-                label: "Current pose";
-                ready: root.character.appearance-current-pose != "";
+
+            if root.character.appearance-identity-prompt != "" && is-appearance-field-updated: PillButton {
+                label: "Update appearance prompt";
+                clicked => {
+                    root.update-appearance-prompt();
+                    root.is-appearance-field-updated = false;
+                }
             }
         }
     }

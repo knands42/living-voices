@@ -6,7 +6,7 @@ use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler}
 use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
 use crate::backend::domain::character::Character;
 use crate::ui::callbacks::adventure_creation::parse_id;
-use crate::ui::{BuilderGlobals, CharacterGlobals, RootWindow, viewmodels};
+use crate::ui::{BuilderGlobals, ChangedField, CharacterGlobals, RootWindow, viewmodels};
 use slint::ComponentHandle;
 use thiserror::Error;
 use tokio::runtime::Handle;
@@ -98,49 +98,57 @@ impl CharacterPageContext {
         Ok(())
     }
 
-    /// The appearance prose is what the image layers are distilled from, so the first save
-    /// that carries it fills the two layers a character has at creation: identity and the
-    /// opening outfit. The pose waits for a scene. A slot already filled is left alone, so
-    /// re-saving the field costs no model call.
+    /// The first pass over a prose that was just written: it only runs while a layer is
+    /// still missing, so saving the field again costs no model call.
     fn start_image_prompts(&self, character_id: Uuid) {
-        let Some(character) = self.adventures.current_adventure().and_then(|adventure| {
+        let Some(character) = self.character(character_id) else {
+            return;
+        };
+        if character.is_placeholder() || !character.needs_image_prompts() {
+            return;
+        }
+
+        self.spawn_appearance_prompts(character);
+    }
+
+    /// The player rewrote the prose the layers were distilled from and asked for them again.
+    fn update_image_prompts(&self, character_id: Uuid) {
+        let Some(character) = self.character(character_id) else {
+            return;
+        };
+
+        self.spawn_appearance_prompts(character);
+    }
+
+    fn character(&self, character_id: Uuid) -> Option<Character> {
+        self.adventures.current_adventure().and_then(|adventure| {
             adventure
                 .characters
                 .into_iter()
                 .find(|character| character.id == character_id)
-        }) else {
-            return;
-        };
+        })
+    }
 
-        let identity_missing = character.appearance_identity_prompt.is_none();
-        let outfit_missing = character.appearance_current_outfit.is_none();
-        if character.appearance.is_none() || character.is_placeholder() {
-            return;
-        }
-        if !identity_missing && !outfit_missing {
-            return;
-        }
-
+    fn spawn_appearance_prompts(&self, character: Character) {
+        let character_id = character.id;
         let characters = self.characters.clone();
         let adventures = self.adventures.clone();
         let ui_weak = self.ui_weak.clone();
 
         self.handle.spawn(async move {
-            if identity_missing
-                && let Err(err) = characters
-                    .create_character_identity_prompt(&character)
-                    .await
+            // TODO: make the two calls parallel
+            if let Err(err) = characters
+                .create_character_identity_prompt(&character)
+                .await
             {
-                log::error!("could not create the identity prompt of {character_id}: {err}");
+                log::error!("could not generate the appearance prompts of {character_id}: {err}");
             }
 
-            if outfit_missing
-                && let Err(err) = characters.create_character_outfit_prompt(&character).await
-            {
-                log::error!("could not create the outfit prompt of {character_id}: {err}");
+            if let Err(err) = characters.create_character_outfit_prompt(&character).await {
+                log::error!("could not generate the appearance prompts of {character_id}: {err}");
             }
 
-            let post = slint::invoke_from_event_loop(move || {
+            let update_post = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else {
                     return;
                 };
@@ -150,6 +158,7 @@ impl CharacterPageContext {
                     return;
                 }
 
+                // get the updated character image from shared state to update the UI portrait
                 let refreshed = adventures.current_adventure().and_then(|adventure| {
                     adventure
                         .characters
@@ -163,7 +172,7 @@ impl CharacterPageContext {
                 }
             });
 
-            if let Err(err) = post {
+            if let Err(err) = update_post {
                 log::error!("could not re-render character {character_id}: {err}");
             }
         });
@@ -240,7 +249,7 @@ fn register_edit(ui: &RootWindow, env: &CharacterPageContext) {
     let page = ui.global::<CharacterGlobals>();
 
     let save_env = env.clone();
-    page.on_save_character(move |input| {
+    page.on_save_character(move |input, changed_field| {
         let Some(character_id) = save_env.shown_id() else {
             return;
         };
@@ -264,7 +273,16 @@ fn register_edit(ui: &RootWindow, env: &CharacterPageContext) {
             return;
         }
 
-        save_env.start_image_prompts(character_id);
+        if changed_field == ChangedField::Appearance {
+            save_env.start_image_prompts(character_id);
+        }
+    });
+
+    let env_update_prompt = env.clone();
+    page.on_update_appearance_prompt(move |character_id| {
+        if let Some(character_id) = parse_id(character_id.as_str()) {
+            env_update_prompt.update_image_prompts(character_id);
+        }
     });
 
     let env_add_trait = env.clone();

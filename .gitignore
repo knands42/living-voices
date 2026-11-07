@@ -1,11 +1,17 @@
-/target
-.TODO
-.idea/
-*.db*
-.kiro/
-.crush/
-.ai-jail
-config-local.toml
+# Build artifacts
 llama/
 provision/
 comfyui/
+/target
+
+# IDEs & Tools
+.idea/
+.kiro/
+.crush/
+.ai-jail
+
+# Others
+config-local.toml
+.TODO
+*.db*
+*.log

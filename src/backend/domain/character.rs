@@ -68,6 +68,13 @@ pub struct Character {
     pub headline: String,
     pub status: CharacterStatus,
     pub backstory: String,
+    pub portrait_path: Option<String>,
+    pub is_player: bool,
+    pub traits: Vec<String>,    // Speaks only in tidal registers, ...
+    pub tags: Vec<String>,      // Protagonist, Brave ...
+    pub relations: Vec<String>, // Son of Dragoon
+    pub message_example: Option<String>,
+
     /// Used for a "poetic" description of the character
     pub appearance: Option<String>,
     /// Face, hair, build and marks: who the character is, without clothing or pose.
@@ -76,12 +83,6 @@ pub struct Character {
     pub appearance_current_outfit: Option<String>,
     /// The pose and action of the current moment.
     pub appearance_current_pose: Option<String>,
-    pub portrait_path: Option<String>,
-    pub is_player: bool,
-    pub traits: Vec<String>,    // Speaks only in tidal registers, ...
-    pub tags: Vec<String>,      // Protagonist, Brave ...
-    pub relations: Vec<String>, // Son of Dragoon
-    pub message_example: Option<String>,
 }
 
 impl Character {
@@ -135,6 +136,13 @@ impl Character {
     /// True while the character is still the placeholder its page opened with.
     pub fn is_placeholder(&self) -> bool {
         self.name == Self::PLACEHOLDER_NAME
+    }
+
+    /// A layer distilled from the prose is missing, so the first pass has work to do.
+    pub fn needs_image_prompts(&self) -> bool {
+        self.appearance.is_some()
+            && (self.appearance_identity_prompt.is_none()
+                || self.appearance_current_outfit.is_none())
     }
 
     pub fn with_portrait(mut self, portrait_path: impl Into<String>) -> Self {
