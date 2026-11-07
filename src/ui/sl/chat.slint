@@ -1,6 +1,7 @@
 import { LineEdit, VerticalBox } from "std-widgets.slint";
 import { AppTheme } from "theme.slint";
 import { ChatBubble, NarratorBubble } from "chat_bubble.slint";
+import { SelectableText } from "selectable_text.slint";
 import {
     AdventureView,
     ActView,
@@ -71,7 +72,7 @@ export component ChatPage inherits Rectangle {
                 alignment: center;
                 spacing: 4px * root.scale;
 
-                Text {
+                SelectableText {
                     text: root.adventure.title;
                     color: AppTheme.gold;
                     font-family: AppTheme.font-brand;
@@ -79,7 +80,7 @@ export component ChatPage inherits Rectangle {
                     horizontal-alignment: center;
                 }
 
-                Text {
+                SelectableText {
                     text: root.adventure.headline;
                     color: AppTheme.text-muted;
                     font-family: AppTheme.font-body;
@@ -88,7 +89,7 @@ export component ChatPage inherits Rectangle {
                     wrap: word-wrap;
                 }
 
-                Text {
+                SelectableText {
                     text: "Act " + root.act.ordinal + " — " + root.act.goal;
                     color: AppTheme.text-muted;
                     font-family: AppTheme.font-body;
@@ -135,7 +136,7 @@ export component ChatPage inherits Rectangle {
                             VerticalLayout {
                                 spacing: 2px * root.scale;
 
-                                Text {
+                                SelectableText {
                                     text: root.adventure.player.name;
                                     color: hsv(root.adventure.player.hue, 0.45, 0.95);
                                     font-family: AppTheme.font-body;
@@ -143,7 +144,7 @@ export component ChatPage inherits Rectangle {
                                     font-weight: 600;
                                 }
 
-                                Text {
+                                SelectableText {
                                     text: root.adventure.player.headline;
                                     color: AppTheme.text-muted;
                                     font-family: AppTheme.font-body;
@@ -155,7 +156,7 @@ export component ChatPage inherits Rectangle {
                             for character in root.adventure.characters: VerticalLayout {
                                 spacing: 2px * root.scale;
 
-                                Text {
+                                SelectableText {
                                     text: character.name;
                                     color: hsv(character.hue, 0.45, 0.95);
                                     font-family: AppTheme.font-body;
@@ -163,7 +164,7 @@ export component ChatPage inherits Rectangle {
                                     font-weight: 600;
                                 }
 
-                                Text {
+                                SelectableText {
                                     text: character.headline;
                                     color: AppTheme.text-muted;
                                     font-family: AppTheme.font-body;
@@ -273,7 +274,7 @@ export component ChatPage inherits Rectangle {
                                 font-size: AppTheme.font-label * root.scale;
                             }
 
-                            for condition in root.state.conditions: Text {
+                            for condition in root.state.conditions: SelectableText {
                                 text: "· " + condition;
                                 color: AppTheme.text-muted;
                                 font-family: AppTheme.font-body;
@@ -288,7 +289,7 @@ export component ChatPage inherits Rectangle {
                                 font-size: AppTheme.font-label * root.scale;
                             }
 
-                            for thread in root.state.open-threads: Text {
+                            for thread in root.state.open-threads: SelectableText {
                                 text: "· " + thread;
                                 color: AppTheme.text-muted;
                                 font-family: AppTheme.font-body;
@@ -306,14 +307,14 @@ export component ChatPage inherits Rectangle {
                             for fact in root.facts: VerticalLayout {
                                 spacing: 2px * root.scale;
 
-                                Text {
+                                SelectableText {
                                     text: fact.subject;
                                     color: AppTheme.bronze;
                                     font-family: AppTheme.font-body;
                                     font-size: AppTheme.font-label * root.scale;
                                 }
 
-                                Text {
+                                SelectableText {
                                     text: fact.fact;
                                     color: AppTheme.text-muted;
                                     font-family: AppTheme.font-body;
@@ -336,14 +337,14 @@ export component ChatPage inherits Rectangle {
                             font-size: AppTheme.font-heading * root.scale;
                         }
 
-                        Text {
+                        SelectableText {
                             text: root.state.day;
                             color: AppTheme.text-muted;
                             font-family: AppTheme.font-body;
                             font-size: AppTheme.font-label * root.scale;
                         }
 
-                        Text {
+                        SelectableText {
                             text: root.state.place;
                             color: AppTheme.text-muted;
                             font-family: AppTheme.font-body;

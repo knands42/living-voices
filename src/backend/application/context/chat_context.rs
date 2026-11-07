@@ -131,6 +131,7 @@ impl ContextBuilder {
         let messages_in_act = data.messages_in_act;
         let max_messages = director.get_max_act_messages();
 
+        // TODO: pacing should be only for autonomous chat and narrator
         if director.should_request_pacing_prompt(messages_in_act) {
             let last_closure_score = data
                 .active_act()
