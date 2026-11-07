@@ -326,13 +326,8 @@ async fn single_character_history_renders_cast_turns_as_the_envelope() {
     let data = context_data(&mut conn, &adventure).await;
 
     // when the single-character prompt is built
-    let turns = ContextBuilder::build_single_character_chat_prompt(
-        &adventure,
-        &low_closure_director(),
-        &data,
-        &npc,
-        &messages,
-    );
+    let turns =
+        ContextBuilder::build_single_character_chat_prompt(&adventure, &data, &npc, &messages);
 
     // then the cast turn is the {replier, reply} envelope, with no act_closure and
     // no bare "Name:" prefix carried in the body
@@ -362,13 +357,7 @@ async fn single_character_instructions_forbid_a_name_prefix_and_show_the_envelop
     let data = context_data(&mut conn, &adventure).await;
 
     // when
-    let turns = ContextBuilder::build_single_character_chat_prompt(
-        &adventure,
-        &low_closure_director(),
-        &data,
-        &npc,
-        &[],
-    );
+    let turns = ContextBuilder::build_single_character_chat_prompt(&adventure, &data, &npc, &[]);
     let head = &turns[0].text;
 
     // then the contract is spelled out: one JSON envelope, the prefix is banned,
@@ -409,7 +398,6 @@ fn single_character_prompt_carries_the_voice_examples() {
     // when
     let turns = ContextBuilder::build_single_character_chat_prompt(
         &adventure,
-        &low_closure_director(),
         &empty_context(),
         &character,
         &[],
@@ -442,7 +430,6 @@ fn a_character_without_examples_gets_no_heading() {
     // when
     let turns = ContextBuilder::build_single_character_chat_prompt(
         &adventure,
-        &low_closure_director(),
         &empty_context(),
         &character,
         &[],
@@ -528,13 +515,8 @@ fn only_the_last_two_closed_acts_keep_their_digest() {
     );
 
     // when
-    let turns = ContextBuilder::build_single_character_chat_prompt(
-        &adventure,
-        &low_closure_director(),
-        &data,
-        &character,
-        &[],
-    );
+    let turns =
+        ContextBuilder::build_single_character_chat_prompt(&adventure, &data, &character, &[]);
 
     // then the two older acts collapse to their single index line
     let context = turns

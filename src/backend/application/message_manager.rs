@@ -257,7 +257,6 @@ impl<
         if let Some(character) = self.director.pick_character(active_characters) {
             let context = ContextBuilder::build_single_character_chat_prompt(
                 adventure,
-                &self.director,
                 data,
                 character,
                 uncovered_messages,

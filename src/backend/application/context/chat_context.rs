@@ -23,19 +23,21 @@ impl ContextBuilder {
             Self::build_characters_prompt(adventure),
         ];
 
-        Self::assemble(
+        let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
+        turns.push(PromptTurn::system(Self::build_static_context(data)));
+        turns.extend(Self::build_previous_messages(
             adventure,
-            director,
-            data,
-            &head,
             messages,
             CastTurn::Autonomous,
-        )
+        ));
+
+        Self::append_pacing_and_closure(director, data, &mut turns);
+
+        turns
     }
 
     pub fn build_single_character_chat_prompt(
         adventure: &Adventure,
-        director: &Director,
         data: &ContextData,
         character: &Character,
         messages: &[Message],
@@ -52,14 +54,15 @@ impl ContextBuilder {
             head.push(format!("{MESSAGE_EXAMPLE_PROMPT}\n{example}"));
         }
 
-        Self::assemble(
+        let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
+        turns.push(PromptTurn::system(Self::build_static_context(data)));
+        turns.extend(Self::build_previous_messages(
             adventure,
-            director,
-            data,
-            &head,
             messages,
             CastTurn::TargetCharacter,
-        )
+        ));
+
+        turns
     }
 
     pub fn build_narrator_chat_prompt(
@@ -74,14 +77,17 @@ impl ContextBuilder {
             NARRATOR_CHAT_INSTRUCTIONS.to_string(),
         ];
 
-        Self::assemble(
+        let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
+        turns.push(PromptTurn::system(Self::build_static_context(data)));
+        turns.extend(Self::build_previous_messages(
             adventure,
-            director,
-            data,
-            &head,
             messages,
             CastTurn::Narrator,
-        )
+        ));
+
+        Self::append_pacing_and_closure(director, data, &mut turns);
+
+        turns
     }
 
     /// An NPC-to-NPC follow-up beat.
@@ -127,21 +133,11 @@ impl ContextBuilder {
 // Chat-only assembly internals
 // ----------------------------------------------------------------------------
 impl ContextBuilder {
-    fn assemble(
-        adventure: &Adventure,
+    fn append_pacing_and_closure(
         director: &Director,
         data: &ContextData,
-        head: &[String],
-        messages: &[Message],
-        cast_turn: CastTurn,
-    ) -> Vec<PromptTurn> {
-        let mut turns = vec![PromptTurn::system(head.join("\n\n"))];
-
-        turns.push(PromptTurn::system(Self::build_static_context(data)));
-        turns.extend(Self::build_previous_messages(
-            adventure, messages, cast_turn,
-        ));
-
+        turns: &mut Vec<PromptTurn>,
+    ) {
         let messages_in_act = data.messages_in_act;
         let max_messages = director.get_max_act_messages();
 
@@ -161,8 +157,6 @@ impl ContextBuilder {
         if director.should_request_closure_prompt(messages_in_act) {
             turns.push(PromptTurn::system(CLOSURE_PROMPT.to_string()));
         }
-
-        turns
     }
 
     fn build_pacing_prompt(
