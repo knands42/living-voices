@@ -28,13 +28,11 @@ use uuid::Uuid;
 
 #[derive(Error, Debug)]
 pub enum AdventureManagerError {
-    #[error("state error: {0}")]
+    #[error(transparent)]
     State(#[from] StateError),
-    #[error("database error: {0}")]
+    #[error(transparent)]
     DatabaseError(#[from] PersistenceError),
-    #[error("no adventure is currently active")]
-    NoAdventureActive,
-    #[error("adventure is incomplete")]
+    #[error("adventure is incomplete: {0}")]
     AdventureIncomplete(String),
 }
 
@@ -105,6 +103,11 @@ impl AdventureManager {
             guard.player = Some(default_player_character);
         }
 
+        log::info!(
+            "adventure created: {} '{}'",
+            new_adventure.id,
+            new_adventure.title
+        );
         Ok(new_adventure)
     }
 
@@ -116,11 +119,17 @@ impl AdventureManager {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         update_adventure_status(&mut conn, adventure_id, status).await?;
 
-        if let Ok(mut guard) = self.state.write()
-            && let Some(adventure) = &mut guard.current_adventure
-            && adventure.id == adventure_id
-        {
-            adventure.status = status;
+        match self.state.write() {
+            Ok(mut guard) => {
+                if let Some(adventure) = &mut guard.current_adventure
+                    && adventure.id == adventure_id
+                {
+                    adventure.status = status;
+                }
+            }
+            Err(err) => {
+                log::warn!("could not update in-memory status for {adventure_id}: {err}")
+            }
         }
 
         Ok(())
@@ -133,11 +142,22 @@ impl AdventureManager {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         update_adventure(&mut conn, adventure).await?;
 
-        if let Ok(mut guard) = self.state.write()
-            && let Some(current) = &guard.current_adventure
-            && current.id == adventure.id
-        {
-            guard.current_adventure = Some(adventure.clone());
+        match self.state.write() {
+            Ok(mut guard) => {
+                if guard
+                    .current_adventure
+                    .as_ref()
+                    .is_some_and(|current| current.id == adventure.id)
+                {
+                    guard.current_adventure = Some(adventure.clone());
+                }
+            }
+            Err(err) => {
+                log::warn!(
+                    "could not update in-memory adventure {}: {err}",
+                    adventure.id
+                )
+            }
         }
 
         Ok(adventure.clone())
@@ -193,10 +213,12 @@ impl AdventureManager {
             guard.player = player;
         }
 
+        log::debug!("loaded adventure {adventure_id}");
         Ok(self.current_snapshot())
     }
 
     pub async fn start_adventure(&self, adventure_id: Uuid) -> Result<(), AdventureManagerError> {
+        log::debug!("starting adventure {adventure_id}");
         self.validate_adventure_before_start(adventure_id).await?;
 
         {

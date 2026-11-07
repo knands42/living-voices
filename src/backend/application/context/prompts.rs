@@ -59,8 +59,7 @@ pub(crate) const FOLLOW_UP_CHAT_PROMPT: &str = "You write one follow-up beat of 
 
 pub(crate) const FOLLOW_UP_CHAT_INSTRUCTIONS: &str = r#"## REPLY FORMAT
 Return a single JSON object, nothing else:
-  "replier"  the EXACT name of the present cast member who speaks this beat, or
-             NARRATOR when the world reacts or someone outside the cast speaks.
+  "replier"  the EXACT name of the present cast member who speaks this beat (never the narrator).
   "reply"    the prose body of this beat (the BODY rules below).
 Put no name, header or tag inside "reply" — "replier" already says who speaks.
 
@@ -166,7 +165,7 @@ pub(crate) const SINGLE_CHARACTER_CHAT_PROMPT: &str = "You write one beat of an 
 
 pub(crate) const SINGLE_CHARACTER_CHAT_INSTRUCTIONS: &str = r#"## REPLY FORMAT
 Return a single JSON object, nothing else:
-  "replier"  the EXACT name of the character named below. This turn is theirs.
+  "replier"  the EXACT name of the character named below. This turn is theirs (never the narrator).
   "reply"    the prose body of this beat (the BODY rules below).
 Put no name, header or tag inside "reply": never start it with "NARRATOR:",
 "Name:", "[CHARACTER]" or any other label. "replier" already says who speaks.

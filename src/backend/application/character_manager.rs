@@ -22,13 +22,13 @@ use crate::backend::{
 
 #[derive(Error, Debug)]
 pub enum CharacterManagerError {
-    #[error("state error: {0}")]
+    #[error(transparent)]
     State(#[from] StateError),
-    #[error("database error: {0}")]
+    #[error(transparent)]
     DatabaseError(#[from] PersistenceError),
     #[error("prompt context error: {0}")]
     Context(#[from] ContextBuilderError),
-    #[error("prompt provider failed: {0}")]
+    #[error(transparent)]
     Prompt(#[from] ChatResponseError),
 }
 
@@ -37,6 +37,16 @@ enum ImagePromptKind {
     Identity,
     Outfit,
     Pose,
+}
+
+impl ImagePromptKind {
+    fn label(self) -> &'static str {
+        match self {
+            ImagePromptKind::Identity => "identity",
+            ImagePromptKind::Outfit => "outfit",
+            ImagePromptKind::Pose => "pose",
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -77,6 +87,12 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
         )
         .await?;
 
+        log::info!(
+            "character created: {} ({}) in adventure {}",
+            character.name,
+            character.id,
+            character.adventure_id
+        );
         Ok(())
     }
 
@@ -115,6 +131,7 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
             }
         }
 
+        log::debug!("character updated: {} ({})", character.name, character.id);
         Ok(())
     }
 
@@ -188,6 +205,7 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
         // Do not hold the database connection while the model call is in flight.
         drop(conn);
 
+        log::debug!("generating {} prompt for {}", kind.label(), character.name);
         let generated_prompt = self
             .prompt_handler
             .handle_prompt(&prompt)
@@ -211,6 +229,7 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
         drop(conn);
 
         self.store_image_prompt(character.id, kind, &generated_prompt)?;
+        log::info!("stored {} prompt for {}", kind.label(), character.name);
 
         Ok(())
     }
@@ -223,6 +242,7 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
     ) -> Result<(), StateError> {
         let mut guard = self.state.write()?;
 
+        let mut stored = false;
         if let Some(adventure) = &mut guard.current_adventure
             && let Some(character) = adventure
                 .characters
@@ -230,12 +250,21 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
                 .find(|character| character.id == character_id)
         {
             set_image_prompt(character, kind, prompt);
+            stored = true;
         }
 
         if let Some(player) = &mut guard.player
             && player.id == character_id
         {
             set_image_prompt(player, kind, prompt);
+            stored = true;
+        }
+
+        if !stored {
+            log::debug!(
+                "{} prompt generated for {character_id} but the character is not in the loaded adventure",
+                kind.label()
+            );
         }
 
         Ok(())

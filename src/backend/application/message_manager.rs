@@ -23,20 +23,16 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum MessageManagerError {
-    #[error("state error: {0}")]
+    #[error(transparent)]
     State(#[from] StateError),
-    #[error("database error: {0}")]
+    #[error(transparent)]
     DatabaseError(#[from] PersistenceError),
-    #[error("chat provider failed: {0}")]
+    #[error(transparent)]
     Chat(#[from] ChatResponseError),
-    #[error("memory error: {0}")]
+    #[error(transparent)]
     Memory(#[from] MemoryManagerError),
     #[error("no adventure is currently loaded")]
     NoAdventure,
-    #[error("no character is available to respond")]
-    NoResponder,
-    #[error("message for {0} fetched from the store without a sequence number")]
-    MissingSequence(String),
 }
 
 struct TurnInput {
@@ -99,13 +95,12 @@ impl<
         let chat_reply = self.respond(&incoming, &input_data).await?;
         let stored_reply = self.process_respond(chat_reply, input_data).await?;
 
-        self.run_follow_ups(stored_reply.speaker_name.clone())
-            .await?;
+        self.run_follow_ups(stored_reply.clone()).await?;
 
         Ok(stored_reply)
     }
 
-    async fn run_follow_ups(&self, mut last_speaker: String) -> Result<(), MessageManagerError> {
+    async fn run_follow_ups(&self, last_message: Message) -> Result<(), MessageManagerError> {
         let mut steps = 6;
 
         for _ in 1..steps {
@@ -114,7 +109,7 @@ impl<
 
             if !self
                 .director
-                .should_a_conversation_follow_up(&candidates, steps)
+                .should_a_conversation_follow_up(&candidates, steps, &last_message)
             {
                 return Ok(());
             }
@@ -130,11 +125,8 @@ impl<
             );
             let reply = self.chat_handler.follow_up_respond(&prompt).await?;
 
-            if reply.replier == last_speaker || reply.replier == Message::NARRATOR_SPEAKER_NAME {
-                log::debug!(
-                    "follow-up skipped: speaker {} repeats itself or is the narrator",
-                    reply.replier
-                );
+            if reply.replier == Message::NARRATOR_SPEAKER_NAME {
+                log::debug!("message follow-up skipped for speaker {}", reply.replier);
                 return Ok(());
             }
 
@@ -144,7 +136,6 @@ impl<
             let stored = self.create_message(message).await?;
             log::info!("follow-up from {}", stored.speaker_name);
 
-            last_speaker = stored.speaker_name;
             steps += 1;
         }
 
@@ -296,28 +287,26 @@ impl<
     }
 
     fn check_and_compress_memory(&self, act: &Act, uncovered_messages: &[Message]) {
-        match self
+        if !self
             .memory_manager
             .needs_compression(uncovered_messages.len())
         {
-            Ok(false) => {}
-            Ok(true) => {
-                log::debug!(
-                    "compressing memory: {} uncovered messages for act {}",
-                    uncovered_messages.len(),
-                    act.id
-                );
-                let memory = self.memory_manager.clone();
-                let act = act.clone();
-                let uncovered = uncovered_messages.to_vec();
-                tokio::spawn(async move {
-                    if let Err(err) = memory.compress_and_update(&act, &uncovered).await {
-                        log::error!("memory compression failed: {err}");
-                    }
-                });
-            }
-            Err(err) => log::error!("memory compression check failed: {err}"),
+            return;
         }
+
+        log::debug!(
+            "compressing memory: {} uncovered messages for act {}",
+            uncovered_messages.len(),
+            act.id
+        );
+        let memory = self.memory_manager.clone();
+        let act = act.clone();
+        let uncovered = uncovered_messages.to_vec();
+        tokio::spawn(async move {
+            if let Err(err) = memory.compress_and_update(&act, &uncovered).await {
+                log::error!("memory compression failed: {err}");
+            }
+        });
     }
 
     async fn check_and_update_current_act(
@@ -327,6 +316,13 @@ impl<
         last_message: Message,
     ) -> Result<(), MessageManagerError> {
         let score = chat_reply.act_closure.unwrap_or(0);
+        if chat_reply.act_closure.is_none() && chat_reply.replier != Message::NARRATOR_SPEAKER_NAME
+        {
+            log::debug!(
+                "reply from {} carried no act closure score; treating it as 0",
+                chat_reply.replier
+            );
+        }
         log::debug!(
             "act closure score {} for adventure {}",
             score,
@@ -594,5 +590,82 @@ mod should_close_tests {
         // anything under 4 never closes, however long the act runs
         assert!(!should_close_act(3, &beat_at(Some(5_000)), 100));
         assert!(!should_close_act(0, &beat_at(Some(5_000)), 100));
+    }
+}
+
+#[cfg(test)]
+mod follow_up {
+    use super::*;
+    use crate::config::DirectorSettings;
+    use uuid::Uuid;
+
+    fn director(follow_up_chance: f32, follow_up_max_chain: u8) -> Director {
+        Director::new(DirectorSettings {
+            follow_up_chance,
+            follow_up_max_chain,
+            ..DirectorSettings::default()
+        })
+    }
+
+    fn beat(adventure_id: Uuid, narrator: bool) -> Message {
+        Message::new(
+            adventure_id,
+            None,
+            narrator.then(Uuid::new_v4),
+            "someone".to_string(),
+            "a beat".to_string(),
+            false,
+        )
+    }
+
+    #[test]
+    fn a_lone_candidate_never_sparks_a_follow_up() {
+        // given a director that would otherwise always chain
+        let director = director(1.0, 6);
+        let adventure_id = Uuid::new_v4();
+        let solo = Character::draft(adventure_id);
+        let candidates = [&solo];
+
+        // when the only present character just spoke
+        let follow_up =
+            director.should_a_conversation_follow_up(&candidates, 0, &beat(adventure_id, false));
+
+        // then a single voice cannot answer itself
+        assert!(!follow_up);
+    }
+
+    #[test]
+    fn the_chain_cap_ends_follow_ups_even_after_narration() {
+        // given a director capped at two steps
+        let director = director(1.0, 2);
+        let adventure_id = Uuid::new_v4();
+        let a = Character::draft(adventure_id);
+        let b = Character::draft(adventure_id);
+        let candidates = [&a, &b];
+
+        // when the chain already reached its cap on a narrator beat
+        let follow_up =
+            director.should_a_conversation_follow_up(&candidates, 2, &beat(adventure_id, true));
+
+        // then narration does not carry the chain past the cap
+        assert!(!follow_up);
+    }
+
+    #[test]
+    fn a_certain_chance_chains_right_after_a_character_beat() {
+        // given a director whose base chance is the maximum
+        let director = director(1.0, 6);
+        let adventure_id = Uuid::new_v4();
+        let a = Character::draft(adventure_id);
+        let b = Character::draft(adventure_id);
+        let candidates = [&a, &b];
+
+        // when two characters are present at the start of a chain
+        // chance = 1.0 / (0 + 1) = 1.0, and rand is always in [0, 1)
+        let follow_up =
+            director.should_a_conversation_follow_up(&candidates, 0, &beat(adventure_id, false));
+
+        // then the follow-up fires, exercising the chance scaling
+        assert!(follow_up);
     }
 }

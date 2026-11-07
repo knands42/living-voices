@@ -9,6 +9,8 @@ pub struct Director {
 }
 
 impl Director {
+    const FOLLOW_UP_CHANCE_AFTER_NARRATION: f32 = 0.80;
+
     pub fn new(director_settings: DirectorSettings) -> Self {
         Self { director_settings }
     }
@@ -62,6 +64,7 @@ impl Director {
         &self,
         candidates: &[&Character],
         steps_taken: u8,
+        last_message: &Message,
     ) -> bool {
         if candidates.len() < 2 {
             return false;
@@ -71,8 +74,13 @@ impl Director {
             return false;
         }
 
+        let rand = rand::random::<f32>();
+        if last_message.narrator_id.is_some() {
+            return rand < Self::FOLLOW_UP_CHANCE_AFTER_NARRATION;
+        }
+
         let chance = self.director_settings.follow_up_chance / (steps_taken as f32 + 1.0);
-        rand::random::<f32>() < chance
+        rand < chance
     }
 
     pub fn should_request_pacing_prompt(&self, messages_in_act: u16) -> bool {

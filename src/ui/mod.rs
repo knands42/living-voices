@@ -1,3 +1,5 @@
+// #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::restriction)]
+
 use crate::app::AppContext;
 use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
 use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};

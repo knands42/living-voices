@@ -20,13 +20,13 @@ use crate::config::MemorySettings;
 
 #[derive(Error, Debug)]
 pub enum MemoryManagerError {
-    #[error("failed to compress the memory {0}")]
+    #[error("failed to compress memory: {0}")]
     CompressionFailed(#[from] DistillError),
-    #[error("failed to close the act {0}")]
+    #[error("failed to close the act: {0}")]
     ActClosureError(#[from] ClosedActError),
-    #[error("state error: {0}")]
+    #[error(transparent)]
     State(#[from] StateError),
-    #[error("database error: {0}")]
+    #[error(transparent)]
     DatabaseError(#[from] PersistenceError),
     #[error("message for {0} fetched from the store without a sequence number")]
     MissingSequence(String),
@@ -58,11 +58,8 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
         }
     }
 
-    pub fn needs_compression(
-        &self,
-        uncovered_messages_len: usize,
-    ) -> Result<bool, MemoryManagerError> {
-        Ok(uncovered_messages_len >= self.memory_settings.compress_after_threshold as usize)
+    pub fn needs_compression(&self, uncovered_messages_len: usize) -> bool {
+        uncovered_messages_len >= self.memory_settings.compress_after_threshold as usize
     }
 
     /// How many recent messages the prompt should carry as raw turns.

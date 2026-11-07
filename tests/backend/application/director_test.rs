@@ -204,7 +204,7 @@ fn no_follow_up_with_fewer_than_two_candidates() {
     let d = follow_up_director(1.0, 3);
     let cast = cast(&["Mira"]);
     // when/then: there is nobody else to react, so no follow-up
-    assert!(!d.should_a_conversation_follow_up(&cast.iter().collect::<Vec<_>>(), 0));
+    assert!(!d.should_a_conversation_follow_up(&cast.iter().collect::<Vec<_>>(), 0, &line(false)));
 }
 
 #[test]
@@ -214,8 +214,8 @@ fn no_follow_up_once_the_chain_cap_is_reached() {
     let cast = cast(&["Mira", "Kael"]);
     let candidates = cast.iter().collect::<Vec<_>>();
     // when/then: at or past the cap, the chain ends regardless of chance
-    assert!(!d.should_a_conversation_follow_up(&candidates, 2));
-    assert!(!d.should_a_conversation_follow_up(&candidates, 3));
+    assert!(!d.should_a_conversation_follow_up(&candidates, 2, &line(false)));
+    assert!(!d.should_a_conversation_follow_up(&candidates, 3, &line(false)));
 }
 
 #[test]
@@ -224,7 +224,7 @@ fn a_certain_chance_follows_up_within_the_cap() {
     let d = follow_up_director(1.0, 3);
     let cast = cast(&["Mira", "Kael"]);
     // when/then: the first step always fires
-    assert!(d.should_a_conversation_follow_up(&cast.iter().collect::<Vec<_>>(), 0));
+    assert!(d.should_a_conversation_follow_up(&cast.iter().collect::<Vec<_>>(), 0, &line(false)));
 }
 
 #[test]
@@ -233,5 +233,5 @@ fn a_zero_chance_never_follows_up() {
     let d = follow_up_director(0.0, 3);
     let cast = cast(&["Mira", "Kael"]);
     // when/then: a follow-up never fires
-    assert!(!d.should_a_conversation_follow_up(&cast.iter().collect::<Vec<_>>(), 0));
+    assert!(!d.should_a_conversation_follow_up(&cast.iter().collect::<Vec<_>>(), 0, &line(false)));
 }
