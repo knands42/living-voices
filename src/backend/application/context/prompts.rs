@@ -55,7 +55,10 @@ Example 4 — someone outside the cast speaks, voiced through NARRATOR
 {"replier": "NARRATOR", "reply": "*a ferryman rises from the reeds, pole in hand*\n\"No crossing tonight. The river's taken two already.\"", "act_closure": null}
 "#;
 
+pub(crate) const MESSAGE_EXAMPLE_PROMPT: &str = "## VOICE\nThese are samples of how this character talks. Match the voice, the rhythm and the wording. Do not reuse their content or continue from them.";
+
 pub(crate) const FOLLOW_UP_CHAT_PROMPT: &str = "You write one follow-up beat of an interactive roleplay. The last line was spoken by a cast member, not the player. Continue the scene with ONE other present cast member reacting to it.";
+
 pub(crate) const FOLLOW_UP_CHAT_INSTRUCTIONS: &str = r#"## REPLY FORMAT
 Return a single JSON object, nothing else:
   "replier"  the EXACT name of the present cast member who speaks this beat, or
@@ -222,7 +225,7 @@ or with either. Any of these may appear in one turn, in any order:
 7. Characters know only what they have witnessed or been told. Do not let one
    character act on another's private thought or whisper.
 
-## EXAMPLES
+## FORMAT
 Example — speech, then action
 "The gate won't open for us again. Not tonight, not with that horn still ringing."
 *leans in the doorway, arms folded, waiting for someone to argue*

@@ -1,4 +1,4 @@
-use std::{fmt::Display, vec};
+use std::fmt::Display;
 
 use uuid::Uuid;
 
@@ -81,6 +81,7 @@ pub struct Character {
     pub traits: Vec<String>,    // Speaks only in tidal registers, ...
     pub tags: Vec<String>,      // Protagonist, Brave ...
     pub relations: Vec<String>, // Son of Dragoon
+    pub message_example: Option<String>,
 }
 
 impl Character {
@@ -114,6 +115,7 @@ impl Character {
             traits: vec![],
             tags: vec![],
             relations: vec![],
+            message_example: None,
         }
     }
 
@@ -187,6 +189,11 @@ impl Character {
         self.relations.push(relation);
     }
 
+    pub fn with_message_example(mut self, message_example: impl Into<String>) -> Self {
+        self.message_example = Some(message_example.into());
+        self
+    }
+
     /// The visual source an image prompt is built from: the generated identity, or
     /// the author's own description when they chose to keep theirs as-is.
     pub fn image_identity(&self) -> Option<&str> {
@@ -196,20 +203,59 @@ impl Character {
     }
 
     pub fn render(&self) -> String {
-        let mut parts = vec![format!("{}.", self.name)];
+        let mut lines = vec![format!("### {}", self.name)];
         if !self.headline.trim().is_empty() {
-            parts.push(format!("Headline: {}", self.headline.clone()));
+            lines.push(format!(
+                "*Headline*: {}.",
+                self.headline.trim_end_matches(".")
+            ));
         }
         if !self.backstory.trim().is_empty() {
-            parts.push(format!("Backstory: {}", self.backstory));
+            lines.push(format!(
+                "*Backstory*: {}.",
+                self.backstory.trim_end_matches(".")
+            ));
         }
-        if !self.traits.is_empty() {
-            parts.push(format!("Traits: {}.", self.traits.join(", ")));
+        if let Some(section) = render_list("*Traits*", &self.traits) {
+            lines.push(section);
+        }
+        if let Some(section) = render_list("*Relations*", &self.relations) {
+            lines.push(section);
         }
         if let Some(appearance) = &self.appearance {
-            parts.push(format!("Appearance: {}.", appearance));
+            lines.push(format!(
+                "*Appearance*: {}.",
+                appearance.trim_end_matches(".")
+            ));
         }
 
-        parts.join(" ")
+        lines.join("\n")
     }
+
+    pub fn message_example(&self) -> Option<&str> {
+        let example = self.message_example.as_deref()?.trim();
+
+        if example.is_empty() {
+            return None;
+        }
+
+        Some(example)
+    }
+}
+
+fn render_list(label: &str, items: &[String]) -> Option<String> {
+    let kept: Vec<&str> = items
+        .iter()
+        .map(|item| item.trim())
+        .filter(|item| !item.is_empty())
+        .collect();
+
+    if kept.is_empty() {
+        return None;
+    }
+
+    Some(format!(
+        "{label}: {}.",
+        kept.join(", ").trim_end_matches(".")
+    ))
 }

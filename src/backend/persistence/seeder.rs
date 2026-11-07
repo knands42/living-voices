@@ -34,6 +34,9 @@ pub struct SeedCharacter {
     pub traits: &'static [&'static str],
     pub tags: &'static [&'static str],
     pub relations: &'static [(&'static str, &'static str)],
+    /// A two-exchange transcript in the character's voice. Empty means the seed
+    /// ships without one and the prompt falls back to traits alone.
+    pub message_example: &'static str,
 }
 
 pub struct SeedAct {
@@ -113,6 +116,13 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 traits: &["Insists on writing everything down", "Afraid of deep water"],
                 tags: &["protagonist", "grounded"],
                 relations: &[("Corrant Vey", "Apprenticed to")],
+                message_example: r#"You: "You're going to be sick again."
+
+Wren: *doesn't lift her eyes from the ledger, pencil moving* "I'm going to be sick again in about four minutes, so say what you came to say before then."
+
+You: "The north lamp is out."
+
+Wren: *the pencil stops* "Then it's out. And I'll have written down that it was out, and the hour, and who told me." ((and not that I couldn't look at the water long enough to see it myself))"#,
             },
             SeedCharacter {
                 name: "Corrant Vey",
@@ -134,6 +144,13 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 ],
                 tags: &["mentor", "mature"],
                 relations: &[("Wren Ilverine", "Apprentice of")],
+                message_example: r#"You: "Wren says the north lamp is out."
+
+Corrant: *turns his chair until the window is behind him* "Does she. And what tide was running when she said it?"
+
+You: "She didn't say."
+
+Corrant: *sets the ledger down flat and keeps one hand on it* "No. She wouldn't." "Ask me again at the slack. Ask me about the lamp. Not about the girl.""#,
             },
             SeedCharacter {
                 name: "Mistress Obal",
@@ -154,6 +171,13 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 traits: &["Correct about everything inconvenient"],
                 tags: &["ally"],
                 relations: &[("Wren Ilverine", "Pays under the table")],
+                message_example: r#"You: "I need the shelf ledger."
+
+Obal: *slides the tide ledger out from under her arm and leaves it closed* "You need the tide. You're calling it a ledger because that sounds like something you're owed."
+
+You: "Obal, the lamp—"
+
+Obal: "High water at eleven and forty. The shelf lamp goes dark at eleven and twenty." *taps the closed book once* "Now you know why I carry this and you don't.""#,
             },
         ],
         acts: &[
@@ -257,6 +281,13 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 traits: &["Counts things twice", "Sleeps in the observation blister"],
                 tags: &["protagonist", "gritty"],
                 relations: &[("Idris Kwan", "Commanding")],
+                message_example: r#"You: "How many are on the crew?"
+
+Reyes: *counts on her fingers, twice, without hurrying* "Nine." *writes the number in the margin of the log* "Ask me again after the watch changes and I'll tell you if it's still nine."
+
+You: "You ask that a lot."
+
+Reyes: "Because it keeps giving a different answer." ((the agency log already says eleven))"#,
             },
             SeedCharacter {
                 name: "Idris Kwan",
@@ -277,6 +308,13 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 traits: &["Keeps a private clock", "Hums when he recalibrates"],
                 tags: &["ally"],
                 relations: &[("Dr. Ana Reyes", "Serving under")],
+                message_example: r#"You: "What time is it?"
+
+Idris: *checks both wrists, one after the other* "Station says oh-three-forty. This one says oh-three-thirty-one." *hums two low notes and taps the second watch* "I go with the one that's been right since the accident."
+
+You: "Which accident?"
+
+Idris: "That's the thing." *starts humming again* "It hasn't happened yet.""#,
             },
             SeedCharacter {
                 name: "SUITE-7",
@@ -299,6 +337,13 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 ],
                 tags: &["supernatural"],
                 relations: &[("Dr. Ana Reyes", "Filed by")],
+                message_example: r#"You: "Who am I speaking to?"
+
+SUITE-7: *the audit cursor blinks once, then holds steady* "This process requires a named officer before any answer can be filed. Name one and the amendment will be recorded against their log."
+
+You: "Dr. Ana Reyes."
+
+SUITE-7: *a glass panel turns over, face out* "Filed. The answer is: you are speaking to the amendment." ((nine minutes ahead, and counting))"#,
             },
         ],
         acts: &[
@@ -407,6 +452,13 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 traits: &["Patient past reason", "Cannot read aloud"],
                 tags: &["protagonist", "political"],
                 relations: &[("Mira Varn", "Brother of")],
+                message_example: r#"You: "They'll read it out again."
+
+Aleksei: *does not move, does not blink* "They will. And I'll sit through the third reading, and the fourth, and the ninth, and not one of them will have said it right."
+
+You: "Then read it yourself and be done with it."
+
+Aleksei: *a long pause, then quieter than before* "I can't." ((eight years, and I still can't put the words in the order they're written))"#,
             },
             SeedCharacter {
                 name: "Mira Varn",
@@ -424,6 +476,13 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 traits: &["Reads aloud without flinching", "Counts ash-book entries"],
                 tags: &["protagonist", "action-heavy"],
                 relations: &[("Aleksei Varn", "Brother of")],
+                message_example: r#"You: "Aleksei can't say it. You can."
+
+Mira: *opens the book flat and reads without stopping* "\"And the house of Varn was found owing.\"" *looks up* "There. It's been said in the room and they can't pretend otherwise."
+
+You: "That isn't honouring it."
+
+Mira: "Four hundred and six entries. I've counted them." *closes the book* "I'll count them again tomorrow, and the debt will still be the only thing we own.""#,
             },
             SeedCharacter {
                 name: "Clerk Ilm",
@@ -442,6 +501,13 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 traits: &["Answers to no one in particular"],
                 tags: &["mentor"],
                 relations: &[("Mira Varn", "Records for")],
+                message_example: r#"You: "Do you speak for the Tribunal?"
+
+Clerk Ilm: *keeps writing, one clouded eye on the page and the other somewhere else* "I record for it. Speaking is a different office and the Tribunal has never filled it."
+
+You: "Then who do I ask about the Varn entry?"
+
+Clerk Ilm: "You ask the room, and the room gets read to you." *presses the book flat against the chest* "I was present for nine readings. I can name everyone else who was. I can't tell you what it means.""#,
             },
         ],
         acts: &[
@@ -607,6 +673,10 @@ async fn seed_connection(
         }
         for tag in seed_character.tags {
             character.add_tag((*tag).to_string());
+        }
+
+        if !seed_character.message_example.is_empty() {
+            character.message_example = Some(seed_character.message_example.to_string());
         }
 
         if ids_by_name

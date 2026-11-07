@@ -33,11 +33,11 @@ async fn autonomous_prompt_opens_with_system_turns_and_the_full_cast() {
         &[],
     );
 
-    // First turn is the system head, listing the whole cast.
+    // First turn is the system head, listing the whole cast under one heading each.
     assert_eq!(turns[0].speaker, Speaker::System);
     assert!(turns[0].text.contains("## CHARACTERS CAST"));
-    assert!(turns[0].text.contains("Mira."));
-    assert!(turns[0].text.contains("Kael."));
+    assert!(turns[0].text.contains("### Mira"), "{}", turns[0].text);
+    assert!(turns[0].text.contains("### Kael"), "{}", turns[0].text);
 }
 
 #[tokio::test]
@@ -296,6 +296,140 @@ async fn closure_prompt_appears_only_once_the_gate_opens() {
         !has_closure,
         "closure prompt should be absent while the gate is shut"
     );
+}
+
+// endregion
+
+// region Character voice examples
+
+#[test]
+fn single_character_prompt_carries_the_voice_examples() {
+    // given a character with voice samples, and no database involved
+    let adventure = bare_adventure();
+    let character = Character::new(
+        Uuid::new_v4(),
+        "Maren".into(),
+        adventure.id,
+        "A lighthouse keeper",
+        "",
+        CharacterStatus::Present,
+        false,
+    )
+    .with_message_example("Maren: \"The lamp stays lit.\"\nYou: \"Even tonight?\"");
+
+    // when
+    let turns = ContextBuilder::build_single_character_chat_prompt(
+        &adventure,
+        &low_closure_director(),
+        &empty_context(),
+        &character,
+        &[],
+    );
+
+    // then the samples ride at the end of the system head, under their own heading
+    let head = &turns[0].text;
+    assert!(head.contains("## VOICE"), "{head}");
+    assert!(head.contains("Maren: \"The lamp stays lit.\""), "{head}");
+    assert!(
+        head.find("## CHARACTER").unwrap() < head.find("## VOICE").unwrap(),
+        "examples belong after the character block: {head}"
+    );
+}
+
+#[test]
+fn a_character_without_examples_gets_no_heading() {
+    // given a character the author never wrote samples for
+    let adventure = bare_adventure();
+    let character = Character::new(
+        Uuid::new_v4(),
+        "Kael".into(),
+        adventure.id,
+        "A ferryman",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
+
+    // when
+    let turns = ContextBuilder::build_single_character_chat_prompt(
+        &adventure,
+        &low_closure_director(),
+        &empty_context(),
+        &character,
+        &[],
+    );
+
+    // then
+    assert!(!turns[0].text.contains("## VOICE"), "{}", turns[0].text);
+}
+
+#[test]
+fn the_cast_roster_never_renders_voice_examples() {
+    // given an adventure whose cast all carry samples
+    let mut adventure = bare_adventure();
+    adventure.add_character(
+        Character::new(
+            Uuid::new_v4(),
+            "Maren".into(),
+            adventure.id,
+            "A lighthouse keeper",
+            "",
+            CharacterStatus::Present,
+            false,
+        )
+        .with_message_example("Maren: \"The lamp stays lit.\""),
+    );
+
+    // when
+    let turns = ContextBuilder::build_autonomous_chat_prompt(
+        &adventure,
+        &low_closure_director(),
+        &empty_context(),
+        &[],
+    );
+
+    // then one copy per cast member would flood the prompt, so it stays out
+    assert!(turns[0].text.contains("## CHARACTERS CAST"));
+    assert!(
+        !turns[0].text.contains("The lamp stays lit."),
+        "{}",
+        turns[0].text
+    );
+    assert!(!turns[0].text.contains("## VOICE"), "{}", turns[0].text);
+}
+
+// endregion
+
+// region Character prompt fixtures
+
+fn bare_adventure() -> Adventure {
+    use living_voices::backend::domain::adventure::AdventureStatus;
+    use living_voices::backend::domain::lore::Lore;
+    use living_voices::backend::domain::narrator::Narrator;
+
+    let id = Uuid::new_v4();
+    let now = chrono::Utc::now();
+
+    Adventure::new(
+        id,
+        "A drowned city",
+        "The tide keeps what it takes.",
+        Narrator::new(Uuid::new_v4(), id, "Narrator", "tense"),
+        "tense",
+        Lore::new(Uuid::new_v4(), ""),
+        AdventureStatus::Draft,
+        now,
+        now,
+    )
+}
+
+fn empty_context() -> ContextData {
+    ContextData {
+        acts: Vec::new(),
+        facts: Vec::new(),
+        state: None,
+        messages_in_act: 0,
+    }
 }
 
 // endregion

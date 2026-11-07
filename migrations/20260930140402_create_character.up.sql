@@ -11,6 +11,7 @@ CREATE TABLE character
     appearance_current_outfit   TEXT    NULL,
     appearance_current_pose     TEXT    NULL,
     relations                   TEXT    NOT NULL DEFAULT '[]', -- json: ["Brother of Otho"]
+    message_example             TEXT    NULL,                  -- few-shot voice samples, prose
     status                      TEXT    NOT NULL DEFAULT 'present',
     portrait_path               TEXT,
     is_player                   INTEGER NOT NULL DEFAULT 0,

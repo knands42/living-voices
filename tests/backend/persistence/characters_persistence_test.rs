@@ -62,7 +62,7 @@ async fn insert_character_persists_traits_in_order() {
         CharacterStatus::Present,
         false,
     );
-    character.add_trait("speaks in tidal registers".into());
+    character.add_trait("refers to everyone as \"love\"".into());
     character.add_trait("hums before speaking".into());
     insert_character(&mut conn, adventure_id, &character)
         .await
@@ -75,7 +75,7 @@ async fn insert_character_persists_traits_in_order() {
     .fetch_all(&pool)
     .await
     .expect("traits");
-    assert_eq!(rows[0], (0, "speaks in tidal registers".to_string()));
+    assert_eq!(rows[0], (0, "refers to everyone as \"love\"".to_string()));
     assert_eq!(rows[1], (1, "hums before speaking".to_string()));
 }
 
@@ -147,6 +147,61 @@ async fn relations_are_free_text_on_the_character_row() {
         .await
         .expect("relations column");
     assert_eq!(updated, r#"["Father of the Duke"]"#);
+}
+
+#[tokio::test]
+async fn message_example_is_free_text_and_round_trips() {
+    let (pool, _db) = setup_db().await;
+    let adventure_id = setup_adventure(&pool).await;
+    let mut conn = pool.acquire().await.expect("acquire");
+
+    // given a character with voice samples containing the characters that break
+    // a naive JSON payload
+    let mut mara = Character::new(
+        Uuid::new_v4(),
+        "Mara".into(),
+        adventure_id,
+        "singer",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
+    mara.message_example = Some("\"The tide's early.\"\nYou: \"Is that bad?\"".to_string());
+
+    // when
+    insert_character(&mut conn, adventure_id, &mara)
+        .await
+        .expect("insert mara");
+
+    // then the raw text lands in its column, quotes and all
+    let inserted: Option<String> =
+        sqlx::query_scalar("SELECT message_example FROM character WHERE id = ?1")
+            .bind(mara.id.to_string())
+            .fetch_one(&pool)
+            .await
+            .expect("message_example column");
+    assert_eq!(
+        inserted.as_deref(),
+        Some("\"The tide's early.\"\nYou: \"Is that bad?\"")
+    );
+
+    // when the author rewrites it
+    mara.message_example = Some("\"Nothing out here but weather.\"".to_string());
+    update_character(&mut conn, &mara)
+        .await
+        .expect("update character");
+
+    // then the edit survives too, not just the insert
+    let updated: Option<String> =
+        sqlx::query_scalar("SELECT message_example FROM character WHERE id = ?1")
+            .bind(mara.id.to_string())
+            .fetch_one(&pool)
+            .await
+            .expect("message_example column");
+    assert_eq!(
+        updated.as_deref(),
+        Some("\"Nothing out here but weather.\"")
+    );
 }
 
 #[tokio::test]

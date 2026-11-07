@@ -77,6 +77,27 @@ Layering rules the code actually follows:
   `src/ui/viewmodels/mod.rs`; Slint callbacks are registered in `src/ui/callbacks/register.rs`
   and implemented one file per page.
 
+## Code style: the code is the comment
+
+**Prefer code that needs none.** Few comments, ideally zero. A comment is a failure of naming
+before it is a courtesy: if a line needs a note to say what it does, rename the variable, extract
+the helper, or flatten the conditional until the note is redundant. This applies to the agent as
+much as to the user — do not pepper a change with explanatory comments to justify it.
+
+A comment is earned only by a **why** the code cannot carry:
+
+- a constraint imposed from outside (SQLite semantics, llama.cpp flags, a migration already
+  applied, an HTTP shape a provider demands)
+- a workaround, with what would break without it
+- an invariant a reader could otherwise break while editing
+
+Never: restate what the next line does, narrate a function body step by step, keep dead code
+"for reference", or leave a `TODO` where an issue belongs. Delete the comment and read the code
+again — if the meaning survived, it was noise.
+
+Two standing exceptions: `///` docs on public items that encode a rule rather than a signature,
+and the `// given` / `// when` / `// then` shape required in tests (see Testing).
+
 ## Gotchas
 
 - **Managers must write twice.** Every mutation updates SQLite *and* `SharedState`, and inside

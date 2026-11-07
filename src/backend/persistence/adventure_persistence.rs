@@ -14,6 +14,7 @@ use sqlx::sqlite::SqliteRow;
 use sqlx::{Error, FromRow, Row, SqliteConnection};
 use uuid::Uuid;
 
+// TODO: Let sqlx parse & implement the trait FromRow using #[sqlx(FromRow]
 struct AdventureRow {
     id: String,
     title: String,
@@ -82,6 +83,7 @@ struct CompleteAdventureRow {
     character_tags: String,
     character_traits: String,
     character_relations: String,
+    character_message_example: Option<String>,
     narrator_id: String,
     narrator_name: String,
     narrator_tone: String,
@@ -114,6 +116,7 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
             character_tags: row.get("character_tags"),
             character_traits: row.get("character_traits"),
             character_relations: row.get("character_relations"),
+            character_message_example: row.get("character_message_example"),
             narrator_id: row.get("narrator_id"),
             narrator_name: row.get("narrator_name"),
             narrator_tone: row.get("narrator_tone"),
@@ -141,6 +144,7 @@ fn character_from_row(value: &CompleteAdventureRow) -> Result<Character, Persist
     character.appearance_identity_prompt = value.character_appearance_identity_prompt.clone();
     character.appearance_current_outfit = value.character_appearance_current_outfit.clone();
     character.appearance_current_pose = value.character_appearance_current_pose.clone();
+    character.message_example = value.character_message_example.clone();
     character.portrait_path = value.character_portrait_path.clone();
 
     character_tags
@@ -256,6 +260,7 @@ SELECT a.id                      AS adventure_id,
        COALESCE(ctag.tags, '[]') AS character_tags,
        COALESCE(ct.trait, '[]')  AS character_traits,
        c.relations AS character_relations,
+       c.message_example AS character_message_example,
        n.id AS narrator_id, n.name AS narrator_name, n.tone AS narrator_tone
 FROM adventure AS a
          LEFT JOIN (SELECT adventure_id,

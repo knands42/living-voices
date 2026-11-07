@@ -168,7 +168,7 @@ fn status_as_str_covers_every_variant() {
 }
 
 #[test]
-fn render_includes_name_description_backstory_and_traits() {
+fn render_includes_name_description_backstory_traits_relations_and_appearance() {
     let mut character = Character::new(
         Uuid::new_v4(),
         "Maren".to_string(),
@@ -180,23 +180,120 @@ fn render_includes_name_description_backstory_and_traits() {
     );
     character.add_trait("speaks softly".to_string());
     character.add_trait("never sleeps".to_string());
+    character.add_relation("Son of the Duke".to_string());
+    character.appearance = Some("Grey braid, oilskin coat.".to_string());
 
     let rendered = character.render();
 
-    assert!(rendered.contains("Maren."));
-    assert!(rendered.contains("A lighthouse keeper"));
-    assert!(rendered.contains("Backstory: Kept the lamp lit for forty years."));
-    assert!(rendered.contains("Traits: speaks softly, never sleeps."));
+    assert!(rendered.starts_with("### Maren\n"), "{rendered}");
+    assert!(
+        rendered.contains("*Headline*: A lighthouse keeper"),
+        "{rendered}"
+    );
+    assert!(
+        rendered.contains("*Backstory*: Kept the lamp lit for forty years."),
+        "{rendered}"
+    );
+    assert!(
+        rendered.contains("*Traits*: speaks softly, never sleeps."),
+        "{rendered}"
+    );
+    assert!(
+        rendered.contains("*Relations*: Son of the Duke"),
+        "{rendered}"
+    );
+    assert!(
+        rendered.contains("*Appearance*: Grey braid, oilskin coat."),
+        "the prose period must not be doubled: {rendered}"
+    );
+    assert!(!rendered.contains(".."), "{rendered}");
 }
 
 #[test]
 fn render_omits_empty_sections() {
     let rendered = new_character().render();
 
-    assert!(rendered.contains("Maren."));
-    assert!(rendered.contains("A lighthouse keeper"));
-    assert!(!rendered.contains("Backstory:"));
-    assert!(!rendered.contains("Traits:"));
+    assert!(rendered.starts_with("### Maren\n"), "{rendered}");
+    assert!(
+        rendered.contains("*Headline*: A lighthouse keeper"),
+        "{rendered}"
+    );
+    assert!(!rendered.contains("*Backstory*"), "{rendered}");
+    assert!(!rendered.contains("*Traits*"), "{rendered}");
+    assert!(!rendered.contains("*Relations*"), "{rendered}");
+    assert!(!rendered.contains("*Appearance*"), "{rendered}");
+}
+
+#[test]
+fn render_puts_every_field_on_its_own_line() {
+    let mut character = new_character();
+    character.add_trait("speaks softly".to_string());
+    character.add_relation("Son of Dragoon".to_string());
+
+    let rendered = character.render();
+    let lines: Vec<&str> = rendered.lines().collect();
+
+    assert_eq!(lines[0], "### Maren", "{rendered}");
+    assert!(lines.iter().all(|line| !line.ends_with(' ')), "{rendered}");
+    assert!(
+        lines.iter().any(|line| line.starts_with("*Traits*")),
+        "{rendered}"
+    );
+    assert!(
+        lines.iter().any(|line| line.starts_with("*Relations*")),
+        "{rendered}"
+    );
+}
+
+#[test]
+fn render_skips_blank_entries_instead_of_leaving_an_empty_label() {
+    let mut character = new_character();
+    character.add_trait("   ".to_string());
+    character.add_tag(String::new());
+    character.add_relation("  Son of Dragoon  ".to_string());
+
+    let rendered = character.render();
+
+    assert!(!rendered.contains("*Traits*"), "{rendered}");
+    assert!(
+        rendered.contains("*Relations*: Son of Dragoon."),
+        "a padded entry should be trimmed, not dropped: {rendered}"
+    );
+}
+
+#[test]
+fn with_message_example_sets_the_voice_samples() {
+    let character = new_character().with_message_example("Maren: \"The lamp stays lit.\"");
+
+    assert_eq!(
+        character.message_example(),
+        Some("Maren: \"The lamp stays lit.\"")
+    );
+}
+
+#[test]
+fn message_example_is_none_when_the_author_left_it_blank() {
+    assert_eq!(new_character().message_example(), None);
+
+    let padded = new_character().with_message_example("   \n  ");
+    assert_eq!(padded.message_example(), None);
+}
+
+#[test]
+fn message_example_is_trimmed_but_keeps_its_line_breaks() {
+    let character = new_character().with_message_example("\n  Maren: one.\nYou: two.\n  ");
+
+    assert_eq!(character.message_example(), Some("Maren: one.\nYou: two."));
+}
+
+#[test]
+fn render_keeps_the_voice_samples_out_of_the_cast_line() {
+    // The cast roster renders every character, so examples must not ride along.
+    let character = new_character().with_message_example("Maren: \"The lamp stays lit.\"");
+
+    let rendered = character.render();
+
+    assert!(!rendered.contains("The lamp stays lit."), "{rendered}");
 }
 
 #[test]

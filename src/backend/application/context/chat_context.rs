@@ -33,13 +33,17 @@ impl ContextBuilder {
         character: &Character,
         messages: &[Message],
     ) -> Vec<PromptTurn> {
-        let head = [
+        let mut head = vec![
             SINGLE_CHARACTER_CHAT_PROMPT.to_string(),
             Self::build_settings_prompt(adventure),
             SINGLE_CHARACTER_CHAT_INSTRUCTIONS.to_string(),
             "## CHARACTER".to_string(),
             character.render(),
         ];
+
+        if let Some(example) = character.message_example() {
+            head.push(format!("{MESSAGE_EXAMPLE_PROMPT}\n{example}"));
+        }
 
         Self::assemble(adventure, director, data, &head, messages)
     }
@@ -187,7 +191,7 @@ impl ContextBuilder {
 
         let mut block = String::from("## CHARACTERS CAST");
         for character in &adventure.characters {
-            block.push('\n');
+            block.push_str("\n\n");
             block.push_str(&character.render());
         }
 

@@ -23,6 +23,7 @@ struct CharacterRow {
     appearance_current_outfit: Option<String>,
     appearance_current_pose: Option<String>,
     relations: String,
+    message_example: Option<String>,
     status: String,
     portrait_path: Option<String>,
     is_player: bool,
@@ -41,6 +42,7 @@ impl FromRow<'_, SqliteRow> for CharacterRow {
             appearance_current_outfit: row.get("appearance_current_outfit"),
             appearance_current_pose: row.get("appearance_current_pose"),
             relations: row.get("relations"),
+            message_example: row.get("message_example"),
             status: row.get("status"),
             portrait_path: row.get("portrait_path"),
             is_player: row.get("is_player"),
@@ -67,6 +69,7 @@ impl TryFrom<CharacterRow> for Character {
         character.appearance_current_outfit = value.appearance_current_outfit;
         character.appearance_current_pose = value.appearance_current_pose;
         character.relations = parse_json_array(Some(value.relations.as_str()))?;
+        character.message_example = value.message_example;
         character.portrait_path = value.portrait_path;
         Ok(character)
     }
@@ -78,8 +81,8 @@ pub async fn insert_character(
     character: &Character,
 ) -> Result<(), PersistenceError> {
     sqlx::query(
-        "INSERT INTO character (id, adventure_id, name, headline, backstory, appearance, appearance_identity_prompt, appearance_current_outfit, appearance_current_pose, relations, status, portrait_path, is_player)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+        "INSERT INTO character (id, adventure_id, name, headline, backstory, appearance, appearance_identity_prompt, appearance_current_outfit, appearance_current_pose, relations, message_example, status, portrait_path, is_player)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
     )
     .bind(character.id.to_string())
     .bind(adventure_id.to_string())
@@ -91,6 +94,7 @@ pub async fn insert_character(
     .bind(&character.appearance_current_outfit)
     .bind(&character.appearance_current_pose)
     .bind(serde_json::to_string(&character.relations)?)
+    .bind(character.message_example.as_deref())
     .bind(character.status.as_str())
     .bind(character.portrait_path.as_deref())
     .bind(character.is_player)
@@ -211,9 +215,9 @@ pub async fn update_character(
         "UPDATE character
          SET name = ?1, headline = ?2, backstory = ?3, appearance = ?4,
              appearance_identity_prompt = ?5, appearance_current_outfit = ?6,
-             appearance_current_pose = ?7, relations = ?8, status = ?9,
-             portrait_path = ?10, is_player = ?11
-         WHERE id = ?12",
+             appearance_current_pose = ?7, relations = ?8, message_example = ?9,
+             status = ?10, portrait_path = ?11, is_player = ?12
+         WHERE id = ?13",
     )
     .bind(&character.name)
     .bind(&character.headline)
@@ -223,6 +227,7 @@ pub async fn update_character(
     .bind(&character.appearance_current_outfit)
     .bind(&character.appearance_current_pose)
     .bind(serde_json::to_string(&character.relations)?)
+    .bind(character.message_example.as_deref())
     .bind(character.status.as_str())
     .bind(character.portrait_path.as_deref())
     .bind(character.is_player)
