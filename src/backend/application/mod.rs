@@ -1,4 +1,5 @@
 pub mod adventure_manager;
+pub mod character_gallery;
 pub mod character_manager;
 pub mod context;
 pub mod director;

@@ -1,6 +1,8 @@
 use living_voices::ai::integrations::text::chat_handler::ChatHandler;
 use living_voices::backend::application::adventure_manager::AdventureManager;
+use living_voices::backend::application::character_gallery::CharacterGallery;
 use living_voices::backend::application::character_manager::CharacterManager;
+use living_voices::backend::application::port::image_port::{ImageError, ImagePort};
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::{Character, CharacterStatus};
@@ -19,6 +21,23 @@ impl Drop for TempDb {
         for suffix in ["", "-wal", "-shm"] {
             let _ = std::fs::remove_file(format!("{base}{suffix}"));
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct StubImage;
+
+impl ImagePort for StubImage {
+    async fn generate_scene(&self, _prompt: &str, _destination: &str) -> Result<(), ImageError> {
+        Ok(())
+    }
+
+    async fn generate_character_image(
+        &self,
+        _prompt: &str,
+        _destination: &str,
+    ) -> Result<(), ImageError> {
+        Ok(())
     }
 }
 
@@ -53,7 +72,13 @@ pub async fn start_adventure_with_default_cast(
         .expect("create adventure");
 
     let chat_handler = ChatHandler::new(Config::new().expect("load config").settings.models.chat);
-    let character_mgr = CharacterManager::new(state.clone(), pool.clone(), chat_handler);
+    let character_mgr = CharacterManager::new(
+        state.clone(),
+        pool.clone(),
+        chat_handler,
+        StubImage,
+        CharacterGallery::new(std::env::temp_dir()),
+    );
     let npcs = vec![DEFAULT_CAST_MIRA, DEFAULT_CAST_KAEL];
     for npc in npcs {
         let character = Character::new(

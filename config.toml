@@ -27,7 +27,7 @@ keep_alive = "0"
 backend = "comfyui"
 base_url = "http://localhost:8188"
 workflow = "qwen"
-output_prefix = "living_voices"
+output_dir = "comfyui/output"
 
 [memory]
 compress_after_threshold = 70

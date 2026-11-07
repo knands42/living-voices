@@ -1,7 +1,9 @@
-use crate::backend::application::helper::{TempDb, setup_db, start_adventure_with_default_cast};
+use crate::backend::application::helper::{
+    StubImage, TempDb, setup_db, start_adventure_with_default_cast,
+};
 use living_voices::ai::integrations::text::chat_handler::ChatHandler;
 use living_voices::backend::application::{
-    character_manager::CharacterManager, state::SharedState,
+    character_gallery::CharacterGallery, character_manager::CharacterManager, state::SharedState,
 };
 use living_voices::backend::domain::character::{Character, CharacterStatus};
 use living_voices::backend::domain::message::Message;
@@ -346,21 +348,36 @@ fn chat() -> ChatHandler {
 }
 
 async fn new_integration_manager() -> (
-    CharacterManager<ChatHandler>,
+    CharacterManager<ChatHandler, StubImage>,
     SharedState,
     TempDb,
     SqlitePool,
 ) {
     let state = SharedState::new();
     let (pool, db) = setup_db().await;
-    let manager = CharacterManager::new(state.clone(), pool.clone(), chat());
+    let manager = CharacterManager::new(
+        state.clone(),
+        pool.clone(),
+        chat(),
+        StubImage,
+        CharacterGallery::new(std::env::temp_dir()),
+    );
     (manager, state, db, pool)
 }
 
-fn setup_character_manager(pool: SqlitePool, state: SharedState) -> CharacterManager<ChatHandler> {
+fn setup_character_manager(
+    pool: SqlitePool,
+    state: SharedState,
+) -> CharacterManager<ChatHandler, StubImage> {
     let text_model_config = Config::new().expect("load config").settings.models.chat;
     let chat_handler = ChatHandler::new(text_model_config);
-    CharacterManager::new(state, pool, chat_handler)
+    CharacterManager::new(
+        state,
+        pool,
+        chat_handler,
+        StubImage,
+        CharacterGallery::new(std::env::temp_dir()),
+    )
 }
 
 /// The non-player cast currently held in shared state.

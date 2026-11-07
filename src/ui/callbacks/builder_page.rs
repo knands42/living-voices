@@ -1,4 +1,5 @@
 use crate::backend::application::adventure_manager::{AdventureManager, AdventureManagerError};
+use crate::backend::application::character_gallery::CharacterGallery;
 use crate::ui::{BuilderGlobals, RootWindow, viewmodels};
 use slint::ComponentHandle;
 use tokio::runtime::Handle;
@@ -17,6 +18,7 @@ use uuid::Uuid;
 pub struct BuilderPageContext {
     handle: Handle,
     adventures: AdventureManager,
+    gallery: CharacterGallery,
     ui_weak: slint::Weak<RootWindow>,
 }
 
@@ -24,11 +26,13 @@ impl BuilderPageContext {
     pub fn new(
         handle: Handle,
         adventures: AdventureManager,
+        gallery: CharacterGallery,
         ui_weak: slint::Weak<RootWindow>,
     ) -> Self {
         BuilderPageContext {
             handle,
             adventures,
+            gallery,
             ui_weak,
         }
     }
@@ -79,6 +83,7 @@ impl BuilderPageContext {
             Some(&adventure),
             &acts,
             has_opening,
+            &self.gallery,
         ));
 
         if let Some(section) = section {

@@ -78,7 +78,6 @@ struct CompleteAdventureRow {
     character_appearance_current_outfit: Option<String>,
     character_appearance_current_pose: Option<String>,
     character_status: String,
-    character_portrait_path: Option<String>,
     character_is_player: bool,
     character_tags: String,
     character_traits: String,
@@ -111,7 +110,6 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
             character_appearance_current_outfit: row.get("character_appearance_current_outfit"),
             character_appearance_current_pose: row.get("character_appearance_current_pose"),
             character_status: row.get("character_status"),
-            character_portrait_path: row.get("character_portrait_path"),
             character_is_player: row.get::<bool, _>("character_is_player"),
             character_tags: row.get("character_tags"),
             character_traits: row.get("character_traits"),
@@ -145,7 +143,6 @@ fn character_from_row(value: &CompleteAdventureRow) -> Result<Character, Persist
     character.appearance_current_outfit = value.character_appearance_current_outfit.clone();
     character.appearance_current_pose = value.character_appearance_current_pose.clone();
     character.message_example = value.character_message_example.clone();
-    character.portrait_path = value.character_portrait_path.clone();
 
     character_tags
         .iter()
@@ -255,7 +252,6 @@ SELECT a.id                      AS adventure_id,
        c.appearance_current_outfit AS character_appearance_current_outfit,
        c.appearance_current_pose AS character_appearance_current_pose,
        c.status                   AS character_status,
-       c.portrait_path AS character_portrait_path,
        c.is_player AS character_is_player,
        COALESCE(ctag.tags, '[]') AS character_tags,
        COALESCE(ct.trait, '[]')  AS character_traits,

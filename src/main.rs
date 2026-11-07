@@ -70,9 +70,11 @@ async fn main() {
         pool,
         config.settings.models.memory.clone(),
         config.settings.models.chat.clone(),
+        config.settings.models.image.clone(),
         config.settings.memory.clone(),
         config.settings.director.clone(),
-    );
+    )
+    .expect("Failed to initialize the app context");
 
     #[cfg(debug_assertions)]
     {

@@ -2,6 +2,7 @@ use crate::app::DefaultContext;
 use crate::backend::application::adventure_manager::AdventureManager;
 use crate::backend::application::character_manager::{CharacterManager, CharacterManagerError};
 use crate::backend::application::port::chat_port::PromptPort;
+use crate::backend::application::port::image_port::ImagePort;
 use crate::backend::domain::character::Character;
 use crate::ui::callbacks::adventure_creation::parse_id;
 use crate::ui::{BuilderGlobals, ChangedField, CharacterGlobals, RootWindow, viewmodels};
@@ -24,14 +25,14 @@ enum CharacterPageError {
 /// snapshot, change it, write it back. The manager keeps the snapshot current on save,
 /// so the builder is refreshed when its page is entered, never in the middle of an edit.
 #[derive(Clone)]
-struct CharacterPageContext<P: PromptPort + Clone + 'static> {
+struct CharacterPageContext<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> {
     handle: Handle,
     adventures: AdventureManager,
-    characters: CharacterManager<P>,
+    characters: CharacterManager<P, I>,
     ui_weak: slint::Weak<RootWindow>,
 }
 
-impl<P: PromptPort + Clone + 'static> CharacterPageContext<P> {
+impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> CharacterPageContext<P, I> {
     // Callbacks run on the UI thread, so the window can be updated directly.
     fn show(&self, character: &Character) {
         let Some(ui) = self.ui_weak.upgrade() else {
@@ -47,17 +48,6 @@ impl<P: PromptPort + Clone + 'static> CharacterPageContext<P> {
         if let Some(ui) = self.ui_weak.upgrade() {
             ui.set_current_page("character".into());
         }
-    }
-
-    /// The character the page shows, taken from the backend snapshot.
-    fn current_character(&self) -> Option<Character> {
-        let character_id = self.shown_id()?;
-
-        self.adventures
-            .current_adventure()?
-            .characters
-            .into_iter()
-            .find(|character| character.id == character_id)
     }
 
     fn shown_id(&self) -> Option<Uuid> {
@@ -130,6 +120,7 @@ impl<P: PromptPort + Clone + 'static> CharacterPageContext<P> {
         }
 
         self.handle.spawn(async move {
+            // Generate appearance prompts
             let (identity, outfit) = tokio::join!(
                 character_manager.create_character_identity_prompt(&character),
                 character_manager.create_character_outfit_prompt(&character),
@@ -140,6 +131,28 @@ impl<P: PromptPort + Clone + 'static> CharacterPageContext<P> {
             }
             if let Err(err) = outfit {
                 log::error!("could not generate the outfit prompt of {character_id}: {err}");
+            }
+
+            // Generate image from the previous generated prompts
+            let refreshed_character = adventures.current_adventure().and_then(|adventure| {
+                adventure
+                    .characters
+                    .into_iter()
+                    .find(|character| character.id == character_id)
+            });
+
+            match refreshed_character {
+                Some(character) => {
+                    if let Err(err) = character_manager
+                        .create_character_image_portrait(&character)
+                        .await
+                    {
+                        log::error!(
+                            "could not generate the image portrait of {character_id}: {err}"
+                        );
+                    }
+                }
+                None => log::error!("character {character_id} vanished while its prompts ran"),
             }
 
             let update_post = slint::invoke_from_event_loop(move || {
@@ -185,7 +198,10 @@ pub fn register_character_page(ui: &RootWindow, ctx: &DefaultContext) {
 }
 
 /// Builder -> character page: open an existing character, or start a new one.
-fn register_open<P: PromptPort + Clone + 'static>(ui: &RootWindow, env: &CharacterPageContext<P>) {
+fn register_open<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static>(
+    ui: &RootWindow,
+    env: &CharacterPageContext<P, I>,
+) {
     let builder = ui.global::<BuilderGlobals>();
 
     let open_env = env.clone();
@@ -230,7 +246,10 @@ fn register_open<P: PromptPort + Clone + 'static>(ui: &RootWindow, env: &Charact
 }
 
 /// Character page: each field and list item is saved on its own.
-fn register_edit<P: PromptPort + Clone + 'static>(ui: &RootWindow, env: &CharacterPageContext<P>) {
+fn register_edit<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static>(
+    ui: &RootWindow,
+    env: &CharacterPageContext<P, I>,
+) {
     let page = ui.global::<CharacterGlobals>();
 
     let save_env = env.clone();
@@ -341,45 +360,6 @@ fn register_edit<P: PromptPort + Clone + 'static>(ui: &RootWindow, env: &Charact
 
         if let Err(err) = result {
             log::error!("could not remove a relation from character {character_id}: {err}");
-        }
-    });
-
-    let env_appearance = env.clone();
-    page.on_add_appearance_prompt(move |character_id| {
-        let Some(character_id) = parse_id(character_id.as_str()) else {
-            return;
-        };
-
-        let result = tokio::task::block_in_place(|| {
-            env_appearance.handle.block_on(async {
-                let character = env_appearance
-                    .adventures
-                    .current_adventure()
-                    .and_then(|adventure| {
-                        adventure
-                            .characters
-                            .into_iter()
-                            .find(|character| character.id == character_id)
-                    })
-                    .ok_or(CharacterPageError::Invalid("character"))?;
-
-                env_appearance
-                    .characters
-                    .create_character_identity_prompt(&character)
-                    .await?;
-                Ok::<_, CharacterPageError>(())
-            })
-        });
-
-        match result {
-            // The manager wrote the new prompt into the snapshot, so re-read it there.
-            Ok(()) => match env_appearance.current_character() {
-                Some(character) => env_appearance.show(&character),
-                None => log::error!("character {character_id} vanished while its prompt ran"),
-            },
-            Err(err) => {
-                log::error!("could not create the appearance prompt of {character_id}: {err}")
-            }
         }
     });
 }

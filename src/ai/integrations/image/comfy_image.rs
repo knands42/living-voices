@@ -26,13 +26,8 @@ impl ComfyImage {
         self.config.base_url.trim_end_matches('/')
     }
 
-    fn prefix(&self, kind: &str) -> String {
-        format!("{}/{kind}", self.config.output_prefix)
-    }
-
-    async fn queue(&self, prompt: &str, kind: &str) -> Result<(), ImageError> {
-        let prefix = self.prefix(kind);
-        let workflow_format = pick_workflow_format(&self.config.workflow, prompt, prefix.as_str());
+    async fn queue(&self, prompt: &str, destination: &str) -> Result<(), ImageError> {
+        let workflow_format = pick_workflow_format(&self.config.workflow, prompt, destination);
 
         let url = format!("{}/prompt", self.base_url());
         let response = self
@@ -52,12 +47,16 @@ impl ComfyImage {
 }
 
 impl ImagePort for ComfyImage {
-    async fn generate_scene(&self, prompt: &str) -> Result<(), ImageError> {
-        self.queue(prompt, "scenes").await
+    async fn generate_scene(&self, prompt: &str, destination: &str) -> Result<(), ImageError> {
+        self.queue(prompt, destination).await
     }
 
-    async fn generate_character_image(&self, prompt: &str) -> Result<(), ImageError> {
-        self.queue(prompt, "characters").await
+    async fn generate_character_image(
+        &self,
+        prompt: &str,
+        destination: &str,
+    ) -> Result<(), ImageError> {
+        self.queue(prompt, destination).await
     }
 }
 

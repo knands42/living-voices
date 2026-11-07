@@ -77,25 +77,26 @@ impl ContextBuilder {
         Err(ContextBuilderError::MissingAppearanceDescription)
     }
 
-    /// The finished prompt for an image model: the framing the caller asked for,
-    /// then every layer the character has. A portrait drops the pose, since the
-    /// pose layer describes a whole-body action the crop would cut away.
+    /// The finished prompt for an image model + the framing the caller asked for
     pub fn compose_character_image_prompt(
         character: &Character,
         framing: ImageFraming,
     ) -> Option<String> {
-        let identity = character.image_identity()?;
+        let Some(identity) = character.image_identity() else {
+            return None;
+        };
 
         let framing_clause = match framing {
             ImageFraming::Portrait => CHAR_PORTRAIT_FRAMING,
             ImageFraming::FullBody => CHAR_FULL_BODY_FRAMING,
+            ImageFraming::FullBodyPose => CHAR_FULL_BODY_FRAMING,
         };
 
         let mut layers = vec![framing_clause, identity];
         if let Some(outfit) = character.appearance_current_outfit.as_deref() {
             layers.push(outfit);
         }
-        if framing == ImageFraming::FullBody
+        if framing == ImageFraming::FullBodyPose
             && let Some(pose) = character.appearance_current_pose.as_deref()
         {
             layers.push(pose);

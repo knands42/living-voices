@@ -3,8 +3,11 @@ use sqlx::SqlitePool;
 use thiserror::Error;
 use uuid::Uuid;
 
+use crate::backend::application::character_gallery::CharacterGallery;
 use crate::backend::application::context::{ContextBuilder, ContextBuilderError};
 use crate::backend::application::port::chat_port::{ChatResponseError, PromptPort};
+use crate::backend::application::port::image_port::{ImageError, ImagePort};
+use crate::backend::domain::character::ImageFraming;
 use crate::backend::persistence::state_persistence::update_character_presence;
 use crate::backend::{
     PersistenceError,
@@ -30,6 +33,8 @@ pub enum CharacterManagerError {
     Context(#[from] ContextBuilderError),
     #[error(transparent)]
     Prompt(#[from] ChatResponseError),
+    #[error(transparent)]
+    Image(#[from] ImageError),
 }
 
 #[derive(Clone, Copy)]
@@ -50,19 +55,33 @@ impl ImagePromptKind {
 }
 
 #[derive(Clone, Debug)]
-pub struct CharacterManager<PROMPT: PromptPort> {
+pub struct CharacterManager<PROMPT: PromptPort, IMAGE: ImagePort> {
     state: SharedState,
     pool: SqlitePool,
     prompt_handler: PROMPT,
+    image_handler: IMAGE,
+    gallery: CharacterGallery,
 }
 
-impl<PROMPT: PromptPort> CharacterManager<PROMPT> {
-    pub fn new(state: SharedState, pool: SqlitePool, prompt_handler: PROMPT) -> Self {
+impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
+    pub fn new(
+        state: SharedState,
+        pool: SqlitePool,
+        prompt_handler: PROMPT,
+        image_handler: IMAGE,
+        gallery: CharacterGallery,
+    ) -> Self {
         CharacterManager {
             state,
             pool,
             prompt_handler,
+            image_handler,
+            gallery,
         }
+    }
+
+    pub fn gallery(&self) -> &CharacterGallery {
+        &self.gallery
     }
 
     pub async fn create_character(
@@ -161,9 +180,52 @@ impl<PROMPT: PromptPort> CharacterManager<PROMPT> {
 
     pub async fn create_character_image_portrait(
         &self,
-        _character: &Character,
+        character: &Character,
     ) -> Result<(), CharacterManagerError> {
-        todo!()
+        self.create_character_image(character, ImageFraming::Portrait)
+            .await
+    }
+
+    pub async fn create_character_image_full_body(
+        &self,
+        character: &Character,
+    ) -> Result<(), CharacterManagerError> {
+        self.create_character_image(character, ImageFraming::FullBody)
+            .await
+    }
+
+    pub async fn create_character_image_pose(
+        &self,
+        character: &Character,
+    ) -> Result<(), CharacterManagerError> {
+        self.create_character_image(character, ImageFraming::FullBodyPose)
+            .await
+    }
+
+    async fn create_character_image(
+        &self,
+        character: &Character,
+        framing: ImageFraming,
+    ) -> Result<(), CharacterManagerError> {
+        let Some(prompt) = ContextBuilder::compose_character_image_prompt(character, framing)
+        else {
+            log::debug!("no appearance to compose an image of {}", character.name);
+            return Ok(());
+        };
+
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        // TODO: drop call to db, get the adventure title and character name only from state
+        let adventure = get_adventure(&mut conn, character.adventure_id).await?;
+        drop(conn);
+
+        let destination = self.gallery.prefix(&adventure, character, framing);
+
+        self.image_handler
+            .generate_character_image(&prompt, &destination)
+            .await?;
+
+        log::info!("queued an image of {} at {destination}", character.name);
+        Ok(())
     }
 
     async fn create_character_image_prompt(
@@ -228,13 +290,13 @@ impl<PROMPT: PromptPort> CharacterManager<PROMPT> {
         }
         drop(conn);
 
-        self.store_image_prompt(character.id, kind, &generated_prompt)?;
+        self.update_image_prompt_shared_state(character.id, kind, &generated_prompt)?;
         log::info!("stored {} prompt for {}", kind.label(), character.name);
 
         Ok(())
     }
 
-    fn store_image_prompt(
+    fn update_image_prompt_shared_state(
         &self,
         character_id: Uuid,
         kind: ImagePromptKind,

@@ -1,5 +1,6 @@
 use crate::app::DefaultContext;
 use crate::backend::application::adventure_manager::{AdventureManagerError, MemorySnapshot};
+use crate::backend::application::character_gallery::CharacterGallery;
 use crate::backend::domain::message::Message;
 use crate::ui::callbacks::builder_page::BuilderPageContext;
 use crate::ui::{ChatGlobals, MainGlobals, RootWindow, viewmodels};
@@ -27,7 +28,12 @@ pub fn register_adventure_selected(ui: &RootWindow, ctx: &DefaultContext) {
             }
         };
 
-        apply_snapshot(&ui_weak, snapshot, messages);
+        apply_snapshot(
+            &ui_weak,
+            snapshot,
+            messages,
+            ctx.characters.gallery().clone(),
+        );
     });
 }
 
@@ -72,6 +78,7 @@ fn apply_snapshot(
     ui_weak: &slint::Weak<RootWindow>,
     snapshot: MemorySnapshot,
     messages: Vec<Message>,
+    gallery: CharacterGallery,
 ) {
     let ui_weak = ui_weak.clone();
     let post = slint::invoke_from_event_loop(move || {
@@ -83,6 +90,7 @@ fn apply_snapshot(
             let chat = ui.global::<ChatGlobals>();
             chat.set_adventure(viewmodels::adventure_view(
                 snapshot.current_adventure.as_ref(),
+                &gallery,
             ));
             chat.set_act(viewmodels::act_view(snapshot.current_act.as_ref()));
             chat.set_state(viewmodels::state_view(snapshot.current_state.as_ref()));

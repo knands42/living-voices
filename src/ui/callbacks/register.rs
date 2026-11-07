@@ -16,7 +16,12 @@ pub fn register_callbacks(ui: &RootWindow, ctx: &DefaultContext) {
     // One cache for the whole app: the builder fetches it when its page opens and
     // The builder needs nothing cached: the backend snapshot is the only copy, and
     // this context is just how the page is opened and rendered.
-    let builder = BuilderPageContext::new(Handle::current(), ctx.adventures.clone(), ui.as_weak());
+    let builder = BuilderPageContext::new(
+        Handle::current(),
+        ctx.adventures.clone(),
+        ctx.characters.gallery().clone(),
+        ui.as_weak(),
+    );
 
     register_adventure_selected(ui, ctx);
     register_draft_adventure_selected(ui, &builder);

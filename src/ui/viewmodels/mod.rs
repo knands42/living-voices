@@ -1,9 +1,11 @@
 use std::hash::{Hash, Hasher};
+use std::path::PathBuf;
 
 use slint::{ModelRc, SharedString, VecModel};
 
+use crate::backend::application::character_gallery::CharacterGallery;
 use crate::backend::domain::adventure::{Adventure, AdventureSummary};
-use crate::backend::domain::character::Character;
+use crate::backend::domain::character::{Character, ImageFraming};
 use crate::backend::domain::memory::{Act, Fact, State};
 use crate::backend::domain::message::Message;
 use crate::ui::{
@@ -12,20 +14,20 @@ use crate::ui::{
 };
 use uuid::Uuid;
 
-pub fn adventure_view(adventure: Option<&Adventure>) -> AdventureView {
+pub fn adventure_view(adventure: Option<&Adventure>, gallery: &CharacterGallery) -> AdventureView {
     match adventure {
         Some(adventure) => {
             let characters: Vec<CharacterChatView> = adventure
                 .characters
                 .iter()
                 .filter(|&char| !char.is_player)
-                .map(character_chat_view)
+                .map(|character| character_chat_view(character, adventure, gallery))
                 .collect();
             let player = adventure
                 .characters
                 .iter()
                 .find(|c| c.is_player)
-                .map(character_chat_view)
+                .map(|character| character_chat_view(character, adventure, gallery))
                 .unwrap_or_default();
 
             AdventureView {
@@ -58,7 +60,12 @@ pub fn adventure_summaries_model(
     ModelRc::new(VecModel::from(items))
 }
 
-pub fn builder_view(adventure: Option<&Adventure>, acts: &[Act], has_opening: bool) -> BuilderView {
+pub fn builder_view(
+    adventure: Option<&Adventure>,
+    acts: &[Act],
+    has_opening: bool,
+    gallery: &CharacterGallery,
+) -> BuilderView {
     match adventure {
         Some(adventure) => {
             let cast_members: Vec<&Character> = adventure
@@ -68,7 +75,7 @@ pub fn builder_view(adventure: Option<&Adventure>, acts: &[Act], has_opening: bo
                 .collect();
             let cast: Vec<CharacterChatView> = cast_members
                 .iter()
-                .map(|character| character_chat_view(character))
+                .map(|character| character_chat_view(character, adventure, gallery))
                 .collect();
 
             let act_views: Vec<ActAuthorView> = acts.iter().map(act_author_view).collect();
@@ -132,7 +139,6 @@ pub fn character_view(character: &Character) -> CharacterView {
         appearance_identity_prompt: optional_text(&character.appearance_identity_prompt),
         appearance_current_outfit: optional_text(&character.appearance_current_outfit),
         appearance_current_pose: optional_text(&character.appearance_current_pose),
-        portrait_path: optional_text(&character.portrait_path),
         is_player: character.is_player,
         traits: string_model(&character.traits),
         tags: string_model(&character.tags),
@@ -148,7 +154,11 @@ fn initials(name: &str) -> String {
     name.chars().take(2).collect::<String>().to_uppercase()
 }
 
-fn character_chat_view(character: &Character) -> CharacterChatView {
+fn character_chat_view(
+    character: &Character,
+    adventure: &Adventure,
+    gallery: &CharacterGallery,
+) -> CharacterChatView {
     CharacterChatView {
         id: SharedString::from(character.id.to_string()),
         name: SharedString::from(character.name.clone()),
@@ -157,19 +167,19 @@ fn character_chat_view(character: &Character) -> CharacterChatView {
         status: SharedString::from(character.status.as_str()),
         traits: string_model(&character.traits),
         tags: string_model(&character.tags),
-        portrait: portrait(&character.portrait_path),
+        portrait: portrait(gallery.latest(adventure, character, ImageFraming::Portrait)),
         is_player: character.is_player,
         hue: name_hue(&character.name),
     }
 }
 
-fn portrait(path: &Option<String>) -> slint::Image {
-    let Some(path) = path.as_deref().filter(|path| !path.is_empty()) else {
+fn portrait(path: Option<PathBuf>) -> slint::Image {
+    let Some(path) = path else {
         return slint::Image::default();
     };
 
-    slint::Image::load_from_path(std::path::Path::new(path)).unwrap_or_else(|err| {
-        log::warn!("could not load the portrait at {path}: {err}");
+    slint::Image::load_from_path(&path).unwrap_or_else(|err| {
+        log::warn!("could not load the portrait at {}: {err}", path.display());
         slint::Image::default()
     })
 }

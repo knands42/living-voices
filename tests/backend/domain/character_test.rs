@@ -297,16 +297,6 @@ fn render_keeps_the_voice_samples_out_of_the_cast_line() {
 }
 
 #[test]
-fn with_portrait_sets_the_portrait_path() {
-    let character = new_character().with_portrait("portraits/maren.png");
-
-    assert_eq!(
-        character.portrait_path.as_deref(),
-        Some("portraits/maren.png")
-    );
-}
-
-#[test]
 fn with_appearance_sets_the_appearance() {
     let character = new_character()
         .with_appearance("A weathered woman with copper hair and a salt-stained coat.");

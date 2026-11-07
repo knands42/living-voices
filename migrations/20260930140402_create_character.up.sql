@@ -13,7 +13,6 @@ CREATE TABLE character
     relations                   TEXT    NOT NULL DEFAULT '[]', -- json: ["Brother of Otho"]
     message_example             TEXT    NULL,                  -- few-shot voice samples, prose
     status                      TEXT    NOT NULL DEFAULT 'present',
-    portrait_path               TEXT,
     is_player                   INTEGER NOT NULL DEFAULT 0,
     created_at                  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     updated_at                  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),

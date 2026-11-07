@@ -58,6 +58,7 @@ impl Display for CharacterStatus {
 pub enum ImageFraming {
     Portrait,
     FullBody,
+    FullBodyPose,
 }
 
 #[derive(Clone, Debug)]
@@ -68,7 +69,6 @@ pub struct Character {
     pub headline: String,
     pub status: CharacterStatus,
     pub backstory: String,
-    pub portrait_path: Option<String>,
     pub is_player: bool,
     pub traits: Vec<String>,    // Speaks only in tidal registers, ...
     pub tags: Vec<String>,      // Protagonist, Brave ...
@@ -109,7 +109,6 @@ impl Character {
             appearance_current_outfit: None,
             appearance_current_pose: None,
             status,
-            portrait_path: None,
             is_player,
             traits: vec![],
             tags: vec![],
@@ -136,11 +135,6 @@ impl Character {
     /// True while the character is still the placeholder its page opened with.
     pub fn is_placeholder(&self) -> bool {
         self.name == Self::PLACEHOLDER_NAME
-    }
-
-    pub fn with_portrait(mut self, portrait_path: impl Into<String>) -> Self {
-        self.portrait_path = Some(portrait_path.into());
-        self
     }
 
     pub fn with_appearance(mut self, appearance: impl Into<String>) -> Self {
@@ -193,8 +187,7 @@ impl Character {
         self
     }
 
-    /// The visual source an image prompt is built from: the generated identity, or
-    /// the author's own description when they chose to keep theirs as-is.
+    /// The visual source an image prompt is built from.
     pub fn image_identity(&self) -> Option<&str> {
         self.appearance_identity_prompt
             .as_deref()

@@ -1,5 +1,7 @@
 mod adventure_manager_test;
 
+mod character_gallery_test;
+
 mod character_manager_test;
 
 mod context;

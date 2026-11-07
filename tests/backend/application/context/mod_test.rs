@@ -702,14 +702,22 @@ fn composed_prompt_stacks_framing_identity_outfit_and_pose() {
         .with_appearance_current_outfit("oilskin coat two sizes too big")
         .with_appearance_current_pose("reaching up to trim the lamp wick");
 
+    let pose =
+        ContextBuilder::compose_character_image_prompt(&character, ImageFraming::FullBodyPose)
+            .expect("composed prompt");
+
+    assert!(pose.starts_with("full body"));
+    assert!(pose.contains("copper hair, grey eyes, wiry build"));
+    assert!(pose.contains("oilskin coat two sizes too big"));
+    assert!(pose.contains("reaching up to trim the lamp wick"));
+
     let full_body =
         ContextBuilder::compose_character_image_prompt(&character, ImageFraming::FullBody)
             .expect("composed prompt");
 
     assert!(full_body.starts_with("full body"));
-    assert!(full_body.contains("copper hair, grey eyes, wiry build"));
     assert!(full_body.contains("oilskin coat two sizes too big"));
-    assert!(full_body.contains("reaching up to trim the lamp wick"));
+    assert!(!full_body.contains("reaching up to trim the lamp wick"));
 
     // The pose layer describes a whole-body action, so a portrait drops it.
     character.appearance_current_pose = Some("reaching up to trim the lamp wick".into());

@@ -11,7 +11,7 @@ const DB_FILE: &str = "living_voices.db";
 const DEFAULT_CHAT_MODEL_URL: &str = "http://localhost:11434/v1";
 const DEFAULT_CHAT_MEMORY_URL: &str = "http://localhost:11434/v1";
 const DEFAULT_IMAGE_MODEL_URL: &str = "http://localhost:8188";
-const DEFAULT_IMAGE_OUTPUT_PREFIX: &str = "living_voices";
+const DEFAULT_IMAGE_OUTPUT_DIR: &str = "comfyui/output";
 
 const DEFAULT_CHAT_TEMPERATURE: f32 = 0.5;
 const DEFAULT_MEMORY_TEMPERATURE: f32 = 0.1;
@@ -188,7 +188,7 @@ pub struct ImageModel {
     pub backend: String,
     pub base_url: String,
     pub workflow: ImageModelWorkflow,
-    pub output_prefix: String,
+    pub output_dir: PathBuf,
 }
 
 impl Default for ImageModel {
@@ -197,7 +197,7 @@ impl Default for ImageModel {
             backend: "comfyui".to_string(),
             base_url: DEFAULT_IMAGE_MODEL_URL.to_string(),
             workflow: ImageModelWorkflow::FluxQ8,
-            output_prefix: DEFAULT_IMAGE_OUTPUT_PREFIX.to_string(),
+            output_dir: base_dir().join(DEFAULT_IMAGE_OUTPUT_DIR),
         }
     }
 }
@@ -223,7 +223,10 @@ impl Config {
             Self::create_config_file(&config_file)?;
         }
 
-        let settings = Self::load_config_into_file(&config_file);
+        let mut settings = Self::load_config_into_file(&config_file);
+        if settings.models.image.output_dir.is_relative() {
+            settings.models.image.output_dir = config_dir.join(&settings.models.image.output_dir);
+        }
         log::info!("Config loaded from {}", config_file.display());
         let db_path = config_dir.join(DB_FILE);
 
