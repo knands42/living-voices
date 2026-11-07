@@ -80,7 +80,7 @@ impl Director {
     }
 
     pub fn should_request_closure_prompt(&self, messages_in_act: u16) -> bool {
-        messages_in_act >= self.director_settings.act_max_messages / 3
+        messages_in_act >= self.director_settings.act_max_messages / 3 * 2
     }
 
     pub fn get_max_act_messages(&self) -> u16 {

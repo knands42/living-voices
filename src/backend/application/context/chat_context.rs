@@ -144,22 +144,10 @@ impl ContextBuilder {
         }
 
         if director.should_request_closure_prompt(messages_in_act) {
-            turns.push(PromptTurn::system(Self::build_closure_prompt(
-                messages_in_act,
-                max_messages,
-            )));
+            turns.push(PromptTurn::system(CLOSURE_PROMPT.to_string()));
         }
 
         turns
-    }
-
-    fn build_closure_prompt(
-        current_number_of_messages: u16,
-        current_act_messages_max_threshold: u16, // TODO: later it will be controlled on the adventure settings, for now defaults to 200
-    ) -> String {
-        CLOSURE_PROMPT
-            .replace("{0}", &current_number_of_messages.to_string())
-            .replace("{1}", &current_act_messages_max_threshold.to_string())
     }
 
     fn build_pacing_prompt(

@@ -98,23 +98,10 @@ either. Any of these may appear in one turn, in any order:
 "#;
 
 pub(crate) const CLOSURE_PROMPT: &str = r#"## CLOSURE INFORMATION
-After writing this next beat normally, judge how close the ACT is to a natural close —
-its goal from CURRENT ACT is your reference, not the mood of this conversation.
-
-Set the "act_closure" field of your JSON reply to an integer 0-5:
-
-0   the act is in full motion; nothing points at its goal yet
-1   the goal is far; the current thread needs real development
-2   the goal is coming into view; real obstacles remain
-3   the goal is nearly reached, or clearly out of reach — the story is arranging
-    its endgame
-4   the next beat could plausibly resolve the act — a confrontation, a discovery,
-    a deal, a defeat
-5   this beat itself resolves the act; the next beat should open a new act
-
-Judge the fiction, not your own prose. A loud argument is not a close; a quiet
-moment after it, where the story would naturally turn, is. Do not inflate the
-number to be helpful — most beats are 1 or 2."#;
+Judge this beat against the goal in CURRENT ACT, then set the "act_closure" field to an
+integer: 0 nothing points at it yet, 2 obstacles remain, 3 the endgame is forming,
+4 the next beat could resolve it, 5 this beat resolves it.
+Judge the goal, not the mood: a loud moment is not a close. Most beats are 1 or 2."#;
 
 pub(crate) const PACING_PROMPT: &str = r#"## PACING
 This act is at message {0} of about {1} — {2}% of its length.

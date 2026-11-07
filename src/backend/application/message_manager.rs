@@ -172,17 +172,30 @@ impl<
         input: &TurnInput,
     ) -> Result<ChatReply, MessageManagerError> {
         let active_characters = input.adventure.active_characters(&input.present_names);
+        let data = self.load_context(&input.adventure).await?;
 
-        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         self.send_to_handler(
-            &mut conn,
             &input.adventure,
             incoming,
             &active_characters,
             input.messages_since_narration,
             &input.uncovered_messages,
+            &data,
         )
         .await
+    }
+
+    /// Loads the prompt inputs and hands the connection back before the caller
+    /// awaits a model. Holding it across the call stalls every other beat on a pool
+    /// that is many seconds wide.
+    async fn load_context(
+        &self,
+        adventure: &Adventure,
+    ) -> Result<ContextData, MessageManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        let data = ContextData::load(&mut conn, adventure.id).await?;
+
+        Ok(data)
     }
 
     async fn process_respond(
@@ -218,15 +231,13 @@ impl<
 
     async fn send_to_handler(
         &self,
-        conn: &mut SqliteConnection,
         adventure: &Adventure,
         incoming: &Message,
         active_characters: &[&Character],
         messages_since_narration: Option<u8>,
         uncovered_messages: &[Message],
+        data: &ContextData,
     ) -> Result<ChatReply, MessageManagerError> {
-        let data = ContextData::load(conn, adventure.id).await?;
-
         if self.director.should_narrator_speak(
             active_characters,
             incoming,
@@ -235,7 +246,7 @@ impl<
             let context = ContextBuilder::build_narrator_chat_prompt(
                 adventure,
                 &self.director,
-                &data,
+                data,
                 uncovered_messages,
             );
             let reply = self.narrator_handler.narrator_respond(&context).await?;
@@ -250,7 +261,7 @@ impl<
             let context = ContextBuilder::build_single_character_chat_prompt(
                 adventure,
                 &self.director,
-                &data,
+                data,
                 character,
                 uncovered_messages,
             );
@@ -265,7 +276,7 @@ impl<
         let context = ContextBuilder::build_autonomous_chat_prompt(
             adventure,
             &self.director,
-            &data,
+            data,
             uncovered_messages,
         );
         Ok(self.chat_handler.autonomous_respond(&context).await?)
@@ -299,45 +310,38 @@ impl<
     ) -> Result<(), MessageManagerError> {
         let score = chat_reply.act_closure.unwrap_or(0);
 
-        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        let updated_act = {
+            let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+            update_active_act_last_closure_score(&mut conn, input.adventure.id, score).await?
+        };
 
-        let should_close = score >= 5
-            || matches!(last_message.seq, Some(seq) if seq >= self.director.get_max_act_messages() && score == 4);
+        if should_close_act(score, &last_message, self.director.get_max_act_messages()) {
+            return self.close_current_act(input).await;
+        }
 
-        let updated_act =
-            update_active_act_last_closure_score(&mut conn, input.adventure.id, score).await?;
+        self.state.write()?.current_act = updated_act;
 
-        if should_close {
-            self.close_current_act(&mut conn, input).await?;
-        } else {
-            self.state.write()?.current_act = updated_act;
-
-            if let Some(act) = input.active_act.as_ref() {
-                self.check_and_compress_memory(act, &input.uncovered_messages);
-            }
+        if let Some(act) = input.active_act.as_ref() {
+            self.check_and_compress_memory(act, &input.uncovered_messages);
         }
 
         Ok(())
     }
 
-    async fn close_current_act(
-        &self,
-        conn: &mut SqliteConnection,
-        input: &TurnInput,
-    ) -> Result<(), MessageManagerError> {
+    async fn close_current_act(&self, input: &TurnInput) -> Result<(), MessageManagerError> {
         let Some(act) = input.active_act.as_ref() else {
             log::error!("No active act found for adventure {}", input.adventure.id);
             return Ok(());
         };
 
-        let data = ContextData::load(conn, input.adventure.id).await?;
+        let data = self.load_context(&input.adventure).await?;
         let prompt = ContextBuilder::build_act_transition_prompt(&data, &input.uncovered_messages);
 
         let narration = self.narrator_handler.narrator_respond(&prompt).await?;
         let narration_message = input
             .adventure
             .message_from_reply(Message::NARRATOR_SPEAKER_NAME, &narration);
-        let stored = insert_message(conn, &narration_message).await?;
+        let stored = self.create_message(narration_message).await?;
 
         let mut all_messages = input.uncovered_messages.clone();
         all_messages.push(stored);
@@ -359,11 +363,6 @@ impl<
     }
 }
 
-/// The uncovered tail for a turn, with the fresh-act backfill applied.
-///
-/// A fresh act (ordinal != 0) starts with its watermark at its own first message,
-/// so it has no uncovered tail yet. In that case backfill the last `window` turns
-/// from the previous acts so the prompt keeps continuity until the act fills up.
 async fn load_uncovered_messages(
     conn: &mut SqliteConnection,
     active_act: &Option<Act>,
@@ -380,6 +379,16 @@ async fn load_uncovered_messages(
     }
 
     Ok(uncovered)
+}
+
+fn should_close_act(score: u8, last_message: &Message, act_max_messages: u16) -> bool {
+    let reached_good_score = score >= 5;
+    let reached_acceptable_score = score == 4;
+    let eligible_to_close = last_message
+        .seq
+        .is_some_and(|seq| u32::from(seq) * 4 / 5 >= u32::from(act_max_messages));
+
+    reached_good_score || (eligible_to_close && reached_acceptable_score)
 }
 
 #[cfg(test)]
@@ -507,5 +516,49 @@ mod load_uncovered_tests {
         // tail is seqs 5..=10 (six messages), above the window of 3: no backfill
         assert_eq!(messages.len(), 6);
         assert_eq!(messages.first().expect("a message").text, "message 4");
+    }
+}
+
+#[cfg(test)]
+mod should_close_tests {
+    use super::*;
+    use uuid::Uuid;
+
+    fn beat_at(seq: Option<u16>) -> Message {
+        let mut message = Message::new(
+            Uuid::new_v4(),
+            None,
+            None,
+            Message::NARRATOR_SPEAKER_NAME.to_string(),
+            "a beat",
+            false,
+        );
+        message.seq = seq;
+        message
+    }
+
+    #[test]
+    fn a_score_of_five_closes_wherever_it_lands() {
+        // a 5 resolves the act on its own, so position never enters into it
+        assert!(should_close_act(5, &beat_at(None), 200));
+        assert!(should_close_act(5, &beat_at(Some(1)), 200));
+        assert!(should_close_act(5, &beat_at(Some(200)), 200));
+    }
+
+    #[test]
+    fn a_score_of_four_needs_the_act_to_run_past_its_cap() {
+        // a 4 is patient: the cap itself is not enough, it keeps the story flowing
+        assert!(!should_close_act(4, &beat_at(Some(100)), 100));
+
+        // the gate opens at 125% of the cap, where seq / 5 * 4 first reaches it
+        assert!(!should_close_act(4, &beat_at(Some(124)), 100));
+        assert!(should_close_act(4, &beat_at(Some(125)), 100));
+
+        // without a sequence there is no position to judge
+        assert!(!should_close_act(4, &beat_at(None), 100));
+
+        // anything under 4 never closes, however long the act runs
+        assert!(!should_close_act(3, &beat_at(Some(5_000)), 100));
+        assert!(!should_close_act(0, &beat_at(Some(5_000)), 100));
     }
 }
