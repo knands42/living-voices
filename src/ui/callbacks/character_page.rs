@@ -97,6 +97,77 @@ impl CharacterPageContext {
         self.show(&character);
         Ok(())
     }
+
+    /// The appearance prose is what the image layers are distilled from, so the first save
+    /// that carries it fills the two layers a character has at creation: identity and the
+    /// opening outfit. The pose waits for a scene. A slot already filled is left alone, so
+    /// re-saving the field costs no model call.
+    fn start_image_prompts(&self, character_id: Uuid) {
+        let Some(character) = self.adventures.current_adventure().and_then(|adventure| {
+            adventure
+                .characters
+                .into_iter()
+                .find(|character| character.id == character_id)
+        }) else {
+            return;
+        };
+
+        let identity_missing = character.appearance_identity_prompt.is_none();
+        let outfit_missing = character.appearance_current_outfit.is_none();
+        if character.appearance.is_none() || character.is_placeholder() {
+            return;
+        }
+        if !identity_missing && !outfit_missing {
+            return;
+        }
+
+        let characters = self.characters.clone();
+        let adventures = self.adventures.clone();
+        let ui_weak = self.ui_weak.clone();
+
+        self.handle.spawn(async move {
+            if identity_missing
+                && let Err(err) = characters
+                    .create_character_identity_prompt(&character)
+                    .await
+            {
+                log::error!("could not create the identity prompt of {character_id}: {err}");
+            }
+
+            if outfit_missing
+                && let Err(err) = characters.create_character_outfit_prompt(&character).await
+            {
+                log::error!("could not create the outfit prompt of {character_id}: {err}");
+            }
+
+            let post = slint::invoke_from_event_loop(move || {
+                let Some(ui) = ui_weak.upgrade() else {
+                    return;
+                };
+                if parse_id(ui.global::<CharacterGlobals>().get_character().id.as_str())
+                    != Some(character_id)
+                {
+                    return;
+                }
+
+                let refreshed = adventures.current_adventure().and_then(|adventure| {
+                    adventure
+                        .characters
+                        .into_iter()
+                        .find(|character| character.id == character_id)
+                });
+
+                if let Some(character) = refreshed {
+                    ui.global::<CharacterGlobals>()
+                        .set_character(viewmodels::character_view(&character));
+                }
+            });
+
+            if let Err(err) = post {
+                log::error!("could not re-render character {character_id}: {err}");
+            }
+        });
+    }
 }
 
 pub fn register_character_page<
@@ -190,7 +261,10 @@ fn register_edit(ui: &RootWindow, env: &CharacterPageContext) {
 
         if let Err(err) = result {
             log::error!("could not save character {character_id}: {err}");
+            return;
         }
+
+        save_env.start_image_prompts(character_id);
     });
 
     let env_add_trait = env.clone();

@@ -1,7 +1,9 @@
+use crate::config;
+use env_logger::{Builder, Target};
+use serde::{Deserialize, Serialize};
+use std::fs::File;
 use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
-
-use serde::{Deserialize, Serialize};
 
 const CONFIG_FILE: &str = "config.toml";
 const DB_FILE: &str = "living_voices.db";
@@ -231,6 +233,21 @@ impl Config {
             config_file,
             db_path,
         })
+    }
+
+    pub fn init_logging() {
+        let path = &config::base_dir().join("living-voices.log");
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        match File::create(path) {
+            Ok(file) => {
+                Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+                    .target(Target::Pipe(Box::new(file)))
+                    .init();
+            }
+            Err(_) => env_logger::init(),
+        }
     }
 
     /// Route every text model (chat and memory) at `base_url`.

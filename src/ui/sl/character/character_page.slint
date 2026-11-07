@@ -157,6 +157,7 @@ export component CharacterPage inherits Rectangle {
                         caption: "APPEARANCE";
                         EditableField {
                             value: root.character.appearance;
+                            placeholder: "Face, hair, build, and what they wear when the story opens";
                             can-edit: root.can-edit;
                             multiline: true;
                             committed(text) => {

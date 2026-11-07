@@ -86,8 +86,6 @@ pub struct Character {
 
 impl Character {
     pub const DEFAULT_PLAYER_NAME: &'static str = "You";
-    /// The name a character carries from the moment its page opens until the
-    /// player types a real one. A character still wearing it is not a cast member.
     pub const PLACEHOLDER_NAME: &'static str = "New character";
 
     pub fn new(

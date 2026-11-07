@@ -1,8 +1,12 @@
+use std::fs::File;
+use std::path::Path;
+
+use env_logger::{Builder, Target};
 use living_voices::{
     app::App,
     backend::{open_pool, run_migrations, seed_titles},
     cli,
-    config::Config,
+    config::{self, Config},
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -26,7 +30,7 @@ impl Frontend {
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    Config::init_logging();
     log_panics::init();
 
     let frontend = Frontend::from_args();
