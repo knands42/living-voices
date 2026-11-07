@@ -305,6 +305,92 @@ async fn closure_prompt_appears_only_once_the_gate_opens() {
 
 // region Character voice examples
 
+#[tokio::test]
+async fn single_character_history_renders_cast_turns_as_the_envelope() {
+    // given a prior cast line in the transcript (the shape that used to teach the
+    // model a bare "Name:"/"NARRATOR:" prefix it then leaked into the stored body)
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = adventure_manager
+        .current_adventure()
+        .expect("adventure to exist on the snapshot");
+
+    let player = adventure.characters[0].clone();
+    let npc = adventure.characters[1].clone();
+    seed_player_message(&pool, &adventure, &player, "I open the door.").await;
+    seed_cast_message(&pool, &adventure, &npc, "It creaks.").await;
+
+    let mut conn = pool.acquire().await.expect("acquire");
+    let messages = last_messages(&mut conn, &adventure).await;
+    let data = context_data(&mut conn, &adventure).await;
+
+    // when the single-character prompt is built
+    let turns = ContextBuilder::build_single_character_chat_prompt(
+        &adventure,
+        &low_closure_director(),
+        &data,
+        &npc,
+        &messages,
+    );
+
+    // then the cast turn is the {replier, reply} envelope, with no act_closure and
+    // no bare "Name:" prefix carried in the body
+    let cast_turn = turns
+        .iter()
+        .find(|t| t.speaker == Speaker::Cast)
+        .expect("a cast turn");
+    assert_eq!(cast_turn.text, r#"{"replier":"Mira","reply":"It creaks."}"#);
+    assert!(
+        !cast_turn.text.contains("act_closure"),
+        "the character envelope must not carry act_closure: {}",
+        cast_turn.text
+    );
+}
+
+#[tokio::test]
+async fn single_character_instructions_forbid_a_name_prefix_and_show_the_envelope() {
+    // given the single-character prompt head
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = adventure_manager
+        .current_adventure()
+        .expect("adventure to exist on the snapshot");
+    let npc = adventure.characters[1].clone();
+    let mut conn = pool.acquire().await.expect("acquire");
+    let data = context_data(&mut conn, &adventure).await;
+
+    // when
+    let turns = ContextBuilder::build_single_character_chat_prompt(
+        &adventure,
+        &low_closure_director(),
+        &data,
+        &npc,
+        &[],
+    );
+    let head = &turns[0].text;
+
+    // then the contract is spelled out: one JSON envelope, the prefix is banned,
+    // and two worked examples ride along — both the named character, never the narrator
+    assert!(head.contains("## REPLY FORMAT"), "{head}");
+    assert!(head.contains("\"replier\""), "{head}");
+    assert!(head.contains("\"reply\""), "{head}");
+    assert!(
+        head.contains("never start it with \"NARRATOR:\""),
+        "the prefix ban must be explicit: {head}"
+    );
+    assert!(
+        !head.contains("\"replier\": \"NARRATOR\""),
+        "the single-character prompt never offers NARRATOR as a replier: {head}"
+    );
+    assert_eq!(
+        head.matches("{\"replier\":").count(),
+        2,
+        "two envelope examples, like the autonomous prompt: {head}"
+    );
+}
+
 #[test]
 fn single_character_prompt_carries_the_voice_examples() {
     // given a character with voice samples, and no database involved

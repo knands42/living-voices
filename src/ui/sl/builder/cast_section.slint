@@ -1,8 +1,8 @@
 import { AppTheme } from "../theme.slint";
 import { BuilderView, CharacterChatView } from "../views.slint";
-import { CastAvatar, PillButton, SectionHeader } from "components.slint";
+import { PillButton, PortraitFrame, SectionHeader } from "components.slint";
 
-// A character card in the cast grid.
+// A character card in the cast grid: the portrait on top, the read on the character below.
 component CastCard inherits TouchArea {
     in property <CharacterChatView> character;
 
@@ -11,39 +11,108 @@ component CastCard inherits TouchArea {
         border-radius: AppTheme.radius-card;
         border-width: 1px;
         border-color: parent.has-hover ? AppTheme.gold : AppTheme.bronze;
+        clip: true;
 
-        HorizontalLayout {
-            padding: 16px;
-            spacing: 16px;
+        VerticalLayout {
+            alignment: start;
+            spacing: 0;
 
-            VerticalLayout {
-                alignment: center;
-                CastAvatar {
-                    width: 56px;
-                    height: 56px;
-                    initials: root.character.initials;
-                    hue: root.character.hue;
-                }
+            PortraitFrame {
+                height: 208px;
+                source: root.character.portrait;
+                initials: root.character.initials;
+                hue: root.character.hue;
             }
 
             VerticalLayout {
-                alignment: center;
-                spacing: 4px;
-                horizontal-stretch: 1;
+                padding: 14px;
+                spacing: 8px;
+                alignment: start;
+
+                HorizontalLayout {
+                    spacing: 8px;
+
+                    Text {
+                        text: root.character.name;
+                        color: AppTheme.text-light;
+                        font-family: AppTheme.font-display;
+                        font-size: AppTheme.font-card-title;
+                        overflow: elide;
+                        horizontal-stretch: 1;
+                    }
+
+                    Rectangle {
+                        height: 20px;
+                        width: status-text.preferred-width + 20px;
+                        border-radius: AppTheme.radius-pill;
+                        background: root.character.status == "present"
+                            ? AppTheme.success.with-alpha(0.18)
+                            : AppTheme.amber-glow.with-alpha(0.18);
+
+                        HorizontalLayout {
+                            alignment: center;
+
+                            status-text := Text {
+                                text: "● " + root.character.status;
+                                color: root.character.status == "present"
+                                    ? AppTheme.success
+                                    : AppTheme.amber-glow;
+                                font-family: AppTheme.font-brand;
+                                font-size: AppTheme.font-tiny;
+                            }
+                        }
+                    }
+                }
 
                 Text {
-                    text: root.character.name;
-                    color: AppTheme.text-light;
-                    font-family: AppTheme.font-display;
-                    font-size: AppTheme.font-card-title;
-                    overflow: elide;
-                }
-                Text {
-                    text: root.character.headline == "" ? "No headline yet" : root.character.headline;
+                    height: 32px;
+                    text: root.character.headline == ""
+                        ? "No headline yet"
+                        : root.character.headline;
                     color: AppTheme.text-muted;
                     font-family: AppTheme.font-body;
                     font-size: AppTheme.font-label + 1px;
                     wrap: word-wrap;
+                    overflow: elide;
+                    vertical-alignment: top;
+                }
+
+                if root.character.traits.length > 0: Text {
+                    height: 30px;
+                    text: root.character.traits[0];
+                    color: AppTheme.text-muted;
+                    font-family: AppTheme.font-body;
+                    font-size: AppTheme.font-label;
+                    font-italic: true;
+                    wrap: word-wrap;
+                    overflow: elide;
+                    vertical-alignment: top;
+                }
+
+                FlexboxLayout {
+                    height: 22px;
+                    spacing: 4px;
+                    flex-wrap: wrap;
+
+                    for tag[index] in root.character.tags: Rectangle {
+                        height: 20px;
+                        width: tag-text.preferred-width + 16px;
+                        border-radius: AppTheme.radius-pill;
+                        background: AppTheme.tag-fill;
+                        border-width: 1px;
+                        border-color: AppTheme.bronze;
+
+                        HorizontalLayout {
+                            alignment: center;
+
+                            tag-text := Text {
+                                text: tag;
+                                color: AppTheme.text-muted;
+                                font-family: AppTheme.font-body;
+                                font-size: AppTheme.font-tiny;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -89,8 +158,8 @@ export component CastSection inherits VerticalLayout {
     if builder.cast.length > 0: cast-grid := Flickable {
         vertical-stretch: 1;
 
-        property <length> card-w: 320px;
-        property <length> card-h: 104px;
+        property <length> card-w: 260px;
+        property <length> card-h: 380px;
         property <length> gap: 16px;
         property <int> cols: max(1, Math.floor(self.width / (self.card-w + self.gap)));
 

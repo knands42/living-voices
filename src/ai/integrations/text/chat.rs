@@ -46,9 +46,9 @@ pub fn chat_reply_schema() -> JsonSchema {
     }
 }
 
-pub fn follow_up_reply_schema() -> JsonSchema {
+pub fn character_reply_schema() -> JsonSchema {
     JsonSchema {
-        name: "follow_up_reply".to_string(),
+        name: "character_reply".to_string(),
         schema: json!({
             "type": "object",
             "properties": {
@@ -76,7 +76,10 @@ impl Chat {
 }
 
 impl ChatHandler for Chat {
-    async fn character_respond(&self, context: &[PromptTurn]) -> Result<String, ChatResponseError> {
+    async fn character_respond(
+        &self,
+        context: &[PromptTurn],
+    ) -> Result<ChatReply, ChatResponseError> {
         let client = self.client()?;
         let prompt = context
             .iter()
@@ -84,18 +87,28 @@ impl ChatHandler for Chat {
             .map(ChatMessage::from)
             .collect::<Vec<ChatMessage>>();
 
-        let reply = client
+        let format = ResponseFormat::JsonSchema {
+            json_schema: &character_reply_schema(),
+        };
+
+        let raw = client
             .send(
                 self.config.model.as_str(),
                 &prompt,
                 self.config.temperature,
-                None,
+                Some(format),
                 super::keep_alive(&self.config),
             )
             .await
             .map_err(|e| ChatResponseError::Provider(e.to_string()))?;
 
-        Ok(reply)
+        let completion = ChatCompletion::from_reply(&raw)?;
+
+        Ok(ChatReply {
+            replier: completion.replier,
+            reply: completion.reply,
+            act_closure: None,
+        })
     }
 
     async fn autonomous_respond(
@@ -145,7 +158,7 @@ impl ChatHandler for Chat {
             .collect::<Vec<ChatMessage>>();
 
         let format = ResponseFormat::JsonSchema {
-            json_schema: &follow_up_reply_schema(),
+            json_schema: &character_reply_schema(),
         };
 
         let raw = client

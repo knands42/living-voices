@@ -2,6 +2,7 @@ import { LineEdit, VerticalBox } from "std-widgets.slint";
 import { AppTheme } from "theme.slint";
 import { ChatBubble, NarratorBubble } from "chat_bubble.slint";
 import { SelectableText } from "selectable_text.slint";
+import { PortraitFrame } from "builder/components.slint";
 import {
     AdventureView,
     ActView,
@@ -133,43 +134,73 @@ export component ChatPage inherits Rectangle {
                             alignment: start;
                             spacing: root.gap-md;
 
-                            VerticalLayout {
-                                spacing: 2px * root.scale;
+                            HorizontalLayout {
+                                spacing: 10px * root.scale;
 
-                                SelectableText {
-                                    text: root.adventure.player.name;
-                                    color: hsv(root.adventure.player.hue, 0.45, 0.95);
-                                    font-family: AppTheme.font-body;
-                                    font-size: AppTheme.font-label * root.scale;
-                                    font-weight: 600;
+                                PortraitFrame {
+                                    width: 40px * root.scale;
+                                    height: 52px * root.scale;
+                                    border-radius: AppTheme.radius-card;
+                                    source: root.adventure.player.portrait;
+                                    initials: root.adventure.player.initials;
+                                    hue: root.adventure.player.hue;
                                 }
 
-                                SelectableText {
-                                    text: root.adventure.player.headline;
-                                    color: AppTheme.text-muted;
-                                    font-family: AppTheme.font-body;
-                                    font-size: AppTheme.font-label * root.scale;
-                                    wrap: word-wrap;
+                                VerticalLayout {
+                                    alignment: start;
+                                    horizontal-stretch: 1;
+                                    spacing: 2px * root.scale;
+
+                                    SelectableText {
+                                        text: root.adventure.player.name;
+                                        color: hsv(root.adventure.player.hue, 0.45, 0.95);
+                                        font-family: AppTheme.font-body;
+                                        font-size: AppTheme.font-label * root.scale;
+                                        font-weight: 600;
+                                    }
+
+                                    SelectableText {
+                                        text: root.adventure.player.headline;
+                                        color: AppTheme.text-muted;
+                                        font-family: AppTheme.font-body;
+                                        font-size: AppTheme.font-label * root.scale;
+                                        wrap: word-wrap;
+                                    }
                                 }
                             }
 
-                            for character in root.adventure.characters: VerticalLayout {
-                                spacing: 2px * root.scale;
+                            for character in root.adventure.characters: HorizontalLayout {
+                                spacing: 10px * root.scale;
 
-                                SelectableText {
-                                    text: character.name;
-                                    color: hsv(character.hue, 0.45, 0.95);
-                                    font-family: AppTheme.font-body;
-                                    font-size: AppTheme.font-label * root.scale;
-                                    font-weight: 600;
+                                PortraitFrame {
+                                    width: 40px * root.scale;
+                                    height: 52px * root.scale;
+                                    border-radius: AppTheme.radius-card;
+                                    source: character.portrait;
+                                    initials: character.initials;
+                                    hue: character.hue;
                                 }
 
-                                SelectableText {
-                                    text: character.headline;
-                                    color: AppTheme.text-muted;
-                                    font-family: AppTheme.font-body;
-                                    font-size: AppTheme.font-label * root.scale;
-                                    wrap: word-wrap;
+                                VerticalLayout {
+                                    alignment: start;
+                                    horizontal-stretch: 1;
+                                    spacing: 2px * root.scale;
+
+                                    SelectableText {
+                                        text: character.name;
+                                        color: hsv(character.hue, 0.45, 0.95);
+                                        font-family: AppTheme.font-body;
+                                        font-size: AppTheme.font-label * root.scale;
+                                        font-weight: 600;
+                                    }
+
+                                    SelectableText {
+                                        text: character.headline;
+                                        color: AppTheme.text-muted;
+                                        font-family: AppTheme.font-body;
+                                        font-size: AppTheme.font-label * root.scale;
+                                        wrap: word-wrap;
+                                    }
                                 }
                             }
                         }

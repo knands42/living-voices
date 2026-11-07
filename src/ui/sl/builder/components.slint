@@ -20,6 +20,43 @@ export component CastAvatar inherits Rectangle {
     }
 }
 
+// A rectangular portrait: the character's image over its initials, which stand in
+// whenever no image was made (an empty image paints nothing).
+export component PortraitFrame inherits Rectangle {
+    in property <image> source;
+    in property <string> initials;
+    in property <int> hue;
+
+    clip: true;
+    background: @linear-gradient(160deg, hsv(root.hue, 0.32, 0.42) 0%, AppTheme.bg-deepest 100%);
+
+    Text {
+        width: root.width;
+        height: root.height;
+        text: root.initials;
+        color: hsv(root.hue, 0.16, 0.96);
+        font-family: AppTheme.font-display;
+        font-size: root.height * 0.3;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        opacity: 0.6;
+    }
+
+    Image {
+        width: root.width;
+        height: root.height;
+        source: root.source;
+        image-fit: cover;
+    }
+
+    Rectangle {
+        y: root.height - 64px;
+        width: root.width;
+        height: 64px;
+        background: @linear-gradient(0deg, AppTheme.scrim 0%, transparent 100%);
+    }
+}
+
 // A pill-shaped gold action button.
 export component PillButton inherits TouchArea {
     in property <string> label;

@@ -29,15 +29,21 @@ fn prompt() -> Vec<PromptTurn> {
 
 #[tokio::test]
 #[ignore = "requires a running Ollama server"]
-async fn character_respond_returns_a_non_empty_reply() {
+async fn character_respond_returns_a_replier_and_a_reply() {
+    // The character call is schema-constrained to `{ replier, reply }`; the handler
+    // parses that envelope into a ChatReply, so replier and reply must be present.
     let reply = chat()
         .character_respond(&prompt())
         .await
         .expect("character_respond");
 
     assert!(
-        !reply.trim().is_empty(),
-        "character_respond returned an empty reply"
+        !reply.replier.trim().is_empty(),
+        "character reply carried no replier"
+    );
+    assert!(
+        !reply.reply.trim().is_empty(),
+        "character reply carried no body"
     );
 }
 

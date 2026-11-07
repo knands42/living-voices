@@ -1,9 +1,12 @@
-// TODO: later this one will contain more fields, similar to CharacterView
 export struct CharacterChatView {
     id: string,
     name: string,
     initials: string,
     headline: string,
+    status: string,
+    traits: [string],
+    tags: [string],
+    portrait: image,
     is-player: bool,
     hue: int,
 }

@@ -29,7 +29,7 @@ impl ContextBuilder {
             data,
             &head,
             messages,
-            CastTurn::Replied,
+            CastTurn::Autonomous,
         )
     }
 
@@ -52,7 +52,14 @@ impl ContextBuilder {
             head.push(format!("{MESSAGE_EXAMPLE_PROMPT}\n{example}"));
         }
 
-        Self::assemble(adventure, director, data, &head, messages, CastTurn::Named)
+        Self::assemble(
+            adventure,
+            director,
+            data,
+            &head,
+            messages,
+            CastTurn::TargetCharacter,
+        )
     }
 
     pub fn build_narrator_chat_prompt(
@@ -67,7 +74,14 @@ impl ContextBuilder {
             NARRATOR_CHAT_INSTRUCTIONS.to_string(),
         ];
 
-        Self::assemble(adventure, director, data, &head, messages, CastTurn::Named)
+        Self::assemble(
+            adventure,
+            director,
+            data,
+            &head,
+            messages,
+            CastTurn::Narrator,
+        )
     }
 
     /// An NPC-to-NPC follow-up beat.
@@ -88,7 +102,7 @@ impl ContextBuilder {
         turns.extend(Self::build_previous_messages(
             adventure,
             messages,
-            CastTurn::FollowedUp,
+            CastTurn::TargetCharacter,
         ));
         turns
     }

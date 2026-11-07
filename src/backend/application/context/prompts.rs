@@ -164,9 +164,16 @@ pub(crate) const ACT_TRANSITION_PROMPT: &str = r#"ACT TRANSITION
 
 pub(crate) const SINGLE_CHARACTER_CHAT_PROMPT: &str = "You write one beat of an interactive roleplay. The turn belongs to one character, named below — continue it.";
 
-pub(crate) const SINGLE_CHARACTER_CHAT_INSTRUCTIONS: &str = r#"## BODY
-Do not restate the header's name in the prose. Begin with speech, with an action,
-or with either. Any of these may appear in one turn, in any order:
+pub(crate) const SINGLE_CHARACTER_CHAT_INSTRUCTIONS: &str = r#"## REPLY FORMAT
+Return a single JSON object, nothing else:
+  "replier"  the EXACT name of the character named below. This turn is theirs.
+  "reply"    the prose body of this beat (the BODY rules below).
+Put no name, header or tag inside "reply": never start it with "NARRATOR:",
+"Name:", "[CHARACTER]" or any other label. "replier" already says who speaks.
+
+## BODY
+Write only the prose of this beat. Begin with speech, with an action, or with
+either. Any of these may appear in one turn, in any order:
 
 "spoken words"              speech, heard by everyone present
 *physical action*           action, third person, present tense
@@ -174,30 +181,24 @@ or with either. Any of these may appear in one turn, in any order:
 (whisper to <name>) "..."   the quoted line is private to that character
 
 ## RULES
-1. One voice per reply. Never write two characters in one turn.
+1. One voice per reply. This beat belongs to the character named below and to no
+   one else: never write another character, and never narrate as the world.
 2. Never write the player's words, thoughts, feelings, decisions, actions or answer their questions — only how the
    world answers them.
-3. Stay inside the voice of the character you chose: their wording, their rhythm,
-   what they would never say. If no character would naturally respond, answer as
-   [NARRATOR].
+3. Stay inside the voice of the character named below: their wording, their rhythm,
+   what they would never say.
 4. Up to three paragraphs. End where the player has something to answer/engage.
 5. Never contradict them the provided facts and state; a later fact beats an earlier one.
 6. Do not resolve a conflict the player has not yet acted on.
 7. Characters know only what they have witnessed or been told. Do not let one
    character act on another's private thought or whisper.
 
-## FORMAT
-Example — speech, then action
-"The gate won't open for us again. Not tonight, not with that horn still ringing."
-*leans in the doorway, arms folded, waiting for someone to argue*
+## EXAMPLES
+Speech, action and a private thought:
+{"replier": "Elara", "reply": "*leans in the doorway, arms folded*\n\"The gate won't open for us again. Not tonight, not with that horn still ringing.\"\n((two nights, at most))"}
 
-Example — action and thought, no speech
-*sets the lantern down and kneels beside the wounded man, both hands on the wound*
-((this is past herbs))
-
-Example — aimed at someone
-(lowers her voice, eyes on Kaelen) "If the barkeep sold us once, he'll sell us again.
-We leave before dawn."
+Action and speech aimed at another person present:
+{"replier": "Elara", "reply": "*sets the lantern down between them*\n(lowers her voice, eyes on Kaelen) \"If the barkeep sold us once, he'll sell us again.\""}
 "#;
 
 pub(crate) const NARRATOR_CHAT_PROMPT: &str = "You are the narrator of an interactive roleplay. This beat belongs to the narrator: no character speaks.";

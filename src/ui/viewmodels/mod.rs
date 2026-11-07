@@ -154,9 +154,24 @@ fn character_chat_view(character: &Character) -> CharacterChatView {
         name: SharedString::from(character.name.clone()),
         initials: SharedString::from(initials(&character.name)),
         headline: SharedString::from(character.headline.clone()),
+        status: SharedString::from(character.status.as_str()),
+        traits: string_model(&character.traits),
+        tags: string_model(&character.tags),
+        portrait: portrait(&character.portrait_path),
         is_player: character.is_player,
         hue: name_hue(&character.name),
     }
+}
+
+fn portrait(path: &Option<String>) -> slint::Image {
+    let Some(path) = path.as_deref().filter(|path| !path.is_empty()) else {
+        return slint::Image::default();
+    };
+
+    slint::Image::load_from_path(std::path::Path::new(path)).unwrap_or_else(|err| {
+        log::warn!("could not load the portrait at {path}: {err}");
+        slint::Image::default()
+    })
 }
 
 fn name_hue(name: &str) -> i32 {

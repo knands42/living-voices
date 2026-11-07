@@ -23,9 +23,9 @@ const DIGESTED_PAST_ACTS: usize = 2;
 /// How a past cast turn is written into the history
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CastTurn {
-    Named,
-    Replied,
-    FollowedUp,
+    Narrator,
+    TargetCharacter,
+    Autonomous,
 }
 
 #[derive(Error, Debug)]
@@ -175,14 +175,14 @@ impl ContextBuilder {
 
     fn render_cast_turn(message: &Message, cast_turn: CastTurn) -> String {
         match cast_turn {
-            CastTurn::Named => format!("{}: {}", message.speaker_name, message.text),
-            CastTurn::Replied => serde_json::json!({
+            CastTurn::Narrator => format!("{}: {}", message.speaker_name, message.text),
+            CastTurn::Autonomous => serde_json::json!({
                 "replier": message.speaker_name,
                 "reply": message.text,
                 "act_closure": null,
             })
             .to_string(),
-            CastTurn::FollowedUp => serde_json::json!({
+            CastTurn::TargetCharacter => serde_json::json!({
                 "replier": message.speaker_name,
                 "reply": message.text,
             })

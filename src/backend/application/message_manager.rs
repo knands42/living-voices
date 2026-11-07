@@ -262,12 +262,11 @@ impl<
                 character,
                 uncovered_messages,
             );
-            let reply = self.chat_handler.character_respond(&context).await?;
-            return Ok(ChatReply {
-                replier: character.name.clone(),
-                reply,
-                act_closure: None,
-            });
+            let mut reply = self.chat_handler.character_respond(&context).await?;
+            if reply.replier.trim().is_empty() {
+                reply.replier = character.name.clone();
+            }
+            return Ok(reply);
         }
 
         let context = ContextBuilder::build_autonomous_chat_prompt(

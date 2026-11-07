@@ -140,7 +140,7 @@ impl ContextBuilder {
             messages_content.extend(Self::build_previous_messages(
                 adventure,
                 uncovered_messages,
-                CastTurn::Named,
+                CastTurn::Narrator,
             ));
         }
 

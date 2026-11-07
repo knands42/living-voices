@@ -53,7 +53,7 @@ pub trait ChatHandler: Send + Sync {
     fn character_respond(
         &self,
         context: &[PromptTurn],
-    ) -> impl Future<Output = Result<String, ChatResponseError>> + Send;
+    ) -> impl Future<Output = Result<ChatReply, ChatResponseError>> + Send;
 
     fn autonomous_respond(
         &self,
