@@ -8,7 +8,7 @@ pub enum ImageError {
     Provider(String),
 }
 
-pub trait ImageHandler: Send + Sync {
+pub trait ImagePort: Send + Sync {
     fn generate_scene(&self, prompt: &str) -> impl Future<Output = Result<(), ImageError>> + Send;
 
     /// One call for every character shot: the caller already decided the framing

@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::backend::application::helper::{
     CONVERSATION, seed_conversation, setup_db, start_adventure_with_default_cast,
 };
-use living_voices::ai::{ActClose, MemoryUpdate};
+use living_voices::ai::{ActClose, MemoryHandler};
 use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::memory::{Act, ActStatus};
@@ -266,8 +266,8 @@ fn memory_model() -> TextModel {
     config.settings.models.memory
 }
 
-fn distiller() -> MemoryUpdate {
-    MemoryUpdate::new(memory_model())
+fn distiller() -> MemoryHandler {
+    MemoryHandler::new(memory_model())
 }
 
 fn closer() -> ActClose {
@@ -277,7 +277,7 @@ fn closer() -> ActClose {
 fn setup_memory_manager(
     state: &SharedState,
     pool: &SqlitePool,
-) -> MemoryManager<MemoryUpdate, ActClose> {
+) -> MemoryManager<MemoryHandler, ActClose> {
     MemoryManager::new(
         state.clone(),
         pool.clone(),

@@ -1,7 +1,5 @@
-use crate::app::AppContext;
+use crate::app::DefaultContext;
 use crate::backend::application::adventure_manager::{AdventureManagerError, MemorySnapshot};
-use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
-use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
 use crate::backend::domain::message::Message;
 use crate::ui::callbacks::builder_page::BuilderPageContext;
 use crate::ui::{ChatGlobals, MainGlobals, RootWindow, viewmodels};
@@ -9,15 +7,7 @@ use slint::ComponentHandle;
 use tokio::runtime::Handle;
 use uuid::Uuid;
 
-pub fn register_adventure_selected<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
->(
-    ui: &RootWindow,
-    ctx: &AppContext<C, N, M, A>,
-) {
+pub fn register_adventure_selected(ui: &RootWindow, ctx: &DefaultContext) {
     let ctx = ctx.clone();
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
@@ -61,14 +51,9 @@ pub fn register_draft_adventure_selected(ui: &RootWindow, builder: &BuilderPageC
         });
 }
 
-fn load_and_start<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
->(
+fn load_and_start(
     handle: &Handle,
-    ctx: &AppContext<C, N, M, A>,
+    ctx: &DefaultContext,
     adventure_id: Uuid,
 ) -> Result<(MemorySnapshot, Vec<Message>), AdventureManagerError> {
     tokio::task::block_in_place(|| {

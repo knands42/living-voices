@@ -6,12 +6,12 @@ use crate::ai::integrations::text::open_api_client::{
 };
 use crate::ai::types::ChatMessage;
 use crate::backend::application::port::chat_port::{
-    ChatHandler, ChatReply, ChatResponseError, PromptHandler, PromptTurn,
+    ChatPort, ChatReply, ChatResponseError, PromptPort, PromptTurn,
 };
 use crate::config::TextModel;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct Chat {
+pub struct ChatHandler {
     #[serde(skip)]
     config: TextModel,
 }
@@ -61,7 +61,7 @@ pub fn character_reply_schema() -> JsonSchema {
     }
 }
 
-impl Chat {
+impl ChatHandler {
     pub fn new(config: TextModel) -> Self {
         Self { config }
     }
@@ -75,7 +75,7 @@ impl Chat {
     }
 }
 
-impl ChatHandler for Chat {
+impl ChatPort for ChatHandler {
     async fn character_respond(
         &self,
         context: &[PromptTurn],
@@ -182,7 +182,7 @@ impl ChatHandler for Chat {
     }
 }
 
-impl PromptHandler for Chat {
+impl PromptPort for ChatHandler {
     async fn handle_prompt(&self, context: &[PromptTurn]) -> Result<String, ChatResponseError> {
         let client = self.client()?;
         let prompt = context

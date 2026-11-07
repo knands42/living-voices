@@ -1,12 +1,12 @@
-use living_voices::ai::integrations::text::narrator::Narrator;
-use living_voices::backend::application::port::chat_port::{NarratorHandler, PromptTurn};
+use living_voices::ai::integrations::text::narrator_handler::NarratorHandler;
+use living_voices::backend::application::port::chat_port::{NarratorPort, PromptTurn};
 use living_voices::config::TextModel;
 
 const OLLAMA_URL: &str = "http://localhost:11434/v1";
 const CHAT_MODEL: &str = "llama3.1:8b";
 
-fn narrator() -> Narrator {
-    Narrator::new(TextModel {
+fn narrator() -> NarratorHandler {
+    NarratorHandler::new(TextModel {
         base_url: OLLAMA_URL.to_string(),
         model: CHAT_MODEL.to_string(),
         temperature: 0.5,

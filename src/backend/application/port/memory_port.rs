@@ -88,7 +88,7 @@ pub enum DistillError {
     Provider(String),
 }
 
-pub trait MemoryDistiller: Send + Sync {
+pub trait MemoryDistillerPort: Send + Sync {
     fn distill(
         &self,
         context: &[PromptTurn],
@@ -125,7 +125,7 @@ pub enum ClosedActError {
     Provider(String),
 }
 
-pub trait ActCloser: Send + Sync {
+pub trait ActCloserPort: Send + Sync {
     fn close_act(
         &self,
         context: &[PromptTurn],

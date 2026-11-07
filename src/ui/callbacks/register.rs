@@ -8,24 +8,11 @@ use crate::ui::callbacks::adventure_selected::{
 use crate::ui::callbacks::builder_page::{BuilderPageContext, register_builder_page};
 use crate::ui::callbacks::character_page::register_character_page;
 use crate::ui::callbacks::message_send::register_message_sent;
-use crate::{
-    app::AppContext,
-    backend::application::port::chat_port::{ChatHandler, NarratorHandler},
-    backend::application::port::memory_port::{ActCloser, MemoryDistiller},
-    ui::RootWindow,
-};
+use crate::{app::DefaultContext, ui::RootWindow};
 use slint::ComponentHandle;
 use tokio::runtime::Handle;
 
-pub fn register_callbacks<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
->(
-    ui: &RootWindow,
-    ctx: &AppContext<C, N, M, A>,
-) {
+pub fn register_callbacks(ui: &RootWindow, ctx: &DefaultContext) {
     // One cache for the whole app: the builder fetches it when its page opens and
     // The builder needs nothing cached: the backend snapshot is the only copy, and
     // this context is just how the page is opened and rendered.

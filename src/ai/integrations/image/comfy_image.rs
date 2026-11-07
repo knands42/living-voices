@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use serde_json::{Value, json};
 
-use crate::backend::application::port::image_port::{ImageError, ImageHandler};
+use crate::backend::application::port::image_port::{ImageError, ImagePort};
 use crate::config::{ImageModel, ImageModelWorkflow};
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -32,13 +32,13 @@ impl ComfyImage {
 
     async fn queue(&self, prompt: &str, kind: &str) -> Result<(), ImageError> {
         let prefix = self.prefix(kind);
-        let workflow = pick_workflow(&self.config.workflow, prompt, prefix.as_str());
+        let workflow_format = pick_workflow_format(&self.config.workflow, prompt, prefix.as_str());
 
         let url = format!("{}/prompt", self.base_url());
         let response = self
             .http
             .post(&url)
-            .json(&json!({ "prompt": workflow }))
+            .json(&json!({ "prompt": workflow_format }))
             .send()
             .await
             .map_err(|e| ImageError::Provider(e.to_string()))?;
@@ -51,7 +51,7 @@ impl ComfyImage {
     }
 }
 
-impl ImageHandler for ComfyImage {
+impl ImagePort for ComfyImage {
     async fn generate_scene(&self, prompt: &str) -> Result<(), ImageError> {
         self.queue(prompt, "scenes").await
     }
@@ -61,7 +61,7 @@ impl ImageHandler for ComfyImage {
     }
 }
 
-fn pick_workflow(workflow: &ImageModelWorkflow, prompt: &str, prefix: &str) -> Value {
+fn pick_workflow_format(workflow: &ImageModelWorkflow, prompt: &str, prefix: &str) -> Value {
     match workflow {
         ImageModelWorkflow::FluxQ8 => flux_q8_workflow(prompt, prefix),
         ImageModelWorkflow::FluxQ4 => flux_q4_workflow(prompt, prefix),

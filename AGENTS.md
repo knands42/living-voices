@@ -111,7 +111,7 @@ Testing).
   never repeat the body in outfit/pose — `ContextBuilder::compose_character_image_prompt`
   concatenates the layers, so duplicates fight and the model blends the contradiction.
 - **Image backend**: `ImageModelWorkflow` (FluxQ4/FluxQ8/Qwen) picks a hard-coded ComfyUI JSON graph
-  and injects the prompt at the `CLIPTextEncode` node. `ImageHandler` has one character entry point;
+  and injects the prompt at the `CLIPTextEncode` node. `ImagePort` has one character entry point;
   framing (`ImageFraming::Portrait` vs `FullBody`) is applied at prompt composition, not by the
   adapter.
 

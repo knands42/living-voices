@@ -1,5 +1,5 @@
-use living_voices::ai::integrations::text::memory::{
-    CharacterConditionSnapshot, MemoryUpdate, Permanence,
+use living_voices::ai::integrations::text::memory_handler::{
+    CharacterConditionSnapshot, MemoryHandler, Permanence,
 };
 
 #[test]
@@ -18,7 +18,7 @@ fn parses_the_schema_shaped_object() {
         "running_digest": "Mara arrived in the drowned quarter and admitted she hates the sea."
     }"#;
 
-    let update = MemoryUpdate::from_reply(reply).expect("parse");
+    let update = MemoryHandler::from_reply(reply).expect("parse");
 
     assert_eq!(update.facts.len(), 1);
     assert_eq!(update.facts[0].subject, "Mara");
@@ -42,7 +42,7 @@ fn tolerates_leading_and_trailing_whitespace_and_empty_collections() {
     let reply = "\n  {\"facts\": [], \"state\": {\"day\": null, \"place\": null, \
         \"characters_present\": [], \"open_threads\": [], \"character_conditions\": []}}  \n";
 
-    let update = MemoryUpdate::from_reply(reply).expect("parse");
+    let update = MemoryHandler::from_reply(reply).expect("parse");
 
     assert!(update.facts.is_empty());
     assert_eq!(update.state.day, String::from("unknown"));
@@ -56,7 +56,7 @@ fn tolerates_leading_and_trailing_whitespace_and_empty_collections() {
 fn rejects_a_reply_without_the_expected_fields() {
     let reply = r#"{"unrelated": true}"#;
 
-    assert!(MemoryUpdate::from_reply(reply).is_err());
+    assert!(MemoryHandler::from_reply(reply).is_err());
 }
 
 #[test]
@@ -67,12 +67,12 @@ fn rejects_an_unknown_permanence() {
                   "open_threads": [], "character_conditions": []}
     }"#;
 
-    assert!(MemoryUpdate::from_reply(reply).is_err());
+    assert!(MemoryHandler::from_reply(reply).is_err());
 }
 
 #[test]
 fn rejects_prose_instead_of_json() {
     let reply = "Sure! Here is the record you asked for.";
 
-    assert!(MemoryUpdate::from_reply(reply).is_err());
+    assert!(MemoryHandler::from_reply(reply).is_err());
 }

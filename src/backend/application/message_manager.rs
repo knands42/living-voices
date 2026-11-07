@@ -3,9 +3,9 @@ use crate::backend::application::context::{ContextBuilder, ContextData};
 use crate::backend::application::director::Director;
 use crate::backend::application::memory_manager::{MemoryManager, MemoryManagerError};
 use crate::backend::application::port::chat_port::{
-    ChatHandler, ChatReply, ChatResponseError, NarratorHandler,
+    ChatPort, ChatReply, ChatResponseError, NarratorPort,
 };
-use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
+use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
 use crate::backend::application::state::{SharedState, StateError};
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::Character;
@@ -45,10 +45,10 @@ struct TurnInput {
 
 #[derive(Clone, Debug)]
 pub struct MessageManager<
-    CHAT: ChatHandler,
-    NARRATOR: NarratorHandler,
-    MEMORY: MemoryDistiller,
-    ACT: ActCloser,
+    CHAT: ChatPort,
+    NARRATOR: NarratorPort,
+    MEMORY: MemoryDistillerPort,
+    ACT: ActCloserPort,
 > {
     state: SharedState,
     pool: SqlitePool,
@@ -59,10 +59,10 @@ pub struct MessageManager<
 }
 
 impl<
-    CHAT: ChatHandler,
-    NARRATOR: NarratorHandler,
-    MEMORY: MemoryDistiller + Clone + 'static,
-    ACT: ActCloser + Clone + 'static,
+    CHAT: ChatPort,
+    NARRATOR: NarratorPort,
+    MEMORY: MemoryDistillerPort + Clone + 'static,
+    ACT: ActCloserPort + Clone + 'static,
 > MessageManager<CHAT, NARRATOR, MEMORY, ACT>
 {
     pub fn new(
@@ -214,10 +214,10 @@ impl<
 }
 
 impl<
-    CHAT: ChatHandler,
-    NARRATOR: NarratorHandler,
-    MEMORY: MemoryDistiller + Clone + 'static,
-    ACT: ActCloser + Clone + 'static,
+    CHAT: ChatPort,
+    NARRATOR: NarratorPort,
+    MEMORY: MemoryDistillerPort + Clone + 'static,
+    ACT: ActCloserPort + Clone + 'static,
 > MessageManager<CHAT, NARRATOR, MEMORY, ACT>
 {
     async fn create_message(&self, message: Message) -> Result<Message, MessageManagerError> {

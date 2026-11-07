@@ -1,6 +1,4 @@
-use crate::app::AppContext;
-use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
-use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
+use crate::app::DefaultContext;
 use crate::backend::domain::character::CharacterStatus;
 use crate::backend::domain::message::Message;
 use crate::ui::{ChatGlobals, RootWindow, viewmodels};
@@ -8,15 +6,7 @@ use slint::ComponentHandle;
 use tokio::runtime::Handle;
 use uuid::Uuid;
 
-pub fn register_message_sent<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
->(
-    ui: &RootWindow,
-    ctx: &AppContext<C, N, M, A>,
-) {
+pub fn register_message_sent(ui: &RootWindow, ctx: &DefaultContext) {
     let ctx = ctx.clone();
     let handle = Handle::current();
     let ui_weak = ui.as_weak();

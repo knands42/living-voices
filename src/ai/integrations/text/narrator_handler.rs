@@ -2,18 +2,16 @@ use serde::Serialize;
 
 use crate::ai::integrations::text::open_api_client::OpenAiCompatibleClient;
 use crate::ai::types::ChatMessage;
-use crate::backend::application::port::chat_port::{
-    ChatResponseError, NarratorHandler, PromptTurn,
-};
+use crate::backend::application::port::chat_port::{ChatResponseError, NarratorPort, PromptTurn};
 use crate::config::TextModel;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct Narrator {
+pub struct NarratorHandler {
     #[serde(skip)]
     config: TextModel,
 }
 
-impl Narrator {
+impl NarratorHandler {
     pub fn new(config: TextModel) -> Self {
         Self { config }
     }
@@ -27,7 +25,7 @@ impl Narrator {
     }
 }
 
-impl NarratorHandler for Narrator {
+impl NarratorPort for NarratorHandler {
     async fn narrator_respond(&self, context: &[PromptTurn]) -> Result<String, ChatResponseError> {
         let client = self.client()?;
 

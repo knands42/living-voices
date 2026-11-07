@@ -1,11 +1,11 @@
 use sqlx::SqlitePool;
 
-use crate::ai::integrations::text::chat::Chat;
-use crate::ai::integrations::text::narrator::Narrator;
-use crate::ai::{ActClose, MemoryUpdate};
+use crate::ai::integrations::text::chat_handler::ChatHandler;
+use crate::ai::integrations::text::narrator_handler::NarratorHandler;
+use crate::ai::{ActClose, MemoryHandler};
 use crate::backend::application::director::Director;
-use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
-use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
+use crate::backend::application::port::chat_port::{ChatPort, NarratorPort, PromptPort};
+use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
 use crate::{
     backend::application::{
         adventure_manager::AdventureManager, character_manager::CharacterManager,
@@ -17,26 +17,25 @@ use crate::{
 
 #[derive(Clone)]
 pub struct AppContext<
-    C: ChatHandler + Clone,
-    N: NarratorHandler + Clone,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
+    C: ChatPort + Clone,
+    N: NarratorPort + Clone,
+    M: MemoryDistillerPort + Clone + 'static,
+    A: ActCloserPort + Clone + 'static,
+    P: PromptPort + Clone,
 > {
     pub adventures: AdventureManager,
-    pub characters: CharacterManager<Chat>,
+    pub characters: CharacterManager<P>,
     pub messages: MessageManager<C, N, M, A>,
 }
 
-pub struct App<
-    C: ChatHandler + Clone,
-    N: NarratorHandler + Clone,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
-> {
-    ctx: AppContext<C, N, M, A>,
+pub type DefaultContext =
+    AppContext<ChatHandler, NarratorHandler, MemoryHandler, ActClose, ChatHandler>;
+
+pub struct App {
+    ctx: DefaultContext,
 }
 
-impl App<Chat, Narrator, MemoryUpdate, ActClose> {
+impl App {
     pub fn new(
         pool: SqlitePool,
         memory_model: TextModel,
@@ -48,10 +47,10 @@ impl App<Chat, Narrator, MemoryUpdate, ActClose> {
         let state = SharedState::new();
 
         // ai modules — the narrator shares the chat text endpoint/config.
-        let distiller = MemoryUpdate::new(memory_model.clone());
+        let distiller = MemoryHandler::new(memory_model.clone());
         let closer = ActClose::new(memory_model);
-        let narrator_handler = Narrator::new(chat_model.clone());
-        let chat_handler = Chat::new(chat_model);
+        let narrator_handler = NarratorHandler::new(chat_model.clone());
+        let chat_handler = ChatHandler::new(chat_model);
 
         // application
         let director = Director::new(director_settings);
@@ -84,18 +83,10 @@ impl App<Chat, Narrator, MemoryUpdate, ActClose> {
         }
     }
 
-    pub fn ctx(&self) -> &AppContext<Chat, Narrator, MemoryUpdate, ActClose> {
+    pub fn ctx(&self) -> &DefaultContext {
         &self.ctx
     }
-}
 
-impl<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
-> App<C, N, M, A>
-{
     #[cfg(debug_assertions)]
     pub async fn load_adventure(
         &self,

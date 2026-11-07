@@ -49,7 +49,7 @@ pub enum ChatResponseError {
     Provider(String),
 }
 
-pub trait ChatHandler: Send + Sync {
+pub trait ChatPort: Send + Sync {
     fn character_respond(
         &self,
         context: &[PromptTurn],
@@ -68,14 +68,14 @@ pub trait ChatHandler: Send + Sync {
     ) -> impl Future<Output = Result<ChatReply, ChatResponseError>> + Send;
 }
 
-pub trait NarratorHandler: Send + Sync {
+pub trait NarratorPort: Send + Sync {
     fn narrator_respond(
         &self,
         context: &[PromptTurn],
     ) -> impl Future<Output = Result<String, ChatResponseError>> + Send;
 }
 
-pub trait PromptHandler: Send + Sync {
+pub trait PromptPort: Send + Sync {
     fn handle_prompt(
         &self,
         context: &[PromptTurn],

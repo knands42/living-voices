@@ -9,7 +9,7 @@ pub fn model_path() -> PathBuf {
 
 pub fn is_present_at(path: &Path) -> bool {
     path.file_name()
-        .map_or(false, |name| name == MODEL_FILE || name == MODEL_ALIAS)
+        .is_some_and(|name| name == MODEL_FILE || name == MODEL_ALIAS)
         && path.is_file()
 }
 

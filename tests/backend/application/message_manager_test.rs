@@ -5,9 +5,9 @@ use uuid::Uuid;
 use crate::backend::application::helper::{
     CONVERSATION, seed_conversation, setup_db, start_adventure_with_default_cast,
 };
-use living_voices::ai::integrations::text::chat::Chat;
-use living_voices::ai::integrations::text::narrator::Narrator;
-use living_voices::ai::{ActClose, MemoryUpdate};
+use living_voices::ai::integrations::text::chat_handler::ChatHandler;
+use living_voices::ai::integrations::text::narrator_handler::NarratorHandler;
+use living_voices::ai::{ActClose, MemoryHandler};
 use living_voices::backend::application::director::Director;
 use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::message_manager::MessageManager;
@@ -225,12 +225,12 @@ fn chat_model() -> TextModel {
     Config::new().expect("load config").settings.models.chat
 }
 
-fn chat_handler() -> Chat {
-    Chat::new(chat_model())
+fn chat_handler() -> ChatHandler {
+    ChatHandler::new(chat_model())
 }
 
-fn narrator_handler() -> Narrator {
-    Narrator::new(chat_model())
+fn narrator_handler() -> NarratorHandler {
+    NarratorHandler::new(chat_model())
 }
 
 fn memory_high_distiller_trigger() -> MemorySettings {
@@ -317,9 +317,9 @@ fn setup_memory_manager(
     state: SharedState,
     pool: &SqlitePool,
     memory_settings: MemorySettings,
-) -> MemoryManager<MemoryUpdate, ActClose> {
+) -> MemoryManager<MemoryHandler, ActClose> {
     let memory_model = Config::new().expect("load config").settings.models.memory;
-    let distiller = MemoryUpdate::new(memory_model.clone());
+    let distiller = MemoryHandler::new(memory_model.clone());
     let closer = ActClose::new(memory_model.clone());
     MemoryManager::new(state, pool.clone(), distiller, closer, memory_settings)
 }
@@ -328,8 +328,8 @@ fn setup_message_manager(
     state: &SharedState,
     pool: &SqlitePool,
     director: &Director,
-    memory_manager: &MemoryManager<MemoryUpdate, ActClose>,
-) -> MessageManager<Chat, Narrator, MemoryUpdate, ActClose> {
+    memory_manager: &MemoryManager<MemoryHandler, ActClose>,
+) -> MessageManager<ChatHandler, NarratorHandler, MemoryHandler, ActClose> {
     MessageManager::new(
         state.clone(),
         pool.clone(),

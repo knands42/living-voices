@@ -4,7 +4,7 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use crate::backend::application::context::{ContextBuilder, ContextBuilderError};
-use crate::backend::application::port::chat_port::{ChatResponseError, PromptHandler};
+use crate::backend::application::port::chat_port::{ChatResponseError, PromptPort};
 use crate::backend::persistence::state_persistence::update_character_presence;
 use crate::backend::{
     PersistenceError,
@@ -50,13 +50,13 @@ impl ImagePromptKind {
 }
 
 #[derive(Clone, Debug)]
-pub struct CharacterManager<PROMPT: PromptHandler> {
+pub struct CharacterManager<PROMPT: PromptPort> {
     state: SharedState,
     pool: SqlitePool,
     prompt_handler: PROMPT,
 }
 
-impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
+impl<PROMPT: PromptPort> CharacterManager<PROMPT> {
     pub fn new(state: SharedState, pool: SqlitePool, prompt_handler: PROMPT) -> Self {
         CharacterManager {
             state,
@@ -161,7 +161,7 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
 
     pub async fn create_character_image_portrait(
         &self,
-        character: &Character,
+        _character: &Character,
     ) -> Result<(), CharacterManagerError> {
         todo!()
     }

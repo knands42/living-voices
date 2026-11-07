@@ -1,9 +1,7 @@
-use crate::ai::integrations::text::chat::Chat;
-use crate::app::AppContext;
+use crate::app::DefaultContext;
 use crate::backend::application::adventure_manager::AdventureManager;
 use crate::backend::application::character_manager::{CharacterManager, CharacterManagerError};
-use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
-use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
+use crate::backend::application::port::chat_port::PromptPort;
 use crate::backend::domain::character::Character;
 use crate::ui::callbacks::adventure_creation::parse_id;
 use crate::ui::{BuilderGlobals, ChangedField, CharacterGlobals, RootWindow, viewmodels};
@@ -26,14 +24,14 @@ enum CharacterPageError {
 /// snapshot, change it, write it back. The manager keeps the snapshot current on save,
 /// so the builder is refreshed when its page is entered, never in the middle of an edit.
 #[derive(Clone)]
-struct CharacterPageContext {
+struct CharacterPageContext<P: PromptPort + Clone + 'static> {
     handle: Handle,
     adventures: AdventureManager,
-    characters: CharacterManager<Chat>,
+    characters: CharacterManager<P>,
     ui_weak: slint::Weak<RootWindow>,
 }
 
-impl CharacterPageContext {
+impl<P: PromptPort + Clone + 'static> CharacterPageContext<P> {
     // Callbacks run on the UI thread, so the window can be updated directly.
     fn show(&self, character: &Character) {
         let Some(ui) = self.ui_weak.upgrade() else {
@@ -174,15 +172,7 @@ impl CharacterPageContext {
     }
 }
 
-pub fn register_character_page<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
->(
-    ui: &RootWindow,
-    ctx: &AppContext<C, N, M, A>,
-) {
+pub fn register_character_page(ui: &RootWindow, ctx: &DefaultContext) {
     let env = CharacterPageContext {
         handle: Handle::current(),
         adventures: ctx.adventures.clone(),
@@ -195,7 +185,7 @@ pub fn register_character_page<
 }
 
 /// Builder -> character page: open an existing character, or start a new one.
-fn register_open(ui: &RootWindow, env: &CharacterPageContext) {
+fn register_open<P: PromptPort + Clone + 'static>(ui: &RootWindow, env: &CharacterPageContext<P>) {
     let builder = ui.global::<BuilderGlobals>();
 
     let open_env = env.clone();
@@ -240,7 +230,7 @@ fn register_open(ui: &RootWindow, env: &CharacterPageContext) {
 }
 
 /// Character page: each field and list item is saved on its own.
-fn register_edit(ui: &RootWindow, env: &CharacterPageContext) {
+fn register_edit<P: PromptPort + Clone + 'static>(ui: &RootWindow, env: &CharacterPageContext<P>) {
     let page = ui.global::<CharacterGlobals>();
 
     let save_env = env.clone();

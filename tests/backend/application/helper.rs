@@ -1,4 +1,4 @@
-use living_voices::ai::integrations::text::chat::Chat;
+use living_voices::ai::integrations::text::chat_handler::ChatHandler;
 use living_voices::backend::application::adventure_manager::AdventureManager;
 use living_voices::backend::application::character_manager::CharacterManager;
 use living_voices::backend::application::state::SharedState;
@@ -52,7 +52,7 @@ pub async fn start_adventure_with_default_cast(
         .await
         .expect("create adventure");
 
-    let chat_handler = Chat::new(Config::new().expect("load config").settings.models.chat);
+    let chat_handler = ChatHandler::new(Config::new().expect("load config").settings.models.chat);
     let character_mgr = CharacterManager::new(state.clone(), pool.clone(), chat_handler);
     let npcs = vec![DEFAULT_CAST_MIRA, DEFAULT_CAST_KAEL];
     for npc in npcs {

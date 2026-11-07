@@ -4,8 +4,8 @@ use thiserror::Error;
 use crate::backend::PersistenceError;
 use crate::backend::application::context::{ContextBuilder, ContextData};
 use crate::backend::application::port::memory_port::{
-    ActCloser, ClosedAct, ClosedActError, DistillError, DistilledFact, DistilledMemory,
-    MemoryDistiller,
+    ActCloserPort, ClosedAct, ClosedActError, DistillError, DistilledFact, DistilledMemory,
+    MemoryDistillerPort,
 };
 use crate::backend::application::state::{SharedState, StateError};
 use crate::backend::domain::adventure::Adventure;
@@ -33,7 +33,7 @@ pub enum MemoryManagerError {
 }
 
 #[derive(Clone, Debug)]
-pub struct MemoryManager<D: MemoryDistiller, C: ActCloser> {
+pub struct MemoryManager<D: MemoryDistillerPort, C: ActCloserPort> {
     state: SharedState,
     pool: SqlitePool,
     distiller: D,
@@ -41,7 +41,7 @@ pub struct MemoryManager<D: MemoryDistiller, C: ActCloser> {
     memory_settings: MemorySettings,
 }
 
-impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
+impl<D: MemoryDistillerPort, C: ActCloserPort> MemoryManager<D, C> {
     pub fn new(
         state: SharedState,
         pool: SqlitePool,

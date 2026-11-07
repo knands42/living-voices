@@ -1,12 +1,12 @@
-use living_voices::ai::integrations::text::chat::Chat;
-use living_voices::backend::application::port::chat_port::{ChatHandler, PromptTurn};
+use living_voices::ai::integrations::text::chat_handler::ChatHandler;
+use living_voices::backend::application::port::chat_port::{ChatPort, PromptTurn};
 use living_voices::config::TextModel;
 
 const OLLAMA_URL: &str = "http://localhost:11434/v1";
 const CHAT_MODEL: &str = "llama3.1:8b";
 
-fn chat() -> Chat {
-    Chat::new(TextModel {
+fn chat() -> ChatHandler {
+    ChatHandler::new(TextModel {
         base_url: OLLAMA_URL.to_string(),
         model: CHAT_MODEL.to_string(),
         temperature: 0.5,

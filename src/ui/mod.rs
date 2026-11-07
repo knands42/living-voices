@@ -1,8 +1,6 @@
 // #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::restriction)]
 
-use crate::app::AppContext;
-use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
-use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
+use crate::app::DefaultContext;
 use crate::ui::callbacks::register::register_callbacks;
 
 pub mod callbacks;
@@ -11,14 +9,7 @@ mod window;
 
 slint::include_modules!();
 
-pub fn run<
-    CHAT: ChatHandler + Clone + 'static,
-    NARRATOR: NarratorHandler + Clone + 'static,
-    MEMORY: MemoryDistiller + Clone + 'static,
-    ACT: ActCloser + Clone + 'static,
->(
-    ctx: AppContext<CHAT, NARRATOR, MEMORY, ACT>,
-) -> Result<(), slint::PlatformError> {
+pub fn run(ctx: DefaultContext) -> Result<(), slint::PlatformError> {
     let ui = RootWindow::new()?;
 
     let summaries = tokio::task::block_in_place(|| {

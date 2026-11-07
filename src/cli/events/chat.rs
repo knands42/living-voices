@@ -1,9 +1,6 @@
 use tokio::runtime::Handle;
 
-use crate::ai::integrations::text::chat::Chat;
-use crate::ai::integrations::text::narrator::Narrator;
-use crate::ai::{ActClose, MemoryUpdate};
-use crate::app::AppContext;
+use crate::app::DefaultContext;
 use crate::backend::domain::message::Message;
 use crate::cli::events::event_handler::Flow;
 use crate::cli::state::{ChatEvent, CliState, Page};
@@ -15,7 +12,7 @@ const DEFAULT_PLAYER_NAME: &str = "You";
 pub fn handle_chat(
     key: KeyEvent,
     state: &mut CliState,
-    ctx: &AppContext<Chat, Narrator, MemoryUpdate, ActClose>,
+    ctx: &DefaultContext,
     runtime: &Handle,
 ) -> Flow {
     let Page::Chat { input, cursor } = &mut state.page else {
@@ -96,11 +93,7 @@ fn char_index_to_byte(input: &str, char_index: usize) -> usize {
         .unwrap_or(input.len())
 }
 
-fn send_current_input(
-    state: &mut CliState,
-    ctx: &AppContext<Chat, Narrator, MemoryUpdate, ActClose>,
-    runtime: &Handle,
-) {
+fn send_current_input(state: &mut CliState, ctx: &DefaultContext, runtime: &Handle) {
     let text = {
         let Page::Chat { input, cursor } = &mut state.page else {
             return;
@@ -177,11 +170,7 @@ fn get_next_word(input: &str, cursor: usize) -> usize {
 /// Mouse handling for the chat page: hovering a cast row opens its overlay,
 /// moving off every row closes it. The row hitboxes are recorded by the
 /// renderer each frame into `state.cast_row_hitboxes`.
-pub fn handle_mouse(
-    mouse: MouseEvent,
-    state: &mut CliState,
-    _ctx: &AppContext<Chat, Narrator, MemoryUpdate, ActClose>,
-) {
+pub fn handle_mouse(mouse: MouseEvent, state: &mut CliState, _ctx: &DefaultContext) {
     if !matches!(state.page, Page::Chat { .. }) {
         return;
     }

@@ -1,5 +1,5 @@
 use living_voices::ai::integrations::image::comfy_image::ComfyImage;
-use living_voices::backend::application::port::image_port::ImageHandler;
+use living_voices::backend::application::port::image_port::ImagePort;
 use living_voices::config::{ImageModel, ImageModelWorkflow};
 
 const COMFYUI_URL: &str = "http://localhost:8188";

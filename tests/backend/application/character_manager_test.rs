@@ -1,5 +1,5 @@
 use crate::backend::application::helper::{TempDb, setup_db, start_adventure_with_default_cast};
-use living_voices::ai::integrations::text::chat::Chat;
+use living_voices::ai::integrations::text::chat_handler::ChatHandler;
 use living_voices::backend::application::{
     character_manager::CharacterManager, state::SharedState,
 };
@@ -335,8 +335,8 @@ async fn create_character_pose_prompt_uses_messages_and_persists_the_prompt() {
 
 // ---------------------------------------------------------------- fixtures
 
-fn chat() -> Chat {
-    Chat::new(TextModel {
+fn chat() -> ChatHandler {
+    ChatHandler::new(TextModel {
         base_url: OLLAMA_URL.to_string(),
         model: CHAT_MODEL.to_string(),
         temperature: 0.5,
@@ -345,16 +345,21 @@ fn chat() -> Chat {
     })
 }
 
-async fn new_integration_manager() -> (CharacterManager<Chat>, SharedState, TempDb, SqlitePool) {
+async fn new_integration_manager() -> (
+    CharacterManager<ChatHandler>,
+    SharedState,
+    TempDb,
+    SqlitePool,
+) {
     let state = SharedState::new();
     let (pool, db) = setup_db().await;
     let manager = CharacterManager::new(state.clone(), pool.clone(), chat());
     (manager, state, db, pool)
 }
 
-fn setup_character_manager(pool: SqlitePool, state: SharedState) -> CharacterManager<Chat> {
+fn setup_character_manager(pool: SqlitePool, state: SharedState) -> CharacterManager<ChatHandler> {
     let text_model_config = Config::new().expect("load config").settings.models.chat;
-    let chat_handler = Chat::new(text_model_config);
+    let chat_handler = ChatHandler::new(text_model_config);
     CharacterManager::new(state, pool, chat_handler)
 }
 

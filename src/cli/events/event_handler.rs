@@ -1,7 +1,4 @@
-use crate::ai::integrations::text::chat::Chat;
-use crate::ai::integrations::text::narrator::Narrator;
-use crate::ai::{ActClose, MemoryUpdate};
-use crate::app::AppContext;
+use crate::app::DefaultContext;
 use crate::cli::events::adventure_list::handle_list;
 use crate::cli::events::chat::handle_chat;
 use crate::cli::events::main::handle_main;
@@ -17,7 +14,7 @@ pub enum Flow {
 pub fn handle_key(
     key: KeyEvent,
     state: &mut CliState,
-    ctx: &AppContext<Chat, Narrator, MemoryUpdate, ActClose>,
+    ctx: &DefaultContext,
     runtime: &Handle,
 ) -> Flow {
     // Esc always backs out of a subpage; only Main treats it as quit (via 'q').

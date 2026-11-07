@@ -1,7 +1,4 @@
-use crate::ai::integrations::text::chat::Chat;
-use crate::ai::integrations::text::narrator::Narrator;
-use crate::ai::{ActClose, MemoryUpdate};
-use crate::app::AppContext;
+use crate::app::DefaultContext;
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::{Character, CharacterStatus};
 use crate::backend::domain::message::Message;
@@ -19,11 +16,7 @@ use ratatui::widgets::{Block, Paragraph, Wrap};
 
 mod transcript;
 
-pub fn render(
-    frame: &mut Frame,
-    state: &mut CliState,
-    ctx: &AppContext<Chat, Narrator, MemoryUpdate, ActClose>,
-) {
+pub fn render(frame: &mut Frame, state: &mut CliState, ctx: &DefaultContext) {
     let (input, cursor) = match &state.page {
         Page::Chat { input, cursor } => (input.as_str(), *cursor),
         _ => ("", 0),

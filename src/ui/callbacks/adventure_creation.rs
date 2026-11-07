@@ -1,7 +1,5 @@
-use crate::app::AppContext;
+use crate::app::DefaultContext;
 use crate::backend::application::adventure_manager::{AdventureManager, AdventureManagerError};
-use crate::backend::application::port::chat_port::{ChatHandler, NarratorHandler};
-use crate::backend::application::port::memory_port::{ActCloser, MemoryDistiller};
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::memory::Act;
 use crate::backend::domain::message::Message;
@@ -24,14 +22,9 @@ enum CreationError {
     Adventure(#[from] AdventureManagerError),
 }
 
-pub fn register_story_creation<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
->(
+pub fn register_story_creation(
     ui: &RootWindow,
-    ctx: &AppContext<C, N, M, A>,
+    ctx: &DefaultContext,
     builder: &BuilderPageContext,
 ) {
     let adventures = ctx.adventures.clone();
@@ -55,15 +48,7 @@ pub fn register_story_creation<
         });
 }
 
-pub fn register_create_adventure<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
->(
-    ui: &RootWindow,
-    ctx: &AppContext<C, N, M, A>,
-) {
+pub fn register_create_adventure(ui: &RootWindow, ctx: &DefaultContext) {
     let ctx = ctx.clone();
     let handle = Handle::current();
     let ui_weak = ui.as_weak();
@@ -89,16 +74,7 @@ pub fn register_create_adventure<
         });
 }
 
-pub fn register_act_creation<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
->(
-    ui: &RootWindow,
-    ctx: &AppContext<C, N, M, A>,
-    builder: &BuilderPageContext,
-) {
+pub fn register_act_creation(ui: &RootWindow, ctx: &DefaultContext, builder: &BuilderPageContext) {
     let adventures = ctx.adventures.clone();
     let handle = Handle::current();
     let builder = builder.clone();
@@ -120,14 +96,9 @@ pub fn register_act_creation<
         });
 }
 
-pub fn register_adventure_opening<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
->(
+pub fn register_adventure_opening(
     ui: &RootWindow,
-    ctx: &AppContext<C, N, M, A>,
+    ctx: &DefaultContext,
     builder: &BuilderPageContext,
 ) {
     let adventures = ctx.adventures.clone();
@@ -239,14 +210,9 @@ pub fn parse_id(id: &str) -> Option<Uuid> {
         .ok()
 }
 
-fn create_draft<
-    C: ChatHandler + Clone + 'static,
-    N: NarratorHandler + Clone + 'static,
-    M: MemoryDistiller + Clone + 'static,
-    A: ActCloser + Clone + 'static,
->(
+fn create_draft(
     handle: &Handle,
-    ctx: &AppContext<C, N, M, A>,
+    ctx: &DefaultContext,
     title: &str,
     headline: &str,
 ) -> Result<Adventure, AdventureManagerError> {

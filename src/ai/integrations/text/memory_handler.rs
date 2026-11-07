@@ -6,8 +6,8 @@ use crate::ai::integrations::text::open_api_client::{JsonSchema, OpenAiCompatibl
 use crate::ai::types::ChatMessage;
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::application::port::memory_port::{
-    ActCloser, ClosedAct, ClosedActError, ClosedActStatus, DistillError, DistilledFact,
-    DistilledMemory, DistilledState, FactPermanence, MemoryDistiller,
+    ActCloserPort, ClosedAct, ClosedActError, ClosedActStatus, DistillError, DistilledFact,
+    DistilledMemory, DistilledState, FactPermanence, MemoryDistillerPort,
 };
 use crate::backend::domain::memory::CharacterCondition;
 use crate::config::TextModel;
@@ -74,7 +74,7 @@ fn or_empty<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Vec<Str
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MemoryUpdate {
+pub struct MemoryHandler {
     pub facts: Vec<Fact>,
     pub state: StateSnapshot,
     #[serde(default)]
@@ -83,7 +83,7 @@ pub struct MemoryUpdate {
     config: TextModel,
 }
 
-impl MemoryUpdate {
+impl MemoryHandler {
     pub fn new(config: TextModel) -> Self {
         Self {
             facts: vec![],
@@ -105,7 +105,7 @@ impl MemoryUpdate {
         temperature: f32,
         prompt: &[ChatMessage],
         keep_alive: Option<&str>,
-    ) -> Result<MemoryUpdate, AiError> {
+    ) -> Result<MemoryHandler, AiError> {
         let mut messages = Vec::with_capacity(prompt.len() + 1);
         messages.extend_from_slice(prompt);
 
@@ -117,11 +117,11 @@ impl MemoryUpdate {
             .send(model, &messages, temperature, Some(format), keep_alive)
             .await?;
 
-        MemoryUpdate::from_reply(&reply)
+        MemoryHandler::from_reply(&reply)
     }
 }
 
-impl MemoryDistiller for MemoryUpdate {
+impl MemoryDistillerPort for MemoryHandler {
     async fn distill(&self, context: &[PromptTurn]) -> Result<DistilledMemory, DistillError> {
         let prompt = context
             .iter()
@@ -134,7 +134,7 @@ impl MemoryDistiller for MemoryUpdate {
             std::time::Duration::from_secs(self.config.request_timeout_secs as u64),
         )
         .map_err(|e| DistillError::Provider(e.to_string()))?;
-        let update = MemoryUpdate::distill(
+        let update = MemoryHandler::distill(
             &client,
             &self.config.model,
             self.config.temperature,
@@ -148,9 +148,9 @@ impl MemoryDistiller for MemoryUpdate {
     }
 }
 
-impl From<MemoryUpdate> for DistilledMemory {
-    fn from(memory_update: MemoryUpdate) -> Self {
-        let facts = memory_update
+impl From<MemoryHandler> for DistilledMemory {
+    fn from(memory_handler: MemoryHandler) -> Self {
+        let facts = memory_handler
             .facts
             .into_iter()
             .map(|fact| DistilledFact {
@@ -161,11 +161,11 @@ impl From<MemoryUpdate> for DistilledMemory {
             .collect();
 
         let state = DistilledState {
-            day: memory_update.state.day,
-            place: memory_update.state.place,
-            characters_present: memory_update.state.characters_present,
-            open_threads: memory_update.state.open_threads,
-            character_conditions: memory_update
+            day: memory_handler.state.day,
+            place: memory_handler.state.place,
+            characters_present: memory_handler.state.characters_present,
+            open_threads: memory_handler.state.open_threads,
+            character_conditions: memory_handler
                 .state
                 .character_conditions
                 .into_iter()
@@ -176,7 +176,7 @@ impl From<MemoryUpdate> for DistilledMemory {
         DistilledMemory {
             facts,
             state,
-            running_digest: memory_update.running_digest,
+            running_digest: memory_handler.running_digest,
         }
     }
 }
@@ -300,7 +300,7 @@ impl ActClose {
     }
 }
 
-impl ActCloser for ActClose {
+impl ActCloserPort for ActClose {
     async fn close_act(&self, context: &[PromptTurn]) -> Result<ClosedAct, ClosedActError> {
         let prompt = context
             .iter()
