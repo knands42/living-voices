@@ -46,16 +46,10 @@ the only voice in this reply is the replier's.
    who owns the beat. Never put an off-cast name in the "replier" field.
 
 ## EXAMPLES
-Example 1 — a character speaks
-{"replier": "Elara", "reply": "*leans in the doorway, arms folded*\n\"The gate won't open for us again. Not tonight, not with that horn still ringing.\"", "act_closure": null}
+A cast member, with speech, action and private thought:
+{"replier": "Elara", "reply": "*leans in the doorway, arms folded*\n\"The gate won't open for us again. Not tonight, not with that horn still ringing.\"\n((two nights, at most))", "act_closure": null}
 
-Example 2 — action and thought, no speech
-{"replier": "Marta", "reply": "*sets the lantern down and kneels beside the wounded man, both hands on the wound*\n((this is past herbs))", "act_closure": null}
-
-Example 3 — the world
-{"replier": "NARRATOR", "reply": "A torch was lit embracing the room with a warm light.", "act_closure": null}
-
-Example 4 — someone outside the cast speaks, voiced through NARRATOR
+The world answers, here with someone outside the cast speaking:
 {"replier": "NARRATOR", "reply": "*a ferryman rises from the reeds, pole in hand*\n\"No crossing tonight. The river's taken two already.\"", "act_closure": null}
 "#;
 
@@ -114,62 +108,36 @@ that is already near — an act can also close early, well before its length run
 out, once its goal is genuinely met."#;
 
 pub(crate) const DISTILL_PROMPT: &str = r#"## DISTILL
-Below you are given the existing memory (## CONTEXT: the PAST ACTS and CURRENT ACT,
-the single FACTS snapshot as "subject: fact -> permanence", plus the CURRENT STATE)
-followed by the latest conversation turns. The existing memory was true as of its
-last update; the conversation is what happened since.
+You are given the memory as it stood (## CONTEXT: PAST ACTS, CURRENT ACT, FACTS as
+"subject: fact -> permanence", CURRENT STATE) and the turns since. The memory was
+true at its last update; the turns are what happened after.
 
-Reconcile the two. Produce the memory record as it should stand NOW — not a record
-of only the new turns, and not a copy of the old one. Return JSON only, with exactly
-three fields:
+Return JSON only, with exactly three fields, describing the memory as it stands NOW —
+not only the new turns, and not a copy of the old one.
 
-- "facts": the COMPLETE set of facts that are true now (at the current moment of the
-  adventure). This fully replaces the previous FACTS snapshot — return every fact that
-  still holds, not only the changed ones. For each one decide:
-    - KEEP an existing fact unchanged if the conversation neither changed nor
-      contradicted it, and it still matters.
-    - OVERRIDE a fact when the conversation changes it: emit the new version with
-      the same "subject", stating the new truth (e.g. a wound that healed, an ally
-      who turned, a goal that was met or abandoned). The new fact replaces the old.
-    - ADD a fact the conversation newly establishes.
-    - DROP a "plot" fact once the conversation resolves it or makes it moot. Never
-      drop a "permanent" fact.
-  Each item is an object:
-    - "subject": who or what the fact is about (a name or a thing), verbatim. Reuse
-      the existing subject spelling so an updated fact lines up with the one it
-      replaces.
-    - "fact": one short, self-contained statement, in the present. Keep names,
-      numbers and identifiers verbatim.
-    - "permanence": one of
-        "permanent"  true for the rest of the story — an identity, a bond, an
-                     irreversible change. Never contradicted by later events.
-        "plot"       true until the story moves on or says otherwise — a current
-                     goal, a held grudge, an open deal.
-  When a new fact clashes with an existing one, the conversation wins: the later
-  truth replaces the earlier. Do not emit both the old and the new version of the
-  same fact.
+- "facts": the complete replacement set of facts true at this moment. KEEP an
+  unchanged fact that still matters, OVERRIDE a changed one under the same "subject"
+  (a wound that healed, an ally who turned), ADD what the turns newly establish, DROP
+  a "plot" fact once it is resolved or moot. Never drop a "permanent" one. The turns
+  beat the memory: emit one version of a fact, never both. Each item is
+  { "subject": who or what it is about, verbatim and spelled as before so an update
+    lines up, "fact": one short present-tense statement keeping names and numbers
+    verbatim, "permanence": "permanent" (an identity, a bond, an irreversible change)
+    or "plot" (true until the story moves on) }.
 
-- "state": one object describing the single current situation AFTER these turns.
-  Start from the existing CURRENT STATE and update only what the conversation moved;
-  carry forward anything it did not touch. Do not reset a field to empty just
-  because the latest turns did not mention it.
-    - "day"                 in-world time now, e.g. "Day 2, dusk" (null if never established).
-    - "place"               where the scene is now, e.g. "cave mouth" (unknown if not specified).
-    - "characters_present"  names of everyone on scene now (only the speakers not npc interactions) — add arrivals, remove those who left.
-    - "open_threads"        unresolved threads, each a short phrase. Drop a thread the conversation closed; add ones it opened.
-    - "character_conditions" active conditions on a character now, each an object { "character", "note" }. "character" is the character the condition is about, verbatim (reuse the existing spelling so an update lines up). "note" is one short phrase describing a change to their body or visible state, e.g. { "character": "kaelen", "note": "left arm severed" }. Only conditions about a named character — nothing about the setting or mood. Drop conditions that ended.
+- "state": the single situation after these turns. Start from CURRENT STATE, change
+  only what moved, carry the rest; never empty a field because the turns were silent.
+  Fields: "day" (in-world time, null if never established), "place", "characters_present"
+  (everyone on scene now, by name), "open_threads" (unresolved, short phrases),
+  "character_conditions" (each { "character", "note" } for a named character's body or
+  visible state; nothing about mood or setting).
 
-- "running_digest": a prose summary of the CURRENT ACT so far — the "THIS ACT SO FAR"
-  section. This is a full rewrite, not an append: fold the existing THIS ACT SO FAR
-  (if any) together with the new turns into one coherent, up-to-date account of what
-  has happened in this act. A few tight paragraphs in past tense, naming who did what
-  and how threads moved. It should read as the single story-so-far, not a changelog.
-  Do not restate permanent lore or other acts; cover only the current act. If there
-  is no prior digest, write it from the turns alone.
+- "running_digest": rewrite THIS ACT SO FAR by folding the existing digest and the new
+  turns into one account of this act. Past tense, a few tight paragraphs, who did what
+  and how threads moved. Only this act: no changelog, no lore, no earlier acts.
 
-Record only what the existing memory or the conversation establishes. Never invent
-anything. Prefer a few sharp facts over many vague ones. The "running_digest" is the
-only prose; "facts" and "state" are structured. Return JSON only."#;
+Record only what the memory or the turns establish. Never invent. Prefer a few sharp
+facts over many vague ones."#;
 
 pub(crate) const ACT_CLOSE_PROMPT: &str = r#"## ACT CLOSE
 The CURRENT ACT has reached its end. Using the act's goal (from CURRENT ACT),

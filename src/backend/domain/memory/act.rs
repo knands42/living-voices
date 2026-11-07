@@ -160,6 +160,13 @@ impl Act {
         }
     }
 
+    pub fn render_index_line(&self) -> String {
+        match &self.index_line {
+            Some(line) => line.clone(),
+            None => format!("Act {} — {} ({})", self.ordinal, self.goal, self.status),
+        }
+    }
+
     pub fn render_digest(acts: &[&Act]) -> String {
         acts.iter()
             .filter(|act| act.digest.is_some())

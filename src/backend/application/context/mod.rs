@@ -16,6 +16,10 @@ use uuid::Uuid;
 
 pub struct ContextBuilder;
 
+/// How many closed acts keep their full digest in the prompt. Older ones collapse to
+/// their index line, so the block stops growing with the length of the adventure.
+const DIGESTED_PAST_ACTS: usize = 2;
+
 /// How a past cast turn is written into the history
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CastTurn {
@@ -99,15 +103,20 @@ impl ContextBuilder {
             .filter(|act| {
                 act.status != ActStatus::Active
                     && act.status != ActStatus::Unstarted
-                    && act.digest.is_some()
+                    && (act.digest.is_some() || act.index_line.is_some())
             })
             .collect();
 
         let mut sections = Vec::new();
 
         if !past.is_empty() {
+            let digested = past.len().saturating_sub(DIGESTED_PAST_ACTS);
+
             let mut block = String::from("### PAST ACTS");
-            for act in &past {
+            for act in &past[..digested] {
+                block.push_str(&format!("\n{}", act.render_index_line()));
+            }
+            for act in &past[digested..] {
                 block.push_str(&format!("\n{}", act.render_digest_entry()));
             }
             sections.push(block);

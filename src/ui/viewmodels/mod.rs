@@ -59,8 +59,6 @@ pub fn adventure_summaries_model(
 }
 
 pub fn builder_view(adventure: Option<&Adventure>, acts: &[Act], has_opening: bool) -> BuilderView {
-    const PLACEHOLDER_TONE: &str = "neutral";
-
     match adventure {
         Some(adventure) => {
             let cast_members: Vec<&Character> = adventure
@@ -75,9 +73,10 @@ pub fn builder_view(adventure: Option<&Adventure>, acts: &[Act], has_opening: bo
 
             let act_views: Vec<ActAuthorView> = acts.iter().map(act_author_view).collect();
 
-            let story_done = !adventure.headline.trim().is_empty()
-                && !adventure.lore.text.trim().is_empty()
-                && adventure.tone.trim() != PLACEHOLDER_TONE;
+            let story_done = !adventure.title.trim().is_empty()
+                && !adventure.headline.trim().is_empty()
+                && !adventure.tone.trim().is_empty()
+                && !adventure.lore.text.trim().is_empty();
             // A character whose page was opened but never filled in is not a cast yet.
             let cast_done = cast_members
                 .iter()

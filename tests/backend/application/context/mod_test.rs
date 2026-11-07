@@ -405,6 +405,86 @@ fn the_cast_roster_never_renders_voice_examples() {
 
 // region Character prompt fixtures
 
+fn closed_act(
+    adventure_id: Uuid,
+    ordinal: u16,
+    goal: &str,
+    digest: &str,
+) -> living_voices::backend::domain::memory::Act {
+    use living_voices::backend::domain::memory::ActStatus;
+
+    let mut act = living_voices::backend::domain::memory::Act::new(adventure_id, ordinal, goal);
+    act.status = ActStatus::Resolved;
+    act.index_line = Some(format!("Act {ordinal} — {goal}."));
+    act.digest = Some(digest.to_string());
+    act
+}
+
+#[test]
+fn only_the_last_two_closed_acts_keep_their_digest() {
+    // given four closed acts, each with an index line and a digest
+    let adventure = bare_adventure();
+    let acts = (1..=4)
+        .map(|ordinal| closed_act(adventure.id, ordinal, "a goal", "the long digest of it"))
+        .collect();
+
+    let mut data = empty_context();
+    data.acts = acts;
+
+    let character = Character::new(
+        Uuid::new_v4(),
+        "Maren".into(),
+        adventure.id,
+        "A lighthouse keeper",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
+
+    // when
+    let turns = ContextBuilder::build_single_character_chat_prompt(
+        &adventure,
+        &low_closure_director(),
+        &data,
+        &character,
+        &[],
+    );
+
+    // then the two older acts collapse to their single index line
+    let context = turns
+        .iter()
+        .find(|t| t.text.contains("### PAST ACTS"))
+        .expect("a PAST ACTS block")
+        .text
+        .clone();
+    let past_acts = context
+        .split("### PAST ACTS")
+        .nth(1)
+        .expect("the block body");
+
+    for ordinal in 1..=2 {
+        assert!(
+            past_acts.contains(&format!("Act {ordinal} — a goal.")),
+            "act {ordinal} should keep its index line: {past_acts}"
+        );
+    }
+    let older = past_acts.split("Act 3").next().expect("the older acts");
+    assert!(!older.contains("the long digest of it"), "{older}");
+
+    // and only the two most recent ones still carry their digest
+    for ordinal in 3..=4 {
+        assert!(
+            past_acts.contains(&format!("Act {ordinal}\ngoal:")),
+            "act {ordinal} should keep its digest entry: {past_acts}"
+        );
+    }
+    assert_eq!(
+        past_acts.matches("the long digest of it").count(),
+        2,
+        "{past_acts}"
+    );
+}
+
 fn bare_adventure() -> Adventure {
     use living_voices::backend::domain::adventure::AdventureStatus;
     use living_voices::backend::domain::lore::Lore;

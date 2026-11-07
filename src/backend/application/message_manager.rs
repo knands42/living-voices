@@ -185,9 +185,6 @@ impl<
         .await
     }
 
-    /// Loads the prompt inputs and hands the connection back before the caller
-    /// awaits a model. Holding it across the call stalls every other beat on a pool
-    /// that is many seconds wide.
     async fn load_context(
         &self,
         adventure: &Adventure,
