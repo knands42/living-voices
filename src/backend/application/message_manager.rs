@@ -88,6 +88,11 @@ impl<
     }
 
     pub async fn send_message(&self, incoming: Message) -> Result<Message, MessageManagerError> {
+        log::info!(
+            "turn start: adventure={} speaker={}",
+            incoming.adventure_id,
+            incoming.speaker_name
+        );
         self.create_message(incoming.clone()).await?;
 
         let input_data = self.gather_data().await?;
@@ -126,6 +131,10 @@ impl<
             let reply = self.chat_handler.follow_up_respond(&prompt).await?;
 
             if reply.replier == last_speaker || reply.replier == Message::NARRATOR_SPEAKER_NAME {
+                log::debug!(
+                    "follow-up skipped: speaker {} repeats itself or is the narrator",
+                    reply.replier
+                );
                 return Ok(());
             }
 
@@ -133,6 +142,7 @@ impl<
                 .adventure
                 .message_from_reply(&reply.replier, &reply.reply);
             let stored = self.create_message(message).await?;
+            log::info!("follow-up from {}", stored.speaker_name);
 
             last_speaker = stored.speaker_name;
             steps += 1;
@@ -247,6 +257,7 @@ impl<
                 uncovered_messages,
             );
             let reply = self.narrator_handler.narrator_respond(&context).await?;
+            log::info!("narrator replies");
             return Ok(ChatReply {
                 replier: Message::NARRATOR_SPEAKER_NAME.to_string(),
                 reply,
@@ -262,7 +273,12 @@ impl<
                 uncovered_messages,
             );
             let mut reply = self.chat_handler.character_respond(&context).await?;
+            log::info!("{} replies", character.name);
             if reply.replier.trim().is_empty() {
+                log::warn!(
+                    "character reply had an empty speaker, defaulting to {}",
+                    character.name
+                );
                 reply.replier = character.name.clone();
             }
             return Ok(reply);
@@ -274,7 +290,9 @@ impl<
             data,
             uncovered_messages,
         );
-        Ok(self.chat_handler.autonomous_respond(&context).await?)
+        let reply = self.chat_handler.autonomous_respond(&context).await?;
+        log::info!("autonomous reply");
+        Ok(reply)
     }
 
     fn check_and_compress_memory(&self, act: &Act, uncovered_messages: &[Message]) {
@@ -284,16 +302,21 @@ impl<
         {
             Ok(false) => {}
             Ok(true) => {
+                log::debug!(
+                    "compressing memory: {} uncovered messages for act {}",
+                    uncovered_messages.len(),
+                    act.id
+                );
                 let memory = self.memory_manager.clone();
                 let act = act.clone();
                 let uncovered = uncovered_messages.to_vec();
                 tokio::spawn(async move {
                     if let Err(err) = memory.compress_and_update(&act, &uncovered).await {
-                        eprintln!("memory compression failed: {err}");
+                        log::error!("memory compression failed: {err}");
                     }
                 });
             }
-            Err(err) => eprintln!("memory compression check failed: {err}"),
+            Err(err) => log::error!("memory compression check failed: {err}"),
         }
     }
 
@@ -304,6 +327,11 @@ impl<
         last_message: Message,
     ) -> Result<(), MessageManagerError> {
         let score = chat_reply.act_closure.unwrap_or(0);
+        log::debug!(
+            "act closure score {} for adventure {}",
+            score,
+            input.adventure.id
+        );
 
         let updated_act = {
             let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
@@ -328,6 +356,11 @@ impl<
             log::error!("No active act found for adventure {}", input.adventure.id);
             return Ok(());
         };
+        log::info!(
+            "closing act {} for adventure {}",
+            act.id,
+            input.adventure.id
+        );
 
         let data = self.load_context(&input.adventure).await?;
         let prompt = ContextBuilder::build_act_transition_prompt(&data, &input.uncovered_messages);
@@ -344,6 +377,7 @@ impl<
         self.memory_manager
             .close_current_act(act, &all_messages)
             .await?;
+        log::info!("act {} closed", act.id);
 
         Ok(())
     }
@@ -364,6 +398,7 @@ async fn load_uncovered_messages(
     window: u16,
 ) -> Result<Vec<Message>, MessageManagerError> {
     let Some(act) = active_act else {
+        log::debug!("no active act; nothing uncovered to carry");
         return Ok(vec![]);
     };
 
@@ -382,6 +417,10 @@ fn should_close_act(score: u8, last_message: &Message, act_max_messages: u16) ->
     let eligible_to_close = last_message
         .seq
         .is_some_and(|seq| u32::from(seq) * 4 / 5 >= u32::from(act_max_messages));
+
+    if !reached_good_score && reached_acceptable_score && last_message.seq.is_none() {
+        log::debug!("act not closed at score 4: last message has no sequence to judge position");
+    }
 
     reached_good_score || (eligible_to_close && reached_acceptable_score)
 }

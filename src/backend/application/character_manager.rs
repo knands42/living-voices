@@ -142,6 +142,13 @@ impl<PROMPT: PromptHandler> CharacterManager<PROMPT> {
             .await
     }
 
+    pub async fn create_character_image_portrait(
+        &self,
+        character: &Character,
+    ) -> Result<(), CharacterManagerError> {
+        todo!()
+    }
+
     async fn create_character_image_prompt(
         &self,
         character: &Character,

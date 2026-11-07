@@ -79,12 +79,14 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
         let adventure = {
             let guard = self.state.read()?;
             let Some(adventure) = guard.current_adventure.as_ref() else {
+                log::warn!("compression requested with no loaded adventure; skipping");
                 return Ok(());
             };
             adventure.clone()
         };
 
         let Some(last) = uncovered.last() else {
+            log::debug!("nothing to compress: no uncovered messages");
             return Ok(());
         };
         let digest_to_seq = last
@@ -94,11 +96,18 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
 
         let data = ContextData::load(&mut conn, adventure.id).await?;
+        log::debug!(
+            "distilling {} uncovered messages for act {}",
+            uncovered.len(),
+            act.id
+        );
         let prompt = ContextBuilder::build_distill_prompt(&data, uncovered);
         let distilled = self.distiller.distill(&prompt).await?;
 
         self.persist_distilled(&mut conn, &adventure, act, distilled, digest_to_seq)
-            .await
+            .await?;
+        log::info!("memory compacted to seq {digest_to_seq}");
+        Ok(())
     }
 
     pub async fn close_current_act(
@@ -109,12 +118,18 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
         let adventure = {
             let guard = self.state.read()?;
             let Some(adventure) = guard.current_adventure.as_ref() else {
+                log::warn!("act close requested with no loaded adventure; skipping");
                 return Ok(());
             };
             adventure.clone()
         };
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+
+        log::info!("closing act {} for adventure {}", act.id, adventure.id);
+        if uncovered_messages.is_empty() {
+            log::debug!("closing act {} with no uncovered messages", act.id);
+        }
 
         let data = ContextData::load(&mut conn, adventure.id).await?;
 
@@ -176,6 +191,11 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
 
         tx.commit().await.map_err(PersistenceError::from)?;
 
+        log::info!("act {} closed at seq {to_seq}", act.id);
+        if next_act.is_none() {
+            log::info!("adventure {} complete: no further acts", adventure.id);
+        }
+
         {
             let mut guard = self.state.write()?;
             guard.current_act = next_act;
@@ -207,6 +227,10 @@ impl<D: MemoryDistiller, C: ActCloser> MemoryManager<D, C> {
             .await?;
 
         tx.commit().await.map_err(PersistenceError::from)?;
+        log::debug!(
+            "act {} running digest advanced to seq {digest_to_seq}",
+            act.id
+        );
 
         let refreshed_act = get_active_act(conn, adventure.id).await?;
         {

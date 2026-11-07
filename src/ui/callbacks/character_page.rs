@@ -123,7 +123,7 @@ impl CharacterPageContext {
 
     fn spawn_appearance_prompts(&self, character: Character) {
         let character_id = character.id;
-        let characters = self.characters.clone();
+        let character_manager = self.characters.clone();
         let adventures = self.adventures.clone();
         let ui_weak = self.ui_weak.clone();
 
@@ -133,8 +133,8 @@ impl CharacterPageContext {
 
         self.handle.spawn(async move {
             let (identity, outfit) = tokio::join!(
-                characters.create_character_identity_prompt(&character),
-                characters.create_character_outfit_prompt(&character),
+                character_manager.create_character_identity_prompt(&character),
+                character_manager.create_character_outfit_prompt(&character),
             );
 
             if let Err(err) = identity {
