@@ -96,6 +96,7 @@ pub async fn start_adventure_with_default_cast(
         let character = Character::new(
             Uuid::new_v4(),
             (*npc).into(),
+            "female".to_string(),
             adventure.id,
             format!("Character {npc} headline").as_str(),
             format!("Character {npc} backstory").as_str(),

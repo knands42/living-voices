@@ -11,6 +11,7 @@ fn cast(names: &[&str]) -> Vec<Character> {
             Character::new(
                 Uuid::new_v4(),
                 (*n).to_string(),
+                "female".to_string(),
                 Uuid::new_v4(),
                 "a diver",
                 "",

@@ -37,9 +37,10 @@ export component CharacterPage inherits Rectangle {
 
     // Every field is saved on its own, so the other values are sent unchanged.
     // The character being edited is whatever the page shows, so no id travels here.
-    function save(name: string, headline: string, backstory: string, appearance: string, changed-field: ChangedField) {
+    function save(name: string, genre: string, headline: string, backstory: string, appearance: string, changed-field: ChangedField) {
         CharacterGlobals.save-character({
             name: name,
+            genre: genre,
             headline: headline,
             backstory: backstory,
             appearance: appearance,
@@ -118,8 +119,8 @@ export component CharacterPage inherits Rectangle {
                 can-edit: root.can-edit;
                 generating-image: CharacterGlobals.generating-image;
                 name-committed(text) => {
-                    root.save(text, root.character.headline, root.character.backstory,
-                        root.character.appearance, ChangedField.character-name);
+                    root.save(text, root.character.genre, root.character.headline,
+                        root.character.backstory, root.character.appearance, ChangedField.character-name);
                 }
                 tag-added(text) => { CharacterGlobals.add-tag(root.character.id, text); }
                 tag-removed(index) => { CharacterGlobals.remove-tag(root.character.id, index); }
@@ -133,13 +134,26 @@ export component CharacterPage inherits Rectangle {
                     spacing: 14px;
 
                     InfoCard {
+                        caption: "GENRE";
+                        EditableField {
+                            value: root.character.genre;
+                            placeholder: "no genre yet";
+                            can-edit: root.can-edit;
+                            committed(text) => {
+                                root.save(root.character.name, text, root.character.headline,
+                                    root.character.backstory, root.character.appearance, ChangedField.genre);
+                            }
+                        }
+                    }
+
+                    InfoCard {
                         caption: "HEADLINE";
                         EditableField {
                             value: root.character.headline;
                             can-edit: root.can-edit;
                             committed(text) => {
-                                root.save(root.character.name, text, root.character.backstory,
-                                    root.character.appearance, ChangedField.headline);
+                                root.save(root.character.name, root.character.genre, text,
+                                    root.character.backstory, root.character.appearance, ChangedField.headline);
                             }
                         }
                     }
@@ -151,8 +165,9 @@ export component CharacterPage inherits Rectangle {
                             can-edit: root.can-edit;
                             multiline: true;
                             committed(text) => {
-                                root.save(root.character.name, root.character.headline, text,
-                                    root.character.appearance, ChangedField.backstory);
+                                root.save(root.character.name, root.character.genre,
+                                    root.character.headline, text, root.character.appearance,
+                                    ChangedField.backstory);
                             }
                         }
                     }
@@ -166,8 +181,9 @@ export component CharacterPage inherits Rectangle {
                             opacity: CharacterGlobals.generating-prompts ? 0.45 : 1;
                             multiline: true;
                             committed(text) => {
-                                root.save(root.character.name, root.character.headline,
-                                    root.character.backstory, text, ChangedField.appearance);
+                                root.save(root.character.name, root.character.genre,
+                                    root.character.headline, root.character.backstory, text,
+                                    ChangedField.appearance);
                             }
                         }
                     }

@@ -26,6 +26,7 @@ async fn insert_character_persists_core_columns() {
     let character = Character::new(
         Uuid::new_v4(),
         "Mara".into(),
+        "female".to_string(),
         adventure_id,
         "A tide-singer",
         "Raised in the drowned quarter",
@@ -48,6 +49,46 @@ async fn insert_character_persists_core_columns() {
 }
 
 #[tokio::test]
+async fn genre_round_trips_through_insert_and_update() {
+    let (pool, _db) = setup_db().await;
+    let adventure_id = setup_adventure(&pool).await;
+    let mut conn = pool.acquire().await.expect("acquire");
+
+    let mut mara = Character::new(
+        Uuid::new_v4(),
+        "Mara".into(),
+        "female".to_string(),
+        adventure_id,
+        "A tide-singer",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
+    insert_character(&mut conn, adventure_id, &mara)
+        .await
+        .expect("insert");
+
+    let inserted: String = sqlx::query_scalar("SELECT genre FROM character WHERE id = ?1")
+        .bind(mara.id.to_string())
+        .fetch_one(&pool)
+        .await
+        .expect("genre column");
+    assert_eq!(inserted, "female");
+
+    mara.genre = "male".to_string();
+    update_character(&mut conn, &mara)
+        .await
+        .expect("update character");
+
+    let updated: String = sqlx::query_scalar("SELECT genre FROM character WHERE id = ?1")
+        .bind(mara.id.to_string())
+        .fetch_one(&pool)
+        .await
+        .expect("genre column");
+    assert_eq!(updated, "male");
+}
+
+#[tokio::test]
 async fn insert_character_persists_traits_in_order() {
     let (pool, _db) = setup_db().await;
     let adventure_id = setup_adventure(&pool).await;
@@ -56,6 +97,7 @@ async fn insert_character_persists_traits_in_order() {
     let mut character = Character::new(
         Uuid::new_v4(),
         "Mara".into(),
+        "female".to_string(),
         adventure_id,
         "A tide-singer",
         "",
@@ -88,6 +130,7 @@ async fn insert_character_normalizes_tags() {
     let mut character = Character::new(
         Uuid::new_v4(),
         "Mara".into(),
+        "female".to_string(),
         adventure_id,
         "A tide-singer",
         "",
@@ -117,6 +160,7 @@ async fn relations_are_free_text_on_the_character_row() {
     let mut mara = Character::new(
         Uuid::new_v4(),
         "Mara".into(),
+        "female".to_string(),
         adventure_id,
         "singer",
         "",
@@ -160,6 +204,7 @@ async fn message_example_is_free_text_and_round_trips() {
     let mut mara = Character::new(
         Uuid::new_v4(),
         "Mara".into(),
+        "female".to_string(),
         adventure_id,
         "singer",
         "",
@@ -213,6 +258,7 @@ async fn update_appearance_prompts_writes_each_column() {
     let character = Character::new(
         Uuid::new_v4(),
         "Mara".into(),
+        "female".to_string(),
         adventure_id,
         "A tide-singer",
         "",

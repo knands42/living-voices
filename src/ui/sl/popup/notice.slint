@@ -26,6 +26,10 @@ export component NoticeToast inherits Rectangle {
     drop-shadow-blur: 28px;
     drop-shadow-color: AppTheme.card-edge-shadow;
 
+    TouchArea {
+        clicked => { root.dismissed(); }
+    }
+
     layout := HorizontalLayout {
         padding-left: 32px;
         padding-right: 32px;
@@ -33,20 +37,20 @@ export component NoticeToast inherits Rectangle {
         padding-bottom: 12px;
         alignment: center;
 
-        label := Text {
+        message := TextInput {
             text: root.text;
+            read-only: true;
+            single-line: false;
+            wrap: word-wrap;
+            text-cursor-width: 0px;
             color: root.is-error ? AppTheme.danger : (root.is-warn ? AppTheme.gold-bright : AppTheme.text-light);
+            selection-foreground-color: AppTheme.bg-deepest;
+            selection-background-color: AppTheme.gold-bright;
             font-family: AppTheme.font-body;
             font-size: AppTheme.font-label + 1px;
             horizontal-alignment: center;
             vertical-alignment: center;
-            wrap: word-wrap;
-            overflow: elide;
         }
-    }
-
-    TouchArea {
-        clicked => { root.dismissed(); }
     }
 
     Timer {

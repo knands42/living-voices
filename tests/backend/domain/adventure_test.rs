@@ -25,6 +25,7 @@ fn adventure_with_character(name: &str) -> (Adventure, Character) {
     let character = Character::new(
         Uuid::new_v4(),
         name.to_string(),
+        "female".to_string(),
         adventure.id,
         "A diver",
         "",
@@ -128,6 +129,7 @@ fn active_characters_returns_only_present_names() {
         let character = Character::new(
             Uuid::new_v4(),
             name.to_string(),
+            "female".to_string(),
             adventure.id,
             "A diver",
             "",
@@ -243,6 +245,7 @@ fn player_name_returns_the_is_player_characters_name() {
     let player = Character::new(
         Uuid::new_v4(),
         "You".to_string(),
+        "female".to_string(),
         adventure.id,
         "the player",
         "",

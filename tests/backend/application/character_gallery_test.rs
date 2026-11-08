@@ -24,6 +24,7 @@ fn character(adventure_id: Uuid) -> Character {
     Character::new(
         Uuid::new_v4(),
         "Mara Venn".to_string(),
+        "female".to_string(),
         adventure_id,
         "A tide-singer",
         "",
@@ -45,7 +46,7 @@ fn prefix_puts_the_shot_under_the_adventure_and_character() {
 
     // then
     assert_eq!(portrait, "salt_ash/mara_venn/mara_venn_portrait");
-    assert_eq!(pose, "salt_ash/mara_venn/mara_venn_pose_1");
+    assert_eq!(pose, "salt_ash/mara_venn/mara_venn_pose");
 }
 
 #[test]

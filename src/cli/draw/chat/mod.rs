@@ -187,10 +187,15 @@ fn render_cast_row(frame: &mut Frame, area: Rect, character: &Character) {
         ),
     ]);
 
-    let role_line = Line::from(vec![
+    let mut role_spans = vec![
         Span::raw(" "),
         Span::styled(character.status.as_str(), muted()),
-    ]);
+    ];
+    if !character.genre.trim().is_empty() {
+        role_spans.push(Span::styled(" · ", muted()));
+        role_spans.push(Span::styled(character.genre.as_str(), muted()));
+    }
+    let role_line = Line::from(role_spans);
     let text_area = Rect {
         x: cols[1].left(),
         y: cols[1].top(),
@@ -376,12 +381,18 @@ fn render_character_overlay(
         character.headline.as_str()
     };
 
+    let mut presence = vec![
+        status_dot(to_status_kind(character.status)),
+        Span::raw(" "),
+        Span::styled(character.status.as_str(), muted()),
+    ];
+    if !character.genre.trim().is_empty() {
+        presence.push(Span::styled(" · ", muted()));
+        presence.push(Span::styled(character.genre.as_str(), muted()));
+    }
+
     let mut lines = vec![
-        Line::from(vec![
-            status_dot(to_status_kind(character.status)),
-            Span::raw(" "),
-            Span::styled(character.status.as_str(), muted()),
-        ]),
+        Line::from(presence),
         Line::from(Span::styled("─────────", Style::default().fg(CARD_EDGE))),
         Line::from(Span::styled(description.to_string(), ink())),
     ];

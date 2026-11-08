@@ -79,6 +79,7 @@ export component PortraitCard inherits Rectangle {
 
         HorizontalLayout {
             alignment: center;
+            spacing: 8px;
 
             Rectangle {
                 height: 28px;
@@ -91,6 +92,22 @@ export component PortraitCard inherits Rectangle {
                 status-text := Text {
                     text: "● " + root.character.status;
                     color: root.character.status == "present" ? AppTheme.success : AppTheme.amber-glow;
+                    font-family: AppTheme.font-brand;
+                    font-size: AppTheme.font-label;
+                }
+            }
+
+            if root.character.genre != "": Rectangle {
+                height: 28px;
+                width: genre-text.preferred-width + 28px;
+                border-radius: AppTheme.radius-pill;
+                background: AppTheme.tag-fill;
+                border-width: 1px;
+                border-color: AppTheme.bronze;
+
+                genre-text := Text {
+                    text: root.character.genre;
+                    color: AppTheme.text-muted;
                     font-family: AppTheme.font-brand;
                     font-size: AppTheme.font-label;
                 }

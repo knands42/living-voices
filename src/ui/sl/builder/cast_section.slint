@@ -41,6 +41,26 @@ export component CastCard inherits TouchArea {
                         horizontal-stretch: 1;
                     }
 
+                    if root.character.genre != "": Rectangle {
+                        height: 20px;
+                        width: genre-text.preferred-width + 20px;
+                        border-radius: AppTheme.radius-pill;
+                        background: AppTheme.tag-fill;
+                        border-width: 1px;
+                        border-color: AppTheme.bronze;
+
+                        HorizontalLayout {
+                            alignment: center;
+
+                            genre-text := Text {
+                                text: root.character.genre;
+                                color: AppTheme.text-muted;
+                                font-family: AppTheme.font-brand;
+                                font-size: AppTheme.font-tiny;
+                            }
+                        }
+                    }
+
                     Rectangle {
                         height: 20px;
                         width: status-text.preferred-width + 20px;

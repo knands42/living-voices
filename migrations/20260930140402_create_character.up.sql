@@ -4,6 +4,7 @@ CREATE TABLE character
     id                          TEXT    NOT NULL PRIMARY KEY,
     adventure_id                TEXT    NULL REFERENCES adventure (id),
     name                        TEXT    NOT NULL,
+    genre                       TEXT    NOT NULL,
     headline                    TEXT    NOT NULL DEFAULT '',
     backstory                   TEXT    NOT NULL DEFAULT '',
     appearance                  TEXT    NULL,

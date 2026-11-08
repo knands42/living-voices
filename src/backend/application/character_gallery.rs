@@ -55,7 +55,7 @@ fn shot(framing: ImageFraming) -> &'static str {
     match framing {
         ImageFraming::Portrait => "portrait",
         ImageFraming::FullBody => "full_body",
-        ImageFraming::FullBodyPose => "pose_1",
+        ImageFraming::FullBodyPose => "pose",
     }
 }
 

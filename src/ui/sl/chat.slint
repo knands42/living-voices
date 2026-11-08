@@ -208,12 +208,25 @@ export component ChatPage inherits Rectangle {
                                         horizontal-stretch: 1;
                                         spacing: 2px * root.scale;
 
-                                        SelectableText {
-                                            text: character.name;
-                                            color: hsv(character.hue, 0.45, 0.95);
-                                            font-family: AppTheme.font-body;
-                                            font-size: AppTheme.font-label * root.scale;
-                                            font-weight: 600;
+                                        HorizontalLayout {
+                                            spacing: 6px;
+
+                                            SelectableText {
+                                                text: character.name;
+                                                color: hsv(character.hue, 0.45, 0.95);
+                                                font-family: AppTheme.font-body;
+                                                font-size: AppTheme.font-label * root.scale;
+                                                font-weight: 600;
+                                                horizontal-stretch: 1;
+                                            }
+
+                                            if character.genre != "": SelectableText {
+                                                text: character.genre;
+                                                color: AppTheme.text-muted;
+                                                font-family: AppTheme.font-brand;
+                                                font-size: AppTheme.font-tiny * root.scale;
+                                                vertical-alignment: center;
+                                            }
                                         }
 
                                         SelectableText {

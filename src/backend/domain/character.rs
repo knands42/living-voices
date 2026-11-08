@@ -66,6 +66,7 @@ pub struct Character {
     pub id: Uuid,
     pub adventure_id: Uuid,
     pub name: String,
+    pub genre: String,
     pub headline: String,
     pub status: CharacterStatus,
     pub backstory: String,
@@ -86,12 +87,14 @@ pub struct Character {
 }
 
 impl Character {
-    pub const DEFAULT_PLAYER_NAME: &'static str = "You";
-    pub const PLACEHOLDER_NAME: &'static str = "New character";
+    pub const DEFAULT_PLAYER_NAME: &'static str = "you";
+    pub const PLACEHOLDER_NAME: &'static str = "new character";
+    pub const PLACEHOLDER_GENRE: &'static str = "male";
 
     pub fn new(
         id: Uuid,
         name: String,
+        genre: String,
         adventure_id: Uuid,
         headline: impl Into<String>,
         backstory: impl Into<String>,
@@ -102,6 +105,7 @@ impl Character {
             id,
             adventure_id,
             name,
+            genre,
             headline: headline.into(),
             backstory: backstory.into(),
             appearance: None,
@@ -124,6 +128,7 @@ impl Character {
         Self::new(
             Uuid::new_v4(),
             Self::PLACEHOLDER_NAME.to_string(),
+            Self::PLACEHOLDER_GENRE.to_string(),
             adventure_id,
             "",
             "",

@@ -1,6 +1,7 @@
 export struct CharacterChatView {
     id: string,
     name: string,
+    genre: string,
     initials: string,
     headline: string,
     status: string,
@@ -16,6 +17,7 @@ export struct CharacterView {
     id: string,
     adventure-id: string,
     name: string,
+    genre: string,
     initials: string,
     hue: int,
     headline: string,
@@ -33,6 +35,7 @@ export struct CharacterView {
 
 export struct CharacterCreationInput {
     name: string,
+    genre: string,
     headline: string,
     backstory: string,
     appearance: string,

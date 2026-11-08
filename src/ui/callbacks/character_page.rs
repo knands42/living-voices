@@ -297,6 +297,7 @@ fn register_edit<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static
             let appearance = input.appearance.trim();
 
             character.name = name.to_string();
+            character.genre = input.genre.trim().to_string();
             character.headline = input.headline.trim().to_string();
             character.backstory = input.backstory.trim().to_string();
             character.appearance = (!appearance.is_empty()).then(|| appearance.to_string());

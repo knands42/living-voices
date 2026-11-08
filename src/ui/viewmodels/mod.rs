@@ -130,6 +130,7 @@ pub fn character_view(character: &Character) -> CharacterView {
         id: SharedString::from(character.id.to_string()),
         adventure_id: SharedString::from(character.adventure_id.to_string()),
         name: SharedString::from(character.name.clone()),
+        genre: SharedString::from(character.genre.clone()),
         initials: SharedString::from(initials(&character.name)),
         hue: name_hue(&character.name),
         headline: SharedString::from(character.headline.clone()),
@@ -162,6 +163,7 @@ fn character_chat_view(
     CharacterChatView {
         id: SharedString::from(character.id.to_string()),
         name: SharedString::from(character.name.clone()),
+        genre: SharedString::from(character.genre.clone()),
         initials: SharedString::from(initials(&character.name)),
         headline: SharedString::from(character.headline.clone()),
         status: SharedString::from(character.status.as_str()),

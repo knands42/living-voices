@@ -16,6 +16,7 @@ struct CharacterRow {
     id: String,
     adventure_id: String,
     name: String,
+    genre: String,
     headline: String,
     backstory: String,
     appearance: Option<String>,
@@ -34,6 +35,7 @@ impl FromRow<'_, SqliteRow> for CharacterRow {
             id: row.get("id"),
             adventure_id: row.get("adventure_id"),
             name: row.get("name"),
+            genre: row.get("genre"),
             headline: row.get("headline"),
             backstory: row.get("backstory"),
             appearance: row.get("appearance"),
@@ -56,6 +58,7 @@ impl TryFrom<CharacterRow> for Character {
         let mut character = Character::new(
             character_id,
             value.name,
+            value.genre,
             adventure_id,
             value.headline,
             value.backstory,
@@ -78,12 +81,13 @@ pub async fn insert_character(
     character: &Character,
 ) -> Result<(), PersistenceError> {
     sqlx::query(
-        "INSERT INTO character (id, adventure_id, name, headline, backstory, appearance, appearance_identity_prompt, appearance_current_outfit, appearance_current_pose, relations, message_example, status, is_player)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+        "INSERT INTO character (id, adventure_id, name, genre, headline, backstory, appearance, appearance_identity_prompt, appearance_current_outfit, appearance_current_pose, relations, message_example, status, is_player)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
     )
     .bind(character.id.to_string())
     .bind(adventure_id.to_string())
     .bind(&character.name)
+    .bind(&character.genre)
     .bind(&character.headline)
     .bind(&character.backstory)
     .bind(&character.appearance)
@@ -117,13 +121,14 @@ pub async fn insert_default_player_character(
 ) -> Result<Character, PersistenceError> {
     const DEFAULT_NAME: &str = "You";
     let row = sqlx::query_as::<_, CharacterRow>(
-        "INSERT INTO character (id, adventure_id, name, is_player)
-         VALUES (?1, ?2, ?3, ?4)
+        "INSERT INTO character (id, adventure_id, name, genre, is_player)
+         VALUES (?1, ?2, ?3, ?4, ?5)
          RETURNING *",
     )
     .bind(character_id.to_string())
     .bind(adventure_id.to_string())
     .bind(DEFAULT_NAME)
+    .bind(Character::PLACEHOLDER_GENRE)
     .bind(true)
     .fetch_one(&mut *conn)
     .await?;
@@ -209,13 +214,14 @@ pub async fn update_character(
 ) -> Result<(), PersistenceError> {
     sqlx::query(
         "UPDATE character
-         SET name = ?1, headline = ?2, backstory = ?3, appearance = ?4,
-             appearance_identity_prompt = ?5, appearance_current_outfit = ?6,
-             appearance_current_pose = ?7, relations = ?8, message_example = ?9,
-             status = ?10, is_player = ?11
-         WHERE id = ?12",
+         SET name = ?1, genre = ?2, headline = ?3, backstory = ?4, appearance = ?5,
+             appearance_identity_prompt = ?6, appearance_current_outfit = ?7,
+             appearance_current_pose = ?8, relations = ?9, message_example = ?10,
+             status = ?11, is_player = ?12
+         WHERE id = ?13",
     )
     .bind(&character.name)
+    .bind(&character.genre)
     .bind(&character.headline)
     .bind(&character.backstory)
     .bind(&character.appearance)

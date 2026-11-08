@@ -7,10 +7,10 @@ export component ChatPagePreview inherits ChatPage {
         headline: "A drowned city stirs",
         tone: "grim",
         characters: [
-            { id: "c-1", name: "Mara", headline: "A wary smuggler", status: "present", traits: ["counts the exits before she sits"], tags: ["smuggler", "tide-born"], is-player: false, hue: 40 },
-            { id: "c-2", name: "Old Finn", headline: "Keeper of the vaults", status: "away", traits: [], tags: ["keeper"], is-player: false, hue: 200 },
+            { id: "c-1", name: "Mara", genre: "female", headline: "A wary smuggler", status: "present", traits: ["counts the exits before she sits"], tags: ["smuggler", "tide-born"], is-player: false, hue: 40 },
+            { id: "c-2", name: "Old Finn", genre: "male", headline: "Keeper of the vaults", status: "away", traits: [], tags: ["keeper"], is-player: false, hue: 200 },
         ],
-        player: { id: "p-1", name: "You", headline: "A debt-bound diver", status: "present", traits: [], tags: [], is-player: true, hue: 300 },
+        player: { id: "p-1", name: "You", genre: "male", headline: "A debt-bound diver", status: "present", traits: [], tags: [], is-player: true, hue: 300 },
     };
     act: {
         goal: "Find the drowned king's seal",

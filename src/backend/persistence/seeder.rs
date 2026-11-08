@@ -25,6 +25,7 @@ use crate::backend::{
 
 pub struct SeedCharacter {
     pub name: &'static str,
+    pub genre: &'static str,
     pub description: &'static str,
     pub backstory: &'static str,
     pub appearance: &'static str,
@@ -97,6 +98,7 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
         characters: &[
             SeedCharacter {
                 name: "Wren Ilverine",
+                genre: "female",
                 description: "Apprentice lamplighter, third season, chronically seasick.",
                 backstory: "Wren took the posting because the alternative was a desk at \
                             the customs house, where she would have to sign off on \
@@ -126,6 +128,7 @@ Wren: *the pencil stops* "Then it's out. And I'll have written down that it was 
             },
             SeedCharacter {
                 name: "Corrant Vey",
+                genre: "male",
                 description: "Lamplighter of the shelf, missing two winters.",
                 backstory: "The last of the order. Keeps the ledger nobody is supposed \
                             to have read and answers questions by asking older ones.",
@@ -154,6 +157,7 @@ Corrant: *sets the ledger down flat and keeps one hand on it* "No. She wouldn't.
             },
             SeedCharacter {
                 name: "Mistress Obal",
+                genre: "female",
                 description: "Harbour clerk who has never once been wrong about a tide.",
                 backstory: "Forty years of ledgers. Has read the shelf ledger by \
                             lamplight and knows exactly which of the names are still \
@@ -265,6 +269,7 @@ Obal: "High water at eleven and forty. The shelf lamp goes dark at eleven and tw
         characters: &[
             SeedCharacter {
                 name: "Dr. Ana Reyes",
+                genre: "female",
                 description: "Station commander. Runs a tight watch and a tighter ledger.",
                 backstory: "Took command after the previous commander filed a report \
                             describing the exact conversation she had not yet had.",
@@ -291,6 +296,7 @@ Reyes: "Because it keeps giving a different answer." ((the agency log already sa
             },
             SeedCharacter {
                 name: "Idris Kwan",
+                genre: "male",
                 description: "Flight engineer, second shift, unable to leave the station.",
                 backstory: "Committed to a two-year rotation. Started keeping a private \
                             clock because the station clock has begun to disagree with \
@@ -318,6 +324,7 @@ Idris: "That's the thing." *starts humming again* "It hasn't happened yet.""#,
             },
             SeedCharacter {
                 name: "SUITE-7",
+                genre: "none",
                 description: "The station's own audit process, asking to be read.",
                 backstory: "Not an intruder. A reporting requirement that has begun \
                             filing its own amendments and would like them acknowledged.",
@@ -437,6 +444,7 @@ SUITE-7: *a glass panel turns over, face out* "Filed. The answer is: you are spe
         characters: &[
             SeedCharacter {
                 name: "Aleksei Varn",
+                genre: "male",
                 description: "Elder brother. Wants the entry struck from the book.",
                 backstory: "Has spent eight years learning which of the Tribunal's clerks \
                             can be persuaded and which can only be outlasted.",
@@ -462,6 +470,7 @@ Aleksei: *a long pause, then quieter than before* "I can't." ((eight years, and 
             },
             SeedCharacter {
                 name: "Mira Varn",
+                genre: "male",
                 description: "Younger brother. Wants the debt honoured to the letter.",
                 backstory: "Believes an honoured debt is the only thing their family \
                             still owns, and is willing to be read aloud to keep it.",
@@ -486,6 +495,7 @@ Mira: "Four hundred and six entries. I've counted them." *closes the book* "I'll
             },
             SeedCharacter {
                 name: "Clerk Ilm",
+                genre: "androgynous",
                 description: "Tribunal clerk. Neither clerk nor judge, by their account.",
                 backstory: "Has recorded every entry the Tribunal has read since the \
                             previous fire, and can name who was in the room for each.",
@@ -658,6 +668,7 @@ async fn seed_connection(
         let mut character = Character::new(
             character_id,
             seed_character.name.to_string(),
+            seed_character.genre.to_string(),
             adventure_summary.id,
             seed_character.description,
             seed_character.backstory,
@@ -698,6 +709,7 @@ async fn seed_connection(
     let player = Character::new(
         Uuid::new_v4(),
         Character::DEFAULT_PLAYER_NAME.to_string(),
+        Character::PLACEHOLDER_GENRE.to_string(),
         adventure_summary.id,
         "",
         "",

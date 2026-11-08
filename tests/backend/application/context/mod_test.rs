@@ -387,6 +387,7 @@ fn single_character_prompt_carries_the_voice_examples() {
     let character = Character::new(
         Uuid::new_v4(),
         "Maren".into(),
+        "female".to_string(),
         adventure.id,
         "A lighthouse keeper",
         "",
@@ -420,6 +421,7 @@ fn a_character_without_examples_gets_no_heading() {
     let character = Character::new(
         Uuid::new_v4(),
         "Kael".into(),
+        "female".to_string(),
         adventure.id,
         "A ferryman",
         "",
@@ -447,6 +449,7 @@ fn the_cast_roster_never_renders_voice_examples() {
         Character::new(
             Uuid::new_v4(),
             "Maren".into(),
+            "female".to_string(),
             adventure.id,
             "A lighthouse keeper",
             "",
@@ -507,6 +510,7 @@ fn only_the_last_two_closed_acts_keep_their_digest() {
     let character = Character::new(
         Uuid::new_v4(),
         "Maren".into(),
+        "female".to_string(),
         adventure.id,
         "A lighthouse keeper",
         "",
@@ -631,6 +635,7 @@ fn mara(adventure_id: Uuid) -> Character {
     Character::new(
         Uuid::new_v4(),
         "Mara Venn".to_string(),
+        "female".to_string(),
         adventure_id,
         "A tide-singer",
         "",
@@ -745,6 +750,7 @@ fn composed_prompt_is_none_without_any_visual_source() {
     let character = Character::new(
         Uuid::new_v4(),
         "Nameless".to_string(),
+        "female".to_string(),
         Uuid::new_v4(),
         "",
         "",

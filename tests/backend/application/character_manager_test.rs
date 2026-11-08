@@ -30,6 +30,7 @@ async fn full_pipeline_create_character_persists_to_database_and_shared_state_an
     let character = Character::new(
         Uuid::new_v4(),
         "Mara Venn".to_string(),
+        "female".to_string(),
         adventure.id,
         "A tide-singer",
         "",
@@ -85,6 +86,7 @@ async fn update_character_overwrites_fields_traits_and_tags_in_db_and_state() {
     let mut character = Character::new(
         Uuid::new_v4(),
         "Mara Venn".to_string(),
+        "female".to_string(),
         adventure.id,
         "A tide-singer",
         "",
@@ -161,6 +163,7 @@ async fn create_character_identity_prompt_generates_and_persists_the_prompt() {
     let character = Character::new(
         Uuid::new_v4(),
         "Mara Venn".to_string(),
+        "female".to_string(),
         adventure.id,
         "A tide-singer",
         "",
@@ -213,6 +216,7 @@ async fn create_character_outfit_prompt_uses_messages_and_persists_the_prompt() 
     let character = Character::new(
         Uuid::new_v4(),
         "Mara Venn".to_string(),
+        "female".to_string(),
         adventure.id,
         "A tide-singer",
         "",
@@ -280,6 +284,7 @@ async fn create_character_pose_prompt_uses_messages_and_persists_the_prompt() {
     let character = Character::new(
         Uuid::new_v4(),
         "Mara Venn".to_string(),
+        "female".to_string(),
         adventure.id,
         "A tide-singer",
         "",

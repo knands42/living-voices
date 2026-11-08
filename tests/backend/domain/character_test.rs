@@ -5,6 +5,7 @@ fn new_character() -> Character {
     Character::new(
         Uuid::new_v4(),
         "Maren".to_string(),
+        "female".to_string(),
         Uuid::new_v4(),
         "A lighthouse keeper",
         "",
@@ -37,11 +38,13 @@ fn new_defaults_status_to_present() {
     assert_eq!(CharacterStatus::default().as_str(), "present");
 }
 
+// TODO: Merge all this constructors into a single validation
 #[test]
 fn constructor_sets_backstory() {
     let character = Character::new(
         Uuid::new_v4(),
         "Maren".to_string(),
+        "female".to_string(),
         Uuid::new_v4(),
         "A lighthouse keeper",
         "She kept the lamp lit for forty years.",
@@ -60,6 +63,7 @@ fn constructor_sets_status() {
     let character = Character::new(
         Uuid::new_v4(),
         "Maren".to_string(),
+        "female".to_string(),
         Uuid::new_v4(),
         "A lighthouse keeper",
         "",
@@ -68,6 +72,29 @@ fn constructor_sets_status() {
     );
 
     assert_eq!(character.status, CharacterStatus::Away);
+}
+
+#[test]
+fn constructor_sets_genre() {
+    let character = Character::new(
+        Uuid::new_v4(),
+        "Maren".to_string(),
+        "female".to_string(),
+        Uuid::new_v4(),
+        "A lighthouse keeper",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
+
+    assert_eq!(character.genre, "female");
+}
+
+#[test]
+fn draft_carries_the_placeholder_genre() {
+    let draft = Character::draft(Uuid::new_v4());
+
+    assert_eq!(draft.genre, Character::PLACEHOLDER_GENRE);
 }
 
 #[test]
@@ -133,6 +160,7 @@ fn constructor_sets_is_player() {
     let character = Character::new(
         Uuid::new_v4(),
         "You".to_string(),
+        "female".to_string(),
         Uuid::new_v4(),
         "",
         "",
@@ -148,6 +176,7 @@ fn player_builds_the_default_player_character() {
     let player = Character::new(
         Uuid::new_v4(),
         Character::DEFAULT_PLAYER_NAME.to_string(),
+        "female".to_string(),
         adventure_id,
         "",
         "",
@@ -172,6 +201,7 @@ fn render_includes_name_description_backstory_traits_relations_and_appearance() 
     let mut character = Character::new(
         Uuid::new_v4(),
         "Maren".to_string(),
+        "female".to_string(),
         Uuid::new_v4(),
         "A lighthouse keeper",
         "Kept the lamp lit for forty years.",
