@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::backend::application::character_gallery::CharacterGallery;
 use crate::backend::application::context::{ContextBuilder, ContextBuilderError};
 use crate::backend::application::port::chat_port::{ChatResponseError, PromptPort};
-use crate::backend::application::port::image_port::{ImageError, ImagePort};
+use crate::backend::application::port::image_port::{ImageError, ImagePort, ShotReference};
 use crate::backend::domain::character::ImageFraming;
 use crate::backend::persistence::state_persistence::update_character_presence;
 use crate::backend::{
@@ -259,7 +259,11 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         };
 
         self.image_handler
-            .generate_character_image(&prompt, &destination, reference)
+            .generate_character_image(
+                &prompt,
+                &destination,
+                reference.map(|path| ShotReference { path, framing }),
+            )
             .await?;
 
         log::info!("generated an image of {} at {destination}", character.name);

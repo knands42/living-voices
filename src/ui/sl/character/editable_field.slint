@@ -23,6 +23,38 @@ export component IconButton inherits TouchArea {
     }
 }
 
+// Wrapped prose that takes the height its text needs and scrolls past the cap.
+component ProseText inherits Rectangle {
+    in property <string> value;
+    in property <string> placeholder;
+    in property <length> font-size;
+    in property <string> font-family;
+    in property <color> text-color;
+    in property <TextHorizontalAlignment> text-alignment: left;
+    in property <length> min-view-height: 0px;
+    in property <length> max-view-height: 100000px;
+
+    height: min(max(body.preferred-height, root.min-view-height), root.max-view-height);
+
+    Flickable {
+        width: parent.width;
+        height: parent.height;
+        content-width: self.width;
+        content-height: max(self.height, body.preferred-height);
+
+        body := Text {
+            width: parent.width;
+            text: root.value == "" ? root.placeholder : root.value;
+            color: root.value == "" ? AppTheme.text-muted : root.text-color;
+            font-family: root.font-family;
+            font-size: root.font-size;
+            font-italic: root.value == "";
+            wrap: word-wrap;
+            horizontal-alignment: root.text-alignment;
+        }
+    }
+}
+
 export component EditableField inherits VerticalLayout {
     in property <string> value;
     in property <string> placeholder: "Not set yet";
@@ -32,6 +64,8 @@ export component EditableField inherits VerticalLayout {
     in property <string> font-family: AppTheme.font-body;
     in property <color> text-color: AppTheme.text-light;
     in property <TextHorizontalAlignment> text-alignment: left;
+    in property <length> min-view-height: 0px;
+    in property <length> max-view-height: 100000px;
     callback committed(string);
 
     property <bool> editing: false;
@@ -46,14 +80,15 @@ export component EditableField inherits VerticalLayout {
     if !root.editing: HorizontalLayout {
         spacing: 10px;
 
-        Text {
-            text: root.value == "" ? root.placeholder : root.value;
-            color: root.value == "" ? AppTheme.text-muted : root.text-color;
+        ProseText {
+            value: root.value;
+            placeholder: root.placeholder;
             font-family: root.font-family;
             font-size: root.font-size;
-            font-italic: root.value == "";
-            wrap: word-wrap;
-            horizontal-alignment: root.text-alignment;
+            text-color: root.text-color;
+            text-alignment: root.text-alignment;
+            min-view-height: root.min-view-height;
+            max-view-height: root.max-view-height;
             horizontal-stretch: 1;
         }
 

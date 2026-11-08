@@ -12,6 +12,7 @@ export { CharacterGlobals }
 component InfoCard inherits Rectangle {
     in property <string> caption;
 
+    vertical-stretch: 0;
     background: AppTheme.bg-panel;
     border-radius: AppTheme.radius-card;
     border-width: 1px;
@@ -34,6 +35,8 @@ export component CharacterPage inherits Rectangle {
     in property <CharacterView> character: CharacterGlobals.character;
     in property <bool> can-edit: CharacterGlobals.can-edit;
     callback back-requested();
+
+    property <length> prose-max-height: 260px;
 
     // Every field is saved on its own, so the other values are sent unchanged.
     // The character being edited is whatever the page shows, so no id travels here.
@@ -128,8 +131,9 @@ export component CharacterPage inherits Rectangle {
 
             Flickable {
                 horizontal-stretch: 1;
+                content-height: max(self.height, form.preferred-height);
 
-                VerticalLayout {
+                form := VerticalLayout {
                     alignment: start;
                     spacing: 14px;
 
@@ -164,6 +168,7 @@ export component CharacterPage inherits Rectangle {
                             value: root.character.backstory;
                             can-edit: root.can-edit;
                             multiline: true;
+                            max-view-height: root.prose-max-height;
                             committed(text) => {
                                 root.save(root.character.name, root.character.genre,
                                     root.character.headline, text, root.character.appearance,
@@ -180,6 +185,7 @@ export component CharacterPage inherits Rectangle {
                             can-edit: root.can-edit && !CharacterGlobals.generating-prompts && !CharacterGlobals.generating-image;
                             opacity: CharacterGlobals.generating-prompts ? 0.45 : 1;
                             multiline: true;
+                            max-view-height: root.prose-max-height;
                             committed(text) => {
                                 root.save(root.character.name, root.character.genre,
                                     root.character.headline, root.character.backstory, text,

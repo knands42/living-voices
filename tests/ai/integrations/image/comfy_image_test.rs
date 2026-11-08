@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 
 use living_voices::ai::integrations::image::comfy_image::ComfyImage;
+use living_voices::ai::integrations::image::workflow::WorkflowType;
 use living_voices::backend::application::port::image_port::ImagePort;
-use living_voices::config::{ImageModel, ImageModelWorkflow};
+use living_voices::config::ImageModel;
 
 const COMFYUI_URL: &str = "http://localhost:8188";
 const OUTPUT_DIR: &str = "comfyui/output";
@@ -12,7 +13,7 @@ fn comfy() -> ComfyImage {
         enabled: true,
         backend: "comfyui".to_string(),
         base_url: COMFYUI_URL.to_string(),
-        workflow: ImageModelWorkflow::Qwen,
+        workflow: WorkflowType::Qwen,
         output_dir: PathBuf::from(OUTPUT_DIR),
     })
     .expect("build ComfyUI image handler")

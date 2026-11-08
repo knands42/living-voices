@@ -5,6 +5,8 @@ use std::fs::File;
 use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
 
+use crate::ai::integrations::image::workflow::WorkflowType;
+
 const CONFIG_FILE: &str = "config.toml";
 const DB_FILE: &str = "living_voices.db";
 
@@ -174,20 +176,12 @@ impl MessageThresholdRange {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum ImageModelWorkflow {
-    Qwen,
-    FluxQ4,
-    FluxQ8,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(default)]
 pub struct ImageModel {
     pub enabled: bool,
     pub backend: String,
     pub base_url: String,
-    pub workflow: ImageModelWorkflow,
+    pub workflow: WorkflowType,
     pub output_dir: PathBuf,
 }
 
@@ -197,7 +191,7 @@ impl Default for ImageModel {
             enabled: true,
             backend: "comfyui".to_string(),
             base_url: DEFAULT_IMAGE_MODEL_URL.to_string(),
-            workflow: ImageModelWorkflow::FluxQ8,
+            workflow: WorkflowType::FluxQ8,
             output_dir: base_dir().join(DEFAULT_IMAGE_OUTPUT_DIR),
         }
     }
