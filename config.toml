@@ -26,7 +26,7 @@ keep_alive = "0"
 [models.image]
 backend = "comfyui"
 base_url = "http://localhost:8188"
-workflow = "qwen"
+workflow = "fluxq4"
 output_dir = "comfyui/output"
 
 [memory]

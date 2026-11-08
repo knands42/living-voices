@@ -53,7 +53,7 @@ image-models-all: image-model-flux-q4 image-model-flux-q8 image-model-chroma ima
 image-models:
     curl -sf {{ comfy_url }}/object_info/UnetLoaderGGUF | jq '.UnetLoaderGGUF.input.required.unet_name[0]'
 
-image-test workflow="tests/ai/image-example-flux-q4.json":
+image-test workflow="tests/ai/samples/images/image-example-flux-q4.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"

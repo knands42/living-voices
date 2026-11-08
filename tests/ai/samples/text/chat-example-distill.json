@@ -1,0 +1,134 @@
+{
+  "model": "qwen2.5-7b-memory-distiller.Q4_K_M.gguf",
+  "messages": [
+    {
+      "role": "system",
+      "content": "## DISTILL\nYou are given the memory as it stood (## CONTEXT: PAST ACTS, CURRENT ACT, FACTS as\n\"subject: fact -> permanence\", CURRENT STATE) and the turns since. The memory was\ntrue at its last update; the turns are what happened after.\n\nReturn JSON only, with exactly three fields, describing the memory as it stands NOW —\nnot only the new turns, and not a copy of the old one.\n\n- \"facts\": the complete replacement set of facts true at this moment. KEEP an\n  unchanged fact that still matters, OVERRIDE a changed one under the same \"subject\"\n  (a wound that healed, an ally who turned), ADD what the turns newly establish, DROP\n  a \"plot\" fact once it is resolved or moot. Never drop a \"permanent\" one. The turns\n  beat the memory: emit one version of a fact, never both. Each item is\n  { \"subject\": who or what it is about, verbatim and spelled as before so an update\n    lines up, \"fact\": one short present-tense statement keeping names and numbers\n    verbatim, \"permanence\": \"permanent\" (an identity, a bond, an irreversible change)\n    or \"plot\" (true until the story moves on) }.\n\n- \"state\": the single situation after these turns. Start from CURRENT STATE, change\n  only what moved, carry the rest; never empty a field because the turns were silent.\n  Fields: \"day\" (in-world time, null if never established), \"place\", \"characters_present\"\n  (everyone on scene now, by name), \"open_threads\" (unresolved, short phrases),\n  \"character_conditions\" (each { \"character\", \"note\" } for a named character's body or\n  visible state; nothing about mood or setting).\n\n- \"running_digest\": rewrite THIS ACT SO FAR by folding the existing digest and the new\n  turns into one account of this act. Past tense, a few tight paragraphs, who did what\n  and how threads moved. Only this act: no changelog, no lore, no earlier acts.\n\nRecord only what the memory or the turns establish. Never invent. Prefer a few sharp\nfacts over many vague ones."
+    },
+    {
+      "role": "system",
+      "content": "## CONTEXT\n\n### PAST ACTS\nAct 1\ngoal: Get the party through the flooded pass before the thaw\nstatus: Resolved\ndigest: They took the smuggler's stair at night and lost the pack mule to the water. Mira reached the far side first, with the tollhouse key already in her coat.\n\n### CURRENT ACT\nAct 2\ngoal: Find who sold the party's route to the horn-bearers\nstatus: Active\n\n### THIS ACT SO FAR\nThey came down into Marrow Ford at dusk and took a room at the Salted Hart. Orrin the barkeep asked too many questions about the pass.\n\n### FACTS\n- Mira: carries the gate key she stole from the tollhouse -> permanent\n- Orrin: sold the party's route to the horn-bearers for coin -> plot\n- Kael: lost two fingers of the right hand at the ford -> permanent\n\n### CURRENT STATE\nCurrent state:\n- Day: 3\n- Place: Marrow Ford, the Salted Hart\n- Present: Elara, Kael, Mira\n- Open threads: who paid Orrin, the missing ferryman\n- Conditions: Kael: right hand bound, two fingers lost"
+    },
+    {
+      "role": "user",
+      "content": "Elara: *leans in the doorway, arms folded* \"The gate won't open for us again. Not tonight, not with that horn still ringing.\""
+    },
+    {
+      "role": "user",
+      "content": "Kael: *sets the lantern down between them, eyes on the door* \"Then we go over the wall, and Orrin tells us who paid him before the horn gets here.\""
+    },
+    {
+      "role": "user",
+      "content": "Mira: ((they already knew the route. someone talked, and it was not the mule.))"
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false,
+  "response_format": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "memory_update",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "facts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "subject": {
+                  "type": "string"
+                },
+                "fact": {
+                  "type": "string"
+                },
+                "permanence": {
+                  "type": "string",
+                  "enum": [
+                    "permanent",
+                    "plot"
+                  ]
+                }
+              },
+              "required": [
+                "subject",
+                "fact",
+                "permanence"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "state": {
+            "type": "object",
+            "properties": {
+              "day": {
+                "type": [
+                  "string"
+                ],
+                "default": ""
+              },
+              "place": {
+                "type": [
+                  "string"
+                ],
+                "default": ""
+              },
+              "characters_present": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "open_threads": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "character_conditions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "character": {
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "character",
+                    "note"
+                  ],
+                  "additionalProperties": false
+                },
+                "default": []
+              }
+            },
+            "required": [
+              "day",
+              "place",
+              "characters_present",
+              "open_threads",
+              "character_conditions"
+            ],
+            "additionalProperties": false
+          },
+          "running_digest": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "facts",
+          "state",
+          "running_digest"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "keep_alive": "0"
+}

@@ -14,7 +14,7 @@ video-model-wan:
     test -f {{ comfy_ws }}/models/vae/$(basename {{ wan_vae_url }}) && echo "Wan VAE already present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ wan_vae_url }} --relative-path models/vae
 
 # queue a Wan text-to-video workflow (3s loop); render is slow, poll the output dir
-video-test workflow="tests/ai/video-example-wan.json":
+video-test workflow="tests/ai/samples/video/video-example-wan.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"

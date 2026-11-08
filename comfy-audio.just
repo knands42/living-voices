@@ -13,13 +13,13 @@ audio-model-ace15xl:
     test -f {{ comfy_ws }}/models/text_encoders/$(basename {{ ace15_clip }}) && echo "ACE 1.5 encoder present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ ace15_clip }} --relative-path models/text_encoders
     test -f {{ comfy_ws }}/models/vae/$(basename {{ ace15_vae }}) && echo "ACE 1.5 VAE present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ ace15_vae }} --relative-path models/vae
 
-audio-music-test workflow="tests/ai/audio-example-ace.json":
+audio-music-test workflow="tests/ai/samples/audio/audio-example-ace15xl-song.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
     @echo "Output will be generated at {{ comfy_ws }}/output"
 
-audio-song-test workflow="tests/ai/audio-example-ace15xl-song.json":
+audio-song-test workflow="tests/ai/samples/audio/audio-example-ace15xl-song.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
@@ -37,8 +37,8 @@ audio-f5-node:
     {{ comfy_venv }}/bin/pip install -r {{ f5_node }}/requirements.txt
 
 # queue an F5-TTS speech workflow
-audio-tts-test workflow="tests/ai/audio-example-f5tts.json":
-    cp tests/ai/audio.wav tests/ai/audio.txt {{ comfy_ws }}/input/
+audio-tts-test workflow="tests/ai/samples/audio/audio-example-f5tts.json":
+    cp tests/ai/samples/audio/audio.wav tests/ai/samples/audio/audio.txt {{ comfy_ws }}/input/
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
@@ -59,8 +59,8 @@ audio-index-model:
     test -d {{ index_node }}/checkpoints/qwen0.6bemo4-merge && echo "IndexTTS-2 models already present" || env GIT_LFS_SKIP_SMUDGE=0 {{ comfy_venv }}/bin/hf download IndexTeam/IndexTTS-2 --local-dir {{ index_node }}/checkpoints
 
 # queue an IndexTTS-2 speech workflow (reference voice in ComfyUI/input/)
-audio-index-test workflow="tests/ai/audio-example-index.json":
-    cp tests/ai/audio.wav tests/ai/audio.txt {{ comfy_ws }}/input/
+audio-index-test workflow="tests/ai/samples/audio/audio-example-index.json":
+    cp tests/ai/samples/audio/audio.wav tests/ai/samples/audio/audio.txt {{ comfy_ws }}/input/
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"

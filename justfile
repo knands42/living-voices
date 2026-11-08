@@ -275,9 +275,9 @@ provision: provision-llama provision-comfy
 chat-test:
     time curl -s http://localhost:11435/v1/chat/completions \
         -H 'Content-Type: application/json' \
-        --data-binary @./tests/ai/chat-example.json | jq -r .choices[0].message.content
+        --data-binary @./tests/ai/samples/text/chat-example.json | jq -r .choices[0].message.content
 
-comfy-test workflow="tests/ai/image-example-flux-q4.json":
+comfy-test workflow="tests/ai/samples/images/image-example-flux-q4.json":
     curl -s -X POST {{ comfy_url }}/prompt \
         -H 'Content-Type: application/json' \
         -d "$(jq -c '{prompt: .}' {{ workflow }})"
