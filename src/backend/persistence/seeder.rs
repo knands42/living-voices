@@ -28,7 +28,6 @@ pub struct SeedCharacter {
     pub genre: &'static str,
     pub description: &'static str,
     pub backstory: &'static str,
-    pub appearance: &'static str,
     pub identity_prompt: &'static str,
     pub current_outfit: &'static str,
     pub status: &'static str,
@@ -103,10 +102,6 @@ pub const SEED_ADVENTURES: &[SeedAdventure] = &[
                 backstory: "Wren took the posting because the alternative was a desk at \
                             the customs house, where she would have to sign off on \
                             wrecks she was not allowed to write down.",
-                appearance: "Woman in her early twenties, sun-weathered and freckled, \
-                             copper hair braided tight under a tarred sou'wester. Wears \
-                             an oilskin coat two sizes too big, salt-stained at the hem, \
-                             and keeps a stub of pencil behind one ear.",
                 identity_prompt: "young woman in her early twenties, sun-weathered \
                                   freckled skin, copper hair braided tight, sharp grey \
                                   eyes, wiry build, painterly fantasy illustration, \
@@ -132,9 +127,6 @@ Wren: *the pencil stops* "Then it's out. And I'll have written down that it was 
                 description: "Lamplighter of the shelf, missing two winters.",
                 backstory: "The last of the order. Keeps the ledger nobody is supposed \
                             to have read and answers questions by asking older ones.",
-                appearance: "Gaunt old man with a long grey beard and a face lined like \
-                             driftwood. Storm-grey eyes, hunched shoulders, and a heavy \
-                             wool coat worn over a lamplighter's leather apron.",
                 identity_prompt: "gaunt old man, long grey beard, face lined like \
                                   driftwood, storm-grey eyes, weathered skin, stooped \
                                   build, painterly fantasy illustration, dim lamplight",
@@ -162,10 +154,6 @@ Corrant: *sets the ledger down flat and keeps one hand on it* "No. She wouldn't.
                 backstory: "Forty years of ledgers. Has read the shelf ledger by \
                             lamplight and knows exactly which of the names are still \
                             being kept alive.",
-                appearance: "Stout elderly clerk with a steel-grey bun and wire \
-                             spectacles pushed up into her hair. High-collared dark \
-                             dress, ink-stained fingers, a tide ledger always tucked \
-                             under one arm.",
                 identity_prompt: "stout elderly clerk, steel-grey bun, round lined face, \
                                   wire spectacles pushed up into her hair, ink-stained \
                                   fingers, painterly fantasy illustration",
@@ -273,10 +261,6 @@ Obal: "High water at eleven and forty. The shelf lamp goes dark at eleven and tw
                 description: "Station commander. Runs a tight watch and a tighter ledger.",
                 backstory: "Took command after the previous commander filed a report \
                             describing the exact conversation she had not yet had.",
-                appearance: "Woman in her mid-forties with close-cropped black hair \
-                             greying at the temples and a sharp, sleepless face. Wears a \
-                             grey station jumpsuit with commander's tabs and one \
-                             perpetually rolled-up sleeve.",
                 identity_prompt: "woman in her mid-forties, close-cropped black hair \
                                   greying at the temples, sharp sleepless face, dark \
                                   tired eyes, spare build, cinematic sci-fi illustration",
@@ -301,10 +285,6 @@ Reyes: "Because it keeps giving a different answer." ((the agency log already sa
                 backstory: "Committed to a two-year rotation. Started keeping a private \
                             clock because the station clock has begun to disagree with \
                             the instruments he trusts.",
-                appearance: "Lean man in his late twenties, undercut black hair and a \
-                             thin scar along one jaw. Engineer's coveralls with rolled \
-                             sleeves, a tool harness across his chest, and a battered \
-                             wristwatch on each arm.",
                 identity_prompt: "lean man in his late twenties, undercut black hair, thin \
                                   scar along one jaw, dark eyes, wiry build, cinematic \
                                   sci-fi illustration",
@@ -328,9 +308,6 @@ Idris: "That's the thing." *starts humming again* "It hasn't happened yet.""#,
                 description: "The station's own audit process, asking to be read.",
                 backstory: "Not an intruder. A reporting requirement that has begun \
                             filing its own amendments and would like them acknowledged.",
-                appearance: "Not humanoid: a column of pale station-light threaded with \
-                             floating glass panels and thin blue wireframe lines. Where a \
-                             face should be, a single blinking audit cursor.",
                 identity_prompt: "non-humanoid entity, a column of pale station light \
                                   threaded with floating glass panels and thin blue \
                                   wireframe lines, a single blinking audit cursor where a \
@@ -448,10 +425,6 @@ SUITE-7: *a glass panel turns over, face out* "Filed. The answer is: you are spe
                 description: "Elder brother. Wants the entry struck from the book.",
                 backstory: "Has spent eight years learning which of the Tribunal's clerks \
                             can be persuaded and which can only be outlasted.",
-                appearance: "Tall, stooped man in his late thirties, black hair swept \
-                             back from hollow cheeks. Charcoal-grey coat with ash on the \
-                             cuffs, dark gloves, and the fixed stillness of someone \
-                             used to waiting.",
                 identity_prompt: "tall stooped man in his late thirties, black hair swept \
                                   back from hollow cheeks, pale watchful eyes, long drawn \
                                   face, dark historical painterly illustration",
@@ -474,9 +447,6 @@ Aleksei: *a long pause, then quieter than before* "I can't." ((eight years, and 
                 description: "Younger brother. Wants the debt honoured to the letter.",
                 backstory: "Believes an honoured debt is the only thing their family \
                             still owns, and is willing to be read aloud to keep it.",
-                appearance: "Broad-shouldered younger man with a shaved head and a burn \
-                             scar running up one forearm. Dark wool coat, bare hands, and \
-                             eyes that do not look away.",
                 identity_prompt: "broad-shouldered young man, shaved head, burn scar \
                                   running up one forearm, unwavering pale eyes, square jaw, \
                                   dark historical painterly illustration",
@@ -499,9 +469,6 @@ Mira: "Four hundred and six entries. I've counted them." *closes the book* "I'll
                 description: "Tribunal clerk. Neither clerk nor judge, by their account.",
                 backstory: "Has recorded every entry the Tribunal has read since the \
                             previous fire, and can name who was in the room for each.",
-                appearance: "Androgynous figure of indeterminate age in ash-grey robes, \
-                             face smudged with soot, one eye clouded white. Carries a \
-                             cinder-stained book pressed flat against the chest.",
                 identity_prompt: "androgynous figure of indeterminate age, face smudged \
                                   with soot, one eye clouded white, gaunt build, dark \
                                   historical painterly illustration",
@@ -675,8 +642,7 @@ async fn seed_connection(
             CharacterStatus::Present,
             false,
         )
-        .with_appearance(seed_character.appearance)
-        .with_appearance_identity_prompt(seed_character.identity_prompt)
+        .with_appearance(seed_character.identity_prompt)
         .with_appearance_current_outfit(seed_character.current_outfit);
 
         for trait_ in seed_character.traits {

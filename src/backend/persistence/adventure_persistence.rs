@@ -75,8 +75,8 @@ struct CompleteAdventureRow {
     character_description: String,
     character_backstory: String,
     character_appearance: Option<String>,
-    character_appearance_identity_prompt: Option<String>,
-    character_appearance_current_outfit: Option<String>,
+    character_appearance_current_body: Option<String>,
+    character_appearance_current_outfit: String,
     character_appearance_current_pose: Option<String>,
     character_status: String,
     character_is_player: bool,
@@ -108,7 +108,7 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
             character_description: row.get("character_description"),
             character_backstory: row.get("character_backstory"),
             character_appearance: row.get("character_appearance"),
-            character_appearance_identity_prompt: row.get("character_appearance_identity_prompt"),
+            character_appearance_current_body: row.get("character_appearance_current_body"),
             character_appearance_current_outfit: row.get("character_appearance_current_outfit"),
             character_appearance_current_pose: row.get("character_appearance_current_pose"),
             character_status: row.get("character_status"),
@@ -142,7 +142,7 @@ fn character_from_row(value: &CompleteAdventureRow) -> Result<Character, Persist
         value.character_is_player,
     );
     character.appearance = value.character_appearance.clone();
-    character.appearance_identity_prompt = value.character_appearance_identity_prompt.clone();
+    character.appearance_current_body = value.character_appearance_current_body.clone();
     character.appearance_current_outfit = value.character_appearance_current_outfit.clone();
     character.appearance_current_pose = value.character_appearance_current_pose.clone();
     character.message_example = value.character_message_example.clone();
@@ -252,7 +252,7 @@ SELECT a.id                      AS adventure_id,
        c.headline                AS character_description,
        c.backstory                AS character_backstory,
        c.appearance               AS character_appearance,
-       c.appearance_identity_prompt AS character_appearance_identity_prompt,
+       c.appearance_current_body AS character_appearance_current_body,
        c.appearance_current_outfit AS character_appearance_current_outfit,
        c.appearance_current_pose AS character_appearance_current_pose,
        c.status                   AS character_status,

@@ -38,15 +38,19 @@ export component CharacterPage inherits Rectangle {
 
     property <length> prose-max-height: 260px;
 
-    // Every field is saved on its own, so the other values are sent unchanged.
-    // The character being edited is whatever the page shows, so no id travels here.
-    function save(name: string, genre: string, headline: string, backstory: string, appearance: string, changed-field: ChangedField) {
+    // Every field is saved on its own: `text` replaces the one that was edited, the rest
+    // travel as the page already shows them.
+    function save(text: string, changed-field: ChangedField) {
         CharacterGlobals.save-character({
-            name: name,
-            genre: genre,
-            headline: headline,
-            backstory: backstory,
-            appearance: appearance,
+            name: changed-field == ChangedField.character-name ? text : root.character.name,
+            genre: changed-field == ChangedField.genre ? text : root.character.genre,
+            headline: changed-field == ChangedField.headline ? text : root.character.headline,
+            backstory: changed-field == ChangedField.backstory ? text : root.character.backstory,
+            appearance: changed-field == ChangedField.appearance ? text : root.character.appearance,
+            appearance-current-body: changed-field == ChangedField.appearance-current-body
+                ? text : root.character.appearance-current-body,
+            appearance-current-outfit: changed-field == ChangedField.appearance-current-outfit
+                ? text : root.character.appearance-current-outfit,
         }, changed-field);
     }
 
@@ -121,10 +125,7 @@ export component CharacterPage inherits Rectangle {
                 character: root.character;
                 can-edit: root.can-edit;
                 generating-image: CharacterGlobals.generating-image;
-                name-committed(text) => {
-                    root.save(text, root.character.genre, root.character.headline,
-                        root.character.backstory, root.character.appearance, ChangedField.character-name);
-                }
+                name-committed(text) => { root.save(text, ChangedField.character-name); }
                 tag-added(text) => { CharacterGlobals.add-tag(root.character.id, text); }
                 tag-removed(index) => { CharacterGlobals.remove-tag(root.character.id, index); }
             }
@@ -143,10 +144,7 @@ export component CharacterPage inherits Rectangle {
                             value: root.character.genre;
                             placeholder: "no genre yet";
                             can-edit: root.can-edit;
-                            committed(text) => {
-                                root.save(root.character.name, text, root.character.headline,
-                                    root.character.backstory, root.character.appearance, ChangedField.genre);
-                            }
+                            committed(text) => { root.save(text, ChangedField.genre); }
                         }
                     }
 
@@ -155,10 +153,7 @@ export component CharacterPage inherits Rectangle {
                         EditableField {
                             value: root.character.headline;
                             can-edit: root.can-edit;
-                            committed(text) => {
-                                root.save(root.character.name, root.character.genre, text,
-                                    root.character.backstory, root.character.appearance, ChangedField.headline);
-                            }
+                            committed(text) => { root.save(text, ChangedField.headline); }
                         }
                     }
 
@@ -169,28 +164,46 @@ export component CharacterPage inherits Rectangle {
                             can-edit: root.can-edit;
                             multiline: true;
                             max-view-height: root.prose-max-height;
-                            committed(text) => {
-                                root.save(root.character.name, root.character.genre,
-                                    root.character.headline, text, root.character.appearance,
-                                    ChangedField.backstory);
-                            }
+                            committed(text) => { root.save(text, ChangedField.backstory); }
                         }
                     }
 
                     InfoCard {
-                        caption: "APPEARANCE";
+                        caption: "APPEARANCE · IDENTITY";
                         EditableField {
                             value: root.character.appearance;
-                            placeholder: "Face, hair, build, and what they wear when the story opens";
+                            placeholder: "Face, hair, build and marks, already shaped as an image prompt";
                             can-edit: root.can-edit && !CharacterGlobals.generating-prompts && !CharacterGlobals.generating-image;
                             opacity: CharacterGlobals.generating-prompts ? 0.45 : 1;
                             multiline: true;
                             max-view-height: root.prose-max-height;
-                            committed(text) => {
-                                root.save(root.character.name, root.character.genre,
-                                    root.character.headline, root.character.backstory, text,
-                                    ChangedField.appearance);
-                            }
+                            committed(text) => { root.save(text, ChangedField.appearance); }
+                        }
+                    }
+
+                    if root.character.appearance-current-body != "" : InfoCard {
+                        caption: "CURRENT BODY";
+                        EditableField {
+                            value: root.character.appearance-current-body;
+                            placeholder: "Empty while the story has not changed the identity";
+                            can-edit: root.can-edit && !CharacterGlobals.generating-prompts && !CharacterGlobals.generating-image;
+                            opacity: CharacterGlobals.generating-prompts ? 0.45 : 1;
+                            multiline: true;
+                            max-view-height: root.prose-max-height;
+                            committed(text) => { root.save(text, ChangedField.appearance-current-body); }
+                        }
+                    }
+
+                    InfoCard {
+                        caption: "CURRENT OUTFIT";
+                        EditableField {
+                            value: root.character.appearance-current-outfit;
+                            placeholder: "Oilskin coat two sizes too big, tarred sou'wester";
+                            can-edit: root.can-edit && !CharacterGlobals.generating-prompts && !CharacterGlobals.generating-image;
+                            opacity: CharacterGlobals.generating-prompts ? 0.45 : 1;
+                            multiline: true;
+                            max-view-height: root.prose-max-height;
+                            committed(text) => { root.save(text, ChangedField.appearance-current-outfit); }
                         }
                     }
 

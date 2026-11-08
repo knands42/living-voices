@@ -34,6 +34,8 @@ pub enum ContextBuilderError {
     DatabaseError(#[from] PersistenceError),
     #[error("Missing appearance description")]
     MissingAppearanceDescription,
+    #[error("Missing current outfit")]
+    MissingOutfit,
 }
 
 /// Everything a prompt needs from the store, fetched once by the caller so the

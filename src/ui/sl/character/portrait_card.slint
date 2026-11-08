@@ -149,8 +149,9 @@ export component PortraitCard inherits Rectangle {
             }
 
             PromptRow {
-                label: "Identity";
-                ready: root.character.appearance-identity-prompt != "";
+                label: "Body";
+                ready: root.character.appearance-current-body != ""
+                    || root.character.appearance != "";
             }
 
             PromptRow {

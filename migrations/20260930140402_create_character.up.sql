@@ -7,9 +7,9 @@ CREATE TABLE character
     genre                       TEXT    NOT NULL,
     headline                    TEXT    NOT NULL DEFAULT '',
     backstory                   TEXT    NOT NULL DEFAULT '',
-    appearance                  TEXT    NULL,
-    appearance_identity_prompt  TEXT    NULL,
-    appearance_current_outfit   TEXT    NULL,
+    appearance                  TEXT    NULL, -- the authored identity, prompt-shaped: the image model's ground truth
+    appearance_current_body     TEXT    NULL, -- NULL until the story changes the body; falls back to appearance
+    appearance_current_outfit   TEXT    NOT NULL DEFAULT '',
     appearance_current_pose     TEXT    NULL,
     relations                   TEXT    NOT NULL DEFAULT '[]', -- json: ["Brother of Otho"]
     message_example             TEXT    NULL,                  -- few-shot voice samples, prose

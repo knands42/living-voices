@@ -104,12 +104,16 @@ Testing).
 - **Paths depend on the build profile** (`src/config.rs`): debug reads `config.toml` from the repo
   working dir, release from `$HOME/.living-voice`. `config-local.toml` is gitignored, copied from
   `config.toml` by `just dev-requirements`.
-- **`appearance` is prose** fed to the chat prompt via `Character::render()` (`chat_context.rs`). The
-  image side is three generated fragments split by how often they change:
-  `appearance_identity_prompt` (face/hair/build, never), `appearance_current_outfit` (per scene),
-  `appearance_current_pose` (per beat). Never put clothing or framing in the identity prompt, and
-  never repeat the body in outfit/pose — `ContextBuilder::compose_character_image_prompt`
-  concatenates the layers, so duplicates fight and the model blends the contradiction.
+- **Three appearance layers, each owned by one field.** `appearance` is the authored identity, already
+  shaped as an image fragment (face, hair, build, marks, art direction) — only the original full body
+  is drawn from it, and `Character::render()` feeds `current_look()` to the chat prompt. The layers
+  that age during play are `appearance_current_body` (`None` while the story has not changed the body,
+  so `current_look()` falls back to `appearance`, which is why it can never go stale),
+  `appearance_current_outfit` (never empty: the author supplies it, played scenes rewrite it) and
+  `appearance_current_pose` (per beat). Never put clothing in the body layer or body in outfit/pose —
+  `ContextBuilder::compose_character_image_prompt` concatenates them, so duplicates fight and the
+  model blends the contradiction. A pose shot carries **no** framing clause: the pose decides the
+  frame.
 - **Image backend**: the graphs live in `ai/integrations/image/workflow.rs` and `Workflow` builds
   them, so `comfy_image.rs` only posts what it is given. Two config slots decide which:
   `workflow` draws originals (text-to-image), `reference_workflow` draws every shot that starts from

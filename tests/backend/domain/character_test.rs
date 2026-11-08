@@ -22,8 +22,8 @@ fn new_sets_name_description_and_empty_fields() {
     assert_eq!(character.headline, "A lighthouse keeper");
     assert_eq!(character.backstory, "");
     assert_eq!(character.appearance, None);
-    assert_eq!(character.appearance_identity_prompt, None);
-    assert_eq!(character.appearance_current_outfit, None);
+    assert_eq!(character.appearance_current_body, None);
+    assert_eq!(character.appearance_current_outfit, "");
     assert_eq!(character.appearance_current_pose, None);
     assert!(character.traits.is_empty());
     assert!(character.tags.is_empty());
@@ -338,13 +338,30 @@ fn with_appearance_sets_the_appearance() {
 }
 
 #[test]
-fn with_appearance_identity_prompt_sets_the_identity_prompt() {
+fn with_appearance_current_body_sets_the_body() {
     let character =
-        new_character().with_appearance_identity_prompt("copper hair, grey eyes, wiry build");
+        new_character().with_appearance_current_body("copper hair, grey eyes, wiry build");
 
     assert_eq!(
-        character.appearance_identity_prompt.as_deref(),
+        character.appearance_current_body.as_deref(),
         Some("copper hair, grey eyes, wiry build")
+    );
+}
+
+#[test]
+fn current_look_falls_back_to_the_identity_until_the_body_changes() {
+    let character = new_character().with_appearance("copper hair, grey eyes, wiry build");
+
+    assert_eq!(
+        character.current_body_or_default(),
+        Some("copper hair, grey eyes, wiry build")
+    );
+
+    let changed = character.with_appearance_current_body("copper hair, a fresh scar over one eye");
+
+    assert_eq!(
+        changed.current_body_or_default(),
+        Some("copper hair, a fresh scar over one eye")
     );
 }
 
@@ -354,8 +371,8 @@ fn with_appearance_current_outfit_sets_the_outfit() {
         .with_appearance_current_outfit("oilskin coat two sizes too big, sou'wester");
 
     assert_eq!(
-        character.appearance_current_outfit.as_deref(),
-        Some("oilskin coat two sizes too big, sou'wester")
+        character.appearance_current_outfit,
+        "oilskin coat two sizes too big, sou'wester"
     );
 }
 

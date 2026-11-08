@@ -153,7 +153,7 @@ async fn update_character_overwrites_fields_traits_and_tags_in_db_and_state() {
 
 #[tokio::test]
 #[ignore = "requires a running Ollama server"]
-async fn create_character_identity_prompt_generates_and_persists_the_prompt() {
+async fn create_character_body_prompt_generates_and_persists_the_prompt() {
     let (manager, state, _db, pool) = new_integration_manager().await;
     let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
     let adventure = adventure_manager
@@ -174,12 +174,14 @@ async fn create_character_identity_prompt_generates_and_persists_the_prompt() {
 
     manager.create_character(character.clone()).await.unwrap();
     manager
-        .create_character_identity_prompt(&character)
+        .create_character_body_prompt(&character)
         .await
         .unwrap();
 
+    // Nothing has happened to the body yet, so the prompt either restates the identity
+    // (stored as no change) or returns a body; neither may be blank.
     let stored: Option<String> =
-        sqlx::query_scalar("SELECT appearance_identity_prompt FROM character WHERE id = ?1")
+        sqlx::query_scalar("SELECT appearance_current_body FROM character WHERE id = ?1")
             .bind(character.id.to_string())
             .fetch_one(&pool)
             .await
@@ -187,8 +189,8 @@ async fn create_character_identity_prompt_generates_and_persists_the_prompt() {
     assert!(
         stored
             .as_deref()
-            .is_some_and(|prompt| !prompt.trim().is_empty()),
-        "identity prompt was not persisted"
+            .is_none_or(|prompt| !prompt.trim().is_empty()),
+        "body prompt was persisted blank"
     );
 
     let stored_character = stored_npcs(&state)
@@ -197,10 +199,10 @@ async fn create_character_identity_prompt_generates_and_persists_the_prompt() {
         .expect("character in state");
     assert!(
         stored_character
-            .appearance_identity_prompt
+            .appearance_current_body
             .as_deref()
-            .is_some_and(|prompt| !prompt.trim().is_empty()),
-        "identity prompt was not written to state"
+            .is_none_or(|prompt| !prompt.trim().is_empty()),
+        "body prompt was written to state blank"
     );
 }
 
@@ -223,7 +225,8 @@ async fn create_character_outfit_prompt_uses_messages_and_persists_the_prompt() 
         CharacterStatus::Present,
         false,
     )
-    .with_appearance("Copper hair, a salt-stained coat, grey eyes");
+    .with_appearance("Copper hair, a salt-stained coat, grey eyes")
+    .with_appearance_current_outfit("salt-stained oilskin coat, sou'wester");
 
     manager.create_character(character.clone()).await.unwrap();
 
@@ -246,28 +249,20 @@ async fn create_character_outfit_prompt_uses_messages_and_persists_the_prompt() 
         .await
         .unwrap();
 
-    let stored: Option<String> =
+    let stored: String =
         sqlx::query_scalar("SELECT appearance_current_outfit FROM character WHERE id = ?1")
             .bind(character.id.to_string())
             .fetch_one(&pool)
             .await
             .expect("query character");
-    assert!(
-        stored
-            .as_deref()
-            .is_some_and(|prompt| !prompt.trim().is_empty()),
-        "outfit prompt was not persisted"
-    );
+    assert!(!stored.trim().is_empty(), "outfit prompt was not persisted");
 
     let stored_character = stored_npcs(&state)
         .into_iter()
         .find(|stored| stored.id == character.id)
         .expect("character in state");
     assert!(
-        stored_character
-            .appearance_current_outfit
-            .as_deref()
-            .is_some_and(|prompt| !prompt.trim().is_empty()),
+        !stored_character.appearance_current_outfit.trim().is_empty(),
         "outfit prompt was not written to state"
     );
 }

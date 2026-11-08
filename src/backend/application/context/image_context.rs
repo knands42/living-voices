@@ -1,5 +1,5 @@
 use crate::backend::application::context::prompts::{
-    CHAR_FULL_BODY_FRAMING, CHAR_IDENTITY_PROMPT, CHAR_OUTFIT_PROMPT, CHAR_PORTRAIT_FRAMING,
+    CHAR_CURRENT_BODY_PROMPT, CHAR_FULL_BODY_FRAMING, CHAR_OUTFIT_PROMPT, CHAR_PORTRAIT_FRAMING,
     CHAR_POSE_BODY_PROMPT,
 };
 use crate::backend::application::context::{CastTurn, ContextBuilder, ContextBuilderError};
@@ -12,25 +12,27 @@ use crate::backend::domain::message::Message;
 // ----------------------------------------------------------------------------
 // Image prompt building
 //
-// A character image prompt is three layers that age at different speeds:
-// identity (never), outfit (per scene) and pose (per beat). Each has its own
-// model call and its own slot on the character; only `compose_character_image_prompt`
-// knows how they fit together, so asking for a different shot never re-runs a model.
+// A character image prompt is three layers that age at different speeds: the body
+// (per act, and never when nothing changed), outfit (per scene) and pose (per beat).
+// Each has its own model call and its own slot on the character; only
+// `compose_character_image_prompt` knows how they fit together, so asking for a
+// different shot never re-runs a model.
 // ----------------------------------------------------------------------------
 impl ContextBuilder {
-    pub fn build_identity_char_prompt(
+    pub fn build_current_body_prompt(
         adventure: &Adventure,
         character: &Character,
         character_conditions: Vec<CharacterCondition>,
+        uncovered_messages: &[Message],
     ) -> Result<Vec<PromptTurn>, ContextBuilderError> {
-        if let Some(appearance) = &character.appearance {
+        if let Some(identity) = &character.appearance {
             return Self::build_character_prompt(
-                CHAR_IDENTITY_PROMPT,
+                CHAR_CURRENT_BODY_PROMPT,
                 adventure,
                 character.name.as_str(),
                 character_conditions,
-                appearance,
-                &[],
+                identity,
+                uncovered_messages,
             );
         }
 
@@ -43,18 +45,18 @@ impl ContextBuilder {
         character_conditions: Vec<CharacterCondition>,
         uncovered_messages: &[Message],
     ) -> Result<Vec<PromptTurn>, ContextBuilderError> {
-        if let Some(appearance) = &character.appearance {
+        if !character.appearance_current_outfit.is_empty() {
             return Self::build_character_prompt(
                 CHAR_OUTFIT_PROMPT,
                 adventure,
                 character.name.as_str(),
                 character_conditions,
-                appearance,
+                &character.appearance_current_outfit,
                 uncovered_messages,
             );
         }
 
-        Err(ContextBuilderError::MissingAppearanceDescription)
+        Err(ContextBuilderError::MissingOutfit)
     }
 
     pub fn build_pose_body_prompt(
@@ -63,37 +65,45 @@ impl ContextBuilder {
         character_conditions: Vec<CharacterCondition>,
         uncovered_messages: &[Message],
     ) -> Result<Vec<PromptTurn>, ContextBuilderError> {
-        if let Some(appearance) = &character.appearance {
-            return Self::build_character_prompt(
-                CHAR_POSE_BODY_PROMPT,
-                adventure,
-                character.name.as_str(),
-                character_conditions,
-                appearance,
-                uncovered_messages,
-            );
-        }
+        let Some(look) = character.current_body_or_default() else {
+            return Err(ContextBuilderError::MissingAppearanceDescription);
+        };
+        let current_look = format!("{look}, {}", character.appearance_current_outfit);
 
-        Err(ContextBuilderError::MissingAppearanceDescription)
+        Self::build_character_prompt(
+            CHAR_POSE_BODY_PROMPT,
+            adventure,
+            character.name.as_str(),
+            character_conditions,
+            &current_look,
+            uncovered_messages,
+        )
     }
 
-    /// The finished prompt for an image model + the framing the caller asked for
+    /// The finished prompt for an image model + the framing the caller asked for. The
+    /// original shot is drawn from the identity; every derived shot is drawn from the
+    /// body the story left, so a wound earned in act two survives into the pose.
     pub fn compose_character_image_prompt(
         character: &Character,
         framing: ImageFraming,
     ) -> Option<String> {
-        let Some(identity) = character.image_identity() else {
-            return None;
-        };
+        let look = match framing {
+            ImageFraming::FullBody => character.identity(),
+            ImageFraming::Portrait | ImageFraming::FullBodyPose => {
+                character.current_body_or_default()
+            }
+        }?;
 
-        let framing_clause = match framing {
-            ImageFraming::Portrait => CHAR_PORTRAIT_FRAMING,
-            ImageFraming::FullBody => CHAR_FULL_BODY_FRAMING,
-            ImageFraming::FullBodyPose => CHAR_FULL_BODY_FRAMING,
-        };
+        let mut layers = Vec::with_capacity(4);
+        match framing {
+            ImageFraming::Portrait => layers.push(CHAR_PORTRAIT_FRAMING),
+            ImageFraming::FullBody => layers.push(CHAR_FULL_BODY_FRAMING),
+            ImageFraming::FullBodyPose => {}
+        }
+        layers.push(look);
 
-        let mut layers = vec![framing_clause, identity];
-        if let Some(outfit) = character.appearance_current_outfit.as_deref() {
+        let outfit = character.appearance_current_outfit.trim();
+        if !outfit.is_empty() {
             layers.push(outfit);
         }
         if framing == ImageFraming::FullBodyPose
@@ -117,16 +127,15 @@ impl ContextBuilder {
         adventure: &Adventure,
         character_name: &str,
         character_conditions: Vec<CharacterCondition>,
-        appearance: &str,
+        look: &str,
         uncovered_messages: &[Message],
     ) -> Result<Vec<PromptTurn>, ContextBuilderError> {
         let mut subject = vec![format!("## {}", character_name)];
         let mut messages_content: Vec<PromptTurn> = Vec::with_capacity(uncovered_messages.len());
 
-        // Appearance info
-        if !appearance.is_empty() {
-            subject.push("### Character Appearance".to_string());
-            subject.push(appearance.to_string());
+        if !look.is_empty() {
+            subject.push("### Character Look".to_string());
+            subject.push(look.to_string());
         }
         if !character_conditions.is_empty() {
             subject.push("### Character Conditions".to_string());

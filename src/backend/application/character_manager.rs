@@ -18,8 +18,8 @@ use crate::backend::{
     domain::memory::CharacterCondition,
     persistence::adventure_persistence::get_adventure,
     persistence::characters_persistence::{
-        insert_character, update_appearance_current_outfit, update_appearance_current_pose,
-        update_appearance_identity_prompt, update_character,
+        insert_character, update_appearance_current_body, update_appearance_current_outfit,
+        update_appearance_current_pose, update_character,
     },
     persistence::message_persistence::fetch_last_n,
     persistence::state_persistence::get_state,
@@ -41,7 +41,7 @@ pub enum CharacterManagerError {
 
 #[derive(Clone, Copy)]
 enum ImagePromptKind {
-    Identity,
+    Body,
     Outfit,
     Pose,
 }
@@ -49,7 +49,7 @@ enum ImagePromptKind {
 impl ImagePromptKind {
     fn label(self) -> &'static str {
         match self {
-            ImagePromptKind::Identity => "identity",
+            ImagePromptKind::Body => "body",
             ImagePromptKind::Outfit => "outfit",
             ImagePromptKind::Pose => "pose",
         }
@@ -156,11 +156,11 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         Ok(())
     }
 
-    pub async fn create_character_identity_prompt(
+    pub async fn create_character_body_prompt(
         &self,
         character: &Character,
     ) -> Result<(), CharacterManagerError> {
-        self.create_character_image_prompt(character, ImagePromptKind::Identity)
+        self.create_character_image_prompt(character, ImagePromptKind::Body)
             .await
     }
 
@@ -289,8 +289,11 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
             .unwrap_or_default();
 
         let prompt = match kind {
-            ImagePromptKind::Identity => {
-                ContextBuilder::build_identity_char_prompt(&adventure, character, conditions)?
+            ImagePromptKind::Body => {
+                let messages = fetch_last_n(&mut conn, character.adventure_id, 50).await?;
+                ContextBuilder::build_current_body_prompt(
+                    &adventure, character, conditions, &messages,
+                )?
             }
             ImagePromptKind::Outfit => {
                 let messages = fetch_last_n(&mut conn, character.adventure_id, 50).await?;
@@ -319,9 +322,13 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
 
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         match kind {
-            ImagePromptKind::Identity => {
-                update_appearance_identity_prompt(&mut conn, character.id, &generated_prompt)
-                    .await?
+            ImagePromptKind::Body => {
+                update_appearance_current_body(
+                    &mut conn,
+                    character.id,
+                    body_change(character, &generated_prompt).as_deref(),
+                )
+                .await?
             }
             ImagePromptKind::Outfit => {
                 update_appearance_current_outfit(&mut conn, character.id, &generated_prompt).await?
@@ -375,11 +382,19 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
     }
 }
 
+/// A body prompt that only restates the identity means the story changed nothing, so the
+/// slot stays empty and `current_look` answers with the identity instead.
+fn body_change(character: &Character, prompt: &str) -> Option<String> {
+    let generated = prompt.trim();
+    let identity = character.identity().unwrap_or_default().trim();
+
+    (!generated.is_empty() && generated != identity).then(|| generated.to_string())
+}
+
 fn set_image_prompt(character: &mut Character, kind: ImagePromptKind, prompt: &str) {
-    let slot = match kind {
-        ImagePromptKind::Identity => &mut character.appearance_identity_prompt,
-        ImagePromptKind::Outfit => &mut character.appearance_current_outfit,
-        ImagePromptKind::Pose => &mut character.appearance_current_pose,
-    };
-    *slot = Some(prompt.to_string());
+    match kind {
+        ImagePromptKind::Body => character.appearance_current_body = body_change(character, prompt),
+        ImagePromptKind::Outfit => character.appearance_current_outfit = prompt.to_string(),
+        ImagePromptKind::Pose => character.appearance_current_pose = Some(prompt.to_string()),
+    }
 }

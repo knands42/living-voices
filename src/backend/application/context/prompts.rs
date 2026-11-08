@@ -236,48 +236,51 @@ Dawn is grey and slow. The fire burns down to embers; nobody has suggested sleep
 Somewhere down the slope, the horses stamp twice, then go quiet.
 "#;
 
-// The three character image prompts are fragments, not finished prompts: each owns a
-// single layer that changes at its own pace, and `ContextBuilder::compose_character_image_prompt`
-// stitches them together. Identity is the only layer that describes the body itself;
-// outfit and pose are appended beside it, so they must never repeat face, hair or
-// build — duplicated layers fight and the model blends the contradiction instead of
-// choosing one.
+// The character image prompts are fragments, not finished prompts: each owns a layer
+// that changes at its own pace, and `ContextBuilder::compose_character_image_prompt`
+// stitches them together. `appearance` is the authored identity and only the original
+// shot is drawn from it; `appearance_current_body` is that identity as the story has
+// left it, and every derived shot is drawn from it instead. Outfit and pose are
+// appended beside the look, so they must never repeat face, hair or build — duplicated
+// layers fight and the model blends the contradiction instead of choosing one.
 
-pub(crate) const CHAR_IDENTITY_PROMPT: &str = r#"## CHARACTER IDENTITY
-Describe ONLY the permanent, recognisable look of the single SUBJECT character
-below, as a reference fragment for an image model. Write one dense block of
-comma-separated visual phrases, not prose and not dialogue.
+pub(crate) const CHAR_CURRENT_BODY_PROMPT: &str = r#"## CHARACTER CURRENT BODY
+Describe the single SUBJECT character's body as it stands at the current moment, as a
+reference fragment for an image model. Write one dense block of comma-separated visual
+phrases, not prose and not dialogue.
 
-Cover, when known: build, age, proportions, face and complexion, eyes, hair,
-distinguishing marks, scars, and how the features sit together. Ground the look in
-the STYLE (tone and setting) so the character fits the world, and close with the
-art direction the story calls for.
+The SUBJECT starts from an IDENTITY: the permanent look — build, age, proportions,
+face and complexion, eyes, hair, distinguishing marks, scars. Carry that identity over
+intact, then fold in only what the CHARACTER CONDITIONS and CHARACTER MESSAGES have
+done to it: a wound, a scar earned since, mud or blood, exhaustion, a haircut, a
+sunburn, days without washing. The identity is the character; the conditions are what
+the story did to them.
 
-This is the character's identity, not a scene: never describe clothing, footwear,
-armour, an outfit, a pose, an action, a background or a camera framing — those are
-supplied separately and appended to your output. A single permanent accessory the
-description calls inseparable from the character (spectacles, a ring they never
-remove) may be named. Never invent plot, never name other characters, never write
-text to render in the image. If a detail is unknown, leave it out rather than
-guessing."#;
+If nothing in the conditions or messages changes the body, repeat the identity
+verbatim and add nothing.
+
+Never describe clothing, footwear, armour, an outfit, a pose, an action, a background
+or a camera framing — those are supplied separately and appended to your output. A
+single permanent accessory the description calls inseparable from the character
+(spectacles, a ring they never remove) may be named. Never invent plot, never name
+other characters, never write text to render in the image. If a detail is unknown,
+leave it out rather than guessing."#;
 
 pub(crate) const CHAR_OUTFIT_PROMPT: &str = r#"## CHARACTER CURRENT OUTFIT
 Describe ONLY what the single SUBJECT character is wearing and carrying at the
 current moment, as a fragment for an image model. Write one dense block of
 comma-separated visual phrases, not prose and not dialogue.
 
-Read the CHARACTER MESSAGES and CHARACTER CONDITIONS for the current clothing:
-garments, layers, colours and fabrics, footwear, belts, armour, and the gear the
-character holds, wears or has set down. Account for what the story has done to it —
-soaked, torn, bloodied, mud-stained, borrowed, stripped of a cloak. Keep the outfit
-plausible for the STYLE (tone and setting), and keep the outfit the character
-already had when the messages show no change of clothing.
+Start from the OUTFIT the character already had, then read the CHARACTER MESSAGES and
+CHARACTER CONDITIONS for what has happened to it: garments, layers, colours and
+fabrics, footwear, belts, armour, and the gear the character holds, wears or has set
+down — soaked, torn, bloodied, mud-stained, borrowed, stripped of a cloak, changed
+for the weather or for sleep. When the messages show no change of clothing, keep the
+outfit the character already had.
 
 Say nothing about the character's face, hair, body, build, pose, action, background
-or art direction — those come from elsewhere and are appended to your output. If
-nothing is known yet, keep it neutral: a plain outfit that fits the setting and
-reveals nothing new. Never invent plot, never name other characters, never write
-text to render in the image."#;
+or art direction — those come from elsewhere and are appended to your output. Never
+invent plot, never name other characters, never write text to render in the image."#;
 
 pub(crate) const CHAR_POSE_BODY_PROMPT: &str = r#"## CHARACTER CURRENT POSE
 Describe ONLY the visible pose and action of the single SUBJECT character below, as
@@ -287,18 +290,19 @@ phrases, not prose and not dialogue.
 Read the CHARACTER MESSAGES to find what the SUBJECT is doing at the current
 moment, then capture that single instant: the body position, the action in
 progress, the angle of the head and torso, where the hands and arms are, and the
-stance or movement. Keep the character's known build and conditions consistent with
-the SUBJECT.
+stance or movement. The CURRENT BODY and CURRENT OUTFIT are given to you: move them,
+never restate them. Never contradict a wound or a ruined garment they describe.
 
-Say nothing about the character's face, hair, hair colour, clothing, gear,
-background or art direction — those come from elsewhere and are appended to your
-output. Never invent an action the messages do not support, never write dialogue,
-never name or depict other characters, and never write text to render in the image.
-If the exact pose is unclear, choose the most plausible pose that fits the visible
-action without adding plot."#;
+Say nothing about the character's face, hair, hair colour, clothing, gear, body
+build, background or art direction — those come from elsewhere and are appended to
+your output. Never invent an action the messages do not support, never write
+dialogue, never name or depict other characters, and never write text to render in
+the image. If the exact pose is unclear, choose the most plausible pose that fits the
+visible action without adding plot."#;
 
 // Camera framing, chosen at image time — the one part of a character image that
-// depends on what the caller asked for rather than on who the character is.
+// depends on what the caller asked for rather than on who the character is. A pose
+// shot has no framing: the pose itself decides the frame.
 pub(crate) const CHAR_PORTRAIT_FRAMING: &str = "head and shoulders portrait, chest-up framing";
 pub(crate) const CHAR_FULL_BODY_FRAMING: &str =
     "full body, head to toe, whole figure visible, neutral stance";

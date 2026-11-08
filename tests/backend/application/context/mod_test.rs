@@ -643,6 +643,7 @@ fn mara(adventure_id: Uuid) -> Character {
         false,
     )
     .with_appearance("Copper hair, grey eyes, a salt-stained coat")
+    .with_appearance_current_outfit("grease-stained apron over a linen shirt")
 }
 
 fn joined(turns: &[PromptTurn]) -> String {
@@ -654,7 +655,7 @@ fn joined(turns: &[PromptTurn]) -> String {
 }
 
 #[tokio::test]
-async fn identity_prompt_asks_for_identity_only_and_hands_over_the_author_description() {
+async fn body_prompt_hands_over_the_author_identity() {
     let (pool, _db) = setup_db().await;
     let state = SharedState::new();
     let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
@@ -663,11 +664,11 @@ async fn identity_prompt_asks_for_identity_only_and_hands_over_the_author_descri
         .expect("adventure to exist on the snapshot");
     let character = mara(adventure.id);
 
-    let turns = ContextBuilder::build_identity_char_prompt(&adventure, &character, vec![])
-        .expect("identity prompt");
+    let turns = ContextBuilder::build_current_body_prompt(&adventure, &character, vec![], &[])
+        .expect("body prompt");
     let prompt = joined(&turns);
 
-    assert!(turns[0].text.contains("## CHARACTER IDENTITY"));
+    assert!(turns[0].text.contains("## CHARACTER CURRENT BODY"));
     assert!(prompt.contains("Mara Venn"));
     assert!(prompt.contains("Copper hair, grey eyes, a salt-stained coat"));
     // Identity never frames the shot: framing is decided when the image is asked for.
@@ -701,9 +702,9 @@ async fn outfit_prompt_carries_the_scene_messages() {
 }
 
 #[test]
-fn composed_prompt_stacks_framing_identity_outfit_and_pose() {
-    let mut character = mara(Uuid::new_v4())
-        .with_appearance_identity_prompt("copper hair, grey eyes, wiry build")
+fn composed_prompt_stacks_the_layers_each_framing_carries() {
+    let character = mara(Uuid::new_v4())
+        .with_appearance_current_body("copper hair, grey eyes, a fresh scar over one eye")
         .with_appearance_current_outfit("oilskin coat two sizes too big")
         .with_appearance_current_pose("reaching up to trim the lamp wick");
 
@@ -711,32 +712,33 @@ fn composed_prompt_stacks_framing_identity_outfit_and_pose() {
         ContextBuilder::compose_character_image_prompt(&character, ImageFraming::FullBodyPose)
             .expect("composed prompt");
 
-    assert!(pose.starts_with("full body"));
-    assert!(pose.contains("copper hair, grey eyes, wiry build"));
+    // A pose has no framing clause: the pose itself decides the frame.
+    assert!(!pose.starts_with("full body"));
+    assert!(pose.contains("copper hair, grey eyes, a fresh scar over one eye"));
     assert!(pose.contains("oilskin coat two sizes too big"));
     assert!(pose.contains("reaching up to trim the lamp wick"));
 
+    // The original is drawn from the authored identity, never from the changed body.
     let full_body =
         ContextBuilder::compose_character_image_prompt(&character, ImageFraming::FullBody)
             .expect("composed prompt");
 
     assert!(full_body.starts_with("full body"));
-    assert!(full_body.contains("oilskin coat two sizes too big"));
+    assert!(full_body.contains("Copper hair, grey eyes, a salt-stained coat"));
+    assert!(!full_body.contains("a fresh scar over one eye"));
     assert!(!full_body.contains("reaching up to trim the lamp wick"));
 
-    // The pose layer describes a whole-body action, so a portrait drops it.
-    character.appearance_current_pose = Some("reaching up to trim the lamp wick".into());
     let portrait =
         ContextBuilder::compose_character_image_prompt(&character, ImageFraming::Portrait)
             .expect("composed prompt");
 
     assert!(portrait.starts_with("head and shoulders portrait"));
-    assert!(portrait.contains("oilskin coat two sizes too big"));
+    assert!(portrait.contains("a fresh scar over one eye"));
     assert!(!portrait.contains("reaching up to trim the lamp wick"));
 }
 
 #[test]
-fn composed_prompt_falls_back_to_the_author_description() {
+fn composed_prompt_falls_back_to_the_author_identity_when_the_body_is_unchanged() {
     let character = mara(Uuid::new_v4());
 
     let prompt = ContextBuilder::compose_character_image_prompt(&character, ImageFraming::Portrait)

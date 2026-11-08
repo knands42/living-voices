@@ -76,12 +76,13 @@ pub struct Character {
     pub relations: Vec<String>, // Son of Dragoon
     pub message_example: Option<String>,
 
-    /// Used for a "poetic" description of the character
+    /// The authored identity, prompt-shaped: face, hair, build and marks, without
+    /// clothing or pose. Everything else is derived from it.
     pub appearance: Option<String>,
-    /// Face, hair, build and marks: who the character is, without clothing or pose.
-    pub appearance_identity_prompt: Option<String>,
+    /// Identity as the story has left it. `None` means nothing has changed it.
+    pub appearance_current_body: Option<String>,
     /// What the character wears right now, kept apart from identity so it can change.
-    pub appearance_current_outfit: Option<String>,
+    pub appearance_current_outfit: String,
     /// The pose and action of the current moment.
     pub appearance_current_pose: Option<String>,
 }
@@ -109,8 +110,8 @@ impl Character {
             headline: headline.into(),
             backstory: backstory.into(),
             appearance: None,
-            appearance_identity_prompt: None,
-            appearance_current_outfit: None,
+            appearance_current_body: None,
+            appearance_current_outfit: String::new(),
             appearance_current_pose: None,
             status,
             is_player,
@@ -147,11 +148,11 @@ impl Character {
         self
     }
 
-    pub fn with_appearance_identity_prompt(
+    pub fn with_appearance_current_body(
         mut self,
-        appearance_identity_prompt: impl Into<String>,
+        appearance_current_body: impl Into<String>,
     ) -> Self {
-        self.appearance_identity_prompt = Some(appearance_identity_prompt.into());
+        self.appearance_current_body = Some(appearance_current_body.into());
         self
     }
 
@@ -159,7 +160,7 @@ impl Character {
         mut self,
         appearance_current_outfit: impl Into<String>,
     ) -> Self {
-        self.appearance_current_outfit = Some(appearance_current_outfit.into());
+        self.appearance_current_outfit = appearance_current_outfit.into();
         self
     }
 
@@ -192,11 +193,13 @@ impl Character {
         self
     }
 
-    /// The visual source an image prompt is built from.
-    pub fn image_identity(&self) -> Option<&str> {
-        self.appearance_identity_prompt
-            .as_deref()
-            .or(self.appearance.as_deref())
+    /// The identity an original shot is drawn from.
+    pub fn identity(&self) -> Option<&str> {
+        self.appearance.as_deref()
+    }
+
+    pub fn current_body_or_default(&self) -> Option<&str> {
+        self.appearance_current_body.as_deref().or(self.identity())
     }
 
     pub fn render(&self) -> String {
@@ -219,11 +222,8 @@ impl Character {
         if let Some(section) = render_list("*Relations*", &self.relations) {
             lines.push(section);
         }
-        if let Some(appearance) = &self.appearance {
-            lines.push(format!(
-                "*Appearance*: {}.",
-                appearance.trim_end_matches(".")
-            ));
+        if let Some(look) = self.current_body_or_default() {
+            lines.push(format!("*Appearance*: {}.", look.trim_end_matches(".")));
         }
 
         lines.join("\n")

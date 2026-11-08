@@ -5,8 +5,8 @@ use crate::backend::application::helper::setup_db;
 use living_voices::backend::domain::character::{Character, CharacterStatus};
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::persistence::characters_persistence::{
-    insert_character, update_appearance_current_outfit, update_appearance_current_pose,
-    update_appearance_identity_prompt, update_character,
+    insert_character, update_appearance_current_body, update_appearance_current_outfit,
+    update_appearance_current_pose, update_character,
 };
 
 async fn setup_adventure(pool: &SqlitePool) -> Uuid {
@@ -269,9 +269,9 @@ async fn update_appearance_prompts_writes_each_column() {
         .await
         .expect("insert");
 
-    update_appearance_identity_prompt(&mut conn, character.id, "identity prompt")
+    update_appearance_current_body(&mut conn, character.id, Some("current body"))
         .await
-        .expect("update identity prompt");
+        .expect("update current body");
     update_appearance_current_outfit(&mut conn, character.id, "outfit prompt")
         .await
         .expect("update outfit prompt");
@@ -279,18 +279,17 @@ async fn update_appearance_prompts_writes_each_column() {
         .await
         .expect("update pose prompt");
 
-    let (identity, outfit, pose): (Option<String>, Option<String>, Option<String>) =
-        sqlx::query_as(
-            "SELECT appearance_identity_prompt, appearance_current_outfit,
+    let (body, outfit, pose): (Option<String>, String, Option<String>) = sqlx::query_as(
+        "SELECT appearance_current_body, appearance_current_outfit,
                     appearance_current_pose
              FROM character WHERE id = ?1",
-        )
-        .bind(character.id.to_string())
-        .fetch_one(&pool)
-        .await
-        .expect("query character");
+    )
+    .bind(character.id.to_string())
+    .fetch_one(&pool)
+    .await
+    .expect("query character");
 
-    assert_eq!(identity.as_deref(), Some("identity prompt"));
-    assert_eq!(outfit.as_deref(), Some("outfit prompt"));
+    assert_eq!(body.as_deref(), Some("current body"));
+    assert_eq!(outfit, "outfit prompt");
     assert_eq!(pose.as_deref(), Some("pose prompt"));
 }

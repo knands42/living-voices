@@ -130,7 +130,7 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> CharacterP
             };
 
             let (identity, outfit) = tokio::join!(
-                env.characters.create_character_identity_prompt(&character),
+                env.characters.create_character_body_prompt(&character),
                 env.characters.create_character_outfit_prompt(&character),
             );
 
@@ -295,12 +295,17 @@ fn register_edit<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static
                 return Err(CharacterPageError::Invalid("character name"));
             }
             let appearance = input.appearance.trim();
+            let current_body = input.appearance_current_body.trim();
 
             character.name = name.to_string();
             character.genre = input.genre.trim().to_string();
             character.headline = input.headline.trim().to_string();
             character.backstory = input.backstory.trim().to_string();
             character.appearance = (!appearance.is_empty()).then(|| appearance.to_string());
+            character.appearance_current_body =
+                (!current_body.is_empty()).then(|| current_body.to_string());
+            character.appearance_current_outfit =
+                input.appearance_current_outfit.trim().to_string();
             Ok(())
         });
 
