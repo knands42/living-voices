@@ -4,6 +4,7 @@ use crate::app::DefaultContext;
 use crate::ui::callbacks::register::register_callbacks;
 
 pub mod callbacks;
+pub mod notice;
 pub mod viewmodels;
 mod window;
 

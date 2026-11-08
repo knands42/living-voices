@@ -8,7 +8,7 @@ use crate::backend::domain::memory::Act;
 use crate::backend::domain::message::Message;
 use crate::ui::callbacks::parse_id;
 use crate::ui::{
-    ActInputView, BuilderGlobals, MainGlobals, RootWindow, StoryInputView, viewmodels,
+    ActInputView, BuilderGlobals, MainGlobals, RootWindow, StoryInputView, notice, viewmodels,
 };
 use slint::ComponentHandle;
 use thiserror::Error;
@@ -214,7 +214,10 @@ fn register_open(ui: &RootWindow, env: &BuilderPageContext) {
             };
 
             if let Err(err) = env.open(adventure_id) {
-                log::error!("could not open the draft {adventure_id}: {err}");
+                notice::error(
+                    &env.ui_weak,
+                    format!("could not open the draft {adventure_id}: {err}"),
+                );
             }
         });
 }
@@ -230,7 +233,10 @@ fn register_story(ui: &RootWindow, env: &BuilderPageContext) {
 
             match env.save_story(adventure_id, input) {
                 Ok(()) => env.show(None),
-                Err(err) => log::error!("could not save the story of {adventure_id}: {err}"),
+                Err(err) => notice::error(
+                    &env.ui_weak,
+                    format!("could not save the story of {adventure_id}: {err}"),
+                ),
             }
         });
 }
@@ -247,7 +253,10 @@ fn register_act(ui: &RootWindow, env: &BuilderPageContext) {
 
             match env.save_act(adventure_id, input) {
                 Ok(()) => env.show(None),
-                Err(err) => log::error!("could not save an act of {adventure_id}: {err}"),
+                Err(err) => notice::error(
+                    &env.ui_weak,
+                    format!("could not save an act of {adventure_id}: {err}"),
+                ),
             }
         });
 }
@@ -263,7 +272,10 @@ fn register_opening(ui: &RootWindow, env: &BuilderPageContext) {
 
             match env.save_opening(adventure_id, text.as_str()) {
                 Ok(()) => env.show(None),
-                Err(err) => log::error!("could not save the opening of {adventure_id}: {err}"),
+                Err(err) => notice::error(
+                    &env.ui_weak,
+                    format!("could not save the opening of {adventure_id}: {err}"),
+                ),
             }
         });
 }

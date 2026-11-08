@@ -28,14 +28,26 @@ impl Drop for TempDb {
 pub struct StubImage;
 
 impl ImagePort for StubImage {
-    async fn generate_scene(&self, _prompt: &str, _destination: &str) -> Result<(), ImageError> {
-        Ok(())
-    }
-
-    async fn generate_character_image(
+    async fn queue_generate_scene(
         &self,
         _prompt: &str,
         _destination: &str,
+    ) -> Result<(), ImageError> {
+        Ok(())
+    }
+
+    async fn queue_generate_character_image(
+        &self,
+        _prompt: &str,
+        _destination: &str,
+    ) -> Result<(), ImageError> {
+        Ok(())
+    }
+
+    async fn generate_generate_character_image(
+        &self,
+        prompt: &str,
+        destination: &str,
     ) -> Result<(), ImageError> {
         Ok(())
     }

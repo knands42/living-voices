@@ -1,0 +1,45 @@
+import { AppTheme } from "../theme.slint";
+
+// What the window has to say about something that just failed. Rust writes the text and
+// the toast clears it, on a click or when its time runs out.
+export global NoticeGlobals {
+    in property <string> text;
+    in property <bool> is-error: true;
+}
+
+// A bottom-centre slab that belongs to no page, so a failure raised anywhere can surface
+// without one owning it.
+export component NoticeToast inherits Rectangle {
+    in property <string> text;
+    in property <bool> is-error: true;
+    callback dismissed();
+
+    height: 46px;
+    width: Math.min(label.preferred-width + 64px, 760px);
+    border-radius: AppTheme.radius-pill;
+    background: AppTheme.bg-panel-alt;
+    border-width: 2px;
+    border-color: root.is-error ? AppTheme.danger : AppTheme.gold;
+    drop-shadow-blur: 28px;
+    drop-shadow-color: AppTheme.card-edge-shadow;
+
+    label := Text {
+        text: root.text;
+        color: root.is-error ? AppTheme.danger : AppTheme.text-light;
+        font-family: AppTheme.font-body;
+        font-size: AppTheme.font-label + 1px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    TouchArea {
+        clicked => { root.dismissed(); }
+    }
+
+    Timer {
+        interval: 7s;
+        running: true;
+        triggered => { root.dismissed(); }
+    }
+}

@@ -3,6 +3,7 @@ import { AppTheme } from "theme.slint";
 import { ChatBubble, NarratorBubble } from "chat_bubble.slint";
 import { SelectableText } from "selectable_text.slint";
 import { PortraitFrame } from "builder/components.slint";
+import { CastCard } from "builder/cast_section.slint";
 import {
     AdventureView,
     ActView,
@@ -37,7 +38,14 @@ export component ChatPage inherits Rectangle {
     property <length> gap-lg: 24px * root.scale;
     property <length> pad-page: 32px * root.scale;
     property <length> side-w: 250px * root.scale;
+    property <length> side-max-w: 380px * root.scale;
     property <length> meta-w: 280px * root.scale;
+    property <length> meta-max-w: 420px * root.scale;
+    property <length> chat-max-w: 860px * root.scale;
+
+    // The cast row under the pointer and where it sits, so the detail card can follow it.
+    in-out property <int> hovered-cast: -1;
+    property <length> hovered-y: 0;
 
     background: AppTheme.bg-deepest;
 
@@ -109,8 +117,10 @@ export component ChatPage inherits Rectangle {
             vertical-stretch: 1;
             spacing: root.gap-md;
 
-            Rectangle {
-                width: root.side-w;
+            cast-panel := Rectangle {
+                min-width: root.side-w;
+                max-width: root.side-max-w;
+                horizontal-stretch: 1;
                 vertical-stretch: 1;
                 background: AppTheme.bg-panel;
                 border-radius: AppTheme.radius-card;
@@ -169,37 +179,50 @@ export component ChatPage inherits Rectangle {
                                 }
                             }
 
-                            for character in root.adventure.characters: HorizontalLayout {
-                                spacing: 10px * root.scale;
+                            for character[index] in root.adventure.characters: cast-row := TouchArea {
+                                height: cast-row-content.preferred-height;
 
-                                PortraitFrame {
-                                    width: 40px * root.scale;
-                                    height: 52px * root.scale;
-                                    border-radius: AppTheme.radius-card;
-                                    source: character.portrait;
-                                    initials: character.initials;
-                                    hue: character.hue;
+                                changed has-hover => {
+                                    if (cast-row.has-hover) {
+                                        root.hovered-cast = index;
+                                        root.hovered-y = cast-row.absolute-position.y - root.absolute-position.y;
+                                    } else if (root.hovered-cast == index) {
+                                        root.hovered-cast = -1;
+                                    }
                                 }
 
-                                VerticalLayout {
-                                    alignment: start;
-                                    horizontal-stretch: 1;
-                                    spacing: 2px * root.scale;
+                                cast-row-content := HorizontalLayout {
+                                    spacing: 10px * root.scale;
 
-                                    SelectableText {
-                                        text: character.name;
-                                        color: hsv(character.hue, 0.45, 0.95);
-                                        font-family: AppTheme.font-body;
-                                        font-size: AppTheme.font-label * root.scale;
-                                        font-weight: 600;
+                                    PortraitFrame {
+                                        width: 40px * root.scale;
+                                        height: 52px * root.scale;
+                                        border-radius: AppTheme.radius-card;
+                                        source: character.portrait;
+                                        initials: character.initials;
+                                        hue: character.hue;
                                     }
 
-                                    SelectableText {
-                                        text: character.headline;
-                                        color: AppTheme.text-muted;
-                                        font-family: AppTheme.font-body;
-                                        font-size: AppTheme.font-label * root.scale;
-                                        wrap: word-wrap;
+                                    VerticalLayout {
+                                        alignment: start;
+                                        horizontal-stretch: 1;
+                                        spacing: 2px * root.scale;
+
+                                        SelectableText {
+                                            text: character.name;
+                                            color: hsv(character.hue, 0.45, 0.95);
+                                            font-family: AppTheme.font-body;
+                                            font-size: AppTheme.font-label * root.scale;
+                                            font-weight: 600;
+                                        }
+
+                                        SelectableText {
+                                            text: character.headline;
+                                            color: AppTheme.text-muted;
+                                            font-family: AppTheme.font-body;
+                                            font-size: AppTheme.font-label * root.scale;
+                                            wrap: word-wrap;
+                                        }
                                     }
                                 }
                             }
@@ -210,7 +233,8 @@ export component ChatPage inherits Rectangle {
 
             // chat
             Rectangle {
-                horizontal-stretch: 1;
+                horizontal-stretch: 2;
+                max-width: root.chat-max-w;
                 vertical-stretch: 1;
                 background: AppTheme.bg-panel;
                 border-radius: AppTheme.radius-card;
@@ -274,7 +298,9 @@ export component ChatPage inherits Rectangle {
             }
 
             Rectangle {
-                width: root.meta-w;
+                min-width: root.meta-w;
+                max-width: root.meta-max-w;
+                horizontal-stretch: 1;
                 vertical-stretch: 1;
                 background: AppTheme.bg-panel;
                 border-radius: AppTheme.radius-card;
@@ -386,5 +412,17 @@ export component ChatPage inherits Rectangle {
                 }
             }
         }
+    }
+
+    // The cast card the builder's grid uses, floating beside the row being hovered so the
+    // list itself keeps its one-line summary.
+    if root.hovered-cast >= 0 && root.hovered-cast < root.adventure.characters.length: detail := CastCard {
+        character: root.adventure.characters[root.hovered-cast];
+        width: 260px * root.scale;
+        height: 380px * root.scale;
+        x: cast-panel.absolute-position.x - root.absolute-position.x
+            + cast-panel.width + root.gap-sm;
+        y: min(root.height - detail.height - root.pad-page,
+            max(root.pad-page, root.hovered-y));
     }
 }

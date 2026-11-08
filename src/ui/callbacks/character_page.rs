@@ -5,7 +5,7 @@ use crate::backend::application::port::chat_port::PromptPort;
 use crate::backend::application::port::image_port::ImagePort;
 use crate::backend::domain::character::Character;
 use crate::ui::callbacks::parse_id;
-use crate::ui::{BuilderGlobals, ChangedField, CharacterGlobals, RootWindow, viewmodels};
+use crate::ui::{BuilderGlobals, ChangedField, CharacterGlobals, RootWindow, notice, viewmodels};
 use slint::ComponentHandle;
 use thiserror::Error;
 use tokio::runtime::Handle;
@@ -118,7 +118,10 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> CharacterP
 
         self.handle.spawn(async move {
             let Some(character) = env.character(character_id) else {
-                log::error!("character {character_id} vanished before its prompts ran");
+                notice::error(
+                    &env.ui_weak,
+                    format!("character {character_id} vanished before its prompts ran"),
+                );
                 env.edit_ui(|page| {
                     page.set_generating_prompts(false);
                     page.set_generating_image(false);
@@ -132,10 +135,16 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> CharacterP
             );
 
             if let Err(err) = identity {
-                log::error!("could not generate the identity prompt of {character_id}: {err}");
+                notice::error(
+                    &env.ui_weak,
+                    format!("could not generate the identity prompt of {character_id}: {err}"),
+                );
             }
             if let Err(err) = outfit {
-                log::error!("could not generate the outfit prompt of {character_id}: {err}");
+                notice::error(
+                    &env.ui_weak,
+                    format!("could not generate the outfit prompt of {character_id}: {err}"),
+                );
             }
 
             env.post_prompts_ready();
@@ -152,12 +161,18 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> CharacterP
                             .create_character_image_portrait(&character)
                             .await
                         {
-                            log::error!(
-                                "could not generate the image portrait of {character_id}: {err}"
+                            notice::error(
+                                &env.ui_weak,
+                                format!(
+                                    "could not generate the image portrait of {character_id}: {err}"
+                                ),
                             );
                         }
                     }
-                    None => log::error!("character {character_id} vanished while its prompts ran"),
+                    None => notice::error(
+                        &env.ui_weak,
+                        format!("character {character_id} vanished while its prompts ran"),
+                    ),
                 }
 
                 env.post_portrait_ready();
@@ -232,7 +247,10 @@ fn register_open<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static
 
         match character {
             Some(character) => open_env.open(&character),
-            None => log::error!("character {character_id} is not part of the adventure"),
+            None => notice::error(
+                &open_env.ui_weak,
+                format!("character {character_id} is not part of the adventure"),
+            ),
         }
     });
 
@@ -250,7 +268,10 @@ fn register_open<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static
 
         match result {
             Ok(character) => add_env.open(&character),
-            Err(err) => log::error!("could not create a character in {adventure_id}: {err}"),
+            Err(err) => notice::error(
+                &add_env.ui_weak,
+                format!("could not create a character in {adventure_id}: {err}"),
+            ),
         }
     });
 }
@@ -283,7 +304,10 @@ fn register_edit<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static
         });
 
         if let Err(err) = result {
-            log::error!("could not save character {character_id}: {err}");
+            notice::error(
+                &save_env.ui_weak,
+                format!("could not save character {character_id}: {err}"),
+            );
             return;
         }
 
@@ -304,7 +328,10 @@ fn register_edit<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static
         });
 
         if let Err(err) = result {
-            log::error!("could not add a trait to character {character_id}: {err}");
+            notice::error(
+                &env_add_trait.ui_weak,
+                format!("could not add a trait to character {character_id}: {err}"),
+            );
         }
     });
 
@@ -315,7 +342,10 @@ fn register_edit<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static
         });
 
         if let Err(err) = result {
-            log::error!("could not remove a trait from character {character_id}: {err}");
+            notice::error(
+                &env_remove_trait.ui_weak,
+                format!("could not remove a trait from character {character_id}: {err}"),
+            );
         }
     });
 
@@ -331,7 +361,10 @@ fn register_edit<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static
         });
 
         if let Err(err) = result {
-            log::error!("could not add a tag to character {character_id}: {err}");
+            notice::error(
+                &env_add_tag.ui_weak,
+                format!("could not add a tag to character {character_id}: {err}"),
+            );
         }
     });
 
@@ -342,7 +375,10 @@ fn register_edit<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static
         });
 
         if let Err(err) = result {
-            log::error!("could not remove a tag from character {character_id}: {err}");
+            notice::error(
+                &env_remove_tag.ui_weak,
+                format!("could not remove a tag from character {character_id}: {err}"),
+            );
         }
     });
 
@@ -358,7 +394,10 @@ fn register_edit<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static
         });
 
         if let Err(err) = result {
-            log::error!("could not add a relation to character {character_id}: {err}");
+            notice::error(
+                &env_add_relation.ui_weak,
+                format!("could not add a relation to character {character_id}: {err}"),
+            );
         }
     });
 
@@ -369,7 +408,10 @@ fn register_edit<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static
         });
 
         if let Err(err) = result {
-            log::error!("could not remove a relation from character {character_id}: {err}");
+            notice::error(
+                &env_remove_relation.ui_weak,
+                format!("could not remove a relation from character {character_id}: {err}"),
+            );
         }
     });
 }

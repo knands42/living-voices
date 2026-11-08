@@ -47,16 +47,29 @@ impl ComfyImage {
 }
 
 impl ImagePort for ComfyImage {
-    async fn generate_scene(&self, prompt: &str, destination: &str) -> Result<(), ImageError> {
-        self.queue(prompt, destination).await
-    }
-
-    async fn generate_character_image(
+    async fn queue_generate_scene(
         &self,
         prompt: &str,
         destination: &str,
     ) -> Result<(), ImageError> {
         self.queue(prompt, destination).await
+    }
+
+    async fn queue_generate_character_image(
+        &self,
+        prompt: &str,
+        destination: &str,
+    ) -> Result<(), ImageError> {
+        self.queue(prompt, destination).await
+    }
+
+    async fn generate_generate_character_image(
+        &self,
+        prompt: &str,
+        destination: &str,
+    ) -> Result<(), ImageError> {
+        // TODO: dont queue, wait for the comfy ui generation logs
+        todo!()
     }
 }
 

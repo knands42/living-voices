@@ -7,7 +7,7 @@ use crate::backend::application::message_manager::MessageManagerError;
 use crate::backend::domain::character::CharacterStatus;
 use crate::backend::domain::message::Message;
 use crate::ui::callbacks::parse_id;
-use crate::ui::{ChatGlobals, MainGlobals, MessageView, RootWindow, viewmodels};
+use crate::ui::{ChatGlobals, MainGlobals, MessageView, RootWindow, notice, viewmodels};
 use slint::ComponentHandle;
 use tokio::runtime::Handle;
 use uuid::Uuid;
@@ -73,7 +73,7 @@ impl ChatPageContext {
     /// answers, so the input is never blocked on the turn.
     fn send(&self, text: &str) {
         let Some(adventure) = self.adventures.current_adventure() else {
-            log::error!("a message was sent with no adventure open");
+            notice::error(&self.ui_weak, "a message was sent with no adventure open");
             return;
         };
         let Some(player) = self.adventures.current_snapshot().player else {
@@ -126,7 +126,10 @@ fn register_open(ui: &RootWindow, env: &ChatPageContext) {
         };
 
         if let Err(err) = env.open(adventure_id) {
-            log::error!("could not open the adventure {adventure_id}: {err}");
+            notice::error(
+                &env.ui_weak,
+                format!("could not open the adventure {adventure_id}: {err}"),
+            );
         }
     });
 }
@@ -152,7 +155,10 @@ fn post_reply(
         ui.global::<ChatGlobals>().set_awaiting_reply(false);
         match reply {
             Ok(message) => push_message(&ui, viewmodels::message_view(&message, Some(player_id))),
-            Err(err) => log::error!("the reply to {player_id} failed: {err}"),
+            Err(err) => notice::error(
+                &ui.as_weak(),
+                format!("the reply to {player_id} failed: {err}"),
+            ),
         }
     });
 

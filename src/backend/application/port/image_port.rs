@@ -11,7 +11,7 @@ pub enum ImageError {
 pub trait ImagePort: Send + Sync {
     /// `destination` is the prefix the provider writes below its own output
     /// directory, with no extension: the caller owns the naming.
-    fn generate_scene(
+    fn queue_generate_scene(
         &self,
         prompt: &str,
         destination: &str,
@@ -19,7 +19,13 @@ pub trait ImagePort: Send + Sync {
 
     /// One call for every character shot: the caller already decided the framing,
     /// composed the layers and named the file, so the adapter only queues what it is given.
-    fn generate_character_image(
+    fn queue_generate_character_image(
+        &self,
+        prompt: &str,
+        destination: &str,
+    ) -> impl Future<Output = Result<(), ImageError>> + Send;
+
+    fn generate_generate_character_image(
         &self,
         prompt: &str,
         destination: &str,

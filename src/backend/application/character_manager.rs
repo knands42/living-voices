@@ -221,7 +221,7 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         let destination = self.gallery.prefix(&adventure, character, framing);
 
         self.image_handler
-            .generate_character_image(&prompt, &destination)
+            .queue_generate_character_image(&prompt, &destination)
             .await?;
 
         log::info!("queued an image of {} at {destination}", character.name);

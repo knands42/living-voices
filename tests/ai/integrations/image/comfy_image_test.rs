@@ -21,7 +21,7 @@ fn comfy() -> ComfyImage {
 #[ignore = "requires a running ComfyUI server with the Qwen workflow model"]
 async fn generate_scene_queues_a_scene_prompt() {
     comfy()
-        .generate_scene(
+        .queue_generate_scene(
             "A flooded harbour at dusk, broken masts rising from black water, \
              pale lantern light, painterly fantasy illustration.",
             "living_voices-tests/scenes/harbour",
@@ -34,7 +34,7 @@ async fn generate_scene_queues_a_scene_prompt() {
 #[ignore = "requires a running ComfyUI server with the Qwen workflow model"]
 async fn generate_character_image_queues_a_character_prompt() {
     comfy()
-        .generate_character_image(
+        .queue_generate_character_image(
             "Full-body character reference of a young lamplighter in an oversized \
              oilskin coat and tarred sou'wester, neutral pose, plain background.",
             "living_voices-tests/mira/portrait",

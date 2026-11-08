@@ -3,13 +3,14 @@ import { MainPage, MainGlobals, AdventureSummaryView } from "main.slint";
 import { ChatPage, ChatGlobals } from "chat.slint";
 import { BuilderPage, BuilderGlobals } from "builder/builder_page.slint";
 import { CharacterPage, CharacterGlobals } from "character/character_page.slint";
+import { NoticeToast, NoticeGlobals } from "popup/notice.slint";
 import {
     AdventureView, ActView, StateView, FactView, MessageView, BuilderView,
     StoryInputView, ActInputView, CharacterView, CharacterCreationInput,
 } from "views.slint";
 
 // Rust reaches each page through its own global.
-export { MainGlobals, ChatGlobals, BuilderGlobals, CharacterGlobals }
+export { MainGlobals, ChatGlobals, BuilderGlobals, CharacterGlobals, NoticeGlobals }
 export {
     AdventureSummaryView, AdventureView, ActView, StateView, FactView, MessageView, BuilderView,
     StoryInputView, ActInputView, CharacterView, CharacterCreationInput,
@@ -44,5 +45,15 @@ export component RootWindow inherits Window {
 
     if current-page == "chat": ChatPage {
         back-requested => { root.current-page = "main"; }
+    }
+
+    // The one place a callback's failure becomes visible, whatever page raised it. It sits
+    // at the top so it never covers the composer or a footer's controls.
+    if NoticeGlobals.text != "": notice := NoticeToast {
+        text: NoticeGlobals.text;
+        is-error: NoticeGlobals.is-error;
+        x: (root.width - notice.width) / 2;
+        y: 16px;
+        dismissed => { NoticeGlobals.text = ""; }
     }
 }

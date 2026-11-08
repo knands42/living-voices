@@ -1,7 +1,7 @@
 use crate::app::DefaultContext;
 use crate::backend::application::adventure_manager::{AdventureManager, AdventureManagerError};
 use crate::backend::domain::adventure::Adventure;
-use crate::ui::{AdventureSummaryView, MainGlobals, RootWindow};
+use crate::ui::{AdventureSummaryView, MainGlobals, RootWindow, notice};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use thiserror::Error;
 use tokio::runtime::Handle;
@@ -91,7 +91,10 @@ fn register_create_adventure(ui: &RootWindow, env: &MainPageContext) {
             let adventure = match env.create_draft(title.as_str(), headline.as_str()) {
                 Ok(adventure) => adventure,
                 Err(err) => {
-                    log::error!("could not create a draft adventure: {err}");
+                    notice::error(
+                        &env.ui_weak,
+                        format!("could not create the draft adventure: {err}"),
+                    );
                     return SharedString::new();
                 }
             };

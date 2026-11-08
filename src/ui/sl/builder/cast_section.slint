@@ -3,7 +3,7 @@ import { BuilderView, CharacterChatView } from "../views.slint";
 import { PillButton, PortraitFrame, SectionHeader } from "components.slint";
 
 // A character card in the cast grid: the portrait on top, the read on the character below.
-component CastCard inherits TouchArea {
+export component CastCard inherits TouchArea {
     in property <CharacterChatView> character;
 
     Rectangle {
