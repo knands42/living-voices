@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::path::Path;
 
 use thiserror::Error;
 
@@ -19,15 +20,18 @@ pub trait ImagePort: Send + Sync {
 
     /// One call for every character shot: the caller already decided the framing,
     /// composed the layers and named the file, so the adapter only queues what it is given.
+    /// `reference` is a shot already on disk the new one has to stay faithful to.
     fn queue_generate_character_image(
         &self,
         prompt: &str,
         destination: &str,
+        reference: Option<&Path>,
     ) -> impl Future<Output = Result<(), ImageError>> + Send;
 
-    fn generate_generate_character_image(
+    fn generate_character_image(
         &self,
         prompt: &str,
         destination: &str,
+        reference: Option<&Path>,
     ) -> impl Future<Output = Result<(), ImageError>> + Send;
 }

@@ -111,9 +111,15 @@ Testing).
   never repeat the body in outfit/pose — `ContextBuilder::compose_character_image_prompt`
   concatenates the layers, so duplicates fight and the model blends the contradiction.
 - **Image backend**: `ImageModelWorkflow` (FluxQ4/FluxQ8/Qwen) picks a hard-coded ComfyUI JSON graph
-  and injects the prompt at the `CLIPTextEncode` node. `ImagePort` has one character entry point;
-  framing (`ImageFraming::Portrait` vs `FullBody`) is applied at prompt composition, not by the
-  adapter.
+  and injects the prompt at the `CLIPTextEncode` node. Framing (`ImageFraming::Portrait` vs
+  `FullBody`) is applied at prompt composition, not by the adapter.
+- **Every shot after the first is drawn against the newest full body.** `latest_full_body` generates
+  the full body when the character has none, which is why a character's first image is always one.
+  A `reference` reaches the adapter as a path; ComfyUI's `LoadImage` only reads its workspace `input`
+  dir, so the adapter copies the shot there and rewires the graph into img2img (denoise 0.6).
+- **Shots are numbered, never overwritten**: `{adventure}/{character}/{character}_{shot}_{n}`, the
+  first of a framing `_0`. ComfyUI appends its own `_00001_` counter after that, so the number is the
+  one `CharacterGallery` wrote — parse it, don't compare filenames as text.
 
 ## UI data flow (do not re-read per edit)
 
@@ -151,6 +157,8 @@ reading it costs no I/O. The builder keeps nothing: `BuilderPageContext`
   plain `cargo test` needs no servers. Those hit real `:11434/v1` / `:8188` and share DB files, hence
   `--test-threads=1`.
 - Tests are commented `// given` / `// when` / `// then` blocks — keep that shape.
+- Extend an existing test rather than adding one per field: a test should read as one clear story in
+  the IDE tree, so prefer fewer, broader, readable tests over a new test for every new entry.
 
 ## Working preference: teach, don't hand over
 

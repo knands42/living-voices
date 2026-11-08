@@ -1,4 +1,5 @@
-use std::path::{Path, PathBuf};
+use std::ffi::OsStr;
+use std::path::PathBuf;
 
 use crate::backend::domain::character::{Character, ImageFraming};
 
@@ -13,16 +14,24 @@ impl CharacterGallery {
         Self { root: root.into() }
     }
 
-    // TODO: Get only the correct parameters here needed, adventure_title and character_name
+    /// The prefix of the shot about to be generated -> "<adventure_name>/<char_name>/<char_name>_<shot_type>_<number>")
     pub fn prefix(
         &self,
         adventure_title: &str,
         character: &Character,
         framing: ImageFraming,
     ) -> String {
+        let next = self
+            .numbered_shots(adventure_title, character, framing)
+            .map(|(number, _)| number)
+            .max()
+            .map_or(0, |last| last + 1);
+
         let adventure = slug(adventure_title);
-        let character = slug(&character.name);
-        format!("{adventure}/{character}/{character}_{}", shot(framing))
+        let name = slug(&character.name);
+        let shot = shot(framing);
+
+        format!("{adventure}/{name}/{name}_{shot}_{next}")
     }
 
     pub fn latest(
@@ -31,24 +40,43 @@ impl CharacterGallery {
         character: &Character,
         framing: ImageFraming,
     ) -> Option<PathBuf> {
-        let prefix = self.prefix(adventure_title, character, framing);
-        let stem = Path::new(&prefix)
-            .file_name()?
-            .to_string_lossy()
-            .into_owned();
-        let dir = self.root.join(prefix).parent()?.to_path_buf();
+        self.numbered_shots(adventure_title, character, framing)
+            .max_by_key(|(number, path)| (*number, path.file_name().map(OsStr::to_owned)))
+            .map(|(_, path)| path)
+    }
 
-        std::fs::read_dir(dir)
-            .ok()?
+    /// Every shot of one framing already on disk, paired with the number `prefix` gave it.
+    fn numbered_shots(
+        &self,
+        adventure_title: &str,
+        character: &Character,
+        framing: ImageFraming,
+    ) -> impl Iterator<Item = (u32, PathBuf)> {
+        let directory = self
+            .root
+            .join(slug(adventure_title))
+            .join(slug(&character.name));
+        let head = format!("{}_{}_", slug(&character.name), shot(framing));
+
+        std::fs::read_dir(directory)
+            .into_iter()
+            .flatten()
             .filter_map(Result::ok)
             .map(|entry| entry.path())
             .filter(|path| path.extension().is_some_and(|ext| ext == "png"))
-            .filter(|path| {
-                path.file_stem()
-                    .is_some_and(|name| name.to_string_lossy().starts_with(&stem))
+            .filter_map(move |path| {
+                let number = shot_number(path.file_stem()?, &head)?;
+                Some((number, path))
             })
-            .max_by_key(|path| path.file_name().map(|name| name.to_os_string()))
     }
+}
+
+/// The number between the shot name and the `_00001_` counter ComfyUI appends on save.
+fn shot_number(stem: &OsStr, head: &str) -> Option<u32> {
+    let rest = stem.to_str()?.strip_prefix(head)?;
+    let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+
+    digits.parse().ok()
 }
 
 fn shot(framing: ImageFraming) -> &'static str {

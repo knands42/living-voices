@@ -1,4 +1,6 @@
 //! Creates a draft character, persists it, updates local adventure state,
+use std::path::{Path, PathBuf};
+
 use sqlx::SqlitePool;
 use thiserror::Error;
 use uuid::Uuid;
@@ -182,7 +184,8 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         &self,
         character: &Character,
     ) -> Result<(), CharacterManagerError> {
-        self.create_character_image(character, ImageFraming::Portrait)
+        let reference = self.get_latest_full_body_image(character).await?;
+        self.create_character_image(character, ImageFraming::Portrait, reference.as_deref())
             .await
     }
 
@@ -190,7 +193,7 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         &self,
         character: &Character,
     ) -> Result<(), CharacterManagerError> {
-        self.create_character_image(character, ImageFraming::FullBody)
+        self.create_character_image(character, ImageFraming::FullBody, None)
             .await
     }
 
@@ -198,14 +201,43 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         &self,
         character: &Character,
     ) -> Result<(), CharacterManagerError> {
-        self.create_character_image(character, ImageFraming::FullBodyPose)
+        let reference = self.get_latest_full_body_image(character).await?;
+        self.create_character_image(character, ImageFraming::FullBodyPose, reference.as_deref())
             .await
+    }
+
+    async fn get_latest_full_body_image(
+        &self,
+        character: &Character,
+    ) -> Result<Option<PathBuf>, CharacterManagerError> {
+        let title = {
+            let guard = self.state.read()?;
+            let Some(adventure) = guard.current_adventure.as_ref() else {
+                log::warn!(
+                    "no loaded adventure; skipping the image of {}",
+                    character.name
+                );
+                return Ok(None);
+            };
+
+            adventure.title.clone()
+        };
+
+        if let Some(path) = self
+            .gallery
+            .latest(&title, character, ImageFraming::FullBody)
+        {
+            return Ok(Some(path));
+        }
+
+        Ok(None)
     }
 
     async fn create_character_image(
         &self,
         character: &Character,
         framing: ImageFraming,
+        reference: Option<&Path>,
     ) -> Result<(), CharacterManagerError> {
         let Some(prompt) = ContextBuilder::compose_character_image_prompt(character, framing)
         else {
@@ -227,7 +259,7 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         };
 
         self.image_handler
-            .generate_generate_character_image(&prompt, &destination)
+            .generate_character_image(&prompt, &destination, reference)
             .await?;
 
         log::info!("generated an image of {} at {destination}", character.name);

@@ -40,14 +40,16 @@ impl ImagePort for StubImage {
         &self,
         _prompt: &str,
         _destination: &str,
+        _reference: Option<&Path>,
     ) -> Result<(), ImageError> {
         Ok(())
     }
 
-    async fn generate_generate_character_image(
+    async fn generate_character_image(
         &self,
         _prompt: &str,
         _destination: &str,
+        _reference: Option<&Path>,
     ) -> Result<(), ImageError> {
         Ok(())
     }

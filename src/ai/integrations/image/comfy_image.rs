@@ -1,3 +1,4 @@
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use serde_json::{Value, json};
@@ -8,6 +9,18 @@ use crate::config::{ImageModel, ImageModelWorkflow};
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const WAIT_TIMEOUT: Duration = Duration::from_secs(30);
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+/// Node ids every graph below shares: the reference rewire reaches for them by name.
+const SAMPLER_NODE: &str = "3";
+const VAE_NODE: &str = "12";
+const LOAD_IMAGE_NODE: &str = "20";
+const SCALED_IMAGE_NODE: &str = "21";
+const REFERENCE_LATENT_NODE: &str = "22";
+
+const PORTRAIT_WIDTH: u32 = 832;
+const PORTRAIT_HEIGHT: u32 = 1216;
+/// Low enough that a reference keeps the face, high enough that the framing prompt wins.
+const REFERENCE_DENOISE: f64 = 0.6;
 
 #[derive(Debug, Clone)]
 pub struct ComfyImage {
@@ -28,8 +41,14 @@ impl ComfyImage {
         self.config.base_url.trim_end_matches('/')
     }
 
-    async fn queue(&self, prompt: &str, destination: &str) -> Result<(), ImageError> {
-        let prompt_id = self.submit(prompt, destination).await?;
+    async fn queue_shot(
+        &self,
+        prompt: &str,
+        destination: &str,
+        reference: Option<&Path>,
+    ) -> Result<(), ImageError> {
+        let staged = self.stage_reference(reference).await?;
+        let prompt_id = self.submit(prompt, destination, staged.as_deref()).await?;
 
         tokio::time::timeout(WAIT_TIMEOUT, self.wait_for_result(&prompt_id))
             .await
@@ -38,8 +57,46 @@ impl ComfyImage {
             })?
     }
 
-    async fn submit(&self, prompt: &str, destination: &str) -> Result<String, ImageError> {
-        let workflow_format = pick_workflow_format(&self.config.workflow, prompt, destination);
+    /// ComfyUI's `LoadImage` only reads its workspace `input` dir, so a shot needs to be copied there.
+    async fn stage_reference(
+        &self,
+        reference: Option<&Path>,
+    ) -> Result<Option<String>, ImageError> {
+        let Some(reference) = reference else {
+            return Ok(None);
+        };
+
+        let name = reference.file_name().ok_or_else(|| {
+            ImageError::Provider(format!("{} is not a file", reference.display()))
+        })?;
+        let input_dir = self.input_dir();
+
+        tokio::fs::create_dir_all(&input_dir)
+            .await
+            .map_err(|e| ImageError::Provider(format!("{}: {e}", input_dir.display())))?;
+        tokio::fs::copy(reference, input_dir.join(name))
+            .await
+            .map_err(|e| ImageError::Provider(format!("{}: {e}", reference.display())))?;
+
+        Ok(Some(name.to_string_lossy().into_owned()))
+    }
+
+    fn input_dir(&self) -> PathBuf {
+        self.config
+            .output_dir
+            .parent()
+            .map(|workspace| workspace.join("input"))
+            .unwrap_or_else(|| PathBuf::from("input"))
+    }
+
+    async fn submit(
+        &self,
+        prompt: &str,
+        destination: &str,
+        reference: Option<&str>,
+    ) -> Result<String, ImageError> {
+        let workflow_format =
+            pick_workflow_format(&self.config.workflow, prompt, destination, reference);
 
         let url = format!("{}/prompt", self.base_url());
         let response = self
@@ -95,23 +152,26 @@ impl ImagePort for ComfyImage {
         prompt: &str,
         destination: &str,
     ) -> Result<(), ImageError> {
-        self.queue(prompt, destination).await
+        self.queue_shot(prompt, destination, None).await
     }
 
     async fn queue_generate_character_image(
         &self,
         prompt: &str,
         destination: &str,
+        reference: Option<&Path>,
     ) -> Result<(), ImageError> {
-        self.queue(prompt, destination).await
+        self.queue_shot(prompt, destination, reference).await
     }
 
-    async fn generate_generate_character_image(
+    async fn generate_character_image(
         &self,
         prompt: &str,
         destination: &str,
+        reference: Option<&Path>,
     ) -> Result<(), ImageError> {
-        self.submit(prompt, destination).await?;
+        let staged = self.stage_reference(reference).await?;
+        self.submit(prompt, destination, staged.as_deref()).await?;
         Ok(())
     }
 }
@@ -143,12 +203,52 @@ fn failure_message(status: &Value) -> String {
     }
 }
 
-fn pick_workflow_format(workflow: &ImageModelWorkflow, prompt: &str, prefix: &str) -> Value {
-    match workflow {
+fn pick_workflow_format(
+    workflow: &ImageModelWorkflow,
+    prompt: &str,
+    prefix: &str,
+    reference: Option<&str>,
+) -> Value {
+    let graph = match workflow {
         ImageModelWorkflow::FluxQ8 => flux_q8_workflow(prompt, prefix),
         ImageModelWorkflow::FluxQ4 => flux_q4_workflow(prompt, prefix),
         ImageModelWorkflow::Qwen => qwen_workflow(prompt, prefix),
+    };
+
+    match reference {
+        Some(reference) => with_reference(graph, reference),
+        None => graph,
     }
+}
+
+/// Turns a text-to-image graph into img2img
+fn with_reference(mut graph: Value, reference: &str) -> Value {
+    graph[LOAD_IMAGE_NODE] = json!({
+        "class_type": "LoadImage",
+        "inputs": { "image": reference }
+    });
+    graph[SCALED_IMAGE_NODE] = json!({
+        "class_type": "ImageScale",
+        "inputs": {
+            "image": [LOAD_IMAGE_NODE, 0],
+            "upscale_method": "lanczos",
+            "width": PORTRAIT_WIDTH,
+            "height": PORTRAIT_HEIGHT,
+            "crop": "center"
+        }
+    });
+    graph[REFERENCE_LATENT_NODE] = json!({
+        "class_type": "VAEEncode",
+        "inputs": {
+            "pixels": [SCALED_IMAGE_NODE, 0],
+            "vae": [VAE_NODE, 0]
+        }
+    });
+
+    graph[SAMPLER_NODE]["inputs"]["latent_image"] = json!([REFERENCE_LATENT_NODE, 0]);
+    graph[SAMPLER_NODE]["inputs"]["denoise"] = json!(REFERENCE_DENOISE);
+
+    graph
 }
 
 fn qwen_workflow(prompt: &str, prefix: &str) -> Value {
@@ -250,8 +350,56 @@ fn flux_q8_workflow(prompt: &str, prefix: &str) -> Value {
 
 #[cfg(test)]
 mod test {
-    use super::verdict;
+    use super::{pick_workflow_format, verdict};
+    use crate::config::ImageModelWorkflow;
     use serde_json::json;
+
+    #[test]
+    fn a_reference_shot_starts_the_sampler_from_its_latent() {
+        // given a flux graph and the full body the portrait has to stay faithful to
+        // when
+        let graph = pick_workflow_format(
+            &ImageModelWorkflow::FluxQ8,
+            "portrait of a lamplighter",
+            "salt_ash/wren/wren_portrait_0",
+            Some("wren_full_body_0_00001_.png"),
+        );
+
+        // then the reference is loaded, scaled to portrait, encoded, and partly denoised
+        assert_eq!(
+            graph["20"]["inputs"]["image"],
+            json!("wren_full_body_0_00001_.png")
+        );
+        assert_eq!(graph["21"]["class_type"], json!("ImageScale"));
+        assert_eq!(graph["22"]["class_type"], json!("VAEEncode"));
+        assert_eq!(graph["22"]["inputs"]["vae"], json!(["12", 0]));
+        assert_eq!(graph["3"]["inputs"]["latent_image"], json!(["22", 0]));
+        assert!(
+            graph["3"]["inputs"]["denoise"]
+                .as_f64()
+                .is_some_and(|d| d < 1.0)
+        );
+    }
+
+    #[test]
+    fn without_a_reference_the_graph_still_starts_from_an_empty_latent() {
+        // given a shot nothing has to be matched against
+        // when
+        let graph = pick_workflow_format(
+            &ImageModelWorkflow::FluxQ8,
+            "full body of a lamplighter",
+            "salt_ash/wren/wren_full_body_0",
+            None,
+        );
+
+        // then the sampler keeps its own latent and the prompt still reaches the encoder
+        assert_eq!(graph["3"]["inputs"]["latent_image"], json!(["5", 0]));
+        assert_eq!(
+            graph["6"]["inputs"]["text"],
+            json!("full body of a lamplighter")
+        );
+        assert!(graph["20"].is_null());
+    }
 
     #[test]
     fn a_completed_run_is_ok() {
