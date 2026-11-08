@@ -46,8 +46,8 @@ impl ImagePort for StubImage {
 
     async fn generate_generate_character_image(
         &self,
-        prompt: &str,
-        destination: &str,
+        _prompt: &str,
+        _destination: &str,
     ) -> Result<(), ImageError> {
         Ok(())
     }

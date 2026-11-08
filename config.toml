@@ -12,18 +12,22 @@
 # the engine cannot be started.
 
 [models.chat]
+enabled = true
 model = "llama3.1:8b"
 temperature = 0.5
 request_timeout_secs = 120
+# TODO: Is this still needed after not using router mode?
 keep_alive = "1h"              # how long the model stays loaded (e.g. "5m", "1h", "-1" = forever, "" = omit, "0" = unload after request)
 
 [models.memory]
+enabled = true
 model = "hf.co/sennaLLMLearner/qwen2.5-7b-memory-distiller:Q4_K_M"
 temperature = 0.1
 request_timeout_secs = 120
 keep_alive = "0"
 
 [models.image]
+enabled = false
 backend = "comfyui"
 base_url = "http://localhost:8188"
 workflow = "fluxq4"

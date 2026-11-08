@@ -161,10 +161,10 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> CharacterP
                             .create_character_image_portrait(&character)
                             .await
                         {
-                            notice::error(
+                            notice::warn(
                                 &env.ui_weak,
                                 format!(
-                                    "could not generate the image portrait of {character_id}: {err}"
+                                    "could not generate the image portrait for {0} in the last 30 seconds: {err}\nIf the image does not show up in a few seconds, try again later", character.name
                                 ),
                             );
                         }

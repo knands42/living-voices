@@ -52,6 +52,7 @@ export component RootWindow inherits Window {
     if NoticeGlobals.text != "": notice := NoticeToast {
         text: NoticeGlobals.text;
         is-error: NoticeGlobals.is-error;
+        is-warn: NoticeGlobals.is-warn;
         x: (root.width - notice.width) / 2;
         y: 16px;
         dismissed => { NoticeGlobals.text = ""; }

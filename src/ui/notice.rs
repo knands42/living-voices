@@ -1,19 +1,34 @@
 use crate::ui::{NoticeGlobals, RootWindow};
 use slint::ComponentHandle;
 
+enum NotificationType {
+    Error,
+    Warning,
+    Info,
+}
 pub fn error(ui_weak: &slint::Weak<RootWindow>, message: impl Into<String>) {
-    report(ui_weak, message.into(), true);
+    report(ui_weak, message.into(), NotificationType::Error);
+}
+
+pub fn warn(ui_weak: &slint::Weak<RootWindow>, message: impl Into<String>) {
+    report(ui_weak, message.into(), NotificationType::Warning);
 }
 
 pub fn info(ui_weak: &slint::Weak<RootWindow>, message: impl Into<String>) {
-    report(ui_weak, message.into(), false);
+    report(ui_weak, message.into(), NotificationType::Info);
 }
 
-fn report(ui_weak: &slint::Weak<RootWindow>, message: String, is_error: bool) {
-    if is_error {
-        log::error!("{message}");
-    } else {
-        log::info!("{message}");
+fn report(ui_weak: &slint::Weak<RootWindow>, message: String, notification_type: NotificationType) {
+    match notification_type {
+        NotificationType::Error => {
+            log::error!("{message}");
+        }
+        NotificationType::Warning => {
+            log::warn!("{message}");
+        }
+        NotificationType::Info => {
+            log::info!("{message}");
+        }
     }
 
     let Some(ui) = ui_weak.upgrade() else {
@@ -21,6 +36,15 @@ fn report(ui_weak: &slint::Weak<RootWindow>, message: String, is_error: bool) {
     };
 
     let notice = ui.global::<NoticeGlobals>();
+
+    // Both flags on every report: a warning must not inherit the error of the message before it.
+    let (is_error, is_warn) = match notification_type {
+        NotificationType::Error => (true, false),
+        NotificationType::Warning => (false, true),
+        NotificationType::Info => (false, false),
+    };
+
     notice.set_is_error(is_error);
+    notice.set_is_warn(is_warn);
     notice.set_text(message.into());
 }

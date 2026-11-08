@@ -9,6 +9,7 @@ const OUTPUT_DIR: &str = "comfyui/output";
 
 fn comfy() -> ComfyImage {
     ComfyImage::new(ImageModel {
+        enabled: true,
         backend: "comfyui".to_string(),
         base_url: COMFYUI_URL.to_string(),
         workflow: ImageModelWorkflow::Qwen,

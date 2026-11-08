@@ -213,18 +213,24 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
             return Ok(());
         };
 
-        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        // TODO: drop call to db, get the adventure title and character name only from state
-        let adventure = get_adventure(&mut conn, character.adventure_id).await?;
-        drop(conn);
+        let destination = {
+            let guard = self.state.read()?;
+            let Some(adventure) = guard.current_adventure.as_ref() else {
+                log::warn!(
+                    "no loaded adventure; skipping the image of {}",
+                    character.name
+                );
+                return Ok(());
+            };
 
-        let destination = self.gallery.prefix(&adventure, character, framing);
+            self.gallery.prefix(&adventure.title, character, framing)
+        };
 
         self.image_handler
-            .queue_generate_character_image(&prompt, &destination)
+            .generate_generate_character_image(&prompt, &destination)
             .await?;
 
-        log::info!("queued an image of {} at {destination}", character.name);
+        log::info!("generated an image of {} at {destination}", character.name);
         Ok(())
     }
 

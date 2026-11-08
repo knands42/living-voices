@@ -40,8 +40,8 @@ fn prefix_puts_the_shot_under_the_adventure_and_character() {
     let gallery = CharacterGallery::new("/comfy/output");
 
     // when
-    let portrait = gallery.prefix(&adventure, &character, ImageFraming::Portrait);
-    let pose = gallery.prefix(&adventure, &character, ImageFraming::FullBodyPose);
+    let portrait = gallery.prefix(&adventure.title, &character, ImageFraming::Portrait);
+    let pose = gallery.prefix(&adventure.title, &character, ImageFraming::FullBodyPose);
 
     // then
     assert_eq!(portrait, "salt_ash/mara_venn/mara_venn_portrait");
@@ -62,7 +62,7 @@ fn latest_takes_the_newest_file_the_prefix_produced() {
     std::fs::write(dir.join("mara_venn_pose_1_00001_.png"), b"pose").expect("write pose");
 
     // when
-    let latest = gallery.latest(&adventure, &character, ImageFraming::Portrait);
+    let latest = gallery.latest(&adventure.title, &character, ImageFraming::Portrait);
 
     // then
     assert_eq!(latest, Some(dir.join("mara_venn_portrait_00002_.png")));
@@ -79,7 +79,7 @@ fn latest_is_empty_until_the_shot_was_queued() {
     let gallery = CharacterGallery::new(&root);
 
     // when
-    let latest = gallery.latest(&adventure, &character, ImageFraming::Portrait);
+    let latest = gallery.latest(&adventure.title, &character, ImageFraming::Portrait);
 
     // then
     assert_eq!(latest, None);

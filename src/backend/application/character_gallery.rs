@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::{Character, ImageFraming};
 
 /// Where the character images live and how they are named.
@@ -17,22 +16,22 @@ impl CharacterGallery {
     // TODO: Get only the correct parameters here needed, adventure_title and character_name
     pub fn prefix(
         &self,
-        adventure: &Adventure,
+        adventure_title: &str,
         character: &Character,
         framing: ImageFraming,
     ) -> String {
-        let adventure = slug(&adventure.title);
+        let adventure = slug(adventure_title);
         let character = slug(&character.name);
         format!("{adventure}/{character}/{character}_{}", shot(framing))
     }
 
     pub fn latest(
         &self,
-        adventure: &Adventure,
+        adventure_title: &str,
         character: &Character,
         framing: ImageFraming,
     ) -> Option<PathBuf> {
-        let prefix = self.prefix(adventure, character, framing);
+        let prefix = self.prefix(adventure_title, character, framing);
         let stem = Path::new(&prefix)
             .file_name()?
             .to_string_lossy()

@@ -184,6 +184,7 @@ pub enum ImageModelWorkflow {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(default)]
 pub struct ImageModel {
+    pub enabled: bool,
     pub backend: String,
     pub base_url: String,
     pub workflow: ImageModelWorkflow,
@@ -193,6 +194,7 @@ pub struct ImageModel {
 impl Default for ImageModel {
     fn default() -> Self {
         Self {
+            enabled: true,
             backend: "comfyui".to_string(),
             base_url: DEFAULT_IMAGE_MODEL_URL.to_string(),
             workflow: ImageModelWorkflow::FluxQ8,

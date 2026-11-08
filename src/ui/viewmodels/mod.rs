@@ -167,7 +167,7 @@ fn character_chat_view(
         status: SharedString::from(character.status.as_str()),
         traits: string_model(&character.traits),
         tags: string_model(&character.tags),
-        portrait: portrait(gallery.latest(adventure, character, ImageFraming::Portrait)),
+        portrait: portrait(gallery.latest(&adventure.title, character, ImageFraming::Portrait)),
         is_player: character.is_player,
         hue: name_hue(&character.name),
     }

@@ -5,32 +5,44 @@ import { AppTheme } from "../theme.slint";
 export global NoticeGlobals {
     in property <string> text;
     in property <bool> is-error: true;
+    in property <bool> is-warn: false;
 }
 
 // A bottom-centre slab that belongs to no page, so a failure raised anywhere can surface
-// without one owning it.
+// without one owning it. The text wraps and the slab grows with it: a warning carries a
+// second line, and an elided one-line toast would swallow it.
 export component NoticeToast inherits Rectangle {
     in property <string> text;
     in property <bool> is-error: true;
+    in property <bool> is-warn: false;
     callback dismissed();
 
-    height: 46px;
-    width: Math.min(label.preferred-width + 64px, 760px);
+    width: Math.min(Math.max(layout.preferred-width, 320px), 760px);
+    height: Math.max(layout.preferred-height, 46px);
     border-radius: AppTheme.radius-pill;
     background: AppTheme.bg-panel-alt;
     border-width: 2px;
-    border-color: root.is-error ? AppTheme.danger : AppTheme.gold;
+    border-color: root.is-error ? AppTheme.danger : (root.is-warn ? AppTheme.gold : AppTheme.bronze);
     drop-shadow-blur: 28px;
     drop-shadow-color: AppTheme.card-edge-shadow;
 
-    label := Text {
-        text: root.text;
-        color: root.is-error ? AppTheme.danger : AppTheme.text-light;
-        font-family: AppTheme.font-body;
-        font-size: AppTheme.font-label + 1px;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-        overflow: elide;
+    layout := HorizontalLayout {
+        padding-left: 32px;
+        padding-right: 32px;
+        padding-top: 12px;
+        padding-bottom: 12px;
+        alignment: center;
+
+        label := Text {
+            text: root.text;
+            color: root.is-error ? AppTheme.danger : (root.is-warn ? AppTheme.gold-bright : AppTheme.text-light);
+            font-family: AppTheme.font-body;
+            font-size: AppTheme.font-label + 1px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            wrap: word-wrap;
+            overflow: elide;
+        }
     }
 
     TouchArea {

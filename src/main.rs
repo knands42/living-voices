@@ -27,12 +27,15 @@ impl Frontend {
 #[tokio::main]
 async fn main() {
     Config::init_logging();
+    let default_config = Config::new().expect("Failed to initialize config");
     log_panics::init();
 
     let frontend = Frontend::from_args();
 
-    let config = Config::new().expect("Failed to initialize config");
-    log::info!("Config loaded from {}", config.config_file.display());
+    log::info!(
+        "Config loaded from {}",
+        default_config.config_file.display()
+    );
 
     let engine = match living_voices::provision::entrypoint::start_text_engine().await {
         Ok(engine) => {
@@ -47,30 +50,34 @@ async fn main() {
     };
 
     let config = match &engine {
-        Some(engine) => config.with_text_endpoints(engine.chat_url(), engine.memory_url()),
+        Some(engine) => default_config.with_text_endpoints(engine.chat_url(), engine.memory_url()),
         None => {
             log::warn!("using configured text endpoints instead of the engine");
-            config
+            default_config
         }
     };
 
-    let media_engine = match living_voices::provision::entrypoint::start_media_engine().await {
-        Ok(engine) => {
-            log::info!("media engine answering on {}", engine.base_url());
-            Some(engine)
-        }
-        Err(err) => {
-            log::warn!("media engine unavailable: {err}");
-            None
-        }
-    };
+    let config = if config.settings.models.image.enabled {
+        let media_engine = match living_voices::provision::entrypoint::start_media_engine().await {
+            Ok(engine) => {
+                log::info!("media engine answering on {}", engine.base_url());
+                Some(engine)
+            }
+            Err(err) => {
+                log::warn!("media engine unavailable: {err}");
+                None
+            }
+        };
 
-    let config = match &media_engine {
-        Some(engine) => config.with_media_engine(engine.base_url()),
-        None => {
-            log::warn!("using the configured image endpoint instead of the engine");
-            config
+        match media_engine {
+            Some(engine) => config.with_media_engine(engine.base_url()),
+            None => {
+                log::warn!("using the configured image endpoint instead of the engine");
+                config
+            }
         }
+    } else {
+        config
     };
 
     let pool = match open_pool(config.db_path.to_string_lossy().as_ref()).await {
