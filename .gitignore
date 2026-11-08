@@ -1,6 +1,7 @@
 # Build artifacts
 llama/
 provision/
+!src/provision
 comfyui/
 /target
 
