@@ -13,6 +13,9 @@ export global CharacterGlobals {
     // The appearance prompt run is in flight; the field it was read from stays dimmed.
     in property <bool> generating-prompts: false;
 
+    // The portrait run is in flight
+    in property <bool> generating-image: false;
+
     callback save-character(CharacterCreationInput, ChangedField);
     callback add-trait(string, string);
     callback remove-trait(string, int);

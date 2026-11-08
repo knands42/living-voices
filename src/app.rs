@@ -32,6 +32,9 @@ pub struct AppContext<
     pub messages: MessageManager<C, N, M, A>,
 }
 
+pub type DefaultMessageManager =
+    MessageManager<ChatHandler, NarratorHandler, MemoryHandler, ActClose>;
+
 pub type DefaultContext =
     AppContext<ChatHandler, NarratorHandler, MemoryHandler, ActClose, ChatHandler, ComfyImage>;
 

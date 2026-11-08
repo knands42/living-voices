@@ -4,7 +4,7 @@ use crate::backend::application::character_manager::{CharacterManager, Character
 use crate::backend::application::port::chat_port::PromptPort;
 use crate::backend::application::port::image_port::ImagePort;
 use crate::backend::domain::character::Character;
-use crate::ui::callbacks::adventure_creation::parse_id;
+use crate::ui::callbacks::parse_id;
 use crate::ui::{BuilderGlobals, ChangedField, CharacterGlobals, RootWindow, viewmodels};
 use slint::ComponentHandle;
 use thiserror::Error;
@@ -86,44 +86,49 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> CharacterP
         Ok(())
     }
 
-    /// The appearance prose is what the two image layers are distilled from, so every save
-    /// of the field rebuilds both of them in the background. The field stays dimmed while
-    /// that runs, which is the only signal the player gets that a model call is in flight.
-    fn start_image_prompts(&self, character_id: Uuid) {
-        let Some(character) = self.character(character_id) else {
-            return;
-        };
-        if character.is_placeholder() || character.appearance.is_none() {
-            return;
+    /// Off the UI thread, the one way back onto it: the flags are cleared on the UI loop
+    /// and the character it shows is re-read from the snapshot the run just updated.
+    fn edit_ui(&self, update: impl FnOnce(&CharacterGlobals) + Send + 'static) {
+        let env = self.clone();
+        let post = slint::invoke_from_event_loop(move || {
+            let Some(ui) = env.ui_weak.upgrade() else {
+                return;
+            };
+            let page = ui.global::<CharacterGlobals>();
+
+            update(&page);
+
+            let shown = parse_id(page.get_character().id.as_str());
+            if let Some(character) = shown.and_then(|id| env.character(id)) {
+                page.set_character(viewmodels::character_view(&character));
+            }
+        });
+
+        if let Err(err) = post {
+            log::error!("could not post a character update to the UI: {err}");
         }
-
-        self.spawn_appearance_prompts(character);
     }
 
-    fn character(&self, character_id: Uuid) -> Option<Character> {
-        self.adventures.current_adventure().and_then(|adventure| {
-            adventure
-                .characters
-                .into_iter()
-                .find(|character| character.id == character_id)
-        })
-    }
+    fn spawn_appearance(&self, character_id: Uuid) {
+        let env = self.clone();
 
-    fn spawn_appearance_prompts(&self, character: Character) {
-        let character_id = character.id;
-        let character_manager = self.characters.clone();
-        let adventures = self.adventures.clone();
-        let ui_weak = self.ui_weak.clone();
-
-        if let Some(ui) = ui_weak.upgrade() {
+        if let Some(ui) = env.ui_weak.upgrade() {
             ui.global::<CharacterGlobals>().set_generating_prompts(true);
         }
 
         self.handle.spawn(async move {
-            // Generate appearance prompts
+            let Some(character) = env.character(character_id) else {
+                log::error!("character {character_id} vanished before its prompts ran");
+                env.edit_ui(|page| {
+                    page.set_generating_prompts(false);
+                    page.set_generating_image(false);
+                });
+                return;
+            };
+
             let (identity, outfit) = tokio::join!(
-                character_manager.create_character_identity_prompt(&character),
-                character_manager.create_character_outfit_prompt(&character),
+                env.characters.create_character_identity_prompt(&character),
+                env.characters.create_character_outfit_prompt(&character),
             );
 
             if let Err(err) = identity {
@@ -133,55 +138,60 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> CharacterP
                 log::error!("could not generate the outfit prompt of {character_id}: {err}");
             }
 
-            // Generate image from the previous generated prompts
-            let refreshed_character = adventures.current_adventure().and_then(|adventure| {
-                adventure
-                    .characters
-                    .into_iter()
-                    .find(|character| character.id == character_id)
-            });
+            env.post_prompts_ready();
 
-            match refreshed_character {
-                Some(character) => {
-                    if let Err(err) = character_manager
-                        .create_character_image_portrait(&character)
-                        .await
-                    {
-                        log::error!(
-                            "could not generate the image portrait of {character_id}: {err}"
-                        );
+            if let Some(appearance) = character.appearance {
+                if appearance.is_empty() {
+                    env.post_portrait_being_generated();
+                }
+
+                match env.character(character_id) {
+                    Some(character) => {
+                        if let Err(err) = env
+                            .characters
+                            .create_character_image_portrait(&character)
+                            .await
+                        {
+                            log::error!(
+                                "could not generate the image portrait of {character_id}: {err}"
+                            );
+                        }
                     }
-                }
-                None => log::error!("character {character_id} vanished while its prompts ran"),
-            }
-
-            let update_post = slint::invoke_from_event_loop(move || {
-                let Some(ui) = ui_weak.upgrade() else {
-                    return;
-                };
-                let character_page = ui.global::<CharacterGlobals>();
-                character_page.set_generating_prompts(false);
-
-                if parse_id(character_page.get_character().id.as_str()) != Some(character_id) {
-                    return;
+                    None => log::error!("character {character_id} vanished while its prompts ran"),
                 }
 
-                let refreshed = adventures.current_adventure().and_then(|adventure| {
-                    adventure
-                        .characters
-                        .into_iter()
-                        .find(|character| character.id == character_id)
-                });
-
-                if let Some(character) = refreshed {
-                    character_page.set_character(viewmodels::character_view(&character));
-                }
-            });
-
-            if let Err(err) = update_post {
-                log::error!("could not re-render character {character_id}: {err}");
+                env.post_portrait_ready();
             }
         });
+    }
+
+    /// The prompts for appearance landed
+    fn post_prompts_ready(&self) {
+        self.edit_ui(|page| {
+            page.set_generating_prompts(false);
+        });
+    }
+
+    fn post_portrait_being_generated(&self) {
+        self.edit_ui(|page| {
+            page.set_generating_image(true);
+        });
+    }
+
+    /// The image portrait landed
+    fn post_portrait_ready(&self) {
+        self.edit_ui(|page| {
+            page.set_generating_image(false);
+        });
+    }
+
+    fn character(&self, character_id: Uuid) -> Option<Character> {
+        self.adventures.current_adventure().and_then(|adventure| {
+            adventure
+                .characters
+                .into_iter()
+                .find(|character| character.id == character_id)
+        })
     }
 }
 
@@ -278,7 +288,7 @@ fn register_edit<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static
         }
 
         if changed_field == ChangedField::Appearance {
-            save_env.start_image_prompts(character_id);
+            save_env.spawn_appearance(character_id);
         }
     });
 

@@ -116,6 +116,7 @@ export component CharacterPage inherits Rectangle {
                 width: 290px;
                 character: root.character;
                 can-edit: root.can-edit;
+                generating-image: CharacterGlobals.generating-image;
                 name-committed(text) => {
                     root.save(text, root.character.headline, root.character.backstory,
                         root.character.appearance, ChangedField.character-name);
