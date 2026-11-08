@@ -265,6 +265,12 @@ impl Config {
         self
     }
 
+    /// Route the image backend at the provisioned ComfyUI `base_url`.
+    pub fn with_media_engine(mut self, base_url: &str) -> Self {
+        self.settings.models.image.base_url = base_url.trim_end_matches('/').to_string();
+        self
+    }
+
     fn load_config_into_file(path: &Path) -> Settings {
         match std::fs::read_to_string(path) {
             Ok(text) => match toml::from_str(&text) {

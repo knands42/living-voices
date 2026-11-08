@@ -53,6 +53,25 @@ async fn main() {
         }
     };
 
+    let media_engine = match living_voices::provision::entrypoint::start_media_engine().await {
+        Ok(engine) => {
+            log::info!("media engine answering on {}", engine.base_url());
+            Some(engine)
+        }
+        Err(err) => {
+            log::warn!("media engine unavailable: {err}");
+            None
+        }
+    };
+
+    let config = match &media_engine {
+        Some(engine) => config.with_media_engine(engine.base_url()),
+        None => {
+            log::warn!("using the configured image endpoint instead of the engine");
+            config
+        }
+    };
+
     let pool = match open_pool(config.db_path.to_string_lossy().as_ref()).await {
         Ok(pool) => pool,
         Err(e) => {
