@@ -182,6 +182,7 @@ pub struct ImageModel {
     pub backend: String,
     pub base_url: String,
     pub workflow: WorkflowType,
+    pub reference_workflow: WorkflowType,
     pub output_dir: PathBuf,
 }
 
@@ -192,6 +193,7 @@ impl Default for ImageModel {
             backend: "comfyui".to_string(),
             base_url: DEFAULT_IMAGE_MODEL_URL.to_string(),
             workflow: WorkflowType::FluxQ8,
+            reference_workflow: WorkflowType::FluxKontextQ4,
             output_dir: base_dir().join(DEFAULT_IMAGE_OUTPUT_DIR),
         }
     }

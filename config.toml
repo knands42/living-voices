@@ -31,6 +31,8 @@ enabled = false
 backend = "comfyui"
 base_url = "http://localhost:8188"
 workflow = "fluxq4"
+# draws every shot that starts from a reference; falls back to img2img when not a kontext model
+reference_workflow = "fluxkontextq4"
 output_dir = "comfyui/output"
 
 [memory]

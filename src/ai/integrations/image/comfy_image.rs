@@ -55,7 +55,7 @@ impl ComfyImage {
 
         let staged = self.stage_reference(reference).await?;
 
-        Ok(workflow.with_reference(&staged, reference.framing))
+        Ok(workflow.with_shot_reference(&staged, reference.framing))
     }
 
     /// ComfyUI's `LoadImage` only reads its workspace `input` dir, so a shot needs to be copied there.
@@ -84,7 +84,8 @@ impl ComfyImage {
     }
 
     async fn submit(&self, workflow: &Workflow) -> Result<String, ImageError> {
-        let graph = workflow.get_workflow_prompt(self.config.workflow)?;
+        let graph =
+            workflow.get_workflow_prompt(self.config.workflow, self.config.reference_workflow)?;
 
         let url = format!("{}/prompt", self.base_url());
         let response = self

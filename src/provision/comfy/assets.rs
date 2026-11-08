@@ -11,6 +11,8 @@ pub const FLUX_T5_URL: &str = "https://huggingface.co/city96/t5-v1_1-xxl-encoder
 pub const FLUX_CLIP_URL: &str =
     "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors";
 pub const FLUX_VAE_URL: &str = "https://huggingface.co/Comfy-Org/Lumina_Image_2.0_Repackaged/resolve/main/split_files/vae/ae.safetensors";
+pub const FLUX_KONTEXT_Q4_URL: &str = "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q4_K_S.gguf";
+pub const FLUX_KONTEXT_Q8_URL: &str = "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q8_0.gguf";
 pub const CHROMA_URL: &str = "https://huggingface.co/silveroxides/Chroma-GGUF/resolve/main/chroma-unlocked-v47-flash-heun/chroma-unlocked-v47-flash-heun-Q4_K_S.gguf";
 pub const QWEN_URL: &str =
     "https://huggingface.co/city96/Qwen-Image-gguf/resolve/main/qwen-image-Q4_K_S.gguf";
@@ -24,6 +26,8 @@ pub const GGUF_NODE_DIR: &str = "ComfyUI-GGUF";
 pub enum Model {
     FluxQ4,
     FluxQ8,
+    FluxKontextQ4,
+    FluxKontextQ8,
     Chroma,
     Qwen,
 }
@@ -33,6 +37,8 @@ impl Model {
         match self {
             Self::FluxQ4 => Asset::flux_assets(FLUX_Q4_URL),
             Self::FluxQ8 => Asset::flux_assets(FLUX_Q8_URL),
+            Self::FluxKontextQ4 => Asset::flux_assets(FLUX_KONTEXT_Q4_URL),
+            Self::FluxKontextQ8 => Asset::flux_assets(FLUX_KONTEXT_Q8_URL),
             Self::Chroma => Asset::flux_assets(CHROMA_URL),
             Self::Qwen => Asset::qwen_assets(),
         }
@@ -65,8 +71,8 @@ impl Asset {
         }
     }
 
-    /// Flux Q4/Q8 and Chroma share the T5 + CLIP-L + VAE support trio and differ
-    /// only in the unet weights.
+    /// Flux Q4/Q8, Kontext Q4/Q8 and Chroma share the T5 + CLIP-L + VAE support trio
+    /// and differ only in the unet weights.
     fn flux_assets(unet_url: &'static str) -> Vec<Self> {
         vec![
             Asset::new(FLUX_T5_URL, "clip"),
@@ -148,6 +154,22 @@ mod test {
             assets
                 .iter()
                 .any(|a| a.url == CHROMA_URL && a.subdir == "unet")
+        );
+        assert!(assets.iter().any(|a| a.url == FLUX_T5_URL));
+        assert!(assets.iter().any(|a| a.url == FLUX_VAE_URL));
+    }
+
+    #[test]
+    fn kontext_reuses_flux_support_with_its_own_unet() {
+        // given the q4 kontext weights
+        let assets = Model::FluxKontextQ4.assets();
+
+        // then it is the flux trio plus the kontext unet, nothing else
+        assert_eq!(assets.len(), 4);
+        assert!(
+            assets
+                .iter()
+                .any(|a| a.url == FLUX_KONTEXT_Q4_URL && a.subdir == "unet")
         );
         assert!(assets.iter().any(|a| a.url == FLUX_T5_URL));
         assert!(assets.iter().any(|a| a.url == FLUX_VAE_URL));

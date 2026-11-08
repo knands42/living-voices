@@ -110,17 +110,19 @@ Testing).
   `appearance_current_pose` (per beat). Never put clothing or framing in the identity prompt, and
   never repeat the body in outfit/pose — `ContextBuilder::compose_character_image_prompt`
   concatenates the layers, so duplicates fight and the model blends the contradiction.
-- **Image backend**: the graphs live in `ai/integrations/image/workflow.rs` — `WorkflowType` picks
-  one, `Workflow::get_workflow_prompt(type)` returns the ready graph, so `comfy_image.rs` only posts
-  it. Node ids are an internal detail there; the reference rewire finds `KSampler`/`VAELoader` by
-  `class_type` and errors instead of writing a node nobody will run. Prompt wording is applied by
+- **Image backend**: the graphs live in `ai/integrations/image/workflow.rs` and `Workflow` builds
+  them, so `comfy_image.rs` only posts what it is given. Two config slots decide which:
+  `workflow` draws originals (text-to-image), `reference_workflow` draws every shot that starts from
+  a reference. With a Kontext model in the second slot the reference is injected as `ReferenceLatent`
+  conditioning and the framing sizes an empty latent, so the prompt decides the crop; with anything
+  else it falls back to img2img, where the reference *is* the latent and its framing survives. Node
+  ids are found by `class_type`, never assumed. Prompt wording is applied by
   `ContextBuilder::compose_character_image_prompt`; only the shot's dimensions belong to the graph.
 - **Every shot after the first is drawn against the newest full body.** `latest_full_body` generates
   the full body when the character has none, which is why a character's first image is always one.
   A reference reaches the adapter as `ShotReference { path, framing }`; ComfyUI's `LoadImage` only
-  reads its workspace `input` dir, so the adapter copies the shot there and rewires the graph into
-  img2img — portrait crops the head-and-torso window first, full body and pose keep the whole frame.
-  Denoise belongs to the workflow (`Workflow::denoise`): Flux 0.6, Qwen 0.75, which re-renders more.
+  reads its workspace `input` dir, so the adapter copies the shot there first.
+  Denoise belongs to the workflow (`Workflow::denoise`): Flux 0.6, Qwen 0.75, Kontext 1.0.
 - **Shots are numbered, never overwritten**: `{adventure}/{character}/{character}_{shot}_{n}`, the
   first of a framing `_0`. ComfyUI appends its own `_00001_` counter after that, so the number is the
   one `CharacterGallery` wrote — parse it, don't compare filenames as text.

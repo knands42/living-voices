@@ -1,6 +1,7 @@
 # -------------------- comfy (image) -------------------- #
 # ComfyUI image models setup.
-# Models: Flux.1 [dev] (Q4/Q8), Chroma, Qwen-Image — all GGUF, token-free.
+# Models: Flux.1 [dev] (Q4/Q8), Flux.1 Kontext [dev] (Q4/Q8), Chroma, Qwen-Image — all GGUF,
+# token-free.
 
 # Flux.1 [dev] GGUF — top quality, slower. Q4 fits VRAM; Q8 offloads to RAM.
 # Needs the ComfyUI-GGUF custom node + T5/CLIP encoders + VAE (all token-free).
@@ -9,6 +10,11 @@ flux_q8_url := "https://huggingface.co/city96/FLUX.1-dev-gguf/resolve/main/flux1
 flux_t5_url := "https://huggingface.co/city96/t5-v1_1-xxl-encoder-gguf/resolve/main/t5-v1_1-xxl-encoder-Q5_K_M.gguf"
 flux_clip_url := "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors"
 flux_vae_url := "https://huggingface.co/Comfy-Org/Lumina_Image_2.0_Repackaged/resolve/main/split_files/vae/ae.safetensors"
+
+# Flux.1 Kontext [dev] GGUF — draws a new shot from a reference image, reusing Flux's
+# T5 + CLIP-L + VAE. This is the model the app uses for portraits and poses.
+flux_kontext_q4_url := "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q4_K_S.gguf"
+flux_kontext_q8_url := "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q8_0.gguf"
 
 # Chroma (Flux retrain, artistic/unfiltered) — reuses Flux T5 + VAE, new unet.
 chroma_url := "https://huggingface.co/silveroxides/Chroma-GGUF/resolve/main/chroma-unlocked-v47-flash-heun/chroma-unlocked-v47-flash-heun-Q4_K_S.gguf"
@@ -37,6 +43,14 @@ image-model-flux-q4: image-flux-node image-flux-support
 image-model-flux-q8: image-flux-node image-flux-support
     test -f {{ comfy_ws }}/models/unet/$(basename {{ flux_q8_url }}) && echo "Flux Q8 already present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ flux_q8_url }} --relative-path models/unet
 
+# Kontext Q4 (~6.8GB) — node + support + unet
+image-model-flux-kontext-q4: image-flux-node image-flux-support
+    test -f {{ comfy_ws }}/models/unet/$(basename {{ flux_kontext_q4_url }}) && echo "Kontext Q4 already present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ flux_kontext_q4_url }} --relative-path models/unet
+
+# Kontext Q8 (~12.7GB, keeps faces closer to the reference) — node + support + unet
+image-model-flux-kontext-q8: image-flux-node image-flux-support
+    test -f {{ comfy_ws }}/models/unet/$(basename {{ flux_kontext_q8_url }}) && echo "Kontext Q8 already present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ flux_kontext_q8_url }} --relative-path models/unet
+
 # Chroma (~5.3GB unet) — reuses Flux's GGUF node + T5 + VAE; ~3 min/image
 image-model-chroma: image-flux-node image-flux-support
     test -f {{ comfy_ws }}/models/unet/$(basename {{ chroma_url }}) && echo "Chroma already present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ chroma_url }} --relative-path models/unet
@@ -47,8 +61,8 @@ image-model-qwen: image-flux-node
     test -f {{ comfy_ws }}/models/vae/$(basename {{ qwen_vae_url }}) && echo "Qwen VAE already present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ qwen_vae_url }} --relative-path models/vae
     test -f {{ comfy_ws }}/models/text_encoders/$(basename {{ qwen_clip_url }}) && echo "Qwen encoder already present" || {{ comfy_bin }} --workspace {{ comfy_ws }} model download --url {{ qwen_clip_url }} --relative-path models/text_encoders
 
-# download every model (Flux Q4 + Q8 + Chroma + Qwen)
-image-models-all: image-model-flux-q4 image-model-flux-q8 image-model-chroma image-model-qwen
+# download every model (Flux Q4 + Q8 + Kontext Q4 + Q8 + Chroma + Qwen)
+image-models-all: image-model-flux-q4 image-model-flux-q8 image-model-flux-kontext-q4 image-model-flux-kontext-q8 image-model-chroma image-model-qwen
 
 image-models:
     curl -sf {{ comfy_url }}/object_info/UnetLoaderGGUF | jq '.UnetLoaderGGUF.input.required.unet_name[0]'

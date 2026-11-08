@@ -14,6 +14,7 @@ fn comfy() -> ComfyImage {
         backend: "comfyui".to_string(),
         base_url: COMFYUI_URL.to_string(),
         workflow: WorkflowType::Qwen,
+        reference_workflow: WorkflowType::Qwen,
         output_dir: PathBuf::from(OUTPUT_DIR),
     })
     .expect("build ComfyUI image handler")
