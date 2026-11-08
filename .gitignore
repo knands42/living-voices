@@ -1,8 +1,10 @@
 # Build artifacts
 llama/
+!src/provision/llama
 provision/
 !src/provision
 comfyui/
+!src/provision/comfy
 /target
 
 # IDEs & Tools

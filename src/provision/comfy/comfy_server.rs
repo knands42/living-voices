@@ -1,5 +1,6 @@
-use crate::provision::helper;
-use crate::provision::helper::{COMFY_HOST, comfy_dir, comfy_venv_python, log_file};
+use super::layout::{COMFY_HOST, comfy_dir, comfy_venv_python};
+use crate::provision::util;
+use crate::provision::util::log_file;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;
@@ -7,7 +8,7 @@ use std::time::Duration;
 pub const PREFERRED_PORT: u16 = 8_189;
 const PORT_SEARCH_LIMIT: u16 = 10;
 
-const READY_TIMEOUT: Duration = Duration::from_secs(180);
+const READY_TIMEOUT: Duration = Duration::from_secs(45);
 const READY_POLL: Duration = Duration::from_millis(500);
 const COMFY_LOG: &str = "comfy_ui.log";
 
@@ -18,7 +19,7 @@ pub struct ComfyServer {
 
 impl ComfyServer {
     pub fn spawn() -> Result<Self, String> {
-        let port = helper::get_available_port(PREFERRED_PORT, PORT_SEARCH_LIMIT)?;
+        let port = util::get_available_port(PREFERRED_PORT, PORT_SEARCH_LIMIT)?;
         Self::spawn_at(&comfy_venv_python(), &comfy_dir(), COMFY_HOST, port)
     }
 
@@ -59,7 +60,7 @@ impl ComfyServer {
     }
 
     pub async fn wait_until_ready(&self) -> Result<(), String> {
-        helper::wait_until_ready(self.base_url(), READY_POLL, READY_TIMEOUT, COMFY_LOG).await
+        util::wait_until_ready(self.base_url(), READY_POLL, READY_TIMEOUT, COMFY_LOG).await
     }
 
     pub fn base_url(&self) -> &str {

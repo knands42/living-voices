@@ -3632,6 +3632,8 @@ dependencies = [
  "flate2",
  "log",
  "log-panics",
+ "num-derive",
+ "num-traits",
  "rand 0.10.3",
  "ratatui",
  "ratatui-image",

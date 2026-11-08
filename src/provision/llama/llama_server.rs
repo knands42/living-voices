@@ -1,26 +1,19 @@
 //! Supervises the `llama-server` child process.
 
-use crate::provision::helper;
-use crate::provision::helper::{llama_server_binary, log_file};
+use super::layout::llama_server_binary;
+pub(crate) use crate::provision::llama::engine_profile::EngineProfile;
+use crate::provision::util;
+use crate::provision::util::log_file;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 
-pub const PREFERRED_PORT: u16 = 11_435;
+/// Each role binds its own port so a respawn keeps the same URL.
+pub const CHAT_PORT: u16 = 11_435;
+pub const MEMORY_PORT: u16 = 11_436;
 const PORT_SEARCH_LIMIT: u16 = 10;
 
-/// Prompt plus reply has to fit: llama.cpp's own default is far too small
-const CONTEXT_SIZE: u16 = 8_192;
-
-/// Offload every layer that fits in VRAM and keep the rest on the CPU
-const GPU_LAYERS: &str = "auto";
-
-/// Quantised KV cache roughly halves the context footprint, which is what lets
-/// `CONTEXT_SIZE` fit an 8 GiB budget
-const FLASH_ATTENTION: &str = "on";
-const KV_CACHE_TYPE: &str = "q8_0";
-
-const READY_TIMEOUT: Duration = Duration::from_secs(180);
+const READY_TIMEOUT: Duration = Duration::from_secs(45);
 const READY_POLL: Duration = Duration::from_millis(500);
 const LLAMA_LOG: &str = "llama-server.log";
 
@@ -31,12 +24,23 @@ pub struct LlamaServer {
 }
 
 impl LlamaServer {
-    pub fn spawn(model: &Path, alias: &str) -> Result<Self, String> {
-        let port = helper::get_available_port(PREFERRED_PORT, PORT_SEARCH_LIMIT)?;
-        Self::spawn_at(&llama_server_binary(), model, alias, port)
+    pub fn spawn(
+        model: &Path,
+        alias: &str,
+        preferred_port: u16,
+        profile: &EngineProfile,
+    ) -> Result<Self, String> {
+        let port = util::get_available_port(preferred_port, PORT_SEARCH_LIMIT)?;
+        Self::spawn_at(&llama_server_binary(), model, alias, port, profile)
     }
 
-    fn spawn_at(binary: &Path, model: &Path, alias: &str, port: u16) -> Result<Self, String> {
+    fn spawn_at(
+        binary: &Path,
+        model: &Path,
+        alias: &str,
+        port: u16,
+        profile: &EngineProfile,
+    ) -> Result<Self, String> {
         if !binary.is_file() {
             return Err(format!(
                 "no llama-server at {}: install it with `just provision-llama-install`",
@@ -60,13 +64,16 @@ impl LlamaServer {
             .arg("--port")
             .arg(port.to_string())
             .arg("--ctx-size")
-            .arg(CONTEXT_SIZE.to_string())
+            .arg(profile.ctx.to_string())
             .arg("--alias")
             .arg(alias)
-            .args(["--gpu-layers", GPU_LAYERS])
-            .args(["--flash-attn", FLASH_ATTENTION])
-            .args(["--cache-type-k", KV_CACHE_TYPE])
-            .args(["--cache-type-v", KV_CACHE_TYPE])
+            .args(["--gpu-layers", profile.gpu_layers])
+            .args([
+                "--flash-attn",
+                if profile.flash_attn { "on" } else { "off" },
+            ])
+            .args(["--cache-type-k", profile.kv_type])
+            .args(["--cache-type-v", profile.kv_type])
             .arg("--jinja")
             .stdin(Stdio::null())
             .stdout(stdout)
@@ -82,7 +89,7 @@ impl LlamaServer {
     }
 
     pub async fn wait_until_ready(&self) -> Result<(), String> {
-        helper::wait_until_ready(self.base_url(), READY_POLL, READY_TIMEOUT, LLAMA_LOG).await
+        util::wait_until_ready(self.base_url(), READY_POLL, READY_TIMEOUT, LLAMA_LOG).await
     }
 
     pub fn base_url(&self) -> &str {
@@ -106,7 +113,7 @@ impl Drop for LlamaServer {
 }
 
 /// The log belongs next to the binary, so a test run with a fake server never
-/// writes into the real install.
+/// writes into the real installation.
 fn log_path(binary: &Path) -> PathBuf {
     binary
         .parent()
@@ -116,8 +123,8 @@ fn log_path(binary: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod test {
-    use crate::provision::llama_server::PORT_SEARCH_LIMIT;
-    use crate::provision::{LlamaServer, PREFERRED_PORT, helper};
+    use crate::provision::llama::llama_server::{EngineProfile, PORT_SEARCH_LIMIT};
+    use crate::provision::{CHAT_PORT, LlamaServer, util};
     use std::path::{Path, PathBuf};
 
     fn scratch(name: &str) -> PathBuf {
@@ -175,11 +182,16 @@ mod test {
         std::fs::create_dir_all(&base).expect("dirs");
         let model = base.join("model.gguf");
         std::fs::write(&model, b"GGUF").expect("write");
-        let port =
-            helper::get_available_port(PREFERRED_PORT, PORT_SEARCH_LIMIT).expect("free port");
+        let port = util::get_available_port(CHAT_PORT, PORT_SEARCH_LIMIT).expect("free port");
 
         // when
-        let result = LlamaServer::spawn_at(&base.join("llama-server"), &model, "test-model", port);
+        let result = LlamaServer::spawn_at(
+            &base.join("llama-server"),
+            &model,
+            "test-model",
+            port,
+            &EngineProfile::chat(),
+        );
 
         // then
         let err = result.err().expect("should refuse");
@@ -194,12 +206,17 @@ mod test {
         // given a binary but no weights
         let base = scratch("missing-model");
         let binary = base.join("llama-server");
-        let port =
-            helper::get_available_port(PREFERRED_PORT, PORT_SEARCH_LIMIT).expect("free port");
+        let port = util::get_available_port(CHAT_PORT, PORT_SEARCH_LIMIT).expect("free port");
         fake_server(&binary);
 
         // when
-        let result = LlamaServer::spawn_at(&binary, &base.join("model.gguf"), "test-model", port);
+        let result = LlamaServer::spawn_at(
+            &binary,
+            &base.join("model.gguf"),
+            "test-model",
+            port,
+            &EngineProfile::chat(),
+        );
 
         // then
         let err = result.err().expect("should refuse");
@@ -214,15 +231,16 @@ mod test {
         // given a binary that stays alive like a server would
         let base = scratch("lifecycle");
         let binary = base.join("llama-server");
-        let port =
-            helper::get_available_port(PREFERRED_PORT, PORT_SEARCH_LIMIT).expect("free port");
+        let port = util::get_available_port(CHAT_PORT, PORT_SEARCH_LIMIT).expect("free port");
         fake_server(&binary);
 
         let model = base.join("model.gguf");
         std::fs::write(&model, b"GGUF").expect("write");
 
         // when
-        let mut server = LlamaServer::spawn_at(&binary, &model, "test-model", port).expect("spawn");
+        let mut server =
+            LlamaServer::spawn_at(&binary, &model, "test-model", port, &EngineProfile::chat())
+                .expect("spawn");
 
         // then it is up, on a port of its own
         assert!(server.is_running(), "child should be alive");
@@ -248,15 +266,16 @@ mod test {
         let base = scratch("flags");
         let binary = base.join("llama-server");
         let argv = base.join("argv.txt");
-        let port =
-            helper::get_available_port(PREFERRED_PORT, PORT_SEARCH_LIMIT).expect("free port");
+        let port = util::get_available_port(CHAT_PORT, PORT_SEARCH_LIMIT).expect("free port");
         recording_server(&binary, &argv);
 
         let model = base.join("model.gguf");
         std::fs::write(&model, b"GGUF").expect("write");
 
         // when
-        let mut server = LlamaServer::spawn_at(&binary, &model, "test-model", port).expect("spawn");
+        let mut server =
+            LlamaServer::spawn_at(&binary, &model, "test-model", port, &EngineProfile::chat())
+                .expect("spawn");
         let recorded = wait_for_argv(&argv);
 
         // then the model, context and alias survive the refactor
@@ -272,6 +291,38 @@ mod test {
         assert_pair(&recorded, "--cache-type-k", "q8_0");
         assert_pair(&recorded, "--cache-type-v", "q8_0");
         assert!(recorded.iter().any(|arg| arg == "--jinja"), "{recorded:?}");
+
+        // when
+        server.stop();
+
+        std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn spawn_runs_the_memory_profile_on_the_cpu() {
+        // given a binary that reports what it was called with
+        let base = scratch("memory-flags");
+        let binary = base.join("llama-server");
+        let argv = base.join("argv.txt");
+        let port = util::get_available_port(CHAT_PORT, PORT_SEARCH_LIMIT).expect("free port");
+        recording_server(&binary, &argv);
+
+        let model = base.join("model.gguf");
+        std::fs::write(&model, b"GGUF").expect("write");
+
+        // when the distiller profile is used
+        let mut server =
+            LlamaServer::spawn_at(&binary, &model, "distiller", port, &EngineProfile::memory())
+                .expect("spawn");
+        let recorded = wait_for_argv(&argv);
+
+        // then it stays off the GPU and keeps an f16 cache, since q8_0 needs Flash Attention
+        assert_pair(&recorded, "--gpu-layers", "0");
+        assert_pair(&recorded, "--flash-attn", "off");
+        assert_pair(&recorded, "--cache-type-k", "f16");
+        assert_pair(&recorded, "--cache-type-v", "f16");
+        assert!(recorded.iter().any(|arg| arg == "8192"), "{recorded:?}");
 
         // when
         server.stop();

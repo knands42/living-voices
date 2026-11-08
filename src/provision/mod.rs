@@ -2,7 +2,9 @@ mod comfy;
 pub mod entrypoint;
 mod extract;
 pub mod fetch;
-mod helper;
-pub mod llama_server;
-pub mod model;
-pub use llama_server::{LlamaServer, PREFERRED_PORT};
+mod llama;
+mod system_check;
+mod util;
+
+pub use llama::engine_profile::EngineProfile;
+pub use llama::llama_server::{CHAT_PORT, LlamaServer, MEMORY_PORT};

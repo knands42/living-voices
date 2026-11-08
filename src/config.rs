@@ -63,7 +63,6 @@ impl Default for Models {
 #[serde(default)]
 pub struct TextModel {
     /// Fallback endpoint. A provisioned text engine replaces it through
-    /// [`Config::with_text_engine`].
     pub base_url: String,
     pub model: String,
     pub temperature: f32,
@@ -258,10 +257,10 @@ impl Config {
         builder.init();
     }
 
-    /// Route every text model (chat and memory) at `base_url`.
-    pub fn with_text_engine(mut self, base_url: &str) -> Self {
-        self.settings.models.chat = self.settings.models.chat.with_endpoint(base_url);
-        self.settings.models.memory = self.settings.models.memory.with_endpoint(base_url);
+    /// Route chat and memory at their own endpoints, one engine each.
+    pub fn with_text_endpoints(mut self, chat_base_url: &str, memory_base_url: &str) -> Self {
+        self.settings.models.chat = self.settings.models.chat.with_endpoint(chat_base_url);
+        self.settings.models.memory = self.settings.models.memory.with_endpoint(memory_base_url);
         self
     }
 

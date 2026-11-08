@@ -1,4 +1,4 @@
-use crate::provision::helper;
+use super::layout;
 use std::path::PathBuf;
 
 // URLs mirror comfy-image.just: change them in lockstep. All GGUF/safetensors,
@@ -90,7 +90,7 @@ impl Asset {
             .filename
             .unwrap_or_else(|| self.url.rsplit('/').next().unwrap_or(self.url));
 
-        helper::comfy_models_dir().join(self.subdir).join(name)
+        layout::comfy_models_dir().join(self.subdir).join(name)
     }
 }
 

@@ -1,7 +1,7 @@
+use super::layout::{self, comfy_dir, comfy_lock, comfy_python, comfy_venv_python};
 use crate::provision::comfy::assets;
 use crate::provision::comfy::assets::Model;
-use crate::provision::helper::{comfy_dir, comfy_lock, comfy_python, comfy_venv_python};
-use crate::provision::{fetch, helper};
+use crate::provision::fetch;
 use std::path::Path;
 use std::process::Command;
 
@@ -92,10 +92,10 @@ async fn install_model(model: Model, on_change: &mut impl FnMut(Event)) -> Resul
 /// Needs `git` on the user's machine at runtime, same as the comfy-image.just
 /// recipe it mirrors.
 fn ensure_gguf_node() -> Result<(), String> {
-    let node = helper::comfy_custom_nodes_dir().join(assets::GGUF_NODE_DIR);
+    let node = layout::comfy_custom_nodes_dir().join(assets::GGUF_NODE_DIR);
 
     if !node.is_dir() {
-        std::fs::create_dir_all(helper::comfy_custom_nodes_dir())
+        std::fs::create_dir_all(layout::comfy_custom_nodes_dir())
             .map_err(|err| format!("could not create custom_nodes: {err}"))?;
 
         run_python_command(

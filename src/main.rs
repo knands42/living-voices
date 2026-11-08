@@ -36,7 +36,8 @@ async fn main() {
 
     let engine = match living_voices::provision::entrypoint::start_text_engine().await {
         Ok(engine) => {
-            log::info!("text engine answering on {}", engine.base_url());
+            log::info!("chat engine answering on {}", engine.chat_url());
+            log::info!("memory engine answering on {}", engine.memory_url());
             Some(engine)
         }
         Err(err) => {
@@ -46,7 +47,7 @@ async fn main() {
     };
 
     let config = match &engine {
-        Some(engine) => config.with_text_engine(engine.base_url()),
+        Some(engine) => config.with_text_endpoints(engine.chat_url(), engine.memory_url()),
         None => {
             log::warn!("using configured text endpoints instead of the engine");
             config

@@ -52,7 +52,6 @@ pub fn register_draft_adventure_selected(ui: &RootWindow, builder: &BuilderPageC
 
             if let Err(err) = result {
                 log::error!("could not open draft {adventure_id}: {err}");
-                // TODO: Create a notification tooltip-like and return to main page
             }
         });
 }
