@@ -60,7 +60,13 @@ impl ComfyServer {
     }
 
     pub async fn wait_until_ready(&self) -> Result<(), String> {
-        util::wait_until_ready(self.base_url(), READY_POLL, READY_TIMEOUT, COMFY_LOG).await
+        util::wait_until_ready(
+            &format!("{}/system_stats", self.base_url()),
+            READY_POLL,
+            READY_TIMEOUT,
+            COMFY_LOG,
+        )
+        .await
     }
 
     pub fn base_url(&self) -> &str {

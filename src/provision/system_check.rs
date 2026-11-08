@@ -1,18 +1,22 @@
-use num_derive::FromPrimitive;
-use num_traits::FromPrimitive;
 enum GraphicsCard {
     Nvidia,
     Amd,
     Intel,
     Unknown,
 }
+pub struct Gpu {
+    pub card: GraphicsCard,
+    pub vram_mb: Option<u64>,
+}
 
-#[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
-#[repr(u8)]
-enum VramAvailable {
-    EightGB = 8,
-    TwelveGB = 12,
-    SixteenGB = 16,
-    TwentyFourGB = 24,
-    Unknown = 0,
+impl Gpu {
+    #[cfg(target_os = "linux")]
+    fn detect() -> Gpu {
+        todo!()
+    }
+
+    #[cfg(target_os = "windows")]
+    fn detect() -> Gpu {
+        todo!()
+    }
 }

@@ -16,6 +16,7 @@ const PORT_SEARCH_LIMIT: u16 = 10;
 const READY_TIMEOUT: Duration = Duration::from_secs(45);
 const READY_POLL: Duration = Duration::from_millis(500);
 const LLAMA_LOG: &str = "llama-server.log";
+const READY_PATH: &str = "/health";
 
 pub struct LlamaServer {
     child: Child,
@@ -89,7 +90,13 @@ impl LlamaServer {
     }
 
     pub async fn wait_until_ready(&self) -> Result<(), String> {
-        util::wait_until_ready(self.base_url(), READY_POLL, READY_TIMEOUT, LLAMA_LOG).await
+        util::wait_until_ready(
+            &format!("{}{}", self.base_url(), READY_PATH),
+            READY_POLL,
+            READY_TIMEOUT,
+            LLAMA_LOG,
+        )
+        .await
     }
 
     pub fn base_url(&self) -> &str {

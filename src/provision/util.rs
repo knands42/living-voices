@@ -23,16 +23,15 @@ pub fn human_bytes(bytes: u64) -> String {
 }
 
 pub async fn wait_until_ready(
-    base_url: &str,
+    url: &str,
     ready_pool: Duration,
     ready_timeout: Duration,
     log_file_name: &str,
 ) -> Result<(), String> {
-    let url = format!("{}/system_stats", base_url);
     let deadline = tokio::time::Instant::now() + ready_timeout;
 
     while tokio::time::Instant::now() < deadline {
-        if let Ok(response) = reqwest::get(&url).await
+        if let Ok(response) = reqwest::get(url).await
             && response.status().is_success()
         {
             return Ok(());
