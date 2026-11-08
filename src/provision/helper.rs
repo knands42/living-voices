@@ -67,6 +67,16 @@ pub fn comfy_lock() -> PathBuf {
     comfy_dir().join(COMFY_LOCK_FILE)
 }
 
+/// `comfyui/models`: where every image model asset lands, under the subdir the
+/// loader nodes read (`unet`, `clip`, `vae`, `text_encoders`).
+pub fn comfy_models_dir() -> PathBuf {
+    comfy_dir().join("models")
+}
+
+pub fn comfy_custom_nodes_dir() -> PathBuf {
+    comfy_dir().join("custom_nodes")
+}
+
 /// Sizes for progress lines: `0 B`, `1023 B`, `1.5 KiB`, `6.0 GiB`.
 pub fn human_bytes(bytes: u64) -> String {
     const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
@@ -110,18 +120,15 @@ pub async fn wait_until_ready(
     ))
 }
 
-pub(crate) fn get_available_port(preferred_port: u16, port_search_limit: u16) -> u16 {
+pub(crate) fn get_available_port(
+    preferred_port: u16,
+    port_search_limit: u16,
+) -> Result<u16, String> {
     let last = preferred_port.saturating_add(port_search_limit);
 
     (preferred_port..=last)
         .find(|port| TcpListener::bind(("127.0.0.1", *port)).is_ok())
-        .ok_or_else(|| {
-            format!(
-                "no free port in {preferred_port}..{}",
-                preferred_port + port_search_limit
-            )
-        })
-        .expect("no free port available")
+        .ok_or_else(|| format!("no free port in {preferred_port}..={last}"))
 }
 
 pub fn log_file(path: &Path) -> Result<Stdio, String> {
@@ -152,7 +159,7 @@ mod test {
         let taken_port = taken.local_addr().expect("addr").port();
 
         // when
-        let next = helper::get_available_port(PREFERRED_PORT, 10);
+        let next = helper::get_available_port(PREFERRED_PORT, 10).expect("a free port");
 
         // then it moved on instead of answering with the busy one
         assert_ne!(next, taken_port);
