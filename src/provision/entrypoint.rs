@@ -1,11 +1,14 @@
 use super::comfy::layout::{comfy_bundle, comfy_dir, comfy_main};
 use super::llama::layout::{MEMORY_MODEL_ALIAS, MODEL_ALIAS};
-use crate::config::Config;
+use crate::config::Settings;
 use crate::provision::comfy::comfy_server::ComfyServer;
 use crate::provision::comfy::setup;
 use crate::provision::llama::llama_server::{CHAT_PORT, EngineProfile, LlamaServer, MEMORY_PORT};
 use crate::provision::llama::model;
+use crate::provision::util::human_bytes;
 use crate::provision::{ComfyEvent, extract};
+
+const PROGRESS_EVERY_BYTES: u64 = 64 * 1024 * 1024;
 
 /// The two text models the app talks to
 pub struct TextEngine {
@@ -23,16 +26,38 @@ impl TextEngine {
     }
 }
 
+/// What the engines resolved to for this run. Never written to disk: these URLs
+/// only answer while these processes live.
+pub struct Engines {
+    pub text: Option<TextEngine>,
+    pub media: Option<ComfyServer>,
+}
+
+impl Engines {
+    pub fn chat_url(&self) -> Option<&str> {
+        self.text.as_ref().map(TextEngine::chat_url)
+    }
+
+    pub fn memory_url(&self) -> Option<&str> {
+        self.text.as_ref().map(TextEngine::memory_url)
+    }
+
+    pub fn media_url(&self) -> Option<&str> {
+        self.media.as_ref().map(ComfyServer::base_url)
+    }
+}
+
+/// Start every engine `settings`, never persist the outcome on disk
 pub async fn start_provisioning<T, M>(
-    config: Config,
+    settings: &Settings,
     mut text_engine_callback: T,
     mut media_engine_callback: M,
-) -> Result<Config, String>
+) -> Result<Engines, String>
 where
-    T: FnMut(String, u64, Option<u64>) + Send + 'static,
-    M: FnMut(ComfyEvent) + Send + 'static,
+    T: FnMut(String, u64, Option<u64>),
+    M: FnMut(ComfyEvent),
 {
-    let engine = match start_text_engine(&mut text_engine_callback).await {
+    let text = match start_text_engine(&mut text_engine_callback).await {
         Ok(engine) => {
             log::info!("chat engine answering on {}", engine.chat_url());
             log::info!("memory engine answering on {}", engine.memory_url());
@@ -44,17 +69,8 @@ where
         }
     };
 
-    let config = match &engine {
-        Some(engine) => config.with_text_endpoints(engine.chat_url(), engine.memory_url()),
-        None => {
-            log::warn!("using configured text endpoints instead of the engine");
-            config
-        }
-    };
-    config.persist_to_file().map_err(|err| err.to_string())?;
-
-    let mut config = if config.settings.models.image.enabled {
-        let media_engine = match start_media_engine(&mut media_engine_callback).await {
+    let media = if settings.models.image.enabled {
+        match start_media_engine(&mut media_engine_callback).await {
             Ok(engine) => {
                 log::info!("media engine answering on {}", engine.base_url());
                 Some(engine)
@@ -63,23 +79,57 @@ where
                 log::warn!("media engine unavailable: {err}");
                 None
             }
-        };
-
-        match media_engine {
-            Some(engine) => config.with_media_engine(engine.base_url()),
-            None => {
-                log::warn!("using the configured image endpoint instead of the engine");
-                config
-            }
         }
     } else {
-        config
+        None
     };
 
-    config.settings.setup.prompt_gate_setup();
-    config.persist_to_file().map_err(|err| err.to_string())?;
+    Ok(Engines { text, media })
+}
 
-    Ok(config)
+pub fn default_text_progress_logger() -> impl FnMut(String, u64, Option<u64>) {
+    let mut last_logged = 0;
+
+    move |file_name, written, total| {
+        if written.saturating_sub(last_logged) < PROGRESS_EVERY_BYTES {
+            return;
+        }
+
+        last_logged = written;
+        match total {
+            Some(total) => log::info!(
+                "llama model {file_name}: {} / {}",
+                human_bytes(written),
+                human_bytes(total)
+            ),
+            None => log::info!("llama model {file_name}: {}", human_bytes(written)),
+        }
+    }
+}
+
+pub fn default_media_progress_logger() -> impl FnMut(ComfyEvent) {
+    let mut last_logged = 0;
+
+    move |event| match event {
+        ComfyEvent::InstallingDeps => log::info!("comfy: installing python deps"),
+        ComfyEvent::InstallingModel {
+            file,
+            written,
+            total,
+        } => {
+            if written == 0 || written.saturating_sub(last_logged) >= PROGRESS_EVERY_BYTES {
+                last_logged = written;
+                match total {
+                    Some(total) => log::info!(
+                        "comfy model {file}: {} / {}",
+                        human_bytes(written),
+                        human_bytes(total)
+                    ),
+                    None => log::info!("comfy model {file}: {}", human_bytes(written)),
+                }
+            }
+        }
+    }
 }
 
 /// Download both models if needed, start one `llama-server` per role, wait until both answer.

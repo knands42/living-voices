@@ -1,14 +1,22 @@
-use iced::widget::{Space, button, column, container, row, text, toggler};
+use iced::widget::{Space, button, column, container, progress_bar, row, text, toggler};
 use iced::{Alignment, Color, Element, Length};
 
 use crate::provision::{Gpu, MediaRecommendation};
-use crate::ui::gate::main::MessageGate;
+use crate::ui::gate::main::{BootProgress, MessageGate};
 
 pub fn view(
     gpu: Gpu,
     recommendation: MediaRecommendation,
     media_engine: bool,
-) -> Element<'static, MessageGate> {
+    booting: bool,
+    progress: Option<&BootProgress>,
+) -> Element<'_, MessageGate> {
+    let body = if booting {
+        booting_body(progress)
+    } else {
+        question(media_engine)
+    };
+
     container(
         column![
             text("Living Voices").size(28),
@@ -16,22 +24,7 @@ pub fn view(
             specs(gpu, recommendation),
             text(headline(recommendation)).color(tone(recommendation)),
             text(advice(recommendation)).size(14),
-            row![
-                toggler(media_engine)
-                    .label("Media engine (ComfyUI)")
-                    .on_toggle(MessageGate::MediaEngineToggled),
-                Space::new().width(Length::Fill),
-                button(text(if media_engine {
-                    "Start with images"
-                } else {
-                    "Start without images"
-                }))
-                .style(button::primary)
-                .on_press(MessageGate::Confirmed),
-            ]
-            .align_y(Alignment::Center)
-            .spacing(16),
-            text("You can revisit this later with --setup.").size(12),
+            body,
         ]
         .spacing(16),
     )
@@ -39,6 +32,44 @@ pub fn view(
     .padding(28)
     .width(Length::Fill)
     .center_x(560)
+    .into()
+}
+
+fn question(media_engine: bool) -> Element<'static, MessageGate> {
+    column![
+        row![
+            toggler(media_engine)
+                .label("Media engine (ComfyUI)")
+                .on_toggle(MessageGate::MediaEngineToggled),
+            Space::new().width(Length::Fill),
+            button(text(if media_engine {
+                "Start with images"
+            } else {
+                "Start without images"
+            }))
+            .style(button::primary)
+            .on_press(MessageGate::Confirmed(media_engine)),
+        ]
+        .align_y(Alignment::Center)
+        .spacing(16),
+        text("You can revisit this later with --setup.").size(12),
+    ]
+    .spacing(12)
+    .into()
+}
+
+fn booting_body(progress: Option<&BootProgress>) -> Element<'_, MessageGate> {
+    let label = progress
+        .map(|progress| progress.label.clone())
+        .unwrap_or_default();
+    let ratio = progress.map(|progress| progress.ratio).unwrap_or_default();
+
+    column![
+        text("Starting the engines").size(16),
+        progress_bar(0.0..=1.0, ratio),
+        text(label).size(12),
+    ]
+    .spacing(8)
     .into()
 }
 

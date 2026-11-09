@@ -1,4 +1,6 @@
-use living_voices::provision::entrypoint::start_provisioning;
+use living_voices::provision::entrypoint::{
+    Engines, default_media_progress_logger, default_text_progress_logger, start_provisioning,
+};
 use living_voices::{
     app::App,
     backend::{open_pool, run_migrations, seed_titles},
@@ -35,11 +37,37 @@ impl Frontend {
     }
 }
 
+/// The endpoints returned from text and media engines.
+fn stamp_endpoints(config: Config, engines: &Engines) -> Config {
+    let config = match (engines.chat_url(), engines.memory_url()) {
+        (Some(chat), Some(memory)) => config.with_text_endpoints(chat, memory),
+        _ => config,
+    };
+
+    match engines.media_url() {
+        Some(url) => config.with_media_engine(url),
+        None => config,
+    }
+}
+
+fn compose(pool: &sqlx::SqlitePool, config: &Config) -> Result<App, String> {
+    App::new(
+        pool.clone(),
+        config.settings.models.memory.clone(),
+        config.settings.models.chat.clone(),
+        config.settings.models.image.clone(),
+        config.settings.memory.clone(),
+        config.settings.director.clone(),
+    )
+    .map_err(|err| err.to_string())
+}
+
 #[tokio::main]
 async fn main() {
     Config::init_logging();
     log_panics::init();
-    let config = match Config::new() {
+
+    let mut config = match Config::new() {
         Ok(config) => config,
         Err(err) => {
             log::error!("Failed to initialize config: {err}");
@@ -53,57 +81,55 @@ async fn main() {
     let gpu = living_voices::provision::Gpu::detect();
     log::info!("graphics: {} {}", gpu.card_label(), gpu.vram_label());
 
-    let config = if frontend == Frontend::Ui && (Frontend::setup() || config.needs_setup()) {
-        let fallback = config.clone();
-
-        match ui::gate::gate_run(config, &gpu) {
-            Ok(config) => config,
-            Err(err) => {
-                log::warn!("gate window failed: {err}");
-                fallback
+    let mut engines = None;
+    if frontend == Frontend::Ui && (Frontend::setup() || config.needs_setup()) {
+        match ui::gate::gate_run(config.clone(), &gpu) {
+            Ok(Some(outcome)) => {
+                config = outcome.config;
+                engines = outcome.engines;
             }
+            Ok(None) => log::warn!("gate closed without an answer; using config.toml"),
+            Err(err) => log::warn!("gate window failed: {err}"),
         }
-    } else {
-        match start_provisioning(
-            config,
-            ui::gate::on_text_engine_callback(),
-            ui::gate::on_media_engine_callback(),
+    }
+
+    // No gate, or it could not answer: start whatever the config asks for.
+    if engines.is_none() {
+        engines = match start_provisioning(
+            &config.settings,
+            default_text_progress_logger(),
+            default_media_progress_logger(),
         )
         .await
         {
-            Ok(config) => config,
+            Ok(engines) => Some(engines),
             Err(err) => {
-                log::error!("provisioning failed: {err}");
-                std::process::exit(1);
+                log::warn!("provisioning failed: {err}");
+                None
             }
-        }
+        };
+    }
+
+    let config = match engines.as_ref() {
+        Some(engines) => stamp_endpoints(config, engines),
+        None => config,
     };
 
     let pool = match open_pool(config.db_path.to_string_lossy().as_ref()).await {
         Ok(pool) => pool,
-        Err(e) => {
-            eprintln!("Failed to open database pool: {}", e);
+        Err(err) => {
+            eprintln!("Failed to open database pool: {err}");
             std::process::exit(1);
         }
     };
 
-    if let Err(e) = run_migrations(&pool).await {
-        eprintln!("Database migration failed: {e}");
+    if let Err(err) = run_migrations(&pool).await {
+        eprintln!("Database migration failed: {err}");
         std::process::exit(1);
     }
 
-    let app = App::new(
-        pool,
-        config.settings.models.memory.clone(),
-        config.settings.models.chat.clone(),
-        config.settings.models.image.clone(),
-        config.settings.memory.clone(),
-        config.settings.director.clone(),
-    )
-    .expect("Failed to initialize the app context");
-
     #[cfg(debug_assertions)]
-    {
+    let seeded_first = {
         use living_voices::backend::run_seeds;
 
         log::info!("Seeding demo world: {}", seed_titles().join(", "));
@@ -111,18 +137,31 @@ async fn main() {
         match run_seeds(config.db_path.to_string_lossy().as_ref()).await {
             Ok(adventures) => {
                 log::info!("Seeded {} adventures", adventures.len());
-                if let Some(first) = adventures.into_iter().next()
-                    && let Err(err) = app.load_adventure(first).await
-                {
-                    eprintln!("Could not open seeded adventure: {err}");
-                    std::process::exit(1);
-                }
+                adventures.into_iter().next()
             }
             Err(err) => {
                 eprintln!("Could not seed demo world: {err}");
                 std::process::exit(1);
             }
         }
+    };
+    #[cfg(not(debug_assertions))]
+    let seeded_first = None;
+
+    let app = match compose(&pool, &config) {
+        Ok(app) => app,
+        Err(err) => {
+            eprintln!("Failed to initialize the app context: {err}");
+            std::process::exit(1);
+        }
+    };
+
+    #[cfg(debug_assertions)]
+    if let Some(first) = seeded_first
+        && let Err(err) = app.load_adventure(first).await
+    {
+        eprintln!("Could not open seeded adventure: {err}");
+        std::process::exit(1);
     }
 
     log::info!("Starting Living Voices ({:?})", frontend);

@@ -1,3 +1,5 @@
+use iced::{Element, Size, Task, Theme};
+
 use crate::app::AppContext;
 use crate::backend::application::adventure_manager::AdventureManager;
 use crate::backend::application::port::chat_port::{ChatPort, NarratorPort, PromptPort};
@@ -6,7 +8,6 @@ use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistil
 use crate::backend::domain::adventure::AdventureSummary;
 use crate::ui::pages::{chat, main_hub};
 use crate::ui::task;
-use iced::{Element, Size, Task, Theme};
 
 pub fn run<
     C: ChatPort + Clone + 'static,
@@ -86,6 +87,8 @@ impl<
             Message::PageRequested(page) => {
                 self.page = page;
 
+                // Coming back to the hub re-reads the list, so a new adventure
+                // shows up without a reload.
                 if page == Page::MainHub {
                     return load_summaries(self.handle.clone(), self.ctx.adventures.clone());
                 }
