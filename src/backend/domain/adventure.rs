@@ -45,6 +45,7 @@ impl From<String> for AdventureStatus {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct AdventureSummary {
     pub id: Uuid,
     pub title: String,

@@ -1,7 +1,7 @@
+use crate::backend::domain::adventure::AdventureSummary;
+use crate::ui::main::{Message, Page};
 use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Element, Length};
-
-use crate::ui::main::{Message, Page};
 
 /// Placeholder rows: this is where `AdventureManager::get_adventures_summaries`
 /// will land, rendered as the same list.
@@ -23,7 +23,7 @@ const ADVENTURES: [(&str, &str, &str); 3] = [
     ),
 ];
 
-pub fn view() -> Element<'static, Message> {
+pub fn view(_adventure_summaries: &[AdventureSummary]) -> Element<'static, Message> {
     let entries = ADVENTURES.into_iter().fold(
         column![].spacing(12),
         |list, (title, description, status)| list.push(entry(title, description, status)),
