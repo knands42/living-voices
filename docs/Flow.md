@@ -4,7 +4,7 @@ High-level map of how the app is wired. Read this first.
 
 ```mermaid
 flowchart TD
-    UI["UI<br/>Slint (GUI) · ratatui (TUI)"]
+    UI["UI<br/>iced (GUI) · ratatui (TUI)"]
 
     subgraph Managers["Managers (the only thing the UI calls)"]
         MM["MessageManager"]

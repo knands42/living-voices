@@ -2,8 +2,10 @@
 
 ## Current Roadmap
 
-- [-] Migrate SLint to Iced
-  - Relying on an native async crate that also have gpu acceleration for UI and better text support is a priority.
+- [-] Migrate Slint to iced
+  - Done at the shell level: `src/ui/main.rs` boots iced with page switching, pages live in
+    `src/ui/pages/`. The Slint GUI is parked in `src/ui/slint_bkp/` until the port finishes.
+  - Native async (`Task`/`Message`) and better text support were the deciding factors.
 - [ ] ...
 
 ## Future Roadmap

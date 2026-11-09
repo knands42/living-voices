@@ -1,6 +1,6 @@
 # Living Voices
 
-A local-first roleplay chat app built in **Rust**, with a terminal UI (ratatui) and a desktop UI (Slint). Create characters and a world, then talk with them — with a Narrator that steers events in the background.
+A local-first roleplay chat app built in **Rust**, with a terminal UI (ratatui) and a desktop UI (iced). Create characters and a world, then talk with them — with a Narrator that steers events in the background.
 
 ## What it does
 
@@ -14,7 +14,7 @@ A local-first roleplay chat app built in **Rust**, with a terminal UI (ratatui) 
 #### Incomplete version of the terminal version...
 ![Preview](./docs/chat-preview.png)
 
-> **NOTE:** Preview for the SLintUI soon
+> **NOTE:** The desktop UI is being rebuilt on iced; preview soon
 
 ## Architecture
 
@@ -24,7 +24,7 @@ shared core, and SQLite for persistence.
 ```
 ┌───────────────────────────────┐
 │  UI                           │
-│  ratatui (TUI) · Slint (GUI)  │
+│  ratatui (TUI) · iced (GUI)   │
 └───────────────┬───────────────┘
                 │ state + messages
 ┌───────────────┴───────────────┐
@@ -137,9 +137,9 @@ Maybe later, mobile support, but no plans.
 No vibecoding, any bug this project has, it's entirely my fault. AI is used deliberately for:
 
 - Getting unstuck on specific implementations (still learning Rust)
-- Troubleshooting (tons of UI wiring and state management on both SLintUI and RatatUI)
+- Troubleshooting (tons of UI wiring and state management on both GUIs)
 - Writing/Improving tests
-- UI layouts (I like SLint and RatatUI, but damn I fell like a trainee once again when coding on them)
+- UI layouts (I like iced and Ratatui, but damn I fell like a trainee once again when coding on them)
 - Boilerplate (specially AI integrations)
 
 ## Status

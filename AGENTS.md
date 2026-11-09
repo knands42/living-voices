@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Local-first roleplay chat app. Rust binary, two front-ends (ratatui TUI + Slint GUI) over one
+Local-first roleplay chat app. Rust binary, two front-ends (ratatui TUI + iced GUI) over one
 shared core, SQLite via `sqlx`, all LLMs local (Ollama / ComfyUI, OpenAI-compatible). Read
 `docs/Flow.md` for the wiring map, `docs/design-guide.md` for UI/terminology rules, `README.md`
 for the product overview.
@@ -18,7 +18,6 @@ ComfyUI smoke tests).
 | `just lint` | **only** `cargo fmt`. There is no clippy target; don't claim one exists |
 | `just run-debug` | deletes `*.db*` then runs the debug binary |
 | `just watch` | `cargo watch -x run` |
-| `just ui-preview BuilderPage src/ui/sl/builder/builder_page.slint` | live-reload one Slint component |
 | `just create-migration <name>` | `sqlx migrate add -r <name>` |
 | `just db` / `just db-tables` / `just db-reset` | sqlite3 shell / list tables / delete `$DB` (default `living_voices.db`) |
 | `just coverage` | `cargo llvm-cov`, ignoring `src/ui/`, `src/cli/`, `app.rs` |
@@ -33,8 +32,7 @@ ComfyUI smoke tests).
 - `.githooks/pre-commit` runs `cargo fmt`, `git add -u`, then `cargo test` — staged formatting
   changes land in the commit.
 - CI only runs `cargo test --locked` on pull requests.
-- `build.rs` compiles `src/ui/slint_bkp/sl` into Rust; every `cargo build` regenerates the glue
-  (`slint-build` build-dep, `slint` runtime with `renderer-software`).
+- There is no `build.rs`; the GUI is plain Rust, so `cargo build` needs no code generation step.
 
 ## Layout
 
@@ -47,7 +45,8 @@ src/backend/application/        managers + prompt builders + traits
   state.rs                      SharedState = Arc<RwLock<AppState>>
 src/backend/persistence/        one file per aggregate, raw sqlx queries
 src/ai/integrations/            adapters: text/{chat,memory,narrator,open_api_client}, image/comfy_image
-src/ui/                         Slint: sl/*.slint + callbacks/ + viewmodels/ + window.rs
+src/ui/                         iced GUI: main.rs (State/Message/Page) + pages/ (one file per page)
+src/ui/slint_bkp/                the parked Slint GUI, not compiled — reference for the port only
 src/cli/                        ratatui TUI: draw/ + events/
 tests/                          mirrors src/, single binary entry tests/mod.rs
 ```
@@ -71,9 +70,10 @@ Layering rules the code actually follows:
 - UI-facing copy and types say **adventure**, never "campaign" (`docs/design-guide.md`).
 - Domain builders are consuming-chained: `Character::new(..).with_appearance(..)` (`None` by
   default, `with_*` sets `Some`).
-- Slint: kebab-case properties in `.slint`, snake_case in Rust. Models are exposed in
-  `src/ui/slint_bkp/viewmodels`; callbacks registered in `src/ui/slint_bkp/callbacks` and
-  implemented one file per page.
+- iced: the Elm shape. `Page` is the only navigation state, every change arrives as a
+  `Message`, and `update` returns a `Task<Message>` — never block the UI thread. Pages live in
+  `src/ui/pages/` as free `fn view() -> Element<'_, Message>` functions; a new page is a `Page`
+  variant, a `mod`, and a tuple in `State::tabs` (`src/ui/main.rs`).
 
 ## Code style: the code is the comment
 
@@ -94,6 +94,13 @@ Testing).
 
 ## Gotchas
 
+- **A GUI callback must never block.** `update` returns `Task<Message>`, so every manager call goes
+  through `Task::perform` and every stream through `Task::run`; the old `Handle::current()` +
+  `block_in_place` pattern in `src/ui/slint_bkp/` does not exist here. Blocking the event thread
+  freezes the window and stops the frame clock.
+- **The GUI competes for the card.** `iced` links `wgpu` by default, which is exactly the VRAM
+  ComfyUI and llama.cpp want (an 8 GiB card is the target). Building with `default-features = false`
+  plus `tiny-skia` keeps rendering on the CPU — check the feature list before adding renderer work.
 - **Managers must write twice.** Every mutation updates SQLite *and* `SharedState`, patching both
   `adventure.characters` and `player` when the id matches — see `create_character` /
   `update_character` in `character_manager.rs`. Missing the `player` branch desyncs the UI silently.
@@ -137,19 +144,18 @@ Testing).
 `AppState` holds only the **ongoing adventure**: `current_adventure`, `current_act`,
 `current_state`, `current_facts`, `player`. Not a general-purpose cache — no builder/authoring data.
 `load_adventure`, `update_adventure`, `upsert_act` and `CharacterManager` keep it current, so
-reading it costs no I/O. The builder keeps nothing: `BuilderPageContext`
-(`ui/callbacks/builder_page.rs`) holds no data and reads what the view needs on render.
+reading it costs no I/O.
 
 - **`open(adventure_id)`** is the one expensive read: `load_adventure` (the 8-way join) warms the
-  snapshot, then the first `show`.
+  snapshot, then `show`.
 - **`show(section)`** renders the adventure from the snapshot (free) plus the acts and "is there an
   opening" from two small indexed queries (`get_acts`, `get_messages(id, 1)`). That is the whole
   cost of a render — never re-run `get_adventure` per save.
-- **Saves write once, then `show(None)`**; the re-render is what keeps `StorySection`'s `dirty`
+- **Saves write once, then re-render**; the re-render is what keeps a story section's `dirty`
   indicator honest.
-- Slint never mutates navigation state: the sidebar raises `section-requested`, the character page
-  raises `builder-entered` (`app.slint`), and Rust renders *then* sets `section` / `current-page`. Do
-  not reintroduce a `<=>` binding on `BuilderGlobals.section`.
+- **The UI never mutates navigation state directly.** A page asks for a section with a `Message`,
+  `update` renders *then* sets the page/section field. The same rule as the parked Slint build
+  (`src/ui/slint_bkp/`), where a `<=>` binding on the section was removed for exactly this reason.
 - A new character is created immediately by `CharacterManager::create_draft`, which persists
   `Character::draft(adventure_id)` and returns it so the page never reads it back. Its name is
   `Character::PLACEHOLDER_NAME` until the player types one, and `builder_view` does not count a
@@ -207,11 +213,12 @@ abstract. Give the skeleton they can type in, plus why each seam exists.
 
 ### Where the user is strong and where not
 
-- **Slint UI: inexperienced.** They know the idea (declarative components, `.slint` + Rust glue) but
-  not the syntax. Explain step by step: what each property/callback does, how Rust binds to it
-  (`viewmodels/mod.rs`, `callbacks/register.rs`), and why kebab-case in `.slint` becomes snake_case
-  in Rust. Prefer a small component in isolation, and remember
-  `just ui-preview <Component> <file>`. Do not assume they can read a layout at a glance.
+- **iced UI: new to it.** They came from Slint for better text handling, so explain the Elm shape
+  rather than the widgets: `State` + `Message` + `update -> Task` + `view`, and that a view is a
+  plain function returning `Element`, not a retained widget tree. When async is involved, show the
+  `Task::perform` / `Task::run(stream)` seam — they expect a callback-and-progress pattern from the
+  Slint days. Small page in isolation beats a full-layout dump; do not assume they can read a
+  builder chain at a glance.
 - **Rust: comfortable.** No need to explain ownership, `Result` or traits. But when a change touches
   performance, memory or concurrency, surface the tradeoff and why the shape is cheaper — stack vs
   heap, clone vs borrow, `Arc`/`RwLock` contention, a lock or pooled connection held across an

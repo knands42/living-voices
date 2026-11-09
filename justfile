@@ -23,10 +23,6 @@ run-debug: build
 watch:
     cargo watch -x run
 
-# Live-reload a single .slint component
-ui-preview component="BuilderPage" file="src/ui/sl/builder/builder_page.slint":
-    slint-viewer --auto-reload --component {{ component }} {{ file }}
-
 run-release:
     cargo build --release
     ./target/release/living_voices
