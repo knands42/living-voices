@@ -3,17 +3,17 @@ use std::path::{Path, PathBuf};
 use super::layout::{MEMORY_MODEL_FILE, MEMORY_MODEL_URL, MODEL_FILE, MODEL_URL, llama_models_dir};
 use crate::provision::fetch;
 
-pub fn model_path(file: &str) -> PathBuf {
+fn model_path(file: &str) -> PathBuf {
     llama_models_dir().join(file)
 }
 
-pub fn is_present_at(path: &Path, file: &str) -> bool {
+fn is_present_at(path: &Path, file: &str) -> bool {
     path.file_name().is_some_and(|name| name == file) && path.is_file()
 }
 
 pub async fn ensure<F>(file: &str, url: &str, on_progress: F) -> Result<PathBuf, String>
 where
-    F: FnMut(u64, Option<u64>),
+    F: FnMut(String, u64, Option<u64>),
 {
     let path = model_path(file);
 
@@ -32,14 +32,14 @@ where
 
 pub async fn ensure_chat<F>(on_progress: F) -> Result<PathBuf, String>
 where
-    F: FnMut(u64, Option<u64>),
+    F: FnMut(String, u64, Option<u64>),
 {
     ensure(MODEL_FILE, MODEL_URL, on_progress).await
 }
 
 pub async fn ensure_memory<F>(on_progress: F) -> Result<PathBuf, String>
 where
-    F: FnMut(u64, Option<u64>),
+    F: FnMut(String, u64, Option<u64>),
 {
     ensure(MEMORY_MODEL_FILE, MEMORY_MODEL_URL, on_progress).await
 }

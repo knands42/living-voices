@@ -1,6 +1,3 @@
-use iced::widget::{Space, button, column, container, row, text};
-use iced::{Alignment, Element, Length, Size, Task, Theme};
-
 use crate::app::AppContext;
 use crate::backend::application::adventure_manager::AdventureManager;
 use crate::backend::application::port::chat_port::{ChatPort, NarratorPort, PromptPort};
@@ -9,6 +6,7 @@ use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistil
 use crate::backend::domain::adventure::AdventureSummary;
 use crate::ui::pages::{chat, main_hub};
 use crate::ui::task;
+use iced::{Element, Size, Task, Theme};
 
 pub fn run<
     C: ChatPort + Clone + 'static,
@@ -98,46 +96,10 @@ impl<
     }
 
     fn view(&self) -> Element<'_, Message> {
-        let content = match self.page {
+        match self.page {
             Page::MainHub => main_hub::view(&self.adventure_summaries),
             Page::Chat => chat::view(),
-        };
-
-        container(
-            column![
-                row![
-                    text("Living Voices").size(28),
-                    Space::new().width(Length::Fill),
-                    self.tabs(),
-                ]
-                .align_y(Alignment::Center)
-                .spacing(16),
-                content,
-            ]
-            .spacing(24),
-        )
-        .padding(24)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
-    }
-
-    /// The switch every page shares: a new page needs a `Page` variant and a row
-    /// here, nothing else.
-    fn tabs(&self) -> Element<'_, Message> {
-        let pages = [("Adventures", Page::MainHub), ("Chat", Page::Chat)];
-
-        pages
-            .into_iter()
-            .fold(row![].spacing(8), |row, (label, page)| {
-                let tab = button(text(label)).on_press(Message::PageRequested(page));
-                row.push(if self.page == page {
-                    tab.style(button::primary)
-                } else {
-                    tab.style(button::secondary)
-                })
-            })
-            .into()
+        }
     }
 }
 

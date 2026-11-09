@@ -24,7 +24,7 @@ impl Gpu {
 }
 
 impl MediaRecommendation {
-    pub fn suggests_engine(self) -> bool {
+    pub fn suggests_midia_engine(self) -> bool {
         !matches!(self, Self::Limited)
     }
 }
@@ -48,7 +48,7 @@ mod test {
 
         // then
         assert_eq!(recommendation, MediaRecommendation::Comfortable);
-        assert!(recommendation.suggests_engine());
+        assert!(recommendation.suggests_midia_engine());
     }
 
     #[test]
@@ -59,7 +59,7 @@ mod test {
         for vram_mb in [8192, 12288] {
             let recommendation = gpu_with(Some(vram_mb)).media_recommendation();
             assert_eq!(recommendation, MediaRecommendation::Tight);
-            assert!(recommendation.suggests_engine());
+            assert!(recommendation.suggests_midia_engine());
         }
     }
 
@@ -71,7 +71,7 @@ mod test {
         for vram_mb in [Some(4096), Some(0), None] {
             let recommendation = gpu_with(vram_mb).media_recommendation();
             assert_eq!(recommendation, MediaRecommendation::Limited);
-            assert!(!recommendation.suggests_engine());
+            assert!(!recommendation.suggests_midia_engine());
         }
     }
 }

@@ -46,6 +46,12 @@ pub struct SetupSettings {
     pub prompted_gate: bool,
 }
 
+impl SetupSettings {
+    pub fn prompt_gate_setup(&mut self) {
+        self.prompted_gate = true;
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct Models {
@@ -232,7 +238,7 @@ impl Settings {
         Ok(())
     }
 
-    pub fn save(&self, path: &Path) -> Result<(), IoError> {
+    pub fn update_file(&self, path: &Path) -> Result<(), IoError> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }

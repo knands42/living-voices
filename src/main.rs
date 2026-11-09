@@ -1,11 +1,13 @@
+use living_voices::provision::entrypoint::start_provisioning;
 use living_voices::{
     app::App,
     backend::{open_pool, run_migrations, seed_titles},
     cli,
     config::Config,
+    ui,
 };
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Frontend {
     Cli,
     Ui,
@@ -22,64 +24,59 @@ impl Frontend {
         }
         Frontend::Ui
     }
+
+    fn setup() -> bool {
+        for arg in std::env::args().skip(1) {
+            if arg == "--setup" {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 #[tokio::main]
 async fn main() {
     Config::init_logging();
-    let config = Config::new().expect("Failed to initialize config");
     log_panics::init();
+    let config = match Config::new() {
+        Ok(config) => config,
+        Err(err) => {
+            log::error!("Failed to initialize config: {err}");
+            std::process::exit(1);
+        }
+    };
 
     let frontend = Frontend::from_args();
-
     log::info!("Config loaded from {}", config.config_file.display());
 
     let gpu = living_voices::provision::Gpu::detect();
     log::info!("graphics: {} {}", gpu.card_label(), gpu.vram_label());
 
-    // TODO: Gate engine here
+    let config = if frontend == Frontend::Ui && (Frontend::setup() || config.needs_setup()) {
+        let fallback = config.clone();
 
-    let engine = match living_voices::provision::entrypoint::start_text_engine().await {
-        Ok(engine) => {
-            log::info!("chat engine answering on {}", engine.chat_url());
-            log::info!("memory engine answering on {}", engine.memory_url());
-            Some(engine)
-        }
-        Err(err) => {
-            log::warn!("text engine unavailable: {err}");
-            None
-        }
-    };
-
-    let config = match &engine {
-        Some(engine) => config.with_text_endpoints(engine.chat_url(), engine.memory_url()),
-        None => {
-            log::warn!("using configured text endpoints instead of the engine");
-            config
-        }
-    };
-
-    let config = if config.settings.models.image.enabled {
-        let media_engine = match living_voices::provision::entrypoint::start_media_engine().await {
-            Ok(engine) => {
-                log::info!("media engine answering on {}", engine.base_url());
-                Some(engine)
-            }
+        match ui::gate::gate_run(config, &gpu) {
+            Ok(config) => config,
             Err(err) => {
-                log::warn!("media engine unavailable: {err}");
-                None
-            }
-        };
-
-        match media_engine {
-            Some(engine) => config.with_media_engine(engine.base_url()),
-            None => {
-                log::warn!("using the configured image endpoint instead of the engine");
-                config
+                log::warn!("gate window failed: {err}");
+                fallback
             }
         }
     } else {
-        config
+        match start_provisioning(
+            config,
+            ui::gate::on_text_engine_callback(),
+            ui::gate::on_media_engine_callback(),
+        )
+        .await
+        {
+            Ok(config) => config,
+            Err(err) => {
+                log::error!("provisioning failed: {err}");
+                std::process::exit(1);
+            }
+        }
     };
 
     let pool = match open_pool(config.db_path.to_string_lossy().as_ref()).await {

@@ -9,7 +9,7 @@ use tokio::io::AsyncWriteExt;
 
 pub async fn to_file<F>(url: &str, dest: &Path, mut on_progress: F) -> Result<u64, String>
 where
-    F: FnMut(u64, Option<u64>),
+    F: FnMut(String, u64, Option<u64>),
 {
     let partial_path = create_partial_path(dest);
 
@@ -31,8 +31,15 @@ where
         .await
         .map_err(|err| format!("could not create {}: {err}", partial_path.display()))?;
 
+    let file_name = partial_path
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .to_string()
+        .trim_end_matches(".part")
+        .to_string();
     let mut written = 0;
-    on_progress(0, total);
+    on_progress(file_name.clone(), 0, total);
 
     loop {
         let chunk = match response.chunk().await {
@@ -46,7 +53,7 @@ where
             .map_err(|err| format!("could not write {}: {err}", partial_path.display()))?;
 
         written += chunk.len() as u64;
-        on_progress(written, total);
+        on_progress(file_name.clone(), written, total);
     }
 
     file.flush()

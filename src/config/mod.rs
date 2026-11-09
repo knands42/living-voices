@@ -1,7 +1,7 @@
 use env_logger::{Builder, Target};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
-use std::io::Error as IoError;
+use std::io::{BufWriter, Error as IoError};
 use std::path::{Path, PathBuf};
 
 mod settings;
@@ -14,6 +14,7 @@ pub use settings::{
 const CONFIG_FILE: &str = "config.toml";
 const DB_FILE: &str = "living_voices.db";
 
+// TODO: Use another one for the ai integration and provision module called Workflow, these ones only lists all available models, the other one will dictate what to install from a specific workflow (e.g., flux workflow automatically install kontext)
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum SupportedModel {
@@ -73,7 +74,7 @@ impl Config {
     pub fn set_media_engine(&mut self, enabled: bool) -> Result<(), IoError> {
         self.settings.models.image.enabled = enabled;
         self.settings.setup.prompted_gate = true;
-        self.settings.save(&self.config_file)
+        self.settings.update_file(&self.config_file)
     }
 
     pub fn init_logging() {
@@ -107,6 +108,11 @@ impl Config {
     pub fn with_media_engine(mut self, base_url: &str) -> Self {
         self.settings.models.image.base_url = base_url.trim_end_matches('/').to_string();
         self
+    }
+
+    pub fn persist_to_file(&self) -> Result<(), std::io::Error> {
+        self.settings.update_file(self.config_file.as_path())?;
+        Ok(())
     }
 }
 

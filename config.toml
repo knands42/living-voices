@@ -39,4 +39,4 @@ min = 20
 max = 30
 
 [setup]
-prompted_gate = true
+prompted_gate = false

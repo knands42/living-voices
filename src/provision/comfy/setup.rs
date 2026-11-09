@@ -6,7 +6,7 @@ use crate::provision::fetch;
 use std::path::Path;
 use std::process::Command;
 
-pub enum Event {
+pub enum ComfyEvent {
     InstallingDeps,
     InstallingModel {
         file: String,
@@ -15,17 +15,15 @@ pub enum Event {
     },
 }
 
-/// First-run setup: build the venv from the locked deps, then fetch the image
-/// model. Steps skip themselves once their outputs are on disk, so later runs
-/// are a no-op. `on_change` reports progress to whatever front-end is driving.
-pub async fn run_pipeline(mut on_change: impl FnMut(Event)) -> Result<(), String> {
+/// First-run setup: build the venv from the locked deps, then fetch the image model.
+pub async fn run_pipeline(mut on_change: impl FnMut(ComfyEvent)) -> Result<(), String> {
     install_deps(&mut on_change)?;
     install_model(SupportedModel::FluxQ4, &mut on_change).await
 }
 
 /// Create `comfyui/venv` from the bundled interpreter and install the locked,
 /// hash-pinned deps. A no-op once the venv python exists.
-fn install_deps(on_change: &mut impl FnMut(Event)) -> Result<(), String> {
+fn install_deps(on_change: &mut impl FnMut(ComfyEvent)) -> Result<(), String> {
     if comfy_venv_python().is_file() {
         return Ok(());
     }
@@ -43,7 +41,7 @@ fn install_deps(on_change: &mut impl FnMut(Event)) -> Result<(), String> {
         return Err(format!("no lock at {}", lock.display()));
     }
 
-    on_change(Event::InstallingDeps);
+    on_change(ComfyEvent::InstallingDeps);
     run_python_command(&python, &["-m", "venv", "venv"])?;
 
     run_python_command(
@@ -60,11 +58,10 @@ fn install_deps(on_change: &mut impl FnMut(Event)) -> Result<(), String> {
 }
 
 /// Install one image model: clone the GGUF loader node if missing, then fetch
-/// every asset not already on disk, reporting bytes per file through `on_change`.
-/// Idempotent — a present file is skipped.
+/// every asset not already on disk.
 async fn install_model(
     model: SupportedModel,
-    on_change: &mut impl FnMut(Event),
+    on_change: &mut impl FnMut(ComfyEvent),
 ) -> Result<(), String> {
     ensure_gguf_node()?;
 
@@ -74,13 +71,8 @@ async fn install_model(
             continue;
         }
 
-        let file = dest
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default();
-
-        fetch::to_file(asset.url, &dest, |written, total| {
-            on_change(Event::InstallingModel {
+        fetch::to_file(asset.url, &dest, |file, written, total| {
+            on_change(ComfyEvent::InstallingModel {
                 file: file.clone(),
                 written,
                 total,
@@ -93,8 +85,6 @@ async fn install_model(
 }
 
 /// Every GGUF loader needs city96's custom node plus the `gguf` python package.
-/// Needs `git` on the user's machine at runtime, same as the comfy-image.just
-/// recipe it mirrors.
 fn ensure_gguf_node() -> Result<(), String> {
     let node = layout::comfy_custom_nodes_dir().join(assets::GGUF_NODE_DIR);
 
