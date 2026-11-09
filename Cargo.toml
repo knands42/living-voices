@@ -13,7 +13,8 @@ path = "src/lib.rs"
 
 
 [dependencies]
-slint = { version = "1.18.1", features = ["renderer-software"] }
+iced = { version = "0.14", features = ["image"] }
+futures-timer = "3.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1", features = ["v4", "serde"] }
@@ -38,5 +39,6 @@ ratatui = "0.30.2"
 crossterm = "0.29.0"
 ratatui-image = { version = "12.0.0-rc.3", default-features = false, features = ["crossterm", "image-defaults"] }
 
-[build-dependencies]
-slint-build = "1.18.1"
+[profile.dev.package."*"]
+opt-level = 2
+

@@ -1,6 +1,14 @@
 # Roadmap
 
-## Media generation (via ComfyUI)
+## Current Roadmap
+
+- [-] Migrate SLint to Iced
+  - Relying on an native async crate that also have gpu acceleration for UI and better text support is a priority.
+- [ ] ...
+
+## Future Roadmap
+
+### Media generation (via ComfyUI)
 
 | model         | use                             | ComfyUI support               | notes                                                               |
 |---------------|---------------------------------|-------------------------------|---------------------------------------------------------------------|
@@ -10,7 +18,7 @@
 | IndexTTS-2    | character speech (fallback)     | custom node (TTS-Audio-Suite) | richer emotion, but cannot offload properly, needs more VRAM        |
 | ACE-Step 15xl | background music (optional)     | native                        | music gen: empty lyrics = instrumental; lyrics = sung, not dialogue |
 
-## Features
+### Features
 
 | feature                                  | notes                                               |
 |------------------------------------------|-----------------------------------------------------|

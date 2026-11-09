@@ -24,14 +24,10 @@ impl Frontend {
     }
 }
 
-fn setup_requested() -> bool {
-    std::env::args().skip(1).any(|arg| arg == "--setup")
-}
-
 #[tokio::main]
 async fn main() {
     Config::init_logging();
-    let mut config = Config::new().expect("Failed to initialize config");
+    let config = Config::new().expect("Failed to initialize config");
     log_panics::init();
 
     let frontend = Frontend::from_args();
@@ -41,17 +37,7 @@ async fn main() {
     let gpu = living_voices::provision::Gpu::detect();
     log::info!("graphics: {} {}", gpu.card_label(), gpu.vram_label());
 
-    if matches!(frontend, Frontend::Ui) && (setup_requested() || config.needs_setup()) {
-        match living_voices::ui::gate::ask(&gpu) {
-            Ok(enabled) => {
-                log::info!("media engine: {enabled}");
-                if let Err(err) = config.set_media_engine(enabled) {
-                    log::warn!("could not write the answer into config.toml: {err}");
-                }
-            }
-            Err(err) => log::warn!("setup window failed: {err}"),
-        }
-    }
+    // TODO: Gate engine here
 
     let engine = match living_voices::provision::entrypoint::start_text_engine().await {
         Ok(engine) => {

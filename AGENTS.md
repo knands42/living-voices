@@ -33,7 +33,7 @@ ComfyUI smoke tests).
 - `.githooks/pre-commit` runs `cargo fmt`, `git add -u`, then `cargo test` — staged formatting
   changes land in the commit.
 - CI only runs `cargo test --locked` on pull requests.
-- `build.rs` compiles `src/ui/sl/app.slint` into Rust; every `cargo build` regenerates the glue
+- `build.rs` compiles `src/ui/slint_bkp/sl` into Rust; every `cargo build` regenerates the glue
   (`slint-build` build-dep, `slint` runtime with `renderer-software`).
 
 ## Layout
@@ -72,7 +72,7 @@ Layering rules the code actually follows:
 - Domain builders are consuming-chained: `Character::new(..).with_appearance(..)` (`None` by
   default, `with_*` sets `Some`).
 - Slint: kebab-case properties in `.slint`, snake_case in Rust. Models are exposed in
-  `src/ui/viewmodels/mod.rs`; callbacks registered in `src/ui/callbacks/register.rs` and
+  `src/ui/slint_bkp/viewmodels`; callbacks registered in `src/ui/slint_bkp/callbacks` and
   implemented one file per page.
 
 ## Code style: the code is the comment

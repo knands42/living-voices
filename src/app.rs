@@ -111,7 +111,7 @@ impl App {
         Ok(())
     }
 
-    pub fn run(&self) -> Result<(), slint::PlatformError> {
-        ui::run(self.ctx.clone())
+    pub fn run(&self) -> iced::Result {
+        ui::run()
     }
 }
