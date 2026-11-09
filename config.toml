@@ -1,57 +1,42 @@
-# Living Voices settings.
-#
-# Paths are not configurable here. They follow the build profile:
-#   debug   -> this project directory
-#   release -> $HOME/.living-voices
-#
-# Every text endpoint speaks the OpenAI chat-completions API, so any
-# OpenAI-compatible server (Ollama, llama.cpp, LM Studio) works unchanged.
-#
-# The provisioned text engine supplies the chat and memory endpoints itself
-# (`http://127.0.0.1:<port>/v1`). The `base_url` keys below are only used when
-# the engine cannot be started.
-
 [models.chat]
 enabled = true
+base_url = "http://localhost:11434/v1"
 model = "llama3.1:8b"
 temperature = 0.5
 request_timeout_secs = 120
-# TODO: Is this still needed after not using router mode?
-keep_alive = "1h"              # how long the model stays loaded (e.g. "5m", "1h", "-1" = forever, "" = omit, "0" = unload after request)
+keep_alive = "1h"
 
 [models.memory]
 enabled = true
+base_url = "http://localhost:11434/v1"
 model = "hf.co/sennaLLMLearner/qwen2.5-7b-memory-distiller:Q4_K_M"
 temperature = 0.1
 request_timeout_secs = 120
 keep_alive = "0"
 
 [models.image]
-# The first-run gate writes its answer here; pass --setup to be asked again.
 enabled = false
 backend = "comfyui"
 base_url = "http://localhost:8188"
 workflow = "fluxq4"
-# draws every shot that starts from a reference; falls back to img2img when not a kontext model
 reference_workflow = "fluxkontextq4"
 output_dir = "comfyui/output"
-
-[setup]
-prompted_gate = false
 
 [memory]
 compress_after_threshold = 70
 compress_last_messages = 50
-act_max_messages = 200
 
 [director]
-targeted_pick_chance = 0.8      # (0.0 - 1.0)
-narrator_change_if_ooc = 0.2    # (0.0 - 1.0)
+targeted_pick_chance = 0.8
+narrator_change_if_ooc = 0.2
 act_max_messages = 200
-follow_up_chance = 0.50
+follow_up_chance = 0.5
 follow_up_max_chain = 6
 narrator_min_gap = 10
 
 [director.narrator_pick_chance_after_message_threshold_range]
 min = 20
 max = 30
+
+[setup]
+prompted_gate = true
