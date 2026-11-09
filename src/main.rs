@@ -1,13 +1,18 @@
+use living_voices::backend::PersistenceError;
+#[cfg(debug_assertions)]
+use living_voices::backend::application::adventure_manager::AdventureManagerError;
+use living_voices::provision::Gpu;
 use living_voices::provision::entrypoint::{
     Engines, default_media_progress_logger, default_text_progress_logger, start_provisioning,
 };
 use living_voices::{
     app::App,
-    backend::{open_pool, run_migrations, seed_titles},
+    backend::{open_pool, run_migrations},
     cli,
     config::Config,
     ui,
 };
+use std::time::Duration;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Frontend {
@@ -28,16 +33,30 @@ impl Frontend {
     }
 
     fn setup() -> bool {
-        for arg in std::env::args().skip(1) {
-            if arg == "--setup" {
-                return true;
-            }
-        }
-        false
+        std::env::args().skip(1).any(|arg| arg == "--setup")
     }
 }
 
-/// The endpoints returned from text and media engines.
+#[derive(thiserror::Error, Debug)]
+enum StartupError {
+    #[error("failed to initialize config: {0}")]
+    Config(#[source] std::io::Error),
+    #[error("failed to open database pool: {0}")]
+    Pool(#[source] PersistenceError),
+    #[error("database migration failed: {0}")]
+    Migration(#[source] PersistenceError),
+    #[cfg(debug_assertions)]
+    #[error("could not seed demo world: {0}")]
+    Seed(#[source] PersistenceError),
+    #[error("failed to initialize the app context: {0}")]
+    Compose(#[source] living_voices::backend::application::port::image_port::ImageError),
+    #[cfg(debug_assertions)]
+    #[error("could not open seeded adventure: {0}")]
+    LoadAdventure(#[source] AdventureManagerError),
+    #[error("application error: {0}")]
+    Run(#[source] Box<dyn std::error::Error>),
+}
+
 fn stamp_endpoints(config: Config, engines: &Engines) -> Config {
     let config = match (engines.chat_url(), engines.memory_url()) {
         (Some(chat), Some(memory)) => config.with_text_endpoints(chat, memory),
@@ -50,7 +69,61 @@ fn stamp_endpoints(config: Config, engines: &Engines) -> Config {
     }
 }
 
-fn compose(pool: &sqlx::SqlitePool, config: &Config) -> Result<App, String> {
+async fn resolve_engines(config: &Config, frontend: Frontend, gpu: &Gpu) -> Option<Engines> {
+    if frontend == Frontend::Ui && (Frontend::setup() || config.needs_setup()) {
+        match ui::gate::gate_run(config.clone(), gpu) {
+            Ok(Some(outcome)) => return outcome.engines,
+            Ok(None) => log::warn!("gate closed without an answer; using config.toml"),
+            Err(err) => log::warn!("gate window failed: {err}"),
+        }
+    }
+
+    match start_provisioning(
+        &config.settings,
+        default_text_progress_logger(),
+        default_media_progress_logger(),
+    )
+    .await
+    {
+        Ok(engines) => Some(engines),
+        Err(err) => {
+            log::warn!("provisioning failed: {err}");
+            None
+        }
+    }
+}
+
+async fn prepare_database(config: &Config) -> Result<sqlx::SqlitePool, StartupError> {
+    let pool = open_pool(config.db_path.to_string_lossy().as_ref())
+        .await
+        .map_err(StartupError::Pool)?;
+    run_migrations(&pool)
+        .await
+        .map_err(StartupError::Migration)?;
+    Ok(pool)
+}
+
+#[cfg(debug_assertions)]
+async fn seed_and_load(config: &Config, app: &App) -> Result<(), StartupError> {
+    use living_voices::backend::{run_seeds, seed_titles};
+
+    log::info!("Seeding demo world: {}", seed_titles().join(", "));
+
+    let adventures = run_seeds(config.db_path.to_string_lossy().as_ref())
+        .await
+        .map_err(StartupError::Seed)?;
+    log::info!("Seeded {} adventures", adventures.len());
+
+    if let Some(adventure) = adventures.into_iter().next() {
+        app.load_adventure(adventure)
+            .await
+            .map_err(StartupError::LoadAdventure)?;
+    }
+
+    Ok(())
+}
+
+fn compose(pool: &sqlx::SqlitePool, config: &Config) -> Result<App, StartupError> {
     App::new(
         pool.clone(),
         config.settings.models.memory.clone(),
@@ -59,7 +132,37 @@ fn compose(pool: &sqlx::SqlitePool, config: &Config) -> Result<App, String> {
         config.settings.memory.clone(),
         config.settings.director.clone(),
     )
-    .map_err(|err| err.to_string())
+    .map_err(StartupError::Compose)
+}
+
+fn launch(app: &App, frontend: Frontend) -> Result<(), StartupError> {
+    let result: Result<(), Box<dyn std::error::Error>> = match frontend {
+        Frontend::Ui => app.run().map_err(Into::into),
+        Frontend::Cli => tokio::task::block_in_place(|| cli::init::run(app)).map_err(Into::into),
+    };
+    result.map_err(StartupError::Run)
+}
+
+async fn run() -> Result<(), StartupError> {
+    let mut config = Config::new().map_err(StartupError::Config)?;
+    let frontend = Frontend::from_args();
+    log::info!("Config loaded from {}", config.config_file.display());
+
+    let gpu = Gpu::detect();
+    log::info!("graphics: {} {}", gpu.card_label(), gpu.vram_label());
+
+    if let Some(engines) = resolve_engines(&config, frontend, &gpu).await {
+        config = stamp_endpoints(config, &engines);
+    }
+
+    let pool = prepare_database(&config).await?;
+    let app = compose(&pool, &config)?;
+
+    #[cfg(debug_assertions)]
+    seed_and_load(&config, &app).await?;
+
+    log::info!("Starting Living Voices ({frontend:?})");
+    launch(&app, frontend)
 }
 
 #[tokio::main]
@@ -67,112 +170,8 @@ async fn main() {
     Config::init_logging();
     log_panics::init();
 
-    let mut config = match Config::new() {
-        Ok(config) => config,
-        Err(err) => {
-            log::error!("Failed to initialize config: {err}");
-            std::process::exit(1);
-        }
-    };
-
-    let frontend = Frontend::from_args();
-    log::info!("Config loaded from {}", config.config_file.display());
-
-    let gpu = living_voices::provision::Gpu::detect();
-    log::info!("graphics: {} {}", gpu.card_label(), gpu.vram_label());
-
-    let mut engines = None;
-    if frontend == Frontend::Ui && (Frontend::setup() || config.needs_setup()) {
-        match ui::gate::gate_run(config.clone(), &gpu) {
-            Ok(Some(outcome)) => {
-                config = outcome.config;
-                engines = outcome.engines;
-            }
-            Ok(None) => log::warn!("gate closed without an answer; using config.toml"),
-            Err(err) => log::warn!("gate window failed: {err}"),
-        }
-    }
-
-    // No gate, or it could not answer: start whatever the config asks for.
-    if engines.is_none() {
-        engines = match start_provisioning(
-            &config.settings,
-            default_text_progress_logger(),
-            default_media_progress_logger(),
-        )
-        .await
-        {
-            Ok(engines) => Some(engines),
-            Err(err) => {
-                log::warn!("provisioning failed: {err}");
-                None
-            }
-        };
-    }
-
-    let config = match engines.as_ref() {
-        Some(engines) => stamp_endpoints(config, engines),
-        None => config,
-    };
-
-    let pool = match open_pool(config.db_path.to_string_lossy().as_ref()).await {
-        Ok(pool) => pool,
-        Err(err) => {
-            eprintln!("Failed to open database pool: {err}");
-            std::process::exit(1);
-        }
-    };
-
-    if let Err(err) = run_migrations(&pool).await {
-        eprintln!("Database migration failed: {err}");
-        std::process::exit(1);
-    }
-
-    #[cfg(debug_assertions)]
-    let seeded_first = {
-        use living_voices::backend::run_seeds;
-
-        log::info!("Seeding demo world: {}", seed_titles().join(", "));
-
-        match run_seeds(config.db_path.to_string_lossy().as_ref()).await {
-            Ok(adventures) => {
-                log::info!("Seeded {} adventures", adventures.len());
-                adventures.into_iter().next()
-            }
-            Err(err) => {
-                eprintln!("Could not seed demo world: {err}");
-                std::process::exit(1);
-            }
-        }
-    };
-    #[cfg(not(debug_assertions))]
-    let seeded_first = None;
-
-    let app = match compose(&pool, &config) {
-        Ok(app) => app,
-        Err(err) => {
-            eprintln!("Failed to initialize the app context: {err}");
-            std::process::exit(1);
-        }
-    };
-
-    #[cfg(debug_assertions)]
-    if let Some(first) = seeded_first
-        && let Err(err) = app.load_adventure(first).await
-    {
-        eprintln!("Could not open seeded adventure: {err}");
-        std::process::exit(1);
-    }
-
-    log::info!("Starting Living Voices ({:?})", frontend);
-
-    let result: Result<(), Box<dyn std::error::Error>> = match frontend {
-        Frontend::Ui => app.run().map_err(Into::into),
-        Frontend::Cli => tokio::task::block_in_place(|| cli::init::run(&app)).map_err(Into::into),
-    };
-
-    if let Err(err) = result {
-        eprintln!("Application error: {err}");
+    if let Err(err) = run().await {
+        eprintln!("{err}");
         std::process::exit(1);
     }
 }
