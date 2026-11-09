@@ -43,10 +43,10 @@ async fn main() {
 
     if matches!(frontend, Frontend::Ui) && (setup_requested() || config.needs_setup()) {
         match living_voices::ui::gate::ask(&gpu) {
-            Ok(choice) => {
-                log::info!("media engine: {}", choice.enabled);
-                if let Err(err) = config.save_setup(choice) {
-                    log::warn!("could not remember the setup answer: {err}");
+            Ok(enabled) => {
+                log::info!("media engine: {enabled}");
+                if let Err(err) = config.set_media_engine(enabled) {
+                    log::warn!("could not write the answer into config.toml: {err}");
                 }
             }
             Err(err) => log::warn!("setup window failed: {err}"),

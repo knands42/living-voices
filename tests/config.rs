@@ -1,16 +1,12 @@
 use std::path::PathBuf;
 
-use living_voices::config::{
-    Config, ImageModelChoice, Settings, Setup, SetupModels, SupportedModel,
-};
+use living_voices::config::{Config, Settings};
 
 fn blank_config() -> Config {
     Config {
         settings: Settings::default(),
-        setup: Setup::default(),
         config_dir: PathBuf::new(),
         config_file: PathBuf::new(),
-        setup_file: PathBuf::new(),
         db_path: PathBuf::new(),
     }
 }
@@ -62,82 +58,36 @@ fn text_endpoints_keep_every_other_text_setting() {
 }
 
 #[test]
-fn the_gate_answer_overrides_the_shipped_image_switch() {
-    // given the shipped switch on the heavier graph
-    let config = blank_config();
-    assert!(config.settings.models.image.enabled);
-    assert_eq!(
-        config.settings.models.image.workflow,
-        SupportedModel::FluxQ8
-    );
-
-    // when the player declined and the card only fit the lighter one
-    let config = config.with_setup(Setup {
-        models: SetupModels {
-            image: Some(ImageModelChoice {
-                enabled: false,
-                workflow: SupportedModel::FluxQ4,
-            }),
-        },
-    });
-
-    // then the answer wins over `config.toml` without editing it
-    assert!(!config.settings.models.image.enabled);
-    assert_eq!(
-        config.settings.models.image.workflow,
-        SupportedModel::FluxQ4
-    );
-    assert!(!config.needs_setup());
-}
-
-#[test]
-fn an_unanswered_machine_still_needs_the_gate() {
-    // given a config whose setup file was never written
+fn the_code_defaults_still_ask_the_gate() {
+    // given the defaults the binary ships, with no file behind them
     // when
     let config = blank_config();
 
     // then
     assert!(config.needs_setup());
-    assert_eq!(config.media_choice(), None);
+    assert!(config.settings.models.image.enabled);
 }
 
 #[test]
-fn saving_the_answer_writes_the_marker_where_the_next_run_finds_it() {
-    // given a config pointing its setup file at a scratch directory
-    let dir = std::env::temp_dir().join(format!("lv_setup_{}", uuid::Uuid::new_v4()));
+fn the_gate_answer_is_written_into_config_toml() {
+    // given a config file in a scratch directory
+    let dir = std::env::temp_dir().join(format!("lv_config_{}", uuid::Uuid::new_v4()));
     let mut config = blank_config();
-    config.setup_file = dir.join("setup.toml");
+    config.config_file = dir.join("config.toml");
+    assert!(config.needs_setup());
 
-    // when the player accepts on a comfortable card
-    config
-        .save_setup(ImageModelChoice {
-            enabled: true,
-            workflow: SupportedModel::FluxQ8,
-        })
-        .expect("save the answer");
+    // when the player turns the media engine off
+    config.set_media_engine(false).expect("write config.toml");
 
-    let written = std::fs::read_to_string(dir.join("setup.toml")).expect("read setup.toml");
-    let reloaded: Setup = toml::from_str(&written).expect("parse setup.toml");
+    let written = std::fs::read_to_string(dir.join("config.toml")).expect("read config.toml");
+    let reloaded: Settings = toml::from_str(&written).expect("parse config.toml");
     std::fs::remove_dir_all(&dir).expect("clean up");
 
-    // then the file reads like the `config.toml` table it overrides
-    assert_eq!(
-        written.trim(),
-        "[models.image]\nenabled = true\nworkflow = \"fluxq8\""
-    );
+    // then the answer is a setting in that one file, not a second config
+    assert!(!reloaded.models.image.enabled);
+    assert!(reloaded.setup.prompted_gate);
 
-    // and the running config follows it
-    assert_eq!(
-        reloaded.media_choice(),
-        Some(ImageModelChoice {
-            enabled: true,
-            workflow: SupportedModel::FluxQ8,
-        })
-    );
-    assert!(config.settings.models.image.enabled);
-    assert_eq!(
-        config.settings.models.image.workflow,
-        SupportedModel::FluxQ8
-    );
+    // and the running config agrees with it
+    assert!(!config.settings.models.image.enabled);
     assert!(!config.needs_setup());
 }

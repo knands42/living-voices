@@ -3,12 +3,10 @@ use std::rc::Rc;
 
 use slint::ComponentHandle;
 
-use crate::config::ImageModelChoice;
 use crate::provision::{Gpu, MediaRecommendation};
 use crate::ui::SetupWindow;
 
-/// Shown once, before the app window exists
-pub fn ask(gpu: &Gpu) -> Result<ImageModelChoice, slint::PlatformError> {
+pub fn ask(gpu: &Gpu) -> Result<bool, slint::PlatformError> {
     let recommendation = gpu.media_recommendation();
     let ui = SetupWindow::new()?;
 
@@ -28,10 +26,7 @@ pub fn ask(gpu: &Gpu) -> Result<ImageModelChoice, slint::PlatformError> {
 
     ui.run()?;
 
-    Ok(ImageModelChoice {
-        enabled: answer.get().unwrap_or(false),
-        workflow: recommendation.workflow(),
-    })
+    Ok(answer.get().unwrap_or(false))
 }
 
 fn tone(recommendation: MediaRecommendation) -> i32 {

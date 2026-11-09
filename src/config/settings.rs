@@ -35,6 +35,15 @@ pub struct Settings {
     pub models: Models,
     pub memory: MemorySettings,
     pub director: DirectorSettings,
+    pub setup: SetupSettings,
+}
+
+/// The only state the first-run gate owns. Every other gate answer is written
+/// straight into the setting it belongs to.
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
+#[serde(default)]
+pub struct SetupSettings {
+    pub prompted_gate: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -220,6 +229,18 @@ impl Settings {
         std::fs::write(path, include_str!("../../config.toml").as_bytes())?;
 
         log::info!("Default config created at {}", path.display());
+        Ok(())
+    }
+
+    pub fn save(&self, path: &Path) -> Result<(), IoError> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        let body = toml::to_string_pretty(self).map_err(IoError::other)?;
+        std::fs::write(path, body)?;
+        log::info!("Config written to {}", path.display());
+
         Ok(())
     }
 }

@@ -1,21 +1,17 @@
 use env_logger::{Builder, Target};
 use serde::{Deserialize, Serialize};
-#[cfg(not(debug_assertions))]
 use std::fs::File;
 use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
 
 mod settings;
-mod setup;
 
 pub use settings::{
     DirectorSettings, ImageModel, MemorySettings, MessageThresholdRange, Models, Settings,
-    TextModel,
+    SetupSettings, TextModel,
 };
-pub use setup::{ImageModelChoice, Setup, SetupModels};
 
 const CONFIG_FILE: &str = "config.toml";
-const SETUP_FILE: &str = "setup.toml";
 const DB_FILE: &str = "living_voices.db";
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,10 +33,8 @@ impl SupportedModel {
 #[derive(Debug, Clone)]
 pub struct Config {
     pub settings: Settings,
-    pub setup: Setup,
     pub config_dir: PathBuf,
     pub config_file: PathBuf,
-    pub setup_file: PathBuf,
     pub db_path: PathBuf,
 }
 
@@ -48,7 +42,6 @@ impl Config {
     pub fn new() -> Result<Self, IoError> {
         let config_dir = base_dir().to_path_buf();
         let config_file = config_dir.join(CONFIG_FILE);
-        let setup_file = config_dir.join(SETUP_FILE);
 
         if !config_file.exists() {
             log::info!(
@@ -64,49 +57,23 @@ impl Config {
         }
         log::info!("Config loaded from {}", config_file.display());
         let db_path = config_dir.join(DB_FILE);
-        let setup = Setup::load(&setup_file);
 
         Ok(Self {
             settings,
-            setup: Setup::default(),
             config_dir,
             config_file,
-            setup_file,
             db_path,
-        }
-        .with_setup(setup))
-    }
-
-    /// the gate answers
-    pub fn with_setup(mut self, setup: Setup) -> Self {
-        if let Some(choice) = setup.media_choice() {
-            choice.apply_to(&mut self.settings.models.image);
-        }
-
-        self.setup = setup;
-        self
-    }
-
-    pub fn media_choice(&self) -> Option<ImageModelChoice> {
-        self.setup.media_choice()
+        })
     }
 
     pub fn needs_setup(&self) -> bool {
-        self.setup.needs_answer()
+        !self.settings.setup.prompted_gate
     }
 
-    pub fn save_setup(&mut self, choice: ImageModelChoice) -> Result<(), IoError> {
-        let setup = Setup {
-            models: setup::SetupModels {
-                image: Some(choice),
-            },
-        };
-        setup.save(&self.setup_file)?;
-
-        choice.apply_to(&mut self.settings.models.image);
-        self.setup = setup;
-
-        Ok(())
+    pub fn set_media_engine(&mut self, enabled: bool) -> Result<(), IoError> {
+        self.settings.models.image.enabled = enabled;
+        self.settings.setup.prompted_gate = true;
+        self.settings.save(&self.config_file)
     }
 
     pub fn init_logging() {

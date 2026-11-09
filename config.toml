@@ -27,6 +27,7 @@ request_timeout_secs = 120
 keep_alive = "0"
 
 [models.image]
+# The first-run gate writes its answer here; pass --setup to be asked again.
 enabled = false
 backend = "comfyui"
 base_url = "http://localhost:8188"
@@ -34,6 +35,9 @@ workflow = "fluxq4"
 # draws every shot that starts from a reference; falls back to img2img when not a kontext model
 reference_workflow = "fluxkontextq4"
 output_dir = "comfyui/output"
+
+[setup]
+prompted_gate = false
 
 [memory]
 compress_after_threshold = 70
