@@ -66,6 +66,21 @@ impl Gpu {
             best
         }
     }
+    pub fn card_label(&self) -> &'static str {
+        match self.card {
+            GraphicsCard::Nvidia => "NVIDIA",
+            GraphicsCard::Amd => "AMD",
+            GraphicsCard::Intel => "Intel",
+            GraphicsCard::Unknown => "no supported GPU",
+        }
+    }
+
+    pub fn vram_label(&self) -> String {
+        match self.vram_mb {
+            Some(vram_mb) => crate::provision::util::human_bytes(vram_mb * MIB),
+            None => "unknown".to_string(),
+        }
+    }
 }
 
 #[cfg(target_os = "linux")]

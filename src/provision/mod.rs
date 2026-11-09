@@ -8,4 +8,4 @@ mod util;
 
 pub use llama::engine_profile::EngineProfile;
 pub use llama::llama_server::{CHAT_PORT, LlamaServer, MEMORY_PORT};
-pub use system_check::{Gpu, GraphicsCard};
+pub use system_check::{Gpu, GraphicsCard, MediaRecommendation};

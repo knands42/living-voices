@@ -101,9 +101,10 @@ Testing).
   `drop(conn)` before `handle_prompt` and re-acquires after; SQLite pooling deadlocks otherwise.
 - **Persistence uses runtime queries** (`sqlx::query(..).bind(..)`), not the `query!` macros, so the
   build needs no live database and no `.sqlx` cache.
-- **Paths depend on the build profile** (`src/config.rs`): debug reads `config.toml` from the repo
+- **Paths depend on the build profile** (`src/config/mod.rs`): debug reads `config.toml` from the repo
   working dir, release from `$HOME/.living-voice`. `config-local.toml` is gitignored, copied from
-  `config.toml` by `just dev-requirements`.
+  `config.toml` by `just dev-requirements`. `setup.toml` (gitignored) holds what the first-run gate
+  answered, and that answer wins over `[models.image]`.
 - **Three appearance layers, each owned by one field.** `appearance` is the authored identity, already
   shaped as an image fragment (face, hair, build, marks, art direction) — only the original full body
   is drawn from it, and `Character::render()` feeds `current_look()` to the chat prompt. The layers

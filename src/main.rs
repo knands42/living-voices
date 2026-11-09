@@ -24,18 +24,34 @@ impl Frontend {
     }
 }
 
+fn setup_requested() -> bool {
+    std::env::args().skip(1).any(|arg| arg == "--setup")
+}
+
 #[tokio::main]
 async fn main() {
     Config::init_logging();
-    let default_config = Config::new().expect("Failed to initialize config");
+    let mut config = Config::new().expect("Failed to initialize config");
     log_panics::init();
 
     let frontend = Frontend::from_args();
 
-    log::info!(
-        "Config loaded from {}",
-        default_config.config_file.display()
-    );
+    log::info!("Config loaded from {}", config.config_file.display());
+
+    let gpu = living_voices::provision::Gpu::detect();
+    log::info!("graphics: {} {}", gpu.card_label(), gpu.vram_label());
+
+    if matches!(frontend, Frontend::Ui) && (setup_requested() || config.needs_setup()) {
+        match living_voices::ui::gate::ask(&gpu) {
+            Ok(choice) => {
+                log::info!("media engine: {}", choice.enabled);
+                if let Err(err) = config.save_setup(choice) {
+                    log::warn!("could not remember the setup answer: {err}");
+                }
+            }
+            Err(err) => log::warn!("setup window failed: {err}"),
+        }
+    }
 
     let engine = match living_voices::provision::entrypoint::start_text_engine().await {
         Ok(engine) => {
@@ -50,10 +66,10 @@ async fn main() {
     };
 
     let config = match &engine {
-        Some(engine) => default_config.with_text_endpoints(engine.chat_url(), engine.memory_url()),
+        Some(engine) => config.with_text_endpoints(engine.chat_url(), engine.memory_url()),
         None => {
             log::warn!("using configured text endpoints instead of the engine");
-            default_config
+            config
         }
     };
 

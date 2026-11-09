@@ -1,6 +1,7 @@
 use super::layout::{self, comfy_dir, comfy_lock, comfy_python, comfy_venv_python};
+use crate::config::SupportedModel;
 use crate::provision::comfy::assets;
-use crate::provision::comfy::assets::Model;
+use crate::provision::comfy::assets::Asset;
 use crate::provision::fetch;
 use std::path::Path;
 use std::process::Command;
@@ -19,7 +20,7 @@ pub enum Event {
 /// are a no-op. `on_change` reports progress to whatever front-end is driving.
 pub async fn run_pipeline(mut on_change: impl FnMut(Event)) -> Result<(), String> {
     install_deps(&mut on_change)?;
-    install_model(Model::FluxQ4, &mut on_change).await
+    install_model(SupportedModel::FluxQ4, &mut on_change).await
 }
 
 /// Create `comfyui/venv` from the bundled interpreter and install the locked,
@@ -61,10 +62,13 @@ fn install_deps(on_change: &mut impl FnMut(Event)) -> Result<(), String> {
 /// Install one image model: clone the GGUF loader node if missing, then fetch
 /// every asset not already on disk, reporting bytes per file through `on_change`.
 /// Idempotent — a present file is skipped.
-async fn install_model(model: Model, on_change: &mut impl FnMut(Event)) -> Result<(), String> {
+async fn install_model(
+    model: SupportedModel,
+    on_change: &mut impl FnMut(Event),
+) -> Result<(), String> {
     ensure_gguf_node()?;
 
-    for asset in model.assets() {
+    for asset in Asset::assets(model) {
         let dest = asset.dest();
         if dest.is_file() {
             continue;

@@ -9,8 +9,7 @@ use crate::provision::llama::model;
 
 const PROGRESS_EVERY_BYTES: u64 = 64 * 1024 * 1024;
 
-/// The two text models the app talks to: a warm chat server and a background
-/// distiller, each on its own fixed port so the URLs stay stable.
+/// The two text models the app talks to
 pub struct TextEngine {
     pub chat: LlamaServer,
     pub memory: LlamaServer,

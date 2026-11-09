@@ -1,0 +1,206 @@
+import { AppTheme } from "theme.slint";
+
+// The first-run gate. It is its own window, shown before the app window exists, so
+// it can decide the media engine before any handler snapshots the config.
+export component SetupWindow inherits Window {
+    in property <string> card-label: "unknown";
+    in property <string> memory-label: "unknown";
+    in property <string> headline: "";
+    in property <string> advice: "";
+    // 0 comfortable, 1 tight, 2 limited
+    in property <int> tone: 1;
+    in-out property <bool> media-engine: true;
+    callback decided(bool);
+
+    title: "Living Voices";
+    preferred-width: 620px;
+    preferred-height: 520px;
+    min-width: 560px;
+    min-height: 480px;
+    background: AppTheme.bg-deepest;
+    default-font-family: AppTheme.font-body;
+    default-font-size: 14px;
+    default-font-weight: 400;
+
+    property <color> tone-color: tone == 0
+        ? AppTheme.success
+        : (tone == 1 ? AppTheme.amber-glow : AppTheme.danger);
+
+    VerticalLayout {
+        alignment: center;
+        padding: 24px;
+
+        Rectangle {
+            width: 520px;
+            height: card-layout.preferred-height;
+            background: AppTheme.bg-panel;
+            border-radius: AppTheme.radius-card;
+            border-width: 1px;
+            border-color: AppTheme.bronze;
+            drop-shadow-blur: 32px;
+            drop-shadow-color: AppTheme.card-edge-shadow;
+
+            card-layout := VerticalLayout {
+                padding: 28px;
+                spacing: 18px;
+
+                Text {
+                    text: "Living Voices";
+                    color: AppTheme.gold;
+                    font-family: AppTheme.font-brand;
+                    font-size: AppTheme.font-title;
+                }
+
+                Text {
+                    text: "Before the story starts, a word about image generation for this application";
+                    color: AppTheme.text-muted;
+                    font-family: AppTheme.font-display;
+                    font-size: AppTheme.font-card-title;
+                    wrap: word-wrap;
+                }
+
+                Rectangle {
+                    height: spec-layout.preferred-height;
+                    background: AppTheme.field-bg;
+                    border-radius: AppTheme.radius-card;
+                    border-width: 1px;
+                    border-color: AppTheme.field-border;
+
+                    spec-layout := VerticalLayout {
+                        padding: 14px;
+                        spacing: 10px;
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text {
+                                text: "Graphics card";
+                                color: AppTheme.text-muted;
+                                font-size: AppTheme.font-label;
+                            }
+
+                            Text {
+                                text: root.card-label;
+                                color: AppTheme.text-light;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text {
+                                text: "Video memory";
+                                color: AppTheme.text-muted;
+                                font-size: AppTheme.font-label;
+                            }
+
+                            Text {
+                                text: root.memory-label;
+                                color: root.tone-color;
+                            }
+                        }
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 6px;
+
+                    Text {
+                        text: root.headline;
+                        color: root.tone-color;
+                        font-size: AppTheme.font-label + 1px;
+                        wrap: word-wrap;
+                    }
+
+                    Text {
+                        text: root.advice;
+                        color: AppTheme.text-muted;
+                        font-size: AppTheme.font-label;
+                        wrap: word-wrap;
+                    }
+                }
+
+                Rectangle {
+                    height: engine-row.preferred-height;
+                    background: AppTheme.bg-panel-alt;
+                    border-radius: AppTheme.radius-card;
+                    border-width: 1px;
+                    border-color: root.media-engine ? AppTheme.gold : AppTheme.bronze;
+
+                    engine-row := HorizontalLayout {
+                        padding: 14px;
+                        spacing: 12px;
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text {
+                                text: "Media engine (ComfyUI)";
+                                color: AppTheme.text-light;
+                            }
+
+                            Text {
+                                text: root.media-engine
+                                    ? "Starts with the app and draws character and scene art."
+                                    : "Stays off. The story runs on the text engine alone.";
+                                color: AppTheme.text-muted;
+                                font-size: AppTheme.font-label;
+                                wrap: word-wrap;
+                            }
+                        }
+
+                        toggle := TouchArea {
+                            width: 46px;
+                            height: 26px;
+                            clicked => { root.media-engine = !root.media-engine; }
+
+                            track := Rectangle {
+                                border-radius: AppTheme.radius-pill;
+                                background: root.media-engine ? AppTheme.gold : AppTheme.field-border;
+                                animate background { duration: AppTheme.hover-dur; }
+
+                                Rectangle {
+                                    width: 20px;
+                                    height: 20px;
+                                    y: 3px;
+                                    x: root.media-engine ? track.width - 23px : 3px;
+                                    border-radius: AppTheme.radius-circle;
+                                    background: AppTheme.field-bg;
+                                    animate x { duration: AppTheme.hover-dur; }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    Text {
+                        text: "You can revisit this later with --setup.";
+                        color: AppTheme.text-muted;
+                        font-size: AppTheme.font-tiny;
+                        vertical-alignment: center;
+                    }
+
+                    start-area := TouchArea {
+                        width: start-label.preferred-width + 40px;
+                        height: 36px;
+                        clicked => { root.decided(root.media-engine); }
+
+                        Rectangle {
+                            background: parent.has-hover ? AppTheme.gold-bright : AppTheme.gold;
+                            border-radius: AppTheme.radius-pill;
+
+                            start-label := Text {
+                                text: root.media-engine ? "Start with images" : "Start without images";
+                                color: AppTheme.text-ink;
+                                font-family: AppTheme.font-body;
+                                vertical-alignment: center;
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

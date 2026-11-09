@@ -18,3 +18,4 @@ config-local.toml
 .TODO
 *.db*
 *.log
+setup.toml

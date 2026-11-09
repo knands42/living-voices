@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::backend::application::port::image_port::ImageError;
 use crate::backend::domain::character::ImageFraming;
+use crate::config::SupportedModel;
 
 const LOAD_IMAGE_NODE: &str = "20";
 const REFERENCE_LATENT_NODE: &str = "23";
@@ -12,23 +12,6 @@ const KONTEXT_LATENT_NODE: &str = "24";
 const FULL_BODY_SIZE: u32 = 1024;
 const PORTRAIT_WIDTH: u32 = 832;
 const PORTRAIT_HEIGHT: u32 = 1216;
-
-/// Which ComfyUI graph a shot is built from.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum WorkflowType {
-    Qwen,
-    FluxQ4,
-    FluxQ8,
-    FluxKontextQ4,
-    FluxKontextQ8,
-}
-
-impl WorkflowType {
-    fn is_kontext(self) -> bool {
-        matches!(self, Self::FluxKontextQ4 | Self::FluxKontextQ8)
-    }
-}
 
 pub struct Workflow {
     prompt: String,
@@ -53,14 +36,14 @@ impl Workflow {
     /// `original` makes shots from nothing; `edit` makes them from the reference.
     pub fn get_workflow_prompt(
         &self,
-        original: WorkflowType,
-        edit: WorkflowType,
+        original: SupportedModel,
+        edit: SupportedModel,
     ) -> Result<Value, ImageError> {
         let Some((reference, framing)) = &self.reference else {
             return self.graph(original);
         };
 
-        if edit.is_kontext() {
+        if edit.is_reference_model() {
             return Ok(self.kontext(reference, *framing, edit));
         }
 
@@ -72,33 +55,33 @@ impl Workflow {
     }
 
     /// How much of the reference the model is allowed to redraw
-    fn denoise(workflow: WorkflowType) -> f64 {
+    fn denoise(workflow: SupportedModel) -> f64 {
         match workflow {
-            WorkflowType::FluxQ4 | WorkflowType::FluxQ8 => 0.6,
-            WorkflowType::Qwen => 0.75,
-            WorkflowType::FluxKontextQ4 | WorkflowType::FluxKontextQ8 => 1.0,
+            SupportedModel::FluxQ4 | SupportedModel::FluxQ8 => 0.6,
+            SupportedModel::Qwen => 0.75,
+            SupportedModel::FluxKontextQ4 | SupportedModel::FluxKontextQ8 => 1.0,
         }
     }
 
-    fn graph(&self, workflow: WorkflowType) -> Result<Value, ImageError> {
+    fn graph(&self, workflow: SupportedModel) -> Result<Value, ImageError> {
         match workflow {
-            WorkflowType::FluxQ8 => Ok(self.flux_q8()),
-            WorkflowType::FluxQ4 => Ok(self.flux_q4()),
-            WorkflowType::Qwen => Ok(self.qwen()),
-            WorkflowType::FluxKontextQ4 | WorkflowType::FluxKontextQ8 => Err(ImageError::Provider(
-                format!("{workflow:?} only draws from a reference"),
-            )),
+            SupportedModel::FluxQ8 => Ok(self.flux_q8()),
+            SupportedModel::FluxQ4 => Ok(self.flux_q4()),
+            SupportedModel::Qwen => Ok(self.qwen()),
+            SupportedModel::FluxKontextQ4 | SupportedModel::FluxKontextQ8 => Err(
+                ImageError::Provider(format!("{workflow:?} only draws from a reference")),
+            ),
         }
     }
 
     /// Kontext regenerates the shot from the instruction while keeping most of its integrity.
-    fn kontext(&self, reference: &str, framing: ImageFraming, workflow: WorkflowType) -> Value {
+    fn kontext(&self, reference: &str, framing: ImageFraming, workflow: SupportedModel) -> Value {
         let (width, height) = match framing {
             ImageFraming::Portrait => (PORTRAIT_WIDTH, PORTRAIT_HEIGHT),
             ImageFraming::FullBody | ImageFraming::FullBodyPose => (FULL_BODY_SIZE, FULL_BODY_SIZE),
         };
         let unet_name = match workflow {
-            WorkflowType::FluxKontextQ8 => "flux1-kontext-dev-Q8_0.gguf",
+            SupportedModel::FluxKontextQ8 => "flux1-kontext-dev-Q8_0.gguf",
             _ => "flux1-kontext-dev-Q4_K_S.gguf",
         };
 
@@ -278,7 +261,7 @@ fn node_id(graph: &Value, class_type: &str) -> Option<String> {
 
 #[cfg(test)]
 mod test {
-    use super::{Workflow, WorkflowType};
+    use super::{SupportedModel, Workflow};
     use crate::backend::domain::character::ImageFraming;
     use serde_json::json;
 
@@ -290,7 +273,7 @@ mod test {
 
         // when
         let graph = workflow
-            .get_workflow_prompt(WorkflowType::FluxQ8, WorkflowType::FluxKontextQ4)
+            .get_workflow_prompt(SupportedModel::FluxQ8, SupportedModel::FluxKontextQ4)
             .expect("a kontext graph");
 
         // then the reference only conditions, and the sampler starts from a portrait latent
@@ -316,7 +299,7 @@ mod test {
 
         // when
         let graph = workflow
-            .get_workflow_prompt(WorkflowType::FluxQ8, WorkflowType::FluxKontextQ8)
+            .get_workflow_prompt(SupportedModel::FluxQ8, SupportedModel::FluxKontextQ8)
             .expect("a kontext graph");
 
         // then it loads the q8 unet and keeps the flux support trio
@@ -335,10 +318,10 @@ mod test {
 
         // when
         let flux = portrait
-            .get_workflow_prompt(WorkflowType::Qwen, WorkflowType::FluxQ8)
+            .get_workflow_prompt(SupportedModel::Qwen, SupportedModel::FluxQ8)
             .expect("a flux graph");
         let qwen = portrait
-            .get_workflow_prompt(WorkflowType::Qwen, WorkflowType::Qwen)
+            .get_workflow_prompt(SupportedModel::Qwen, SupportedModel::Qwen)
             .expect("a qwen graph");
 
         // then the reference becomes the latent, uncropped, and qwen redraws more of it
@@ -359,7 +342,7 @@ mod test {
 
         // when
         let graph = workflow
-            .get_workflow_prompt(WorkflowType::FluxQ8, WorkflowType::FluxKontextQ4)
+            .get_workflow_prompt(SupportedModel::FluxQ8, SupportedModel::FluxKontextQ4)
             .expect("a flux graph");
 
         // then the sampler keeps its own latent, full denoise, and the prompt reaches it
@@ -386,7 +369,7 @@ mod test {
 
         // when
         let err = workflow
-            .get_workflow_prompt(WorkflowType::FluxKontextQ4, WorkflowType::FluxKontextQ4)
+            .get_workflow_prompt(SupportedModel::FluxKontextQ4, SupportedModel::FluxKontextQ4)
             .expect_err("kontext has no text-to-image graph");
 
         // then it says so rather than drawing the wrong thing
