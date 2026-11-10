@@ -25,10 +25,7 @@ impl ComfyServer {
 
     fn spawn_at(python: &Path, dir: &Path, host: &str, port: u16) -> Result<Self, String> {
         if !python.is_file() {
-            return Err(format!(
-                "no comfy venv at {}: install deps first",
-                python.display()
-            ));
+            return Err(format!("no comfy venv at {}", python.display()));
         }
 
         if !dir.join("main.py").is_file() {

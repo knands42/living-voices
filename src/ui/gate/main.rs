@@ -123,7 +123,7 @@ impl StateGate {
                     ratio: 0.0,
                 });
 
-                if let Err(err) = self.config.set_custom_config(enabled) {
+                if let Err(err) = self.config.set_custom_config(self.media_engine) {
                     log::warn!("could not write the answer into config.toml: {err}");
                 }
 

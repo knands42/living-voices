@@ -43,10 +43,7 @@ impl LlamaServer {
         profile: &EngineProfile,
     ) -> Result<Self, String> {
         if !binary.is_file() {
-            return Err(format!(
-                "no llama-server at {}: install it with `just provision-llama-install`",
-                binary.display()
-            ));
+            return Err(format!("no llama-server at {}", binary.display()));
         }
 
         if !model.is_file() {
