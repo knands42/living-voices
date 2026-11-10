@@ -1,10 +1,11 @@
 use living_voices::backend::PersistenceError;
 #[cfg(debug_assertions)]
 use living_voices::backend::application::adventure_manager::AdventureManagerError;
-use living_voices::provision::Gpu;
 use living_voices::provision::entrypoint::{
-    Engines, default_media_progress_logger, default_text_progress_logger, start_provisioning,
+    MediaEngine, TextEngine, default_media_progress_logger, default_text_progress_logger,
+    start_provisioning,
 };
+use living_voices::provision::{Gpu, start_media_engine, start_text_engine};
 use living_voices::{
     app::App,
     backend::{open_pool, run_migrations},
@@ -12,7 +13,6 @@ use living_voices::{
     config::Config,
     ui,
 };
-use std::time::Duration;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Frontend {
@@ -55,26 +55,34 @@ enum StartupError {
     LoadAdventure(#[source] AdventureManagerError),
     #[error("application error: {0}")]
     Run(#[source] Box<dyn std::error::Error>),
+    #[error("failed to load engines {0}")]
+    BootEngines(String),
+    #[error("failed to start engines {0}")]
+    StartEngines(String),
 }
 
-fn stamp_endpoints(config: Config, engines: &Engines) -> Config {
-    let config = match (engines.chat_url(), engines.memory_url()) {
-        (Some(chat), Some(memory)) => config.with_text_endpoints(chat, memory),
-        _ => config,
-    };
-
-    match engines.media_url() {
-        Some(url) => config.with_media_engine(url),
-        None => config,
-    }
+fn stamp_engine_endpoints(
+    config: Config,
+    text_engine: &TextEngine,
+    media_engine: &MediaEngine,
+) -> Config {
+    config
+        .with_text_endpoints(text_engine.chat_url(), text_engine.memory_url())
+        .with_media_engine(media_engine.media_url())
 }
 
-async fn resolve_engines(config: &Config, frontend: Frontend, gpu: &Gpu) -> Option<Engines> {
+async fn provision_engines(
+    config: &Config,
+    frontend: Frontend,
+    gpu: &Gpu,
+) -> Result<(), StartupError> {
     if frontend == Frontend::Ui && (Frontend::setup() || config.needs_setup()) {
         match ui::gate::gate_run(config.clone(), gpu) {
-            Ok(Some(outcome)) => return outcome.engines,
-            Ok(None) => log::warn!("gate closed without an answer; using config.toml"),
-            Err(err) => log::warn!("gate window failed: {err}"),
+            Ok(_) => {
+                log::info!("gate window finished successfully");
+                return Ok(());
+            }
+            Err(err) => return Err(StartupError::BootEngines(err.to_string())),
         }
     }
 
@@ -85,11 +93,11 @@ async fn resolve_engines(config: &Config, frontend: Frontend, gpu: &Gpu) -> Opti
     )
     .await
     {
-        Ok(engines) => Some(engines),
-        Err(err) => {
-            log::warn!("provisioning failed: {err}");
-            None
+        Ok(_) => {
+            log::info!("provisioning finished successfully");
+            Ok(())
         }
+        Err(err) => Err(StartupError::BootEngines(err.to_string())),
     }
 }
 
@@ -151,15 +159,20 @@ async fn run() -> Result<(), StartupError> {
     let gpu = Gpu::detect();
     log::info!("graphics: {} {}", gpu.card_label(), gpu.vram_label());
 
-    if let Some(engines) = resolve_engines(&config, frontend, &gpu).await {
-        config = stamp_endpoints(config, &engines);
-    }
+    provision_engines(&config, frontend, &gpu).await?;
+    let text_engine = start_text_engine()
+        .await
+        .map_err(StartupError::StartEngines)?;
+    let media_engine = start_media_engine()
+        .await
+        .map_err(StartupError::StartEngines)?;
+    let updated_config = stamp_engine_endpoints(config, &text_engine, &media_engine);
 
-    let pool = prepare_database(&config).await?;
-    let app = compose(&pool, &config)?;
+    let pool = prepare_database(&updated_config).await?;
+    let app = compose(&pool, &updated_config)?;
 
     #[cfg(debug_assertions)]
-    seed_and_load(&config, &app).await?;
+    seed_and_load(&updated_config, &app).await?;
 
     log::info!("Starting Living Voices ({frontend:?})");
     launch(&app, frontend)

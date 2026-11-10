@@ -5,18 +5,11 @@ use iced::{Element, Size, Task, Theme};
 
 use super::view;
 use crate::config::Config;
-use crate::provision::entrypoint::{Engines, start_provisioning};
+use crate::provision::entrypoint::start_provisioning;
 use crate::provision::{ComfyEvent, Gpu, MediaRecommendation, human_bytes};
 use crate::ui::task::on_tokio;
 
 const PROGRESS_EVERY_BYTES: u64 = 64 * 1024 * 1024;
-
-/// What the gate hands back: the config it wrote the intent into, and the engines
-/// this run started.
-pub struct GateOutcome {
-    pub config: Config,
-    pub engines: Option<Engines>,
-}
 
 #[derive(Debug, Clone)]
 pub enum MessageGate {
@@ -74,13 +67,11 @@ impl Progress {
 
 /// Runs the first-run gate as its own window and returns what it decided and
 /// started, or `None` when the player closed it without answering.
-pub fn gate_run(config: Config, gpu: &Gpu) -> Result<Option<GateOutcome>, iced::Error> {
+pub fn gate_run(config: Config, gpu: &Gpu) -> Result<(), iced::Error> {
     let gpu = *gpu;
-    let outcome = Arc::new(Mutex::new(None));
-    let slot = outcome.clone();
 
     iced::application(
-        move || StateGate::boot(config.clone(), gpu, slot.clone()),
+        move || StateGate::boot(config.clone(), gpu),
         StateGate::update,
         StateGate::view,
     )
@@ -90,12 +81,11 @@ pub fn gate_run(config: Config, gpu: &Gpu) -> Result<Option<GateOutcome>, iced::
     .antialiasing(true)
     .run()?;
 
-    Ok(outcome.lock().ok().and_then(|mut slot| slot.take()))
+    Ok(())
 }
 
 pub struct StateGate {
     config: Config,
-    outcome: Arc<Mutex<Option<GateOutcome>>>,
     handle: tokio::runtime::Handle,
     recommendation: MediaRecommendation,
     gpu: Gpu,
@@ -105,12 +95,11 @@ pub struct StateGate {
 }
 
 impl StateGate {
-    pub fn boot(config: Config, gpu: Gpu, outcome: Arc<Mutex<Option<GateOutcome>>>) -> Self {
+    pub fn boot(config: Config, gpu: Gpu) -> Self {
         let recommendation = gpu.media_recommendation();
 
         Self {
             config,
-            outcome,
             handle: tokio::runtime::Handle::current(),
             recommendation,
             gpu,
@@ -134,7 +123,7 @@ impl StateGate {
                     ratio: 0.0,
                 });
 
-                if let Err(err) = self.config.set_media_engine(enabled) {
+                if let Err(err) = self.config.set_custom_config(enabled) {
                     log::warn!("could not write the answer into config.toml: {err}");
                 }
 
@@ -164,9 +153,7 @@ impl StateGate {
 
     fn start(&self) -> Task<MessageGate> {
         let settings = self.config.settings.clone();
-        let config = self.config.clone();
         let handle = self.handle.clone();
-        let outcome = self.outcome.clone();
 
         Task::run(
             iced::stream::channel(256, move |output: Sender<MessageGate>| async move {
@@ -217,16 +204,12 @@ impl StateGate {
                     let _ = media_output.try_send(MessageGate::Progress(progress));
                 };
 
-                let engines = on_tokio(handle, async move {
+                on_tokio(handle, async move {
                     start_provisioning(&settings, text_callback, media_callback).await
                 })
                 .await
                 .unwrap_or_else(|| Err("provisioning task was cancelled".to_string()))
                 .ok();
-
-                if let Ok(mut slot) = outcome.lock() {
-                    *slot = Some(GateOutcome { config, engines });
-                }
 
                 let _ = done_output.try_send(MessageGate::Provisioned);
             }),

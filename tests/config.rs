@@ -77,7 +77,7 @@ fn the_gate_answer_is_written_into_config_toml() {
     assert!(config.needs_setup());
 
     // when the player turns the media engine off
-    config.set_media_engine(false).expect("write config.toml");
+    config.set_custom_config(false).expect("write config.toml");
 
     let written = std::fs::read_to_string(dir.join("config.toml")).expect("read config.toml");
     let reloaded: Settings = toml::from_str(&written).expect("parse config.toml");

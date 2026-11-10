@@ -71,8 +71,8 @@ impl Config {
         !self.settings.setup.prompted_gate
     }
 
-    pub fn set_media_engine(&mut self, enabled: bool) -> Result<(), IoError> {
-        self.settings.models.image.enabled = enabled;
+    pub fn set_custom_config(&mut self, image_engine: bool) -> Result<(), IoError> {
+        self.settings.models.image.enabled = image_engine;
         self.settings.setup.prompted_gate = true;
         self.settings.update_file(&self.config_file)
     }
