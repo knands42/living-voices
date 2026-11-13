@@ -14,7 +14,8 @@ use crate::{
         adventure_manager::AdventureManager, character_manager::CharacterManager,
         memory_manager::MemoryManager, message_manager::MessageManager, state::SharedState,
     },
-    config::{DirectorSettings, ImageModel, MemorySettings, TextModel},
+    config::{Config, Settings},
+    provision::Gpu,
     ui,
 };
 
@@ -36,79 +37,84 @@ pub type DefaultContext =
     AppContext<ChatHandler, NarratorHandler, MemoryHandler, ActClose, ChatHandler, ComfyImage>;
 
 pub struct App {
+    pool: SqlitePool,
+    state: SharedState,
     ctx: DefaultContext,
 }
 
 impl App {
-    pub fn new(
-        pool: SqlitePool,
-        memory_model: TextModel,
-        chat_model: TextModel,
-        image_model: ImageModel,
-        memory_settings: MemorySettings,
-        director_settings: DirectorSettings,
-    ) -> Result<Self, ImageError> {
-        // state
+    pub fn new(pool: SqlitePool, config: &Config) -> Result<Self, ImageError> {
         let state = SharedState::new();
+        let ctx = build_context(pool.clone(), state.clone(), &config.settings)?;
 
-        // ai modules — the narrator shares the chat text endpoint/config.
-        let distiller = MemoryHandler::new(memory_model.clone());
-        let closer = ActClose::new(memory_model);
-        let narrator_handler = NarratorHandler::new(chat_model.clone());
-        let chat_handler = ChatHandler::new(chat_model);
-        let image_handler = ComfyImage::new(image_model.clone())?;
+        Ok(Self { pool, state, ctx })
+    }
 
-        // application
-        let director = Director::new(director_settings);
-
-        let adventure_manager = AdventureManager::new(state.clone(), pool.clone());
-        let character_manager = CharacterManager::new(
-            state.clone(),
-            pool.clone(),
-            chat_handler.clone(),
-            image_handler,
-            CharacterGallery::new(image_model.output_dir),
-        );
-        let memory_manager = MemoryManager::new(
-            state.clone(),
-            pool.clone(),
-            distiller,
-            closer,
-            memory_settings,
-        );
-        let message_manager = MessageManager::new(
-            state.clone(),
-            pool.clone(),
-            chat_handler,
-            narrator_handler,
-            director,
-            memory_manager,
-        );
-
-        Ok(Self {
-            ctx: AppContext {
-                adventures: adventure_manager,
-                characters: character_manager,
-                messages: message_manager,
-            },
-        })
+    pub fn context_for(&self, config: &Config) -> Result<DefaultContext, ImageError> {
+        build_context(self.pool.clone(), self.state.clone(), &config.settings)
     }
 
     pub fn ctx(&self) -> &DefaultContext {
         &self.ctx
     }
 
-    #[cfg(debug_assertions)]
-    pub async fn load_adventure(
-        &self,
-        adventure: crate::backend::domain::adventure::Adventure,
-    ) -> Result<(), crate::backend::application::adventure_manager::AdventureManagerError> {
-        self.ctx.adventures.start_adventure(adventure.id).await?;
+    pub fn run(&self, config: Config, gpu: Gpu, open_setup: bool) -> iced::Result {
+        let pool = self.pool.clone();
+        let state = self.state.clone();
+        let rebuild = move |config: &Config| {
+            build_context(pool.clone(), state.clone(), &config.settings)
+                .map_err(|err| err.to_string())
+        };
 
-        Ok(())
+        ui::run(self.ctx.clone(), rebuild, config, gpu, open_setup)
     }
+}
 
-    pub fn run(&self) -> iced::Result {
-        ui::run(self.ctx.clone())
-    }
+fn build_context(
+    pool: SqlitePool,
+    state: SharedState,
+    settings: &Settings,
+) -> Result<DefaultContext, ImageError> {
+    let chat_model = settings.models.chat.clone();
+    let memory_model = settings.models.memory.clone();
+    let image_model = settings.models.image.clone();
+
+    // the narrator shares the chat text endpoint/config.
+    let distiller = MemoryHandler::new(memory_model.clone());
+    let closer = ActClose::new(memory_model);
+    let narrator_handler = NarratorHandler::new(chat_model.clone());
+    let chat_handler = ChatHandler::new(chat_model);
+    let image_handler = ComfyImage::new(image_model.clone())?;
+
+    let director = Director::new(settings.director.clone());
+
+    let adventures = AdventureManager::new(state.clone(), pool.clone());
+    let characters = CharacterManager::new(
+        state.clone(),
+        pool.clone(),
+        chat_handler.clone(),
+        image_handler,
+        CharacterGallery::new(image_model.output_dir),
+    );
+    let memory_manager = MemoryManager::new(
+        state.clone(),
+        pool.clone(),
+        distiller,
+        closer,
+        settings.memory.clone(),
+    );
+    let messages = MessageManager::new(
+        state,
+        pool,
+        chat_handler,
+        narrator_handler,
+        director,
+        memory_manager,
+    );
+
+    Ok(AppContext {
+        adventures,
+        characters,
+        messages,
+    })
 }

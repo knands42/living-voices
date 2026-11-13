@@ -3,8 +3,6 @@ use crate::ui::main::{Message, Page};
 use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
-/// Placeholder rows: this is where `AdventureManager::get_adventures_summaries`
-/// will land, rendered as the same list.
 const ADVENTURES: [(&str, &str, &str); 3] = [
     (
         "The Gilded Cage",
@@ -34,6 +32,7 @@ pub fn view(_adventure_summaries: &[AdventureSummary]) -> Element<'static, Messa
             text("Choose your adventure").size(24),
             Space::new().width(Length::Fill),
             button("New adventure"),
+            button("Setup").on_press(Message::PageRequested(Page::Setup)),
             button("Open chat").on_press(Message::PageRequested(Page::Chat)),
         ]
         .align_y(Alignment::Center)

@@ -174,3 +174,46 @@ pub async fn start_media_engine() -> Result<MediaEngine, String> {
 
     Ok(MediaEngine { server })
 }
+
+// Holds the server processes: `LlamaServer` and `ComfyServer` kill their child on drop,
+// so whoever owns this decides how long the engines live.
+pub struct RunningEngines {
+    pub text: TextEngine,
+    pub media: Option<MediaEngine>,
+}
+
+impl RunningEngines {
+    // Both servers search for a free port, so the real endpoints only exist after spawn.
+    pub fn stamp(&self, config: crate::config::Config) -> crate::config::Config {
+        let config = config.with_text_endpoints(self.text.chat_url(), self.text.memory_url());
+        match &self.media {
+            Some(media) => config.with_media_engine(media.media_url()),
+            None => config,
+        }
+    }
+}
+
+impl std::fmt::Debug for RunningEngines {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RunningEngines")
+            .field("chat", &self.text.chat_url())
+            .field("memory", &self.text.memory_url())
+            .field("media", &self.media.as_ref().map(MediaEngine::media_url))
+            .finish()
+    }
+}
+
+pub async fn start_engines(settings: &Settings) -> Result<RunningEngines, String> {
+    let text = start_text_engine().await?;
+
+    let media = if settings.models.image.enabled {
+        start_media_engine()
+            .await
+            .inspect_err(|err| log::warn!("media engine unavailable: {err}"))
+            .ok()
+    } else {
+        None
+    };
+
+    Ok(RunningEngines { text, media })
+}

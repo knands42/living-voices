@@ -1,17 +1,16 @@
 use living_voices::backend::PersistenceError;
 #[cfg(debug_assertions)]
 use living_voices::backend::application::adventure_manager::AdventureManagerError;
+use living_voices::backend::application::port::image_port::ImageError;
 use living_voices::provision::entrypoint::{
-    MediaEngine, TextEngine, default_media_progress_logger, default_text_progress_logger,
-    start_provisioning,
+    default_media_progress_logger, default_text_progress_logger, start_provisioning,
 };
-use living_voices::provision::{Gpu, start_media_engine, start_text_engine};
+use living_voices::provision::{Gpu, start_engines};
 use living_voices::{
     app::App,
     backend::{open_pool, run_migrations},
     cli,
     config::Config,
-    ui,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -49,56 +48,16 @@ enum StartupError {
     #[error("could not seed demo world: {0}")]
     Seed(#[source] PersistenceError),
     #[error("failed to initialize the app context: {0}")]
-    Compose(#[source] living_voices::backend::application::port::image_port::ImageError),
+    Compose(#[source] ImageError),
     #[cfg(debug_assertions)]
     #[error("could not open seeded adventure: {0}")]
     LoadAdventure(#[source] AdventureManagerError),
-    #[error("application error: {0}")]
-    Run(#[source] Box<dyn std::error::Error>),
-    #[error("failed to load engines {0}")]
-    BootEngines(String),
-    #[error("failed to start engines {0}")]
+    #[error("could not run the desktop frontend: {0}")]
+    Ui(#[source] iced::Error),
+    #[error("could not run the terminal frontend: {0}")]
+    Cli(#[source] std::io::Error),
+    #[error("failed to start engines: {0}")]
     StartEngines(String),
-}
-
-fn stamp_engine_endpoints(
-    config: Config,
-    text_engine: &TextEngine,
-    media_engine: &MediaEngine,
-) -> Config {
-    config
-        .with_text_endpoints(text_engine.chat_url(), text_engine.memory_url())
-        .with_media_engine(media_engine.media_url())
-}
-
-async fn provision_engines(
-    config: &Config,
-    frontend: Frontend,
-    gpu: &Gpu,
-) -> Result<(), StartupError> {
-    if frontend == Frontend::Ui && (Frontend::setup() || config.needs_setup()) {
-        match ui::gate::gate_run(config.clone(), gpu) {
-            Ok(_) => {
-                log::info!("gate window finished successfully");
-                return Ok(());
-            }
-            Err(err) => return Err(StartupError::BootEngines(err.to_string())),
-        }
-    }
-
-    match start_provisioning(
-        &config.settings,
-        default_text_progress_logger(),
-        default_media_progress_logger(),
-    )
-    .await
-    {
-        Ok(_) => {
-            log::info!("provisioning finished successfully");
-            Ok(())
-        }
-        Err(err) => Err(StartupError::BootEngines(err.to_string())),
-    }
 }
 
 async fn prepare_database(config: &Config) -> Result<sqlx::SqlitePool, StartupError> {
@@ -122,60 +81,53 @@ async fn seed_and_load(config: &Config, app: &App) -> Result<(), StartupError> {
         .map_err(StartupError::Seed)?;
     log::info!("Seeded {} adventures", adventures.len());
 
-    if let Some(adventure) = adventures.into_iter().next() {
-        app.load_adventure(adventure)
-            .await
-            .map_err(StartupError::LoadAdventure)?;
-    }
-
     Ok(())
 }
 
-fn compose(pool: &sqlx::SqlitePool, config: &Config) -> Result<App, StartupError> {
-    App::new(
-        pool.clone(),
-        config.settings.models.memory.clone(),
-        config.settings.models.chat.clone(),
-        config.settings.models.image.clone(),
-        config.settings.memory.clone(),
-        config.settings.director.clone(),
-    )
-    .map_err(StartupError::Compose)
-}
+// The terminal has no setup page, so it brings the engines up before drawing
+async fn run_cli(app: &App, config: Config) -> Result<(), StartupError> {
+    let mut settings = config.settings.clone();
+    settings.models.image.enabled &= !config.needs_setup();
 
-fn launch(app: &App, frontend: Frontend) -> Result<(), StartupError> {
-    let result: Result<(), Box<dyn std::error::Error>> = match frontend {
-        Frontend::Ui => app.run().map_err(Into::into),
-        Frontend::Cli => tokio::task::block_in_place(|| cli::init::run(app)).map_err(Into::into),
-    };
-    result.map_err(StartupError::Run)
+    start_provisioning(
+        &settings,
+        default_text_progress_logger(),
+        default_media_progress_logger(),
+    )
+    .await
+    .map_err(StartupError::StartEngines)?;
+    let engines = start_engines(&settings)
+        .await
+        .map_err(StartupError::StartEngines)?;
+
+    let ctx = app
+        .context_for(&engines.stamp(config))
+        .map_err(StartupError::Compose)?;
+    tokio::task::block_in_place(|| cli::init::run(&ctx)).map_err(StartupError::Cli)
 }
 
 async fn run() -> Result<(), StartupError> {
-    let mut config = Config::new().map_err(StartupError::Config)?;
+    let config = Config::new().map_err(StartupError::Config)?;
     let frontend = Frontend::from_args();
     log::info!("Config loaded from {}", config.config_file.display());
 
     let gpu = Gpu::detect();
     log::info!("graphics: {} {}", gpu.card_label(), gpu.vram_label());
 
-    provision_engines(&config, frontend, &gpu).await?;
-    let text_engine = start_text_engine()
-        .await
-        .map_err(StartupError::StartEngines)?;
-    let media_engine = start_media_engine()
-        .await
-        .map_err(StartupError::StartEngines)?;
-    let updated_config = stamp_engine_endpoints(config, &text_engine, &media_engine);
-
-    let pool = prepare_database(&updated_config).await?;
-    let app = compose(&pool, &updated_config)?;
+    let pool = prepare_database(&config).await?;
+    let app = App::new(pool, &config).map_err(StartupError::Compose)?;
 
     #[cfg(debug_assertions)]
-    seed_and_load(&updated_config, &app).await?;
+    seed_and_load(&config, &app).await?;
 
     log::info!("Starting Living Voices ({frontend:?})");
-    launch(&app, frontend)
+    match frontend {
+        Frontend::Ui => {
+            let open_setup = Frontend::setup() || config.needs_setup();
+            app.run(config, gpu, open_setup).map_err(StartupError::Ui)
+        }
+        Frontend::Cli => run_cli(&app, config).await,
+    }
 }
 
 #[tokio::main]

@@ -1,4 +1,4 @@
-use crate::app::{App, DefaultContext};
+use crate::app::DefaultContext;
 use crate::cli::events::chat::handle_mouse;
 use crate::cli::events::event_handler::{Flow, handle_key};
 use crate::cli::state::CliState;
@@ -17,11 +17,11 @@ use std::io;
 use std::time::Duration;
 use tokio::runtime::Handle;
 
-pub fn run(app: &App) -> io::Result<()> {
+pub fn run(ctx: &DefaultContext) -> io::Result<()> {
     let mut terminal = setup_terminal()?;
     let mut state = CliState::default();
     let runtime = tokio::runtime::Handle::current();
-    let result = event_loop(&mut terminal, &mut state, app.ctx(), &runtime);
+    let result = event_loop(&mut terminal, &mut state, ctx, &runtime);
     restore_terminal(&mut terminal)?;
     result
 }
