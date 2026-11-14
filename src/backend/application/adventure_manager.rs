@@ -1,4 +1,4 @@
-use crate::backend::domain::adventure::AdventureStatus;
+use crate::backend::domain::adventure::{AdventureStatus, OngoingAdventure};
 use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, ActStatus, Fact, State};
 use crate::backend::domain::message::Message;
@@ -271,6 +271,13 @@ impl AdventureManager {
     ) -> Result<Vec<AdventureSummary>, AdventureManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         Ok(get_adventure_summaries(&mut conn).await?)
+    }
+
+    pub async fn get_ongoing_adventures(
+        &self,
+    ) -> Result<Vec<OngoingAdventure>, AdventureManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        todo!()
     }
 
     pub async fn get_adventure(

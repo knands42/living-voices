@@ -108,7 +108,7 @@ fn send_current_input(state: &mut CliState, ctx: &DefaultContext, runtime: &Hand
         return;
     }
 
-    let Some(adventure) = ctx.adventures.current_adventure() else {
+    let Some(adventure) = ctx.adventure_manager.current_adventure() else {
         state.status = Some("open a tale before sending".into());
         return;
     };
@@ -127,7 +127,7 @@ fn send_current_input(state: &mut CliState, ctx: &DefaultContext, runtime: &Hand
     state.status = Some("the voices are thinking…".into());
 
     // Fire-and-forget the send; report the result back over the channel.
-    let messages = ctx.messages.clone();
+    let messages = ctx.message_manager.clone();
     let tx = state.reply_tx.clone();
     runtime.spawn(async move {
         let event = match messages.send_message(outgoing).await {

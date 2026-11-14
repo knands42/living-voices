@@ -21,7 +21,7 @@ pub fn render(frame: &mut Frame, state: &mut CliState, ctx: &DefaultContext) {
         Page::Chat { input, cursor } => (input.as_str(), *cursor),
         _ => ("", 0),
     };
-    let adventure = ctx.adventures.current_adventure();
+    let adventure = ctx.adventure_manager.current_adventure();
     let adventure_ref = adventure.as_ref();
 
     // Paint the void behind everything

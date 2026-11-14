@@ -20,7 +20,7 @@ pub fn handle_main(
             Flow::Continue
         }
         KeyCode::Char('a') => {
-            state.adventures = match ctx.adventures.current_adventure() {
+            state.adventures = match ctx.adventure_manager.current_adventure() {
                 Some(a) => vec![a],
                 None => Vec::new(),
             };
@@ -28,7 +28,7 @@ pub fn handle_main(
             Flow::Continue
         }
         KeyCode::Char('n') => {
-            let res = runtime.block_on(ctx.adventures.create_adventure(
+            let res = runtime.block_on(ctx.adventure_manager.create_adventure(
                 "New Tale".into(),
                 String::new(),
                 "neutral".into(),

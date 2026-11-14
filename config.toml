@@ -13,7 +13,7 @@ request_timeout_secs = 120
 keep_alive = "0"
 
 [models.image]
-enabled = true
+enabled = false
 backend = "comfyui"
 base_url = "http://localhost:8188"
 workflow = "fluxq4"
@@ -37,4 +37,4 @@ min = 20
 max = 30
 
 [setup]
-prompted_gate = true
+prompted_gate = false

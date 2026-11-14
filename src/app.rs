@@ -28,9 +28,9 @@ pub struct AppContext<
     P: PromptPort + Clone,
     I: ImagePort + Clone + 'static,
 > {
-    pub adventures: AdventureManager,
-    pub characters: CharacterManager<P, I>,
-    pub messages: MessageManager<C, N, M, A>,
+    pub adventure_manager: AdventureManager,
+    pub character_manager: CharacterManager<P, I>,
+    pub message_manager: MessageManager<C, N, M, A>,
 }
 
 pub type DefaultContext =
@@ -113,8 +113,8 @@ fn build_context(
     );
 
     Ok(AppContext {
-        adventures,
-        characters,
-        messages,
+        adventure_manager: adventures,
+        character_manager: characters,
+        message_manager: messages,
     })
 }

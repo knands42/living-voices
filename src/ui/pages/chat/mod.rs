@@ -28,11 +28,11 @@ impl State {
                 text("hello world"),
                 button("Back to adventures").on_press(Message::BackRequested),
             ]
-            .spacing(16),
+                .spacing(16),
         )
-        .style(container::rounded_box)
-        .padding(24)
-        .width(Length::Fill)
-        .into()
+            .style(container::rounded_box)
+            .padding(24)
+            .width(Length::Fill)
+            .into()
     }
 }

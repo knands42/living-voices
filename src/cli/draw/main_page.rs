@@ -24,7 +24,7 @@ pub fn render(frame: &mut Frame, state: &CliState, ctx: &DefaultContext) {
         .split(frame.area());
 
     frame.render_widget(banner(), rows[0]);
-    render_tale_card(frame, rows[2], ctx.adventures.current_adventure().as_ref());
+    render_tale_card(frame, rows[2], ctx.adventure_manager.current_adventure().as_ref());
     render_menu(frame, rows[3]);
     render_footer(frame, rows[4], state.status.as_deref());
 }

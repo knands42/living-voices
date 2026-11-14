@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
 use crate::backend::domain::{
@@ -74,6 +74,32 @@ impl AdventureSummary {
             status,
             created_at,
             updated_at,
+        }
+    }
+    
+    pub fn newest(adventure_summaries: &[AdventureSummary]) -> Option<AdventureSummary> {
+        adventure_summaries
+            .iter()
+            .max_by_key(|adventure| adventure.created_at)
+            .cloned()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct OngoingAdventure{
+    pub adventure: AdventureSummary,
+    pub current_act: usize,
+    pub total_acts: usize,
+    pub last_played: DateTime<Utc>,
+}
+
+impl OngoingAdventure {
+    pub fn new(adventure: AdventureSummary, current_act: usize, total_acts: usize, last_played: DateTime<Utc>) -> Self {
+        Self {
+            adventure,
+            current_act,
+            total_acts,
+            last_played,
         }
     }
 }

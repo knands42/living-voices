@@ -55,7 +55,7 @@ impl<
     ) -> (Self, Task<Message>) {
         let handle = tokio::runtime::Handle::current();
 
-        let (main_hub, hub_task) = main_hub::State::boot(ctx.adventures, handle.clone());
+        let (main_hub, hub_task) = main_hub::State::boot(ctx.adventure_manager, handle.clone());
         let (chat, _chat_task) = chat::State::boot();
         let (setup, setup_task) = setup::State::boot(config, gpu, handle.clone());
 
@@ -141,10 +141,8 @@ impl<
         log::info!("engines ready: {engines:?}");
         self._engines = Some(engines);
 
-        // Managers capture the endpoints they were built with, so every page holding wiring has to
-        // take the new context before anything calls it again.
         match (self.rebuild)(config) {
-            Ok(ctx) => self.main_hub.rebind(ctx.adventures),
+            Ok(ctx) => self.main_hub.rebind(ctx.adventure_manager),
             Err(err) => log::error!("could not point the app at the new engines: {err}"),
         }
 

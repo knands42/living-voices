@@ -196,8 +196,8 @@ fn bring_up(handle: tokio::runtime::Handle, settings: Settings) -> Task<Message>
             let provisioned = on_tokio(handle.clone(), async move {
                 start_provisioning(&provision_settings, text_callback, media_callback).await
             })
-            .await
-            .unwrap_or_else(|| Err("install task was cancelled".to_string()));
+                .await
+                .unwrap_or_else(|| Err("install task was cancelled".to_string()));
 
             if let Err(err) = provisioned {
                 let _ = done_output.try_send(Message::Failed(err));
@@ -268,13 +268,13 @@ fn render(state: &State) -> Element<'_, Message> {
             text(advice(state.recommendation)).size(14),
             body,
         ]
-        .spacing(16),
+            .spacing(16),
     )
-    .style(container::rounded_box)
-    .padding(28)
-    .width(Length::Fill)
-    .center_x(560)
-    .into()
+        .style(container::rounded_box)
+        .padding(28)
+        .width(Length::Fill)
+        .center_x(560)
+        .into()
 }
 
 fn question(state: &State) -> Element<'_, Message> {
@@ -303,8 +303,8 @@ fn question(state: &State) -> Element<'_, Message> {
         .spacing(16),
         text(footer).size(12),
     ]
-    .spacing(12)
-    .into()
+        .spacing(12)
+        .into()
 }
 
 fn working<'a>(title: &'a str, progress: Option<&Progress>) -> Element<'a, Message> {
@@ -316,8 +316,8 @@ fn working<'a>(title: &'a str, progress: Option<&Progress>) -> Element<'a, Messa
         progress_bar(0.0..=1.0, ratio),
         text(label).size(12),
     ]
-    .spacing(8)
-    .into()
+        .spacing(8)
+        .into()
 }
 
 fn specs(gpu: Gpu, recommendation: MediaRecommendation) -> Element<'static, Message> {
@@ -334,12 +334,12 @@ fn specs(gpu: Gpu, recommendation: MediaRecommendation) -> Element<'static, Mess
                 text(gpu.vram_label()).size(14).color(tone(recommendation)),
             ],
         ]
-        .spacing(8),
+            .spacing(8),
     )
-    .style(container::bordered_box)
-    .padding(14)
-    .width(Length::Fill)
-    .into()
+        .style(container::bordered_box)
+        .padding(14)
+        .width(Length::Fill)
+        .into()
 }
 
 fn tone(recommendation: MediaRecommendation) -> Color {
