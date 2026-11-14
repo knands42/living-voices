@@ -39,11 +39,11 @@ fn cast_row(character: &Character) -> Element<'_, Message> {
 
     let name = row![
         text(character.name.as_str())
-            .size(12.0)
+            .size(13.8)
             .color(theme::hsv(hue, 0.45, 0.95))
             .font(common::semibold()),
         text(character.status.as_str())
-            .size(9.0)
+            .size(10.4)
             .color(theme::TEXT_DIM),
     ]
     .spacing(6.0)
@@ -52,7 +52,7 @@ fn cast_row(character: &Character) -> Element<'_, Message> {
     let identity = column![
         name,
         text(character.headline.as_str())
-            .size(10.0)
+            .size(11.5)
             .color(theme::TEXT_MUTED)
             .width(Length::Fill)
             .wrapping(Wrapping::Word),

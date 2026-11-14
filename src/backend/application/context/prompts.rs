@@ -29,6 +29,11 @@ either. Any of these may appear in one turn, in any order:
 Every action is wrapped in * * and carries no name: the replier speaks as "I" and
 moves in third person, so bare third-person prose is narration, not this beat.
 
+Speech is always in double quotes. When the words are not the replier's own, a
+document or verdict read aloud, a letter, or someone outside the cast speaking, the
+replier still owns the beat: quote the words, say whose they are, and keep the
+replier's own action or line around them.
+
 The action and the thought are the replier's own. Another person may appear, but
 the only voice in this reply is the replier's.
 
@@ -75,12 +80,17 @@ Write only the prose of this beat. Begin with speech, with an action, or with
 either. Any of these may appear in one turn, in any order:
 
 "spoken words"              speech, heard by everyone present
-*any action*                action, third person, present tense, without mentioning it's own name
+*any action*                action, third person, present tense, without mentioning its own name
 ((private thought))         thought, heard by no one
 (whisper to <name>) "..."   the quoted line is private to that character
 
 Every action is wrapped in * * and carries no name: the replier speaks as "I" and
 moves in third person, so bare third-person prose is narration, not this beat.
+
+Speech is always in double quotes. When the words are not the replier's own, a
+document or verdict read aloud, a letter, or someone outside the cast speaking, the
+replier still owns the beat: quote the words, say whose they are, and keep the
+replier's own action or line around them.
 
 ## RULES
 1. This is a reaction to the PREVIOUS cast line, not to the player. Do NOT answer
@@ -187,12 +197,17 @@ Write only the prose of this beat. Begin with speech, with an action, or with
 either. Any of these may appear in one turn, in any order:
 
 "spoken words"              speech, heard by everyone present
-*any action*                action, third person, present tense, without mentioning it's own name
+*any action*                action, third person, present tense, without mentioning its own name
 ((private thought))         thought, heard by no one
 (whisper to <name>) "..."   the quoted line is private to that character
 
 Every action is wrapped in * * and carries no name: the replier speaks as "I" and
 moves in third person, so bare third-person prose is narration, not this beat.
+
+Speech is always in double quotes. When the words are not the replier's own, a
+document or verdict read aloud, a letter, or someone outside the cast speaking, the
+replier still owns the beat: quote the words, say whose they are, and keep the
+replier's own action or line around them.
 
 ## RULES
 1. One voice per reply. This beat belongs to the character named below and to no

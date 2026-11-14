@@ -1,16 +1,18 @@
-use iced::widget::text::Wrapping;
 use iced::widget::{Space, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
 
 use crate::backend::domain::message::Message as MessageLine;
 use crate::ui::pages::chat::composer::composer;
 use crate::ui::pages::chat::look::{AVATAR, initials_of, name_hue};
+use crate::ui::pages::chat::markup::{Look, rich};
 use crate::ui::pages::chat::top::top;
 use crate::ui::pages::chat::{Message, Scene};
 use crate::ui::{common, theme};
 
 const BUBBLE_LENGTH: f32 = 460.0;
 const NARRATOR_LENGTH: f32 = 560.0;
+const SPEECH_SIZE: f32 = 13.0;
+const NARRATOR_SIZE: f32 = 12.5;
 
 pub fn transcript(chat_state: &Scene) -> Element<'_, Message> {
     let mut lines = column![].spacing(16.0).width(Length::Fill);
@@ -72,12 +74,7 @@ fn narrator(message: &MessageLine) -> Element<'_, Message> {
     let card = container(
         column![
             text("◆").size(9.0).color(theme::alpha(theme::AMBER, 0.9)),
-            text(message.text.as_str())
-                .size(12.5)
-                .color(theme::TEXT_MUTED)
-                .font(common::italic())
-                .width(Length::Fill)
-                .wrapping(Wrapping::Word),
+            rich::<Message>(message.text.as_str(), &Look::narrator(NARRATOR_SIZE)),
         ]
         .spacing(5.0)
         .align_x(Alignment::Center),
@@ -121,11 +118,7 @@ fn speech<'a>(chat_state: &'a Scene, message: &'a MessageLine) -> Element<'a, Me
         );
     }
 
-    let words = text(message.text.as_str())
-        .size(13.0)
-        .color(theme::TEXT_LIGHT)
-        .width(Length::Fill)
-        .wrapping(Wrapping::Word);
+    let words = rich::<Message>(message.text.as_str(), &Look::bubble(SPEECH_SIZE));
 
     let bubble = container(words)
         .padding([9.0, 13.0])

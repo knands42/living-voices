@@ -1,8 +1,11 @@
-use iced::widget::{button, row, text, text_input};
+use iced::widget::{Space, button, column, container, row, text, text_input};
 use iced::{Alignment, Element, Length};
 
+use crate::ui::pages::chat::markup::{Look, has_markup, rich};
 use crate::ui::pages::chat::{Message, Scene};
 use crate::ui::{common, theme};
+
+const PREVIEW_SIZE: f32 = 11.5;
 
 pub fn composer(chat_state: &Scene) -> Element<'_, Message> {
     let can_send = !chat_state.input_message.trim().is_empty() && !chat_state.awaiting_reply;
@@ -19,8 +22,29 @@ pub fn composer(chat_state: &Scene) -> Element<'_, Message> {
         .style(theme::send_button)
         .on_press_maybe(can_send.then_some(Message::Send));
 
-    row![input.width(Length::Fill), send]
-        .spacing(9.0)
-        .align_y(Alignment::Center)
+    let mut stack = column![].spacing(8.0);
+
+    // Always push a slot: a conditional child shifts the input's position in the
+    // widget tree and iced drops its focus state.
+    stack = stack.push(if has_markup(chat_state.input_message.as_str()) {
+        preview(chat_state.input_message.as_str())
+    } else {
+        Space::new().into()
+    });
+
+    stack
+        .push(
+            row![input.width(Length::Fill), send]
+                .spacing(9.0)
+                .align_y(Alignment::Center),
+        )
+        .into()
+}
+
+fn preview(draft: &str) -> Element<'_, Message> {
+    container(rich::<Message>(draft, &Look::preview(PREVIEW_SIZE)))
+        .padding([7.0, 14.0])
+        .width(Length::Fill)
+        .style(theme::inset)
         .into()
 }

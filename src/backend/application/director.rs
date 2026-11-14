@@ -67,19 +67,26 @@ impl Director {
         last_message: &Message,
     ) -> bool {
         if candidates.len() < 2 {
+            log::debug!("Not enough candidates to follow up");
             return false;
         }
 
         if steps_taken >= self.director_settings.follow_up_max_chain {
+            log::debug!("Max follow up chain reached");
             return false;
         }
 
         let rand = rand::random::<f32>();
         if last_message.narrator_id.is_some() {
-            return rand < Self::FOLLOW_UP_CHANCE_AFTER_NARRATION;
+            let chance = rand < Self::FOLLOW_UP_CHANCE_AFTER_NARRATION;
+            if !chance {
+                log::debug!("Follow up chance after narration failed");
+            }
+            return chance;
         }
 
         let chance = self.director_settings.follow_up_chance / (steps_taken as f32 + 1.0);
+        log::debug!("Follow up chance: {}", chance);
         rand < chance
     }
 

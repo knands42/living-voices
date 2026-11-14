@@ -60,11 +60,11 @@ pub fn meta_rail(chat_state: &Scene) -> Element<'_, Message> {
 fn time_and_place(scene_state: &SceneState) -> Element<Message> {
     let card = column![
         text(scene_state.place.as_str())
-            .size(11.5)
+            .size(13.2)
             .color(theme::TEXT_LIGHT)
             .wrapping(Wrapping::Word),
         text(scene_state.day.as_str())
-            .size(10.5)
+            .size(12.1)
             .color(theme::TEXT_MUTED)
             .width(Length::Fill)
             .wrapping(Wrapping::Word),
@@ -91,7 +91,7 @@ fn note_card(title: &str, items: Vec<String>) -> Element<'_, Message> {
     for item in items {
         rows = rows.push(
             text(format!("· {item}"))
-                .size(10.5)
+                .size(12.1)
                 .color(theme::TEXT_MUTED)
                 .width(Length::Fill)
                 .wrapping(Wrapping::Word),
@@ -111,17 +111,17 @@ fn fact_row(fact: &Fact) -> Element<'_, Message> {
         column![
             row![
                 text(fact.subject.as_str())
-                    .size(10.5)
+                    .size(12.1)
                     .color(theme::BRONZE)
                     .font(common::semibold()),
                 text(fact.permanence.as_str())
-                    .size(8.5)
+                    .size(9.8)
                     .color(theme::TEXT_DIM),
             ]
             .spacing(6.0)
             .align_y(Alignment::Center),
             text(fact.fact.as_str())
-                .size(10.5)
+                .size(12.1)
                 .color(theme::TEXT_MUTED)
                 .width(Length::Fill)
                 .wrapping(Wrapping::Word),
