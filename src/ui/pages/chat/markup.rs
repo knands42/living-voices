@@ -9,7 +9,6 @@ pub enum Voice {
     Speech,
     Action,
     Thought,
-    Aside,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,7 +21,7 @@ pub struct Look {
     size: f32,
     speech: Color,
     action: Color,
-    aside: Color,
+    thought: Color,
     base_font: Font,
 }
 
@@ -32,7 +31,7 @@ impl Look {
             size,
             speech: theme::TEXT_LIGHT,
             action: theme::TEXT_MUTED,
-            aside: theme::TEXT_DIM,
+            thought: theme::TEXT_DIM,
             base_font: Font::DEFAULT,
         }
     }
@@ -42,7 +41,7 @@ impl Look {
             size,
             speech: theme::TEXT_MUTED,
             action: theme::TEXT_DIM,
-            aside: theme::TEXT_DIM,
+            thought: theme::TEXT_DIM,
             base_font: common::italic(),
         }
     }
@@ -52,7 +51,7 @@ impl Look {
             size,
             speech: theme::TEXT_MUTED,
             action: theme::TEXT_DIM,
-            aside: theme::TEXT_DIM,
+            thought: theme::TEXT_DIM,
             base_font: Font::DEFAULT,
         }
     }
@@ -107,9 +106,7 @@ fn delimiter(bytes: &[u8], index: usize, open: Option<Voice>) -> Option<(Voice, 
         // Runs collapse, so `**action**` reads as one delimiter too.
         (b'*', None | Some(Voice::Action)) => Some((Voice::Action, run(bytes, index, b'*'))),
         (b'(', None) if follows(bytes, index, b'(') => Some((Voice::Thought, 2)),
-        (b'(', None) => Some((Voice::Aside, 1)),
         (b')', Some(Voice::Thought)) if follows(bytes, index, b')') => Some((Voice::Thought, 2)),
-        (b')', Some(Voice::Aside)) => Some((Voice::Aside, 1)),
         _ => None,
     }
 }
@@ -139,8 +136,8 @@ pub fn rich<'a, Message: 'static>(body: &'a str, look: &Look) -> Element<'a, Mes
             Voice::Action => Span::new(piece.text)
                 .color(look.action)
                 .font(common::italic()),
-            Voice::Thought | Voice::Aside => Span::new(piece.text)
-                .color(look.aside)
+            Voice::Thought => Span::new(piece.text)
+                .color(look.thought)
                 .font(common::italic()),
         })
         .collect::<Vec<_>>();
@@ -182,15 +179,7 @@ mod tests {
                     voice: Voice::Thought
                 },
                 Piece {
-                    text: " ",
-                    voice: Voice::Speech
-                },
-                Piece {
-                    text: "to Kael",
-                    voice: Voice::Aside
-                },
-                Piece {
-                    text: " \"It stays.\"",
+                    text: " (to Kael) \"It stays.\"",
                     voice: Voice::Speech
                 },
             ]

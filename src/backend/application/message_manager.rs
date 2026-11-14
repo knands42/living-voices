@@ -101,16 +101,17 @@ impl<
     }
 
     async fn run_follow_ups(&self, last_message: Message) -> Result<(), MessageManagerError> {
-        let mut steps = 6;
+        let mut steps_taken = 0;
 
-        for _ in 1..steps {
+        loop {
             let input = self.gather_data().await?;
             let candidates = input.adventure.active_characters(&input.present_names);
 
-            if !self
-                .director
-                .should_a_conversation_follow_up(&candidates, steps, &last_message)
-            {
+            if !self.director.should_a_conversation_follow_up(
+                &candidates,
+                steps_taken,
+                &last_message,
+            ) {
                 return Ok(());
             }
 
@@ -136,10 +137,8 @@ impl<
             let stored = self.create_message(message).await?;
             log::info!("follow-up from {}", stored.speaker_name);
 
-            steps += 1;
+            steps_taken += 1;
         }
-
-        Ok(())
     }
 
     async fn gather_data(&self) -> Result<TurnInput, MessageManagerError> {

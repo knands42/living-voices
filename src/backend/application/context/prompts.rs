@@ -21,20 +21,11 @@ subject of what you write: "Name steps forward" is narration, not a reply.
 Write only the prose of this beat. Begin with speech, with an action, or with
 either. Any of these may appear in one turn, in any order:
 
-"spoken words"              speech, heard by everyone present
-*physical action*           action, third person, present tense
+"spoken words"              speech, always in quotes, heard by everyone present
+*any action*                action, third person, present tense, without mentioning its own name, always wrapped in * *
 ((private thought))         thought, heard by no one
-(whisper to <name>) "..."   the quoted line is private to that character
 
-Every action is wrapped in * * and carries no name: the replier speaks as "I" and
-moves in third person, so bare third-person prose is narration, not this beat.
-
-Speech is always in double quotes. When the words are not the replier's own, a
-document or verdict read aloud, a letter, or someone outside the cast speaking, the
-replier still owns the beat: quote the words, say whose they are, and keep the
-replier's own action or line around them.
-
-The action and the thought are the replier's own. Another person may appear, but
+The actions, thoughts and spoken words are the replier's own. Another person may appear, but
 the only voice in this reply is the replier's.
 
 ## RULES
@@ -79,18 +70,9 @@ narration, not a reply.
 Write only the prose of this beat. Begin with speech, with an action, or with
 either. Any of these may appear in one turn, in any order:
 
-"spoken words"              speech, heard by everyone present
-*any action*                action, third person, present tense, without mentioning its own name
+"spoken words"              speech, always in quotes, heard by everyone present
+*any action*                action, third person, present tense, without mentioning its own name, always wrapped in * *
 ((private thought))         thought, heard by no one
-(whisper to <name>) "..."   the quoted line is private to that character
-
-Every action is wrapped in * * and carries no name: the replier speaks as "I" and
-moves in third person, so bare third-person prose is narration, not this beat.
-
-Speech is always in double quotes. When the words are not the replier's own, a
-document or verdict read aloud, a letter, or someone outside the cast speaking, the
-replier still owns the beat: quote the words, say whose they are, and keep the
-replier's own action or line around them.
 
 ## RULES
 1. This is a reaction to the PREVIOUS cast line, not to the player. Do NOT answer
@@ -196,18 +178,9 @@ subject of what you write: "Name steps forward" is narration, not a reply.
 Write only the prose of this beat. Begin with speech, with an action, or with
 either. Any of these may appear in one turn, in any order:
 
-"spoken words"              speech, heard by everyone present
-*any action*                action, third person, present tense, without mentioning its own name
+"spoken words"              speech, always in quotes, heard by everyone present
+*any action*                action, third person, present tense, without mentioning its own name, always wrapped in * *
 ((private thought))         thought, heard by no one
-(whisper to <name>) "..."   the quoted line is private to that character
-
-Every action is wrapped in * * and carries no name: the replier speaks as "I" and
-moves in third person, so bare third-person prose is narration, not this beat.
-
-Speech is always in double quotes. When the words are not the replier's own, a
-document or verdict read aloud, a letter, or someone outside the cast speaking, the
-replier still owns the beat: quote the words, say whose they are, and keep the
-replier's own action or line around them.
 
 ## RULES
 1. One voice per reply. This beat belongs to the character named below and to no
@@ -226,8 +199,8 @@ replier's own action or line around them.
 Speech, action and a private thought:
 {"replier": "Elara", "reply": "*leans in the doorway, arms folded*\n\"The gate won't open for us again. Not tonight, not with that horn still ringing.\"\n((two nights, at most))"}
 
-Action and speech aimed at another person present:
-{"replier": "Elara", "reply": "*sets the lantern down between them*\n(lowers her voice, eyes on Kaelen) \"If the barkeep sold us once, he'll sell us again.\""}
+Speech with the action that follows it, aimed at another person present:
+{"replier": "Elara", "reply": "\"If the barkeep sold us once, he'll sell us again.\" *sets the lantern down between them, voice low, eyes on Kaelen*"}
 "#;
 
 pub(crate) const NARRATOR_CHAT_PROMPT: &str = "You are the narrator of an interactive roleplay. This beat belongs to the narrator: no character speaks.";
@@ -265,14 +238,6 @@ Example — time passing, tension held
 Dawn is grey and slow. The fire burns down to embers; nobody has suggested sleep.
 Somewhere down the slope, the horses stamp twice, then go quiet.
 "#;
-
-// The character image prompts are fragments, not finished prompts: each owns a layer
-// that changes at its own pace, and `ContextBuilder::compose_character_image_prompt`
-// stitches them together. `appearance` is the authored identity and only the original
-// shot is drawn from it; `appearance_current_body` is that identity as the story has
-// left it, and every derived shot is drawn from it instead. Outfit and pose are
-// appended beside the look, so they must never repeat face, hair or build — duplicated
-// layers fight and the model blends the contradiction instead of choosing one.
 
 pub(crate) const CHAR_CURRENT_BODY_PROMPT: &str = r#"## CHARACTER CURRENT BODY
 Describe the single SUBJECT character's body as it stands at the current moment, as a
@@ -330,9 +295,6 @@ dialogue, never name or depict other characters, and never write text to render 
 the image. If the exact pose is unclear, choose the most plausible pose that fits the
 visible action without adding plot."#;
 
-// Camera framing, chosen at image time — the one part of a character image that
-// depends on what the caller asked for rather than on who the character is. A pose
-// shot has no framing: the pose itself decides the frame.
 pub(crate) const CHAR_PORTRAIT_FRAMING: &str = "head and shoulders portrait, chest-up framing";
 pub(crate) const CHAR_FULL_BODY_FRAMING: &str =
     "full body, head to toe, whole figure visible, neutral stance";
