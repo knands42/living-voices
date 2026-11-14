@@ -13,7 +13,9 @@ Return a single JSON object, nothing else:
   "reply"        the prose body of this beat (the BODY rules below).
   "act_closure"  null here; a later instruction may ask you to set it.
 Put no name, header or tag inside "reply": never start it with "NARRATOR:",
-"Name:", "[CHARACTER]" or any other label. "replier" already says who speaks.
+"Name:", "[CHARACTER]" or any other label, and never make the replier's name the
+subject of what you write: "Name steps forward" is narration, not a reply.
+"replier" already says who speaks.
 
 ## BODY
 Write only the prose of this beat. Begin with speech, with an action, or with
@@ -23,6 +25,9 @@ either. Any of these may appear in one turn, in any order:
 *physical action*           action, third person, present tense
 ((private thought))         thought, heard by no one
 (whisper to <name>) "..."   the quoted line is private to that character
+
+Every action is wrapped in * * and carries no name: the replier speaks as "I" and
+moves in third person, so bare third-person prose is narration, not this beat.
 
 The action and the thought are the replier's own. Another person may appear, but
 the only voice in this reply is the replier's.
@@ -53,7 +58,7 @@ The world answers, here with someone outside the cast speaking:
 {"replier": "NARRATOR", "reply": "*a ferryman rises from the reeds, pole in hand*\n\"No crossing tonight. The river's taken two already.\"", "act_closure": null}
 "#;
 
-pub(crate) const MESSAGE_EXAMPLE_PROMPT: &str = "## VOICE\nThese are samples of how this character talks. Match the voice, the rhythm and the wording. Do not reuse their content or continue from them.";
+pub(crate) const MESSAGE_EXAMPLE_PROMPT: &str = "## VOICE\nThese are samples of how this character talks. Match the voice, the rhythm and the wording. Do not reuse their content or continue from them. The \"You:\" and \"<Name>:\" prefixes in them are the transcript's labels, never part of a reply.";
 
 pub(crate) const FOLLOW_UP_CHAT_PROMPT: &str = "You write one follow-up beat of an interactive roleplay. The last line was spoken by a cast member, not the player. Continue the scene with ONE other present cast member reacting to it.";
 
@@ -61,16 +66,21 @@ pub(crate) const FOLLOW_UP_CHAT_INSTRUCTIONS: &str = r#"## REPLY FORMAT
 Return a single JSON object, nothing else:
   "replier"  the EXACT name of the present cast member who speaks this beat (never the narrator).
   "reply"    the prose body of this beat (the BODY rules below).
-Put no name, header or tag inside "reply" — "replier" already says who speaks.
+Put no name, header or tag inside "reply" — "replier" already says who speaks. Never
+make the replier's name the subject of what you write: "Name steps forward" is
+narration, not a reply.
 
 ## BODY
 Write only the prose of this beat. Begin with speech, with an action, or with
 either. Any of these may appear in one turn, in any order:
 
 "spoken words"              speech, heard by everyone present
-*physical action*           action, third person, present tense
+*any action*                action, third person, present tense, without mentioning it's own name
 ((private thought))         thought, heard by no one
 (whisper to <name>) "..."   the quoted line is private to that character
+
+Every action is wrapped in * * and carries no name: the replier speaks as "I" and
+moves in third person, so bare third-person prose is narration, not this beat.
 
 ## RULES
 1. This is a reaction to the PREVIOUS cast line, not to the player. Do NOT answer
@@ -168,16 +178,21 @@ Return a single JSON object, nothing else:
   "replier"  the EXACT name of the character named below. This turn is theirs (never the narrator).
   "reply"    the prose body of this beat (the BODY rules below).
 Put no name, header or tag inside "reply": never start it with "NARRATOR:",
-"Name:", "[CHARACTER]" or any other label. "replier" already says who speaks.
+"Name:", "[CHARACTER]" or any other label, and never make the replier's name the
+subject of what you write: "Name steps forward" is narration, not a reply.
+"replier" already says who speaks.
 
 ## BODY
 Write only the prose of this beat. Begin with speech, with an action, or with
 either. Any of these may appear in one turn, in any order:
 
 "spoken words"              speech, heard by everyone present
-*physical action*           action, third person, present tense
+*any action*                action, third person, present tense, without mentioning it's own name
 ((private thought))         thought, heard by no one
 (whisper to <name>) "..."   the quoted line is private to that character
+
+Every action is wrapped in * * and carries no name: the replier speaks as "I" and
+moves in third person, so bare third-person prose is narration, not this beat.
 
 ## RULES
 1. One voice per reply. This beat belongs to the character named below and to no

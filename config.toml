@@ -1,6 +1,6 @@
 [models.chat]
 base_url = "http://localhost:11434/v1"
-model = "llama3.1:8b"
+model = "L3-8B-Stheno-v3.2-Q5_K_M"
 temperature = 0.5
 request_timeout_secs = 120
 keep_alive = "1h"

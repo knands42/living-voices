@@ -41,7 +41,7 @@ impl OpenAiCompatibleClient {
 
     pub async fn send(
         &self,
-        model: &str,
+        model: &str, // TODO: Does it make sense to pass model as a parameter, it is already set in the llama_server it's not a router mode
         messages: &[ChatMessage],
         temperature: f32,
         response_format: Option<ResponseFormat<'_>>,
