@@ -7,7 +7,7 @@ use crate::ui::pages::chat::look::{AVATAR, initials_of, name_hue};
 use crate::ui::pages::chat::{Message, State};
 use crate::ui::{common, theme};
 
-pub const CAST_LENGTH: f32 = 250.0;
+pub const CAST_LENGTH: f32 = 300.0;
 
 pub fn cast_rail(chat_state: &State) -> Element<'_, Message> {
     let mut rows = column![].spacing(4.0).width(Length::Fill);

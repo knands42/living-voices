@@ -5,6 +5,8 @@ pub mod setup;
 
 use std::sync::Arc;
 
+use uuid::Uuid;
+
 use crate::config::Config;
 use crate::provision::RunningEngines;
 
@@ -18,6 +20,7 @@ pub enum Page {
 pub enum Event {
     None,
     Show(Page),
+    OpenChat(Uuid),
     EnginesReady {
         engines: Arc<RunningEngines>,
         config: Arc<Config>,

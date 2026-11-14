@@ -9,6 +9,14 @@ use iced::{Alignment, Element, Length};
 
 const RAIL_LENGTH: f32 = 320.0;
 const PLATE_LENGTH: f32 = 292.0;
+const SHELF_CARD_WIDTH: f32 = 280.0;
+const SHELF_CARD_HEIGHT: f32 = 92.0;
+const GRID_CARD_HEIGHT: f32 = 196.0;
+const GRID_CARD_MIN_WIDTH: f32 = 170.0;
+const GRID_SPACING: f32 = 12.0;
+const PAGE_PADDING: f32 = 44.0;
+const MAX_COLUMNS: usize = 8;
+const MIN_COLUMNS: usize = 2;
 
 pub fn body(home_state: &State) -> Element<'_, Message> {
     if home_state.catalogue.adventures.is_empty() {
@@ -151,12 +159,16 @@ fn shelf(home_state: &State) -> Element<'_, Message> {
     ]
     .align_y(Alignment::Center);
 
-    let mut cards = row![].spacing(12.0).width(Length::Fill);
+    let mut cards = row![].spacing(12.0);
     for entry in &home_state.catalogue.shelf {
         cards = cards.push(shelf_card(entry));
     }
 
-    column![header, cards]
+    let strip = scrollable(container(cards).padding(iced::Padding::ZERO.bottom(10.0)))
+        .horizontal()
+        .width(Length::Fill);
+
+    column![header, strip]
         .spacing(10.0)
         .width(Length::Fill)
         .into()
@@ -226,7 +238,8 @@ fn shelf_card(entry: &OngoingAdventure) -> Element<'_, Message> {
     mouse_area(
         container(column![head, foot].spacing(11.0).width(Length::Fill))
             .padding(12.0)
-            .width(Length::Fill)
+            .width(Length::Fixed(SHELF_CARD_WIDTH))
+            .height(Length::Fixed(SHELF_CARD_HEIGHT))
             .style(theme::shelf_card(hue, 0.0)),
     )
     .on_press(Message::OpenAdventure(adventure.id))
@@ -261,13 +274,11 @@ fn catalogue(home_state: &State) -> Element<'_, Message> {
     .spacing(10.0)
     .align_y(Alignment::Center);
 
-    let mut list = column![].spacing(7.0).width(Length::Fill);
-    for adventure in &filtered {
-        list = list.push(row_card(adventure));
-    }
-    if filtered.is_empty() {
-        list = list.push(no_matches());
-    }
+    let list = if filtered.is_empty() {
+        no_matches()
+    } else {
+        grid(&filtered, columns_for(home_state.width))
+    };
 
     if tags.is_empty() {
         return column![header, list]
@@ -286,7 +297,33 @@ fn catalogue(home_state: &State) -> Element<'_, Message> {
     .into()
 }
 
-fn row_card(adventure: &AdventureSummary) -> Element<'_, Message> {
+fn columns_for(window_width: f32) -> usize {
+    let area = window_width - PAGE_PADDING - RAIL_LENGTH - 14.0;
+    let fitting = ((area + GRID_SPACING) / (GRID_CARD_MIN_WIDTH + GRID_SPACING)) as usize;
+
+    fitting.clamp(MIN_COLUMNS, MAX_COLUMNS)
+}
+
+fn grid<'a>(adventures: &[&'a AdventureSummary], columns: usize) -> Element<'a, Message> {
+    let mut rows = column![].spacing(GRID_SPACING).width(Length::Fill);
+
+    for chunk in adventures.chunks(columns) {
+        let mut line = row![].spacing(GRID_SPACING).width(Length::Fill);
+
+        for adventure in chunk {
+            line = line.push(grid_card(adventure));
+        }
+        for _ in chunk.len()..columns {
+            line = line.push(Space::new().width(Length::FillPortion(1)));
+        }
+
+        rows = rows.push(line);
+    }
+
+    rows.into()
+}
+
+fn grid_card(adventure: &AdventureSummary) -> Element<'_, Message> {
     let hue = hue_of(&adventure.title);
 
     let cover = container(
@@ -295,56 +332,50 @@ fn row_card(adventure: &AdventureSummary) -> Element<'_, Message> {
             .color(theme::alpha(theme::TEXT_LIGHT, 0.85))
             .font(common::brand()),
     )
-    .width(Length::Fixed(56.0))
-    .height(Length::Fixed(56.0))
+    .width(Length::Fixed(44.0))
+    .height(Length::Fixed(44.0))
     .align_x(Alignment::Center)
     .align_y(Alignment::Center)
     .style(theme::cover(hue));
 
-    let title = row![
-        text(adventure.title.as_str())
-            .size(15.5)
-            .color(theme::TEXT_LIGHT)
-            .font(common::semibold()),
-        Space::new().width(Length::Fixed(8.0)),
-        status_badge(adventure.status),
+    let top = row![
+        cover,
+        Space::new().width(Length::Fill),
+        status_badge(adventure.status)
     ]
-    .spacing(8.0)
-    .align_y(Alignment::Center);
+    .align_y(Alignment::Start)
+    .width(Length::Fill);
 
     let body = column![
-        title,
+        top,
+        text(adventure.title.as_str())
+            .size(14.0)
+            .color(theme::TEXT_LIGHT)
+            .font(common::semibold())
+            .width(Length::Fill)
+            .wrapping(Wrapping::Word),
         text(adventure.headline.as_str())
-            .size(12.0)
+            .size(11.5)
             .color(theme::TEXT_MUTED)
             .width(Length::Fill)
             .wrapping(Wrapping::Word),
+        Space::new().height(Length::Fill),
         text(meta_line(adventure))
-            .size(10.0)
+            .size(9.5)
             .color(theme::TEXT_DIM)
             .width(Length::Fill),
     ]
-    .spacing(4.0)
-    .width(Length::Fill);
-
-    let open = container(
-        text("→")
-            .size(13.0)
-            .color(theme::alpha(theme::TEXT_LIGHT, 0.35)),
-    )
-    .width(Length::Fixed(26.0))
-    .align_x(Alignment::Center);
+    .spacing(6.0)
+    .width(Length::Fill)
+    .height(Length::Fill);
 
     mouse_area(
-        container(
-            row![cover, container(body).width(Length::Fill), open]
-                .spacing(14.0)
-                .align_y(Alignment::Center)
-                .width(Length::Fill),
-        )
-        .padding([10.0, 13.0])
-        .width(Length::Fill)
-        .style(theme::library_row(0.0, hue)),
+        container(body)
+            .padding(12.0)
+            .width(Length::FillPortion(1))
+            .height(Length::Fixed(GRID_CARD_HEIGHT))
+            .clip(true)
+            .style(theme::shelf_card(hue, 0.0)),
     )
     .on_press(Message::OpenAdventure(adventure.id))
     .into()

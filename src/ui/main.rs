@@ -1,4 +1,4 @@
-use iced::{Size, Theme};
+use iced::Theme;
 
 use crate::app::AppContext;
 use crate::backend::application::port::chat_port::{ChatPort, NarratorPort, PromptPort};
@@ -7,6 +7,7 @@ use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistil
 use crate::config::Config;
 use crate::provision::Gpu;
 use crate::ui::app::{App, Rebuild};
+use crate::ui::layout;
 
 pub fn run<
     C: ChatPort + Clone + 'static,
@@ -40,7 +41,8 @@ pub fn run<
     .title("Living Voices")
     .theme(|_: &App<C, N, M, A, P, I>| Theme::CatppuccinMacchiato)
     .subscription(App::subscription)
-    .window_size(Size::new(1360.0, 900.0))
+    .window_size(layout::DEFAULT_WINDOW)
+    .scale_factor(App::scale_factor)
     .antialiasing(true)
     .run()
 }

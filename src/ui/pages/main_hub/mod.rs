@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::backend::application::adventure_manager::{AdventureManager, AdventureManagerError};
 use crate::backend::domain::adventure::{Adventure, AdventureSummary, OngoingAdventure};
+use crate::ui::layout;
 use crate::ui::pages::main_hub::body::{body, new_adventure_popup};
 use crate::ui::pages::main_hub::header::header;
 use crate::ui::pages::{Event, Page};
@@ -52,6 +53,7 @@ pub struct State {
     active_tag: Option<String>,
     adventure_draft_open: bool,
     new_adventure_draft: AdventureCreationDraft,
+    width: f32,
 }
 
 impl State {
@@ -67,9 +69,14 @@ impl State {
             active_tag: None,
             adventure_draft_open: false,
             new_adventure_draft: AdventureCreationDraft::default(),
+            width: layout::DEFAULT_WINDOW.width,
         };
         let task = state.load();
         (state, task)
+    }
+
+    pub fn set_width(&mut self, width: f32) {
+        self.width = width;
     }
 
     pub fn rebind(&mut self, adventure_manager: AdventureManager) {
@@ -84,8 +91,7 @@ impl State {
             Message::SetupRequested => return (Task::none(), Event::Show(Page::Setup)),
             Message::ChatRequested => return (Task::none(), Event::Show(Page::Chat)),
             Message::OpenAdventure(adventure_id) => {
-                log::info!("opening adventure {adventure_id}");
-                return (Task::none(), Event::Show(Page::Chat));
+                return (Task::none(), Event::OpenChat(adventure_id));
             }
             Message::SearchChanged(query) => self.query = query,
             Message::TagSelected(tag) => self.active_tag = tag,

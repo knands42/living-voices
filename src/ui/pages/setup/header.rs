@@ -6,7 +6,7 @@ use iced::{Alignment, Element, Length};
 const SIDE_LENGTH: f32 = 210.0;
 
 pub fn header(setup_state: &State) -> Element<'_, Message> {
-    let back = button(text("←  Back").size(13.5))
+    let back = button(text("← Adventures Hub").size(13.5))
         .padding([9.0, 16.0])
         .style(theme::back_button)
         .on_press(Message::BackRequested);

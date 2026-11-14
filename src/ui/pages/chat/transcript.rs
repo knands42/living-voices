@@ -5,6 +5,7 @@ use iced::{Alignment, Element, Length};
 use crate::backend::domain::message::Message as MessageLine;
 use crate::ui::pages::chat::composer::composer;
 use crate::ui::pages::chat::look::{AVATAR, initials_of, name_hue};
+use crate::ui::pages::chat::top::top;
 use crate::ui::pages::chat::{Message, State};
 use crate::ui::{common, theme};
 
@@ -31,7 +32,7 @@ pub fn transcript(chat_state: &State) -> Element<'_, Message> {
         .anchor_bottom();
 
     common::panel(
-        column![history, composer(chat_state)]
+        column![top(chat_state), history, composer(chat_state)]
             .spacing(12.0)
             .height(Length::Fill),
         16.0,

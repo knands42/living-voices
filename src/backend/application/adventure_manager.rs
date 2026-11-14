@@ -309,7 +309,7 @@ impl AdventureManager {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct MemorySnapshot {
     pub current_adventure: Option<Adventure>,
     pub current_act: Option<Act>,

@@ -2,11 +2,12 @@ use iced::widget::text::Wrapping;
 use iced::widget::{Space, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
 
+use crate::backend::domain::memory::state::State as SceneState;
 use crate::backend::domain::memory::{CharacterCondition, Fact};
 use crate::ui::pages::chat::{Message, State};
 use crate::ui::{common, theme};
 
-const META_LENGTH: f32 = 280.0;
+const META_LENGTH: f32 = 300.0;
 
 pub fn meta_rail(chat_state: &State) -> Element<'_, Message> {
     let scene = chat_state.scene_state.as_ref();
@@ -29,8 +30,8 @@ pub fn meta_rail(chat_state: &State) -> Element<'_, Message> {
         .spacing(12.0)
         .width(Length::Fill);
 
-    notes = notes.push(note_list("Conditions", conditions));
-    notes = notes.push(note_list("Open threads", threads));
+    notes = notes.push(note_card("Conditions", conditions));
+    notes = notes.push(note_card("Open threads", threads));
 
     if !chat_state.facts.is_empty() {
         let mut facts = column![common::subheading("Facts")].spacing(6.0);
@@ -42,36 +43,50 @@ pub fn meta_rail(chat_state: &State) -> Element<'_, Message> {
         notes = notes.push(facts);
     }
 
-    if let Some(scene) = scene {
-        notes = notes.push(
-            column![
-                common::subheading("Time and place"),
-                text(scene.day.as_str()).size(10.5).color(theme::TEXT_MUTED),
-                text(scene.place.as_str())
-                    .size(10.5)
-                    .color(theme::TEXT_MUTED)
-                    .width(Length::Fill)
-                    .wrapping(Wrapping::Word),
-            ]
-            .spacing(3.0),
-        );
+    let mut rail = column![scrollable(notes).height(Length::Fill)]
+        .spacing(12.0)
+        .width(Length::Fill);
+
+    if let Some(scene_state) = scene {
+        rail = rail.push(time_and_place(scene_state));
     }
 
-    common::panel(
-        column![scrollable(notes).height(Length::Fill)].width(Length::Fill),
-        14.0,
-    )
-    .width(Length::Fixed(META_LENGTH))
-    .height(Length::Fill)
-    .into()
+    common::panel(rail, 14.0)
+        .width(Length::Fixed(META_LENGTH))
+        .height(Length::Fill)
+        .into()
 }
 
-fn note_list<'a>(title: &'a str, items: Vec<String>) -> Element<'a, Message> {
+fn time_and_place(scene_state: &SceneState) -> Element<Message> {
+    let card = column![
+        text(scene_state.place.as_str())
+            .size(11.5)
+            .color(theme::TEXT_LIGHT)
+            .wrapping(Wrapping::Word),
+        text(scene_state.day.as_str())
+            .size(10.5)
+            .color(theme::TEXT_MUTED)
+            .width(Length::Fill)
+            .wrapping(Wrapping::Word),
+        Space::new().height(Length::Fixed(2.0)),
+        Space::new().height(Length::Fixed(2.0)),
+    ]
+    .spacing(4.0)
+    .width(Length::Fill);
+
+    container(card)
+        .padding([8.0, 10.0])
+        .width(Length::Fill)
+        .style(theme::inset)
+        .into()
+}
+
+fn note_card(title: &str, items: Vec<String>) -> Element<'_, Message> {
     if items.is_empty() {
         return Space::new().into();
     }
 
-    let mut rows = column![common::subheading(title)].spacing(3.0);
+    let mut rows = column![].spacing(3.0);
 
     for item in items {
         rows = rows.push(
@@ -83,7 +98,12 @@ fn note_list<'a>(title: &'a str, items: Vec<String>) -> Element<'a, Message> {
         );
     }
 
-    rows.into()
+    let card = container(rows)
+        .padding([6.0, 8.0])
+        .width(Length::Fill)
+        .style(theme::inset);
+
+    column![common::subheading(title), card].spacing(6.0).into()
 }
 
 fn fact_row(fact: &Fact) -> Element<'_, Message> {
