@@ -1,5 +1,7 @@
 use crate::backend::application::helper::setup_db;
-use living_voices::backend::persistence::adventure_persistence::insert_adventure;
+use living_voices::backend::persistence::adventure_persistence::{
+    get_adventure_summaries, insert_adventure,
+};
 use uuid::Uuid;
 
 #[tokio::test]
@@ -52,4 +54,35 @@ async fn insert_adventure_normalizes_and_attaches_tags() {
             .await
             .expect("tags");
     assert_eq!(tags, vec!["coastal".to_string(), "mystery".to_string()]);
+}
+
+#[tokio::test]
+async fn get_adventure_summaries_includes_tags() {
+    let (pool, _db) = setup_db().await;
+
+    // given
+    let mut conn = pool.acquire().await.expect("acquire");
+    let adventure_id = Uuid::new_v4();
+    insert_adventure(
+        &mut conn,
+        adventure_id,
+        "A",
+        "B",
+        "",
+        vec!["fantasy".into(), "dark".into()],
+    )
+    .await
+    .expect("insert");
+
+    // when
+    let summaries = get_adventure_summaries(&mut conn).await.expect("summaries");
+
+    // then
+    let summary = summaries
+        .iter()
+        .find(|summary| summary.id == adventure_id)
+        .expect("summary");
+    let mut tags = summary.tags.clone();
+    tags.sort();
+    assert_eq!(tags, vec!["dark".to_string(), "fantasy".to_string()]);
 }

@@ -35,12 +35,10 @@ pub fn header(home_state: &State) -> Element<'_, Message> {
         .size(13.0)
         .style(theme::composer);
 
-
     let setup = button(text("Setup").size(11.5))
         .padding([7.0, 13.0])
         .style(theme::back_button)
         .on_press(Message::SetupRequested);
-
 
     let who = row![setup, common::initials("D", 42.0, 34.0, 0.55)]
         .spacing(10.0)

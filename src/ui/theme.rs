@@ -4,7 +4,6 @@ use iced::gradient::Linear;
 use iced::widget::{button, container, progress_bar, text_input};
 use iced::{Background, Border, Color, Font, Radians, Shadow, Theme, Vector};
 
-
 // The palette
 pub const BG_DEEPEST: Color = Color::from_rgb8(0x12, 0x10, 0x0e);
 pub const BG_LOW: Color = Color::from_rgb8(0x0b, 0x0a, 0x08);
@@ -41,7 +40,10 @@ pub fn hsv(hue: f32, saturation: f32, value: f32) -> Color {
 
 /// Same colour, new alpha. Every fade in the sketch goes through here.
 pub fn alpha(color: Color, a: f32) -> Color {
-    Color { a: a.clamp(0.0, 1.0), ..color }
+    Color {
+        a: a.clamp(0.0, 1.0),
+        ..color
+    }
 }
 
 /// Blend two colours by `t` (`0.0` = `from`, `1.0` = `to`).
@@ -102,14 +104,24 @@ pub fn panel(_theme: &Theme) -> container::Style {
 pub fn inset(_theme: &Theme) -> container::Style {
     container::Style::default()
         .background(alpha(Color::BLACK, 0.22))
-        .border(Border::default().rounded(12.0).width(1.0).color(alpha(BRONZE_DIM, 0.7)))
+        .border(
+            Border::default()
+                .rounded(12.0)
+                .width(1.0)
+                .color(alpha(BRONZE_DIM, 0.7)),
+        )
 }
 
 /// The dimmed card the player sits in, at the top of the cast list.
 pub fn player_card(_theme: &Theme) -> container::Style {
     container::Style::default()
         .background(alpha(BRONZE, 0.07))
-        .border(Border::default().rounded(12.0).width(1.0).color(alpha(BRONZE, 0.35)))
+        .border(
+            Border::default()
+                .rounded(12.0)
+                .width(1.0)
+                .color(alpha(BRONZE, 0.35)),
+        )
 }
 
 // --- cast ----------------------------------------------------------------
@@ -130,16 +142,32 @@ pub fn cast_row(sweep: f32, selected: bool, hue: f32) -> container::Style {
                 (0.7, alpha(lit, 0.22)),
                 (1.0, alpha(lit, 0.10)),
             ]))
-            .border(Border::default().rounded(12.0).width(1.0).color(alpha(hsv(hue, 0.45, 0.72), 0.85)));
+            .border(
+                Border::default()
+                    .rounded(12.0)
+                    .width(1.0)
+                    .color(alpha(hsv(hue, 0.45, 0.72), 0.85)),
+            );
     }
 
     if sweep <= 0.001 {
-        return container::Style::default()
-            .border(Border::default().rounded(12.0).width(1.0).color(Color::TRANSPARENT));
+        return container::Style::default().border(
+            Border::default()
+                .rounded(12.0)
+                .width(1.0)
+                .color(Color::TRANSPARENT),
+        );
     }
 
     // Leading edge at `sweep`, with a soft shoulder behind it.
-    let lit = alpha(blend(Color::from_rgb8(0xf2, 0xe8, 0xd8), hsv(hue, 0.30, 0.90), 0.45), 0.10);
+    let lit = alpha(
+        blend(
+            Color::from_rgb8(0xf2, 0xe8, 0xd8),
+            hsv(hue, 0.30, 0.90),
+            0.45,
+        ),
+        0.10,
+    );
     let shoulder = alpha(hsv(hue, 0.40, 0.85), 0.16);
 
     let mut g = horizontal(&[(0.0, lit)]);
@@ -149,15 +177,23 @@ pub fn cast_row(sweep: f32, selected: bool, hue: f32) -> container::Style {
     g = g.add_stop(sweep, shoulder);
     g = g.add_stop((sweep + 0.001).min(1.0), Color::TRANSPARENT);
 
-    container::Style::default()
-        .background(g)
-        .border(Border::default().rounded(12.0).width(1.0).color(alpha(hsv(hue, 0.40, 0.70), 0.30 * sweep)))
+    container::Style::default().background(g).border(
+        Border::default()
+            .rounded(12.0)
+            .width(1.0)
+            .color(alpha(hsv(hue, 0.40, 0.70), 0.30 * sweep)),
+    )
 }
 
 pub fn portrait(hue: f32, glow: f32) -> container::Style {
     container::Style::default()
         .background(hsv(hue, 0.32, 0.24))
-        .border(Border::default().rounded(999.0).width(1.5).color(alpha(hsv(hue, 0.48, 0.72), 0.55 + 0.45 * glow)))
+        .border(
+            Border::default()
+                .rounded(999.0)
+                .width(1.5)
+                .color(alpha(hsv(hue, 0.48, 0.72), 0.55 + 0.45 * glow)),
+        )
 }
 
 /// The thin accent bar on the left of scene cards.
@@ -176,11 +212,21 @@ pub fn bubble(hue: f32, is_player: bool, a: f32) -> container::Style {
                 (0.0, alpha(hsv(hue, 0.30, 0.26), a)),
                 (1.0, alpha(hsv(hue, 0.26, 0.18), a)),
             ]))
-            .border(Border::default().rounded(16.0).width(1.0).color(alpha(hsv(hue, 0.44, 0.50), a)))
+            .border(
+                Border::default()
+                    .rounded(16.0)
+                    .width(1.0)
+                    .color(alpha(hsv(hue, 0.44, 0.50), a)),
+            )
     } else {
         container::Style::default()
             .background(alpha(BG_PANEL_ALT, a))
-            .border(Border::default().rounded(16.0).width(1.0).color(alpha(BRONZE_DIM, a)))
+            .border(
+                Border::default()
+                    .rounded(16.0)
+                    .width(1.0)
+                    .color(alpha(BRONZE_DIM, a)),
+            )
     }
 }
 
@@ -191,14 +237,24 @@ pub fn narrator(a: f32) -> container::Style {
             (0.5, alpha(GOLD, 0.07 * a)),
             (1.0, alpha(GOLD, 0.02 * a)),
         ]))
-        .border(Border::default().rounded(14.0).width(1.0).color(alpha(BRONZE, 0.30 * a)))
+        .border(
+            Border::default()
+                .rounded(14.0)
+                .width(1.0)
+                .color(alpha(BRONZE, 0.30 * a)),
+        )
 }
 
 /// The inline dice result. Gold when it lands, rose when it costs you.
 pub fn roll_chip(color: Color, a: f32) -> container::Style {
     container::Style::default()
         .background(alpha(color, 0.08 * a))
-        .border(Border::default().rounded(999.0).width(1.0).color(alpha(color, 0.45 * a)))
+        .border(
+            Border::default()
+                .rounded(999.0)
+                .width(1.0)
+                .color(alpha(color, 0.45 * a)),
+        )
 }
 
 // --- interactive ----------------------------------------------------------
@@ -213,7 +269,10 @@ pub fn back_button(_theme: &Theme, status: button::Status) -> button::Style {
             alpha(BG_PANEL, 0.85)
         })),
         text_color: TEXT_LIGHT,
-        border: Border::default().rounded(999.0).width(1.0).color(alpha(BRONZE, if hovered { 0.9 } else { 0.5 })),
+        border: Border::default()
+            .rounded(999.0)
+            .width(1.0)
+            .color(alpha(BRONZE, if hovered { 0.9 } else { 0.5 })),
         ..button::Style::default()
     }
 }
@@ -232,7 +291,10 @@ pub fn send_button(_theme: &Theme, status: button::Status) -> button::Style {
     button::Style {
         background,
         text_color,
-        border: Border::default().rounded(14.0).width(1.0).color(alpha(BRONZE_DIM, 0.9)),
+        border: Border::default()
+            .rounded(14.0)
+            .width(1.0)
+            .color(alpha(BRONZE_DIM, 0.9)),
         shadow: Shadow {
             color: alpha(GOLD, 0.18),
             offset: Vector::new(0.0, 2.0),
@@ -259,7 +321,11 @@ pub fn quick_chip(_theme: &Theme, status: button::Status) -> button::Style {
         border: Border::default()
             .rounded(999.0)
             .width(1.0)
-            .color(if hovered { alpha(GOLD, 0.55) } else { alpha(BRONZE_DIM, 0.9) }),
+            .color(if hovered {
+                alpha(GOLD, 0.55)
+            } else {
+                alpha(BRONZE_DIM, 0.9)
+            }),
         ..button::Style::default()
     }
 }
@@ -273,7 +339,10 @@ pub fn icon_button(_theme: &Theme, status: button::Status) -> button::Style {
             if hovered { 0.10 } else { 0.04 },
         ))),
         text_color: if hovered { TEXT_LIGHT } else { TEXT_MUTED },
-        border: Border::default().rounded(999.0).width(1.0).color(alpha(BRONZE_DIM, 0.9)),
+        border: Border::default()
+            .rounded(999.0)
+            .width(1.0)
+            .color(alpha(BRONZE_DIM, 0.9)),
         ..button::Style::default()
     }
 }
@@ -286,7 +355,11 @@ pub fn composer(_theme: &Theme, status: text_input::Status) -> text_input::Style
         border: Border::default()
             .rounded(14.0)
             .width(1.0)
-            .color(if focused { alpha(GOLD, 0.55) } else { BRONZE_DIM }),
+            .color(if focused {
+                alpha(GOLD, 0.55)
+            } else {
+                BRONZE_DIM
+            }),
         icon: TEXT_MUTED,
         placeholder: TEXT_DIM,
         value: TEXT_LIGHT,
@@ -298,7 +371,12 @@ pub fn composer(_theme: &Theme, status: text_input::Status) -> text_input::Style
 pub fn trait_chip(hue: f32) -> container::Style {
     container::Style::default()
         .background(alpha(hsv(hue, 0.30, 0.55), 0.16))
-        .border(Border::default().rounded(999.0).width(1.0).color(alpha(hsv(hue, 0.40, 0.70), 0.35)))
+        .border(
+            Border::default()
+                .rounded(999.0)
+                .width(1.0)
+                .color(alpha(hsv(hue, 0.40, 0.70), 0.35)),
+        )
 }
 
 // --- bars -----------------------------------------------------------------
@@ -321,7 +399,12 @@ pub fn lightbox(_theme: &Theme) -> container::Style {
 pub fn lightbox_card(_theme: &Theme) -> container::Style {
     container::Style::default()
         .background(BG_PANEL)
-        .border(Border::default().rounded(18.0).width(1.0).color(alpha(BRONZE, 0.45)))
+        .border(
+            Border::default()
+                .rounded(18.0)
+                .width(1.0)
+                .color(alpha(BRONZE, 0.45)),
+        )
         .shadow(Shadow {
             color: Color::from_rgba(0.0, 0.0, 0.0, 0.6),
             offset: Vector::new(0.0, 24.0),
@@ -332,11 +415,16 @@ pub fn lightbox_card(_theme: &Theme) -> container::Style {
 /// The gallery tile's frame: a hairline that warms on hover.
 pub fn tile(hovered: bool, hue: f32) -> container::Style {
     container::Style::default()
-        .border(Border::default().rounded(10.0).width(1.0).color(if hovered {
-            alpha(hsv(hue, 0.45, 0.85), 0.9)
-        } else {
-            alpha(BRONZE_DIM, 0.9)
-        }))
+        .border(
+            Border::default()
+                .rounded(10.0)
+                .width(1.0)
+                .color(if hovered {
+                    alpha(hsv(hue, 0.45, 0.85), 0.9)
+                } else {
+                    alpha(BRONZE_DIM, 0.9)
+                }),
+        )
         .background(BG_SUNK)
 }
 
@@ -354,14 +442,24 @@ pub fn callout(color: Color, a: f32) -> container::Style {
             (0.55, alpha(color, 0.055 * a)),
             (1.0, alpha(color, 0.02 * a)),
         ]))
-        .border(Border::default().rounded(14.0).width(1.0).color(alpha(color, 0.32 * a)))
+        .border(
+            Border::default()
+                .rounded(14.0)
+                .width(1.0)
+                .color(alpha(color, 0.32 * a)),
+        )
 }
 
 /// One reading inside a spec panel: sunk, hairline edge.
 pub fn stat(_theme: &Theme) -> container::Style {
     container::Style::default()
         .background(alpha(Color::BLACK, 0.20))
-        .border(Border::default().rounded(12.0).width(1.0).color(alpha(BRONZE_DIM, 0.75)))
+        .border(
+            Border::default()
+                .rounded(12.0)
+                .width(1.0)
+                .color(alpha(BRONZE_DIM, 0.75)),
+        )
 }
 
 /// A settings row that reads as a switch: lit gold when it is on.
@@ -391,11 +489,16 @@ pub fn switch_row(active: bool, _theme: &Theme, status: button::Status) -> butto
 /// The track the switch's knob rides on.
 pub fn switch_track(active: bool) -> container::Style {
     container::Style::default()
-        .background(alpha(if active { GOLD } else { BG_SUNK }, if active { 0.80 } else { 0.95 }))
-        .border(Border::default().rounded(999.0).width(1.0).color(alpha(
-            if active { GOLD } else { BRONZE_DIM },
-            0.9,
-        )))
+        .background(alpha(
+            if active { GOLD } else { BG_SUNK },
+            if active { 0.80 } else { 0.95 },
+        ))
+        .border(
+            Border::default()
+                .rounded(999.0)
+                .width(1.0)
+                .color(alpha(if active { GOLD } else { BRONZE_DIM }, 0.9)),
+        )
 }
 
 /// A stage dot on the install trail.
@@ -425,7 +528,12 @@ pub fn cover(hue: f32) -> impl Fn(&Theme) -> container::Style {
                 (0.55, hsv(hue, 0.40, 0.23)),
                 (1.0, hsv(hue, 0.44, 0.13)),
             ]))
-            .border(Border::default().rounded(12.0).width(1.0).color(alpha(hsv(hue, 0.45, 0.80), 0.32)))
+            .border(
+                Border::default()
+                    .rounded(12.0)
+                    .width(1.0)
+                    .color(alpha(hsv(hue, 0.45, 0.80), 0.32)),
+            )
     }
 }
 
@@ -442,12 +550,10 @@ pub fn library_row(sweep: f32, hue: f32) -> impl Fn(&Theme) -> container::Style 
                 (0.62, blend(BG_PANEL, lit, 0.18 * sweep)),
                 (1.0, alpha(BG_PANEL, 0.94)),
             ]))
-            .border(
-                Border::default()
-                    .rounded(14.0)
-                    .width(1.0)
-                    .color(alpha(blend(BRONZE_DIM, hsv(hue, 0.45, 0.78), sweep), 0.65 + 0.35 * sweep)),
-            )
+            .border(Border::default().rounded(14.0).width(1.0).color(alpha(
+                blend(BRONZE_DIM, hsv(hue, 0.45, 0.78), sweep),
+                0.65 + 0.35 * sweep,
+            )))
     }
 }
 
@@ -458,14 +564,15 @@ pub fn shelf_card(hue: f32, glow: f32) -> impl Fn(&Theme) -> container::Style {
         container::Style::default()
             .background(vertical(&[
                 (0.0, alpha(BG_PANEL, 0.96)),
-                (1.0, blend(BG_PANEL, hsv(hue, 0.28, 0.16), 0.35 + 0.25 * glow)),
+                (
+                    1.0,
+                    blend(BG_PANEL, hsv(hue, 0.28, 0.16), 0.35 + 0.25 * glow),
+                ),
             ]))
-            .border(
-                Border::default()
-                    .rounded(14.0)
-                    .width(1.0)
-                    .color(alpha(blend(BRONZE_DIM, hsv(hue, 0.40, 0.70), 0.35 + 0.45 * glow), 0.85)),
-            )
+            .border(Border::default().rounded(14.0).width(1.0).color(alpha(
+                blend(BRONZE_DIM, hsv(hue, 0.40, 0.70), 0.35 + 0.45 * glow),
+                0.85,
+            )))
     }
 }
 
@@ -489,11 +596,14 @@ pub fn chip(selected: bool) -> impl Fn(&Theme, button::Status) -> button::Style 
             } else {
                 TEXT_MUTED
             },
-            border: Border::default().rounded(999.0).width(1.0).color(if selected {
-                alpha(GOLD, 0.55)
-            } else {
-                alpha(BRONZE_DIM, 0.9)
-            }),
+            border: Border::default()
+                .rounded(999.0)
+                .width(1.0)
+                .color(if selected {
+                    alpha(GOLD, 0.55)
+                } else {
+                    alpha(BRONZE_DIM, 0.9)
+                }),
             ..button::Style::default()
         }
     }
@@ -517,11 +627,14 @@ pub fn sort_tab(selected: bool) -> impl Fn(&Theme, button::Status) -> button::St
             } else {
                 TEXT_DIM
             },
-            border: Border::default().rounded(8.0).width(1.0).color(if selected {
-                alpha(GOLD, 0.35)
-            } else {
-                Color::TRANSPARENT
-            }),
+            border: Border::default()
+                .rounded(8.0)
+                .width(1.0)
+                .color(if selected {
+                    alpha(GOLD, 0.35)
+                } else {
+                    Color::TRANSPARENT
+                }),
             ..button::Style::default()
         }
     }
@@ -535,7 +648,12 @@ pub fn create_card(_theme: &Theme) -> container::Style {
             (0.0, alpha(GOLD, 0.10)),
             (1.0, alpha(GOLD, 0.03)),
         ]))
-        .border(Border::default().rounded(16.0).width(1.0).color(alpha(GOLD, 0.38)))
+        .border(
+            Border::default()
+                .rounded(16.0)
+                .width(1.0)
+                .color(alpha(GOLD, 0.38)),
+        )
         .shadow(Shadow {
             color: alpha(GOLD, 0.10),
             offset: Vector::new(0.0, 8.0),
@@ -547,14 +665,21 @@ pub fn create_card(_theme: &Theme) -> container::Style {
 pub fn start_row(selected: bool) -> impl Fn(&Theme, button::Status) -> button::Style {
     move |theme, status| {
         let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
-        let mut style = switch_row(selected, theme, if hovered {
-            button::Status::Hovered
-        } else {
-            button::Status::Active
-        });
+        let mut style = switch_row(
+            selected,
+            theme,
+            if hovered {
+                button::Status::Hovered
+            } else {
+                button::Status::Active
+            },
+        );
         // The sheet sits on a dim; keep the unselected rows darker than the page.
         if !selected {
-            style.background = Some(Background::Color(alpha(Color::BLACK, if hovered { 0.28 } else { 0.20 })));
+            style.background = Some(Background::Color(alpha(
+                Color::BLACK,
+                if hovered { 0.28 } else { 0.20 },
+            )));
         }
         style
     }
@@ -565,6 +690,11 @@ pub fn badge(color: Color) -> impl Fn(&Theme) -> container::Style {
     move |_theme| {
         container::Style::default()
             .background(alpha(color, 0.14))
-            .border(Border::default().rounded(999.0).width(1.0).color(alpha(color, 0.42)))
+            .border(
+                Border::default()
+                    .rounded(999.0)
+                    .width(1.0)
+                    .color(alpha(color, 0.42)),
+            )
     }
 }

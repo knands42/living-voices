@@ -52,6 +52,7 @@ pub struct AdventureSummary {
     pub headline: String,
     pub tone: String,
     pub status: AdventureStatus,
+    pub tags: Vec<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -63,6 +64,7 @@ impl AdventureSummary {
         headline: impl Into<String>,
         tone: impl Into<String>,
         status: AdventureStatus,
+        tags: Vec<String>,
         created_at: DateTime<Utc>,
         updated_at: DateTime<Utc>,
     ) -> Self {
@@ -72,11 +74,12 @@ impl AdventureSummary {
             headline: headline.into(),
             tone: tone.into(),
             status,
+            tags,
             created_at,
             updated_at,
         }
     }
-    
+
     pub fn newest(adventure_summaries: &[AdventureSummary]) -> Option<AdventureSummary> {
         adventure_summaries
             .iter()
@@ -86,7 +89,7 @@ impl AdventureSummary {
 }
 
 #[derive(Debug, Clone)]
-pub struct OngoingAdventure{
+pub struct OngoingAdventure {
     pub adventure: AdventureSummary,
     pub current_act: usize,
     pub total_acts: usize,
@@ -94,7 +97,12 @@ pub struct OngoingAdventure{
 }
 
 impl OngoingAdventure {
-    pub fn new(adventure: AdventureSummary, current_act: usize, total_acts: usize, last_played: DateTime<Utc>) -> Self {
+    pub fn new(
+        adventure: AdventureSummary,
+        current_act: usize,
+        total_acts: usize,
+        last_played: DateTime<Utc>,
+    ) -> Self {
         Self {
             adventure,
             current_act,

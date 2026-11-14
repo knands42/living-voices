@@ -21,6 +21,7 @@ struct AdventureRow {
     headline: String,
     tone: String,
     status: String,
+    adventure_tags: String,
     created_at: String,
     updated_at: String,
 }
@@ -33,6 +34,11 @@ impl FromRow<'_, SqliteRow> for AdventureRow {
             headline: row.get("headline"),
             tone: row.get("tone"),
             status: row.get("status"),
+            adventure_tags: row
+                .try_get("adventure_tags")
+                .ok()
+                .flatten()
+                .unwrap_or_default(),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         })
@@ -45,6 +51,7 @@ impl TryFrom<AdventureRow> for AdventureSummary {
         let parsed_id = from_str_to_uuid(&value.id)?;
         let parsed_created_at = from_str_to_timestamp(&value.created_at)?;
         let parsed_updated_at = from_str_to_timestamp(&value.updated_at)?;
+        let tags = parse_json_array(Some(value.adventure_tags.as_str()))?;
 
         Ok(AdventureSummary::new(
             parsed_id,
@@ -52,6 +59,7 @@ impl TryFrom<AdventureRow> for AdventureSummary {
             value.headline,
             value.tone,
             AdventureStatus::from_str(&value.status),
+            tags,
             parsed_created_at,
             parsed_updated_at,
         ))
@@ -227,7 +235,9 @@ pub async fn insert_adventure(
         attach_tag(conn, id, tag).await?;
     }
 
-    AdventureSummary::try_from(adventure_row)
+    let mut summary = AdventureSummary::try_from(adventure_row)?;
+    summary.tags = tags.iter().map(|tag| normalize(tag)).collect();
+    Ok(summary)
 }
 
 pub async fn get_adventure(
@@ -305,11 +315,30 @@ ORDER BY a.updated_at DESC, c.name DESC;
 pub async fn get_adventure_summaries(
     conn: &mut SqliteConnection,
 ) -> Result<Vec<AdventureSummary>, PersistenceError> {
-    let rows = sqlx::query_as::<_, AdventureRow>("SELECT * FROM adventure LIMIT 10")
-        .fetch_all(&mut *conn)
-        .await?;
+    let rows = sqlx::query_as::<_, AdventureRow>(
+        r#"
+SELECT a.id,
+       a.title,
+       a.headline,
+       a.tone,
+       a.status,
+       a.created_at,
+       a.updated_at,
+       COALESCE(at.tags, '[]') AS adventure_tags
+FROM adventure AS a
+LEFT JOIN (SELECT adventure_id,
+                  '[' || GROUP_CONCAT('"' || tag || '"', ',') || ']' AS tags
+           FROM adventure_tag
+           GROUP BY adventure_id) AS at
+  ON at.adventure_id = a.id
+ORDER BY a.updated_at DESC
+LIMIT 10
+"#,
+    )
+    .fetch_all(&mut *conn)
+    .await?;
 
-    let mut adventures = Vec::with_capacity(10);
+    let mut adventures = Vec::with_capacity(rows.len());
     for row in rows {
         adventures.push(AdventureSummary::try_from(row)?)
     }

@@ -1,5 +1,5 @@
-use crate::backend::domain::adventure::AdventureSummary;
-use crate::ui::pages::main_hub::{AdventureCreationDraft, Message, State};
+use crate::backend::domain::adventure::{AdventureStatus, AdventureSummary, OngoingAdventure};
+use crate::ui::pages::main_hub::{Message, State};
 use crate::ui::{common, theme};
 use iced::widget::text::Wrapping;
 use iced::widget::{
@@ -11,15 +11,19 @@ const RAIL_LENGTH: f32 = 320.0;
 const PLATE_LENGTH: f32 = 292.0;
 
 pub fn body(home_state: &State) -> Element<'_, Message> {
+    if home_state.catalogue.adventures.is_empty() {
+        return empty_state();
+    }
+
     let main = column![
-        newest_adventures(home_state),
+        featured(home_state),
         shelf(home_state),
         catalogue(home_state)
     ]
     .spacing(18.0)
     .width(Length::Fill);
 
-    let rail = column![create_card(), one_shot(home_state), numbers()]
+    let rail = column![create_card(), stats(home_state)]
         .spacing(14.0)
         .width(Length::Fixed(RAIL_LENGTH));
 
@@ -38,29 +42,29 @@ pub fn body(home_state: &State) -> Element<'_, Message> {
 
 // --- the story of the week ------------------------------------------------
 
-fn newest_adventures(home_state: &State) -> Element<'_, Message> {
-    let Some(newest) = AdventureSummary::newest(&home_state.catalogue.adventures) else {
-        None
+fn featured(home_state: &State) -> Element<'_, Message> {
+    let Some(newest) = home_state
+        .catalogue
+        .adventures
+        .iter()
+        .max_by_key(|adventure| adventure.created_at)
+    else {
+        return empty_state();
     };
-    let accent = theme::hsv(newest.genre.hue(), 0.45, 0.82);
 
-    // The plate stands in for the cover: the cast you are about to meet, drawn
-    // in their own hues over the story's tint.
+    let hue = hue_of(&newest.title);
+    let accent = theme::hsv(hue, 0.45, 0.82);
+
     let plate = container(
         column![
-            text("IN THIS STORY")
+            text("FEATURED")
                 .size(9.5)
                 .color(theme::alpha(theme::TEXT_LIGHT, 0.55))
                 .font(common::semibold()),
             Space::new().height(Length::Fill),
-            row![
-                common::initials(spot.initials[0], newest.genre.hue() + 22.0, 56.0, 0.7),
-                common::initials(spot.initials[1], card.genre.hue() + 52.0, 44.0, 0.4),
-                common::initials(spot.initials[2], card.genre.hue() - 26.0, 44.0, 0.3),
-            ]
-            .spacing(6.0)
-            .align_y(Alignment::Center),
-            text(spot.cast_note)
+            common::initials(monogram(&newest.title), hue, 56.0, 0.7),
+            Space::new().height(Length::Fill),
+            text(newest.status.as_str().to_uppercase())
                 .size(10.5)
                 .color(theme::alpha(theme::TEXT_LIGHT, 0.62)),
         ]
@@ -71,39 +75,34 @@ fn newest_adventures(home_state: &State) -> Element<'_, Message> {
     .width(Length::Fixed(PLATE_LENGTH))
     .height(Length::Fixed(232.0))
     .padding(16.0)
-    .style(theme::cover(card.genre.hue()));
+    .style(theme::cover(hue));
 
     let facts = row![
-        text(card.genre.label().to_uppercase())
+        text(newest.status.as_str().to_uppercase())
             .size(9.5)
             .color(accent)
             .font(common::semibold()),
         common::dot(4.0, theme::alpha(accent, 0.7)),
-        text(format!(
-            "{} chapters · {} voices · {} players",
-            card.chapters,
-            card.voices,
-            compact(card.players)
-        ))
-        .size(10.5)
-        .color(theme::TEXT_DIM),
+        text(newest.updated_at.format("%b %d, %Y").to_string())
+            .size(10.5)
+            .color(theme::TEXT_DIM),
     ]
     .spacing(8.0)
     .align_y(Alignment::Center);
 
     let body = column![
         facts,
-        text(card.title)
+        text(newest.title.as_str())
             .size(32.0)
             .color(theme::GOLD)
             .font(common::brand()),
-        text(card.premise)
+        text(newest.headline.as_str())
             .size(14.0)
             .color(theme::TEXT_MUTED)
             .width(Length::Fill)
             .wrapping(Wrapping::Word),
         common::divider(),
-        text(spot.bill)
+        text(newest.tone.as_str())
             .size(12.5)
             .color(theme::alpha(theme::TEXT_MUTED, 0.92))
             .width(Length::Fill)
@@ -115,9 +114,6 @@ fn newest_adventures(home_state: &State) -> Element<'_, Message> {
                 .style(theme::send_button)
                 .on_press(Message::ChatRequested),
             Space::new().width(Length::Fill),
-            text(format!("a story by {}", card.author))
-                .size(10.5)
-                .color(theme::TEXT_DIM),
         ]
         .spacing(12.0)
         .align_y(Alignment::Center)
@@ -142,6 +138,10 @@ fn newest_adventures(home_state: &State) -> Element<'_, Message> {
 // --- what you already have open -------------------------------------------
 
 fn shelf(home_state: &State) -> Element<'_, Message> {
+    if home_state.catalogue.shelf.len() == 0 {
+        return column![].spacing(10.0).width(Length::Fill).into();
+    }
+
     let header = row![
         common::heading("Pick up where you left off"),
         Space::new().width(Length::Fill),
@@ -152,8 +152,8 @@ fn shelf(home_state: &State) -> Element<'_, Message> {
     .align_y(Alignment::Center);
 
     let mut cards = row![].spacing(12.0).width(Length::Fill);
-    for (index, entry) in home_state.catalogue.shelf.iter().enumerate() {
-        cards = cards.push(shelf_card(home, index, entry));
+    for entry in &home_state.catalogue.shelf {
+        cards = cards.push(shelf_card(entry));
     }
 
     column![header, cards]
@@ -162,13 +162,18 @@ fn shelf(home_state: &State) -> Element<'_, Message> {
         .into()
 }
 
-fn shelf_card<'a>(home_state: &'a Home, index: usize, entry: &'a Shelf) -> Element<'a, Message> {
-    let card = &home_state.catalogue.cards[entry.card];
-    let glow = home_state.glow_shelf.get(index).copied().unwrap_or(0.0);
-    let accent = theme::hsv(card.genre.hue(), 0.42, 0.80);
+fn shelf_card(entry: &OngoingAdventure) -> Element<'_, Message> {
+    let adventure = &entry.adventure;
+    let hue = hue_of(&adventure.title);
+    let accent = theme::hsv(hue, 0.42, 0.80);
+    let progress = if entry.total_acts > 0 {
+        entry.current_act as f32 / entry.total_acts as f32
+    } else {
+        0.0
+    };
 
     let cover = container(
-        text(card.title.chars().next().unwrap_or('·').to_string())
+        text(monogram(&adventure.title))
             .size(18.0)
             .color(theme::alpha(theme::TEXT_LIGHT, 0.85))
             .font(common::brand()),
@@ -177,12 +182,12 @@ fn shelf_card<'a>(home_state: &'a Home, index: usize, entry: &'a Shelf) -> Eleme
     .height(Length::Fixed(44.0))
     .align_x(Alignment::Center)
     .align_y(Alignment::Center)
-    .style(theme::cover(card.genre.hue()));
+    .style(theme::cover(hue));
 
     let head = row![
         cover,
         column![
-            text(card.title)
+            text(adventure.title.as_str())
                 .size(13.5)
                 .color(theme::TEXT_LIGHT)
                 .font(common::semibold())
@@ -190,7 +195,9 @@ fn shelf_card<'a>(home_state: &'a Home, index: usize, entry: &'a Shelf) -> Eleme
                 .wrapping(Wrapping::Word),
             text(format!(
                 "act {} of {} · {}",
-                entry.act, entry.acts, entry.when
+                entry.current_act,
+                entry.total_acts,
+                entry.last_played.format("%b %d").to_string()
             ))
             .size(10.5)
             .color(theme::TEXT_DIM),
@@ -204,12 +211,12 @@ fn shelf_card<'a>(home_state: &'a Home, index: usize, entry: &'a Shelf) -> Eleme
 
     let foot = row![
         common::meter(
-            entry.progress,
+            progress,
             theme::alpha(accent, 0.95),
             theme::alpha(theme::BRONZE_DIM, 0.55),
             3.0,
         ),
-        text(format!("{:.0}%", entry.progress * 100.0))
+        text(format!("{:.0}%", progress * 100.0))
             .size(10.0)
             .color(theme::TEXT_DIM),
     ]
@@ -220,72 +227,70 @@ fn shelf_card<'a>(home_state: &'a Home, index: usize, entry: &'a Shelf) -> Eleme
         container(column![head, foot].spacing(11.0).width(Length::Fill))
             .padding(12.0)
             .width(Length::Fill)
-            .style(theme::shelf_card(card.genre.hue(), glow)),
+            .style(theme::shelf_card(hue, 0.0)),
     )
-    .on_press(Message::Home(HomeMessage::Open(entry.card)))
-    .on_enter(Message::Home(HomeMessage::ShelfHovered(Some(index))))
-    .on_exit(Message::Home(HomeMessage::ShelfHovered(None)))
+    .on_press(Message::OpenAdventure(adventure.id))
     .into()
 }
 
 // --- the catalogue --------------------------------------------------------
 
 fn catalogue(home_state: &State) -> Element<'_, Message> {
-    let catalog = home_state.catalog();
+    let query = home_state.query.trim().to_lowercase();
+    let tags = collect_tags(home_state);
+
+    let filtered: Vec<&AdventureSummary> = home_state
+        .catalogue
+        .adventures
+        .iter()
+        .filter(|adventure| matches_query(adventure, &query))
+        .filter(|adventure| matches_tag(adventure, home_state.active_tag.as_deref()))
+        .collect();
 
     let header = row![
         common::heading("The library"),
         text(format!(
             "{} of {}",
-            catalog.len(),
-            home_state.catalogue.cards.len()
+            filtered.len(),
+            home_state.catalogue.adventures.len()
         ))
         .size(10.5)
         .color(theme::TEXT_DIM),
         Space::new().width(Length::Fill),
-        sort_tabs(home),
     ]
     .spacing(10.0)
     .align_y(Alignment::Center);
 
-    let mut filters = row![].spacing(7.0);
-    filters = filters.push(chip_button(home, None, "All"));
-    for genre in Genre::ALL {
-        filters = filters.push(chip_button(home, Some(genre), genre.label()));
-    }
-    if home_state.filtered() {
-        filters = filters.push(
-            button(text("clear").size(10.5))
-                .padding([7.0, 10.0])
-                .style(theme::sort_tab(false))
-                .on_press(Message::Home(HomeMessage::ClearFilters)),
-        );
-    }
-
-    let bar = row![filters, Space::new().width(Length::Fill)]
-        .width(Length::Fill)
-        .align_y(Alignment::Center);
-
     let mut list = column![].spacing(7.0).width(Length::Fill);
-    for (index, card) in home_state.catalogue.enumerate() {
-        list = list.push(row_card(home_state, index, card));
+    for adventure in &filtered {
+        list = list.push(row_card(adventure));
+    }
+    if filtered.is_empty() {
+        list = list.push(no_matches());
     }
 
-    column![header, bar, list]
-        .spacing(12.0)
-        .width(Length::Fill)
-        .into()
+    if tags.is_empty() {
+        return column![header, list]
+            .spacing(12.0)
+            .width(Length::Fill)
+            .into();
+    }
+
+    column![
+        header,
+        filter_bar(home_state.active_tag.as_deref(), &tags),
+        list
+    ]
+    .spacing(12.0)
+    .width(Length::Fill)
+    .into()
 }
 
-fn row_card<'a>(
-    home_state: &'a State,
-    index: usize,
-    card: &'a AdventureSummary,
-) -> Element<'a, Message> {
-    let glow = home_state.glow.get(index).copied().unwrap_or(0.0);
+fn row_card(adventure: &AdventureSummary) -> Element<'_, Message> {
+    let hue = hue_of(&adventure.title);
 
     let cover = container(
-        text(card.title.chars().next().unwrap_or('·').to_string())
+        text(monogram(&adventure.title))
             .size(20.0)
             .color(theme::alpha(theme::TEXT_LIGHT, 0.85))
             .font(common::brand()),
@@ -294,97 +299,64 @@ fn row_card<'a>(
     .height(Length::Fixed(56.0))
     .align_x(Alignment::Center)
     .align_y(Alignment::Center)
-    .style(theme::cover(card.tone.hue()));
+    .style(theme::cover(hue));
 
-    let mut title = row![
-        text(card.title)
+    let title = row![
+        text(adventure.title.as_str())
             .size(15.5)
             .color(theme::TEXT_LIGHT)
             .font(common::semibold()),
+        Space::new().width(Length::Fixed(8.0)),
+        status_badge(adventure.status),
     ]
     .spacing(8.0)
     .align_y(Alignment::Center);
 
-    if card.fresh {
-        title = title.push(badge("new", theme::SEA));
-    }
-    if card.hot {
-        title = title.push(badge("trending", theme::AMBER));
-    }
-
     let body = column![
         title,
-        text(card.premise)
+        text(adventure.headline.as_str())
             .size(12.0)
             .color(theme::TEXT_MUTED)
             .width(Length::Fill)
             .wrapping(Wrapping::Word),
-        text(format!(
-            "{} · {} · ~{} min",
-            card.tags.join(" · "),
-            card.genre.label(),
-            card.minutes
-        ))
-        .size(10.0)
-        .color(theme::TEXT_DIM)
-        .width(Length::Fill)
-        .wrapping(Wrapping::Word),
+        text(meta_line(adventure))
+            .size(10.0)
+            .color(theme::TEXT_DIM)
+            .width(Length::Fill),
     ]
     .spacing(4.0)
     .width(Length::Fill);
 
-    let meta = column![
-        text(compact(card.players))
-            .size(12.0)
-            .color(theme::TEXT_LIGHT)
-            .font(common::semibold()),
-        text("players").size(9.5).color(theme::TEXT_DIM),
-        text(format!("{} ch", card.chapters))
-            .size(9.5)
-            .color(theme::alpha(theme::TEXT_MUTED, 0.9)),
-    ]
-    .spacing(1.0)
-    .align_x(Alignment::End)
-    .width(Length::Fixed(56.0));
-
     let open = container(
         text("→")
             .size(13.0)
-            .color(theme::alpha(theme::TEXT_LIGHT, 0.35 + 0.55 * glow)),
+            .color(theme::alpha(theme::TEXT_LIGHT, 0.35)),
     )
     .width(Length::Fixed(26.0))
     .align_x(Alignment::Center);
 
     mouse_area(
         container(
-            row![cover, container(body).width(Length::Fill), meta, open,]
+            row![cover, container(body).width(Length::Fill), open]
                 .spacing(14.0)
                 .align_y(Alignment::Center)
                 .width(Length::Fill),
         )
         .padding([10.0, 13.0])
         .width(Length::Fill)
-        .style(theme::library_row(glow, card.genre.hue())),
+        .style(theme::library_row(0.0, hue)),
     )
-    .on_press(Message::Home(HomeMessage::Open(index)))
-    .on_enter(Message::Home(HomeMessage::Hovered(Some(index))))
-    .on_exit(Message::Home(HomeMessage::Hovered(None)))
+    .on_press(Message::OpenAdventure(adventure.id))
     .into()
 }
 
-fn empty_state() -> Element<'static, Message> {
+fn no_matches() -> Element<'static, Message> {
     container(
         column![
-            text("Nothing on the shelf matches")
-                .size(13.5)
-                .color(theme::TEXT_LIGHT),
-            text("Try a wider word, or hand the filter back.")
+            text("Nothing matches").size(13.5).color(theme::TEXT_LIGHT),
+            text("Try a different word.")
                 .size(11.5)
                 .color(theme::TEXT_DIM),
-            button(text("Clear the filter").size(11.5))
-                .padding([7.0, 12.0])
-                .style(theme::quick_chip)
-                .on_press(Message::Home(HomeMessage::ClearFilters)),
         ]
         .spacing(8.0)
         .align_x(Alignment::Center),
@@ -394,40 +366,6 @@ fn empty_state() -> Element<'static, Message> {
     .align_x(Alignment::Center)
     .style(theme::inset)
     .into()
-}
-
-fn sort_tabs(home_state: &State) -> Element<'_, Message> {
-    let mut tabs = row![].spacing(3.0).align_y(Alignment::Center);
-    for sort in Sort::ALL {
-        tabs = tabs.push(
-            button(text(sort.label()).size(10.5))
-                .padding([5.0, 9.0])
-                .style(theme::sort_tab(home_state.sort == sort))
-                .on_press(Message::Home(HomeMessage::SortPicked(sort))),
-        );
-    }
-    tabs.into()
-}
-
-fn chip_button<'a>(
-    home_state: &State,
-    genre: Option<Genre>,
-    label: &'a str,
-) -> Element<'a, Message> {
-    let selected = home_state.genre == genre;
-
-    button(text(label).size(12.0))
-        .padding([7.0, 13.0])
-        .style(theme::chip(selected))
-        .on_press(Message::Home(HomeMessage::GenrePicked(genre)))
-        .into()
-}
-
-fn badge(label: &'static str, color: iced::Color) -> Element<'static, Message> {
-    container(text(label).size(9.0).color(color).font(common::semibold()))
-        .padding([2.0, 7.0])
-        .style(theme::badge(color))
-        .into()
 }
 
 // --- the rail -------------------------------------------------------------
@@ -457,86 +395,20 @@ fn create_card() -> Element<'static, Message> {
     .into()
 }
 
-fn start_option(start: StartFrom, selected: bool) -> Element<'static, Message> {
-    let radio = container(
-        Space::new()
-            .width(Length::Fixed(8.0))
-            .height(Length::Fixed(8.0)),
-    )
-    .style(move |_theme| theme::stage_dot(theme::GOLD, selected));
+fn stats(home_state: &State) -> Element<'_, Message> {
+    let drafts = home_state
+        .catalogue
+        .adventures
+        .iter()
+        .filter(|adventure| adventure.status == AdventureStatus::Draft)
+        .count();
 
-    button(
-        row![
-            radio,
-            column![
-                text(start.label())
-                    .size(11.5)
-                    .color(if selected {
-                        theme::TEXT_LIGHT
-                    } else {
-                        theme::TEXT_MUTED
-                    })
-                    .font(common::semibold()),
-                text(start.hint()).size(9.5).color(theme::TEXT_DIM),
-            ]
-            .spacing(1.0),
-        ]
-        .spacing(9.0)
-        .align_y(Alignment::Center)
-        .width(Length::Fill),
-    )
-    .padding([8.0, 10.0])
-    .width(Length::Fill)
-    .style(theme::start_row(selected))
-    .on_press(Message::Home(HomeMessage::StartFromPicked(start)))
-    .into()
-}
-
-fn one_shot(home_state: &State) -> Element<'_, Message> {
-    let shot = &home_state.catalogue.one_shot;
-
-    container(
-        column![
-            common::eyebrow("one-shot tonight"),
-            text(shot.title)
-                .size(16.0)
-                .color(theme::TEXT_LIGHT)
-                .font(common::brand()),
-            text(shot.hook)
-                .size(11.0)
-                .color(theme::TEXT_MUTED)
-                .width(Length::Fill)
-                .wrapping(Wrapping::Word),
-            row![
-                text(format!("~{} min · solo · no save", shot.minutes))
-                    .size(9.5)
-                    .color(theme::TEXT_DIM),
-                Space::new().width(Length::Fill),
-                button(text("Deal me one").size(11.0))
-                    .padding([6.0, 11.0])
-                    .style(theme::quick_chip)
-                    .on_press(Message::Home(HomeMessage::Surprise)),
-            ]
-            .align_y(Alignment::Center)
-            .width(Length::Fill),
-        ]
-        .spacing(8.0)
-        .width(Length::Fill),
-    )
-    .padding(14.0)
-    .width(Length::Fixed(RAIL_LENGTH))
-    .style(theme::inset)
-    .into()
-}
-
-// TODO: Make this dynamic
-fn numbers() -> Element<'_, Message> {
     column![
         common::eyebrow("your shelf"),
         row![
-            stat_cell("stories", 4.to_string()),
-            stat_cell("hours", format!("{:.1}", 6.50)),
-            stat_cell("nights", 3.to_string()),
+            stat_cell("stories", home_state.catalogue.adventures.len().to_string()),
+            stat_cell("drafts", drafts.to_string()),
+            stat_cell("open", home_state.catalogue.shelf.len().to_string()),
         ]
         .spacing(7.0)
         .width(Length::Fill),
@@ -563,10 +435,41 @@ fn stat_cell(label: &'static str, value: String) -> Element<'static, Message> {
     .into()
 }
 
-// --- the create adventure pop-up -----------------------------------------------------
+fn empty_state() -> Element<'static, Message> {
+    let panel = common::panel(
+        column![
+            text("Nothing here is written yet")
+                .size(24.0)
+                .color(theme::GOLD)
+                .font(common::brand()),
+            text("Build your first adventure and the library will grow around it.")
+                .size(13.0)
+                .color(theme::TEXT_MUTED)
+                .width(Length::Fill)
+                .wrapping(Wrapping::Word),
+            button(text("Build an adventure").size(13.0))
+                .padding([11.0, 20.0])
+                .style(theme::send_button)
+                .on_press(Message::AdventureDraftRequested),
+        ]
+        .spacing(12.0)
+        .width(Length::Fill)
+        .align_x(Alignment::Center),
+        28.0,
+    );
+
+    container(panel)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(Alignment::Center)
+        .align_y(Alignment::Center)
+        .into()
+}
+
+// --- the create adventure pop-up ------------------------------------------
 
 pub fn new_adventure_popup(home_state: &State) -> Element<'_, Message> {
-    let mut adventure_creation_draft = AdventureCreationDraft::default();
+    let draft = &home_state.new_adventure_draft;
 
     let card = container(
         column![
@@ -580,28 +483,22 @@ pub fn new_adventure_popup(home_state: &State) -> Element<'_, Message> {
                 .color(theme::TEXT_MUTED)
                 .width(Length::Fill)
                 .wrapping(Wrapping::Word),
-            text_input("The Falling Stars", &adventure_creation_draft.title)
-                .on_input(|value| {
-                    adventure_creation_draft.title = value;
-                    Message::AdventureDraftChanged(adventure_creation_draft.clone())
-                })
+            text_input("The Falling Stars", &draft.title)
+                .on_input(Message::AdventureDraftTitleChanged)
                 .on_submit(Message::AdventureDraftSubmitted)
                 .padding([11.0, 13.0])
                 .size(13.0)
                 .style(theme::composer),
-            text("Headline - One true sentence about the world is enough to start")
+            text("Headline - one true sentence about the world is enough to start")
                 .size(12.0)
                 .color(theme::TEXT_MUTED)
                 .width(Length::Fill)
                 .wrapping(Wrapping::Word),
             text_input(
                 "A harbour town where the tide keeps the debts",
-                &adventure_creation_draft.headline
+                &draft.headline
             )
-            .on_input(|value| Message::AdventureDraftChanged({
-                adventure_creation_draft.headline = value;
-                adventure_creation_draft.clone()
-            }))
+            .on_input(Message::AdventureDraftHeadlineChanged)
             .on_submit(Message::AdventureDraftSubmitted)
             .padding([11.0, 13.0])
             .size(13.0)
@@ -627,25 +524,94 @@ pub fn new_adventure_popup(home_state: &State) -> Element<'_, Message> {
     .width(Length::Fixed(540.0))
     .style(theme::lightbox_card);
 
-    let dim = container(mouse_area(card).on_press(Message::AdventureDraftClosedNoop))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .align_x(Alignment::Center)
-        .align_y(Alignment::Center)
-        .style(theme::lightbox);
+    let card = mouse_area(card).on_press(Message::Noop);
 
-    mouse_area(dim)
-        .on_press(Message::AdventureDraftClosedNoop)
-        .into()
+    mouse_area(
+        container(card)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(Alignment::Center)
+            .align_y(Alignment::Center)
+            .style(theme::lightbox),
+    )
+    .on_press(Message::AdventureDraftCancelled)
+    .into()
 }
 
 // --- small things ---------------------------------------------------------
 
-/// 8420 -> "8.4k", the way every storefront writes a play count.
-fn compact(n: u32) -> String {
-    if n >= 1_000 {
-        format!("{:.1}k", n as f32 / 1_000.0)
-    } else {
-        n.to_string()
+fn status_badge(status: AdventureStatus) -> Element<'static, Message> {
+    let (label, color) = match status {
+        AdventureStatus::Draft => ("draft", theme::TEXT_DIM),
+        AdventureStatus::Private => ("private", theme::SEA),
+        AdventureStatus::Public => ("public", theme::AMBER),
+    };
+    badge(label, color)
+}
+
+fn badge(label: &'static str, color: iced::Color) -> Element<'static, Message> {
+    container(text(label).size(9.0).color(color).font(common::semibold()))
+        .padding([2.0, 7.0])
+        .style(theme::badge(color))
+        .into()
+}
+
+fn monogram(title: &str) -> &str {
+    title.get(..1).unwrap_or("·")
+}
+
+fn filter_bar(active_tag: Option<&str>, tags: &[String]) -> Element<'static, Message> {
+    let mut chips = row![].spacing(7.0);
+    chips = chips.push(tag_chip(None, "All".to_string(), active_tag.is_none()));
+    for tag in tags {
+        let selected = active_tag == Some(tag.as_str());
+        chips = chips.push(tag_chip(Some(tag.as_str()), tag.clone(), selected));
     }
+    chips.into()
+}
+
+fn tag_chip(tag: Option<&str>, label: String, selected: bool) -> Element<'static, Message> {
+    button(text(label).size(12.0))
+        .padding([7.0, 13.0])
+        .style(theme::chip(selected))
+        .on_press(Message::TagSelected(tag.map(str::to_owned)))
+        .into()
+}
+
+fn collect_tags(home_state: &State) -> Vec<String> {
+    let mut tags: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for adventure in &home_state.catalogue.adventures {
+        tags.extend(adventure.tags.iter().cloned());
+    }
+    tags.into_iter().collect()
+}
+
+fn matches_query(adventure: &AdventureSummary, query: &str) -> bool {
+    query.is_empty()
+        || adventure.title.to_lowercase().contains(query)
+        || adventure.headline.to_lowercase().contains(query)
+}
+
+fn matches_tag(adventure: &AdventureSummary, active_tag: Option<&str>) -> bool {
+    match active_tag {
+        None => true,
+        Some(tag) => adventure.tags.iter().any(|candidate| candidate == tag),
+    }
+}
+
+fn meta_line(adventure: &AdventureSummary) -> String {
+    let updated = adventure.updated_at.format("%b %d, %Y").to_string();
+    if adventure.tags.is_empty() {
+        format!("updated {updated}")
+    } else {
+        format!("{} · updated {updated}", adventure.tags.join(" · "))
+    }
+}
+
+fn hue_of(title: &str) -> f32 {
+    let mut sum: u32 = 0;
+    for byte in title.bytes() {
+        sum = sum.wrapping_mul(31).wrapping_add(byte as u32);
+    }
+    (sum % 360) as f32
 }
