@@ -39,6 +39,7 @@ pub fn run<
     )
     .title("Living Voices")
     .theme(|_: &App<C, N, M, A, P, I>| Theme::CatppuccinMacchiato)
+    .subscription(App::subscription)
     .window_size(Size::new(1360.0, 900.0))
     .antialiasing(true)
     .run()

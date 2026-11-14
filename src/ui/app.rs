@@ -108,6 +108,13 @@ impl<
         }
     }
 
+    pub fn subscription(&self) -> iced::Subscription<Message> {
+        match self.page {
+            Page::Setup => self.setup.subscription().map(Message::Setup),
+            Page::MainHub | Page::Chat => iced::Subscription::none(),
+        }
+    }
+
     fn route<T: Send + 'static>(
         &mut self,
         outcome: (Task<T>, Event),

@@ -16,7 +16,7 @@ members = ["xtask"]
 
 
 [dependencies]
-iced = { version = "0.14", features = ["image"] }
+iced = { version = "0.14", features = ["image", "canvas"] }
 futures-timer = "3.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

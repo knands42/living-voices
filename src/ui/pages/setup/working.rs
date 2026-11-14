@@ -1,12 +1,14 @@
 use crate::ui::pages::setup::{Message, Progress};
 use crate::ui::{common, theme};
+use iced::widget::canvas;
 use iced::widget::{Space, column, container, row, text};
-use iced::{Alignment, Element, Length};
+use iced::{Alignment, Color, Element, Length, Point};
 
 pub fn working<'a>(
     title: &'a str,
     stage: usize,
     progress: Option<&Progress>,
+    spinner: f32,
 ) -> Element<'a, Message> {
     let percent = progress
         .and_then(Progress::percent)
@@ -44,7 +46,7 @@ pub fn working<'a>(
     }
 
     body = body.push(common::divider());
-    body = body.push(trail(stage));
+    body = body.push(trail(stage, spinner));
 
     container(body)
         .padding(18.0)
@@ -53,34 +55,79 @@ pub fn working<'a>(
         .into()
 }
 
-/// Install, start, run: three dots that light in turn.
-fn trail(current: usize) -> Element<'static, Message> {
+/// Install, start, run: the done steps keep a gold dot, the current one spins.
+fn trail(current: usize, spinner: f32) -> Element<'static, Message> {
     let stages = ["Installing", "Starting", "Running"];
 
     let mut line = row![].spacing(18.0).align_y(Alignment::Center);
 
     for (index, label) in stages.iter().enumerate() {
-        let (tint, lit) = if index < current {
-            (theme::GOLD, true)
+        let (marker, text_color) = if index < current {
+            (common::dot(6.0, theme::GOLD), theme::TEXT_LIGHT)
         } else if index == current {
-            (theme::AMBER, true)
+            (spinner_widget(spinner), theme::TEXT_LIGHT)
         } else {
-            (theme::TEXT_DIM, false)
+            (
+                common::dot(6.0, theme::alpha(theme::TEXT_DIM, 0.5)),
+                theme::TEXT_DIM,
+            )
         };
 
         line = line.push(
-            row![
-                common::dot(6.0, theme::alpha(tint, if lit { 0.95 } else { 0.5 })),
-                text(*label).size(11.0).color(if lit {
-                    theme::TEXT_LIGHT
-                } else {
-                    theme::TEXT_DIM
-                }),
-            ]
-            .spacing(6.0)
-            .align_y(Alignment::Center),
+            row![marker, text(*label).size(11.0).color(text_color)]
+                .spacing(6.0)
+                .align_y(Alignment::Center),
         );
     }
 
     line.into()
+}
+
+fn spinner_widget(angle: f32) -> Element<'static, Message> {
+    canvas(Spinner {
+        angle,
+        color: theme::AMBER,
+        track: theme::alpha(theme::BRONZE_DIM, 0.5),
+    })
+    .width(Length::Fixed(10.0))
+    .height(Length::Fixed(10.0))
+    .into()
+}
+
+struct Spinner {
+    angle: f32,
+    color: Color,
+    track: Color,
+}
+
+impl<Message> canvas::Program<Message> for Spinner {
+    type State = ();
+
+    fn draw(
+        &self,
+        _state: &(),
+        renderer: &iced::Renderer,
+        _theme: &iced::Theme,
+        bounds: iced::Rectangle,
+        _cursor: iced::mouse::Cursor,
+    ) -> Vec<canvas::Geometry> {
+        let mut frame = canvas::Frame::new(renderer, bounds.size());
+        let center = frame.center();
+        let radius = bounds.size().width.min(bounds.size().height) / 2.0 - 1.5;
+
+        frame.stroke(
+            &canvas::Path::circle(center, radius),
+            canvas::Stroke::default()
+                .with_color(self.track)
+                .with_width(1.5),
+        );
+
+        let dot = Point::new(
+            center.x + radius * self.angle.cos(),
+            center.y + radius * self.angle.sin(),
+        );
+        frame.fill(&canvas::Path::circle(dot, 1.2), self.color);
+
+        vec![frame.into_geometry()]
+    }
 }

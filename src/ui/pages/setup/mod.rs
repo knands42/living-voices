@@ -17,6 +17,7 @@ use crate::ui::pages::setup::working::working;
 use crate::ui::pages::{Event, Page};
 use crate::ui::task::on_tokio;
 use crate::ui::theme;
+use iced::futures::SinkExt;
 use iced::futures::channel::mpsc::Sender;
 use iced::widget::{container, scrollable};
 use iced::{Alignment, Element, Length, Task};
@@ -34,6 +35,7 @@ pub enum Message {
     // `Arc` because a message must be `Clone` and the server handles are not.
     EnginesStarted(Arc<RunningEngines>),
     Failed(String),
+    Tick,
 }
 
 #[derive(Debug, Clone)]
@@ -102,6 +104,7 @@ pub struct State {
     phase: Phase,
     progress: Option<Progress>,
     notice: Option<&'static str>,
+    spinner: f32,
 }
 
 impl State {
@@ -122,6 +125,7 @@ impl State {
             phase: Phase::Asking,
             progress: None,
             notice: None,
+            spinner: 0.0,
         };
 
         // A first run waits for the player's answer; any other run starts the engines now.
@@ -173,6 +177,9 @@ impl State {
                 log::warn!("engines could not start: {err}");
                 self.phase = Phase::Failed(err);
             }
+            Message::Tick => {
+                self.spinner = (self.spinner + 0.12) % std::f32::consts::TAU;
+            }
         }
 
         (Task::none(), Event::None)
@@ -180,8 +187,13 @@ impl State {
 
     pub fn view(&self) -> Element<'_, Message> {
         let body = match &self.phase {
-            Phase::Installing => working("Installing the engines", 0, self.progress.as_ref()),
-            Phase::Starting => working("Starting the engines", 1, None),
+            Phase::Installing => working(
+                "Installing the engines",
+                0,
+                self.progress.as_ref(),
+                self.spinner,
+            ),
+            Phase::Starting => working("Starting the engines", 1, None, self.spinner),
             Phase::Asking | Phase::Running | Phase::Failed(_) => question(self),
         };
 
@@ -219,11 +231,29 @@ impl State {
         self.config.needs_setup()
     }
 
+    pub fn subscription(&self) -> iced::Subscription<Message> {
+        match self.phase {
+            Phase::Installing | Phase::Starting => iced::Subscription::run(ticker_stream),
+            _ => iced::Subscription::none(),
+        }
+    }
+
     fn start(&mut self) -> Task<Message> {
         self.phase = Phase::Installing;
         self.progress = None;
         bring_up(self.handle.clone(), self.config.settings.clone())
     }
+}
+
+fn ticker_stream() -> impl iced::futures::Stream<Item = Message> {
+    iced::stream::channel(1, move |mut output: Sender<Message>| async move {
+        loop {
+            futures_timer::Delay::new(std::time::Duration::from_millis(16)).await;
+            if output.send(Message::Tick).await.is_err() {
+                break;
+            }
+        }
+    })
 }
 
 fn bring_up(handle: tokio::runtime::Handle, settings: Settings) -> Task<Message> {
