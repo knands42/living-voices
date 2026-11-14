@@ -55,8 +55,8 @@ impl<
     ) -> (Self, Task<Message>) {
         let handle = tokio::runtime::Handle::current();
 
+        let (chat, _chat_task) = chat::State::boot(ctx.adventure_manager.clone());
         let (main_hub, hub_task) = main_hub::State::boot(ctx.adventure_manager, handle.clone());
-        let (chat, _chat_task) = chat::State::boot();
         let (setup, setup_task) = setup::State::boot(config, gpu, handle.clone());
 
         let page = if open_setup || setup.needs_answer() {

@@ -52,7 +52,7 @@ pub fn panel<'a, Message: 'static>(
 }
 
 /// A tiny all-caps label, the kind that sits above a number.
-pub fn eyebrow<Message: 'static>(label: &str) -> Element<Message> {
+pub fn eyebrow<Message: 'static>(label: &str) -> Element<'static, Message> {
     text(label.to_uppercase())
         .size(9.5)
         .color(theme::TEXT_DIM)
@@ -66,9 +66,9 @@ pub fn initials<Message: 'static>(
     hue: f32,
     size: f32,
     glow: f32,
-) -> Element<'_, Message> {
+) -> Element<'static, Message> {
     container(
-        text(label)
+        text(label.to_string())
             .size(size * 0.34)
             .color(theme::hsv(hue, 0.30, 0.96))
             .font(semibold()),
