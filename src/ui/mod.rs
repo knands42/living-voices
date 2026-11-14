@@ -1,3 +1,4 @@
+mod app;
 pub mod main;
 pub mod pages;
 pub mod task;

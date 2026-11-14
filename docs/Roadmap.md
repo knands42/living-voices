@@ -3,8 +3,9 @@
 ## Current Roadmap
 
 - [-] Migrate Slint to iced
-  - Done at the shell level: `src/ui/main.rs` boots iced with page switching, pages live in
-    `src/ui/pages/`. The Slint GUI is parked in `src/ui/slint_bkp/` until the port finishes.
+  - Done at the shell level: `src/ui/main.rs` boots iced, `src/ui/app.rs` routes, pages live in
+    `src/ui/pages/` and own their boot/update/view. The Slint GUI is parked in `src/ui/slint_bkp/`
+    until the port finishes.
   - Native async (`Task`/`Message`) and better text support were the deciding factors.
 - [ ] ...
 

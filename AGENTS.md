@@ -45,7 +45,7 @@ src/backend/application/        managers + prompt builders + traits
   state.rs                      SharedState = Arc<RwLock<AppState>>
 src/backend/persistence/        one file per aggregate, raw sqlx queries
 src/ai/integrations/            adapters: text/{chat,memory,narrator,open_api_client}, image/comfy_image
-src/ui/                         iced GUI: main.rs (State/Message/Page) + pages/ (one file per page)
+src/ui/                         iced GUI: main.rs (iced entry), app.rs (shell + router), pages/ (one per page)
 src/ui/slint_bkp/                the parked Slint GUI, not compiled — reference for the port only
 src/cli/                        ratatui TUI: draw/ + events/
 tests/                          mirrors src/, single binary entry tests/mod.rs
@@ -71,9 +71,11 @@ Layering rules the code actually follows:
 - Domain builders are consuming-chained: `Character::new(..).with_appearance(..)` (`None` by
   default, `with_*` sets `Some`).
 - iced: the Elm shape. `Page` is the only navigation state, every change arrives as a
-  `Message`, and `update` returns a `Task<Message>` — never block the UI thread. Pages live in
-  `src/ui/pages/` as free `fn view() -> Element<'_, Message>` functions; a new page is a `Page`
-  variant, a `mod`, and a tuple in `State::tabs` (`src/ui/main.rs`).
+  `Message`, and `update` returns a `Task<Message>` — never block the UI thread. Each page in
+  `src/ui/pages/` owns its own `State`, `Message` and lifecycle: `boot(deps) -> (Self, Task)`,
+  `update(msg) -> (Task, Event)`, `view(&self)`. `Event` is how a page asks the shell for
+  something (navigate, engines ready); `src/ui/app.rs` is the only place that routes. A new page
+  is a `mod`, a `Page` variant, a `Message` variant, and its `boot` call in `App::boot`.
 
 ## Code style: the code is the comment
 

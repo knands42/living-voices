@@ -9,6 +9,7 @@ use crate::provision::entrypoint::start_provisioning;
 use crate::provision::{
     ComfyEvent, Gpu, MediaRecommendation, RunningEngines, human_bytes, start_engines,
 };
+use crate::ui::pages::{Event, Page};
 use crate::ui::task::on_tokio;
 
 const PROGRESS_EVERY_BYTES: u64 = 64 * 1024 * 1024;
@@ -23,15 +24,6 @@ pub enum Message {
     // `Arc` because a message must be `Clone` and the server handles are not.
     EnginesStarted(Arc<RunningEngines>),
     Failed(String),
-}
-
-pub enum Event {
-    None,
-    BackRequested,
-    EnginesReady {
-        engines: Arc<RunningEngines>,
-        config: Config,
-    },
 }
 
 #[derive(Debug, Clone)]
@@ -53,7 +45,7 @@ enum Phase {
     Failed(String),
 }
 
-pub struct SetupState {
+pub struct State {
     config: Config,
     gpu: Gpu,
     handle: tokio::runtime::Handle,
@@ -64,8 +56,8 @@ pub struct SetupState {
     notice: Option<&'static str>,
 }
 
-impl SetupState {
-    pub fn new(config: Config, gpu: Gpu, handle: tokio::runtime::Handle) -> Self {
+impl State {
+    pub fn boot(config: Config, gpu: Gpu, handle: tokio::runtime::Handle) -> (Self, Task<Message>) {
         let recommendation = gpu.media_recommendation();
         let media_engine = if config.needs_setup() {
             recommendation.suggests_midia_engine()
@@ -73,7 +65,7 @@ impl SetupState {
             config.settings.models.image.enabled
         };
 
-        Self {
+        let mut state = Self {
             config,
             gpu,
             handle,
@@ -82,14 +74,27 @@ impl SetupState {
             phase: Phase::Asking,
             progress: None,
             notice: None,
-        }
+        };
+
+        // A first run waits for the player's answer; any other run starts the engines now.
+        let task = if state.needs_answer() {
+            Task::none()
+        } else {
+            state.start()
+        };
+
+        (state, task)
     }
 
     pub fn needs_answer(&self) -> bool {
         self.config.needs_setup()
     }
 
-    pub fn start(&mut self) -> Task<Message> {
+    pub fn view(&self) -> Element<'_, Message> {
+        render(self)
+    }
+
+    fn start(&mut self) -> Task<Message> {
         self.phase = Phase::Installing;
         self.progress = None;
         bring_up(self.handle.clone(), self.config.settings.clone())
@@ -113,7 +118,7 @@ impl SetupState {
 
                 return (self.start(), Event::None);
             }
-            Message::BackRequested => return (Task::none(), Event::BackRequested),
+            Message::BackRequested => return (Task::none(), Event::Show(Page::MainHub)),
             Message::Progress(progress) => self.progress = Some(progress),
             Message::Provisioned => {
                 self.phase = Phase::Starting;
@@ -122,7 +127,13 @@ impl SetupState {
             Message::EnginesStarted(engines) => {
                 self.phase = Phase::Running;
                 let config = engines.stamp(self.config.clone());
-                return (Task::none(), Event::EnginesReady { engines, config });
+                return (
+                    Task::none(),
+                    Event::EnginesReady {
+                        engines,
+                        config: Arc::new(config),
+                    },
+                );
             }
             Message::Failed(err) => {
                 log::warn!("engines could not start: {err}");
@@ -236,11 +247,11 @@ impl Progress {
     }
 }
 
-pub fn view(setup: &SetupState) -> Element<'_, Message> {
-    let body = match &setup.phase {
-        Phase::Installing => working("Installing the engines", setup.progress.as_ref()),
+fn render(state: &State) -> Element<'_, Message> {
+    let body = match &state.phase {
+        Phase::Installing => working("Installing the engines", state.progress.as_ref()),
         Phase::Starting => working("Starting the engines", None),
-        Phase::Asking | Phase::Running | Phase::Failed(_) => question(setup),
+        Phase::Asking | Phase::Running | Phase::Failed(_) => question(state),
     };
 
     container(
@@ -252,9 +263,9 @@ pub fn view(setup: &SetupState) -> Element<'_, Message> {
             ]
             .align_y(Alignment::Center),
             text("Before the story starts, a word about images").size(16),
-            specs(setup.gpu, setup.recommendation),
-            text(headline(setup.recommendation)).color(tone(setup.recommendation)),
-            text(advice(setup.recommendation)).size(14),
+            specs(state.gpu, state.recommendation),
+            text(headline(state.recommendation)).color(tone(state.recommendation)),
+            text(advice(state.recommendation)).size(14),
             body,
         ]
         .spacing(16),
@@ -266,8 +277,8 @@ pub fn view(setup: &SetupState) -> Element<'_, Message> {
     .into()
 }
 
-fn question(setup: &SetupState) -> Element<'_, Message> {
-    let footer = match (&setup.phase, setup.notice) {
+fn question(state: &State) -> Element<'_, Message> {
+    let footer = match (&state.phase, state.notice) {
         (_, Some(notice)) => notice.to_string(),
         (Phase::Failed(err), None) => format!("The engines could not start: {err}"),
         (Phase::Running, None) => "The engines are running.".to_string(),
@@ -276,11 +287,11 @@ fn question(setup: &SetupState) -> Element<'_, Message> {
 
     column![
         row![
-            toggler(setup.media_engine)
+            toggler(state.media_engine)
                 .label("Media engine (ComfyUI)")
                 .on_toggle(Message::MediaToggled),
             Space::new().width(Length::Fill),
-            button(text(if setup.media_engine {
+            button(text(if state.media_engine {
                 "Use images"
             } else {
                 "Go without images"
