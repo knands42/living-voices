@@ -69,18 +69,6 @@ coverage-all:
 provision_dir := "provision"
 provision_archive := provision_dir / "archive"
 
-llama_archive_dir := provision_archive / "llama_archive"
-llama_tarball := llama_archive_dir / "llama.tar.gz"
-llama_url := env_var_or_default("LLAMA_URL", "https://github.com/ggml-org/llama.cpp/archive/refs/tags/v0.9.0.tar.gz")
-llama_src := provision_dir / "llama"
-llama_build := llama_src / "build"
-llama_server := llama_build / "bin" / "llama-server"
-# Vulkan, not CUDA: one build serves NVIDIA, AMD and Intel, it needs no CUDA toolkit
-# at build time, and no libcudart/libcublas at run time for the people we ship to.
-# Requires vulkan-headers, spirv-headers and glslc. Add -DGGML_CUDA=ON (plus the
-# toolkit and a GCC that nvcc accepts) only if you want CUDA's prefill on NVIDIA.
-llama_cmake_flags := env_var_or_default("LLAMA_CMAKE_FLAGS", "-DBUILD_SHARED_LIBS=OFF -DGGML_VULKAN=ON -DGGML_NATIVE=ON -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF")
-
 # What the app itself expects on disk at runtime: {base_dir}/llama, which in a
 # debug build is this project root.
 llama_runtime := "llama"
@@ -157,25 +145,8 @@ provision-clean:
     @echo "removed {{ provision_dir }}, {{ llama_runtime }} and {{ comfy_runtime }}"
 
 # -------------------- llama.cpp (text engine) -------------------- #
-provision-llama-fetch:
-    mkdir -p {{ llama_archive_dir }}
-    test -f {{ llama_tarball }} || curl -fL {{ llama_url }} -o {{ llama_tarball }}
-    @echo "archive: {{ llama_tarball }}"
-
-provision-llama-extract: provision-llama-fetch
-    test -f {{ llama_src }}/CMakeLists.txt || (rm -rf {{ llama_src }} && mkdir -p {{ llama_src }} && tar -xzf {{ llama_tarball }} -C {{ llama_src }} --strip-components=1)
-    @echo "source: {{ llama_src }}"
-
-provision-llama-build: provision-llama-extract
-    cmake -B {{ llama_build }} -S {{ llama_src }} {{ llama_cmake_flags }}
-    cmake --build {{ llama_build }} --config Release -j --target llama-server
-    test -x {{ llama_server }}
-    @echo "engine: {{ llama_server }}"
-
-provision-llama-install: provision-llama-build
-    mkdir -p {{ llama_runtime }}
-    cp {{ llama_server }} {{ llama_runtime_bin }}
-    @echo "engine: {{ llama_runtime_bin }}"
+provision-llama-install:
+    cargo xtask llama install
 
 provision-llama-model:
     mkdir -p {{ model_dir }}

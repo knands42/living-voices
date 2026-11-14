@@ -2,7 +2,7 @@ mod comfy;
 pub mod entrypoint;
 mod extract;
 pub mod fetch;
-mod llama;
+pub mod llama;
 mod system_check;
 mod util;
 

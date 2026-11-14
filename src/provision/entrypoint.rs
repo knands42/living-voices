@@ -1,7 +1,6 @@
 use super::comfy::layout::{comfy_bundle, comfy_dir, comfy_main};
 use super::llama::layout::{
-    MEMORY_MODEL_ALIAS, MEMORY_MODEL_FILE, MODEL_ALIAS, TEXT_MODEL_FILE, llama_dir,
-    llama_models_dir,
+    MEMORY_MODEL_ALIAS, MEMORY_MODEL_FILE, MODEL_ALIAS, TEXT_MODEL_FILE, llama_models_dir,
 };
 use crate::config::Settings;
 use crate::provision::comfy::comfy_server::ComfyServer;

@@ -23,6 +23,7 @@ ComfyUI smoke tests).
 | `just coverage` | `cargo llvm-cov`, ignoring `src/ui/`, `src/cli/`, `app.rs` |
 | `just provision-status` | what `./llama`, `./comfyui`, `./provision` have, and the recipe for each gap |
 | `just provision-llama` | fetch → extract → cmake build → install `llama/llama-server` |
+| `cargo xtask llama [fetch\|extract\|build\|install]` | those steps themselves, in `xtask/`; `just provision-llama` is a one-line delegate |
 | `just provision-llama-model` | download the GGUF into `llama/models` (same bytes fetched on first run) |
 | `just provision-comfy` | pinned ComfyUI + `comfyui/python` + venv from `comfy-requirements.lock` inside `comfyui/`; models stay in `*-model-all` |
 | `just provision-comfy-lock` | re-freeze the lock and attach a wheel sha256 per pin (`uv pip compile --generate-hashes`); installs use `--require-hashes`, so bump it when a version/commit/index moves |
@@ -33,6 +34,7 @@ ComfyUI smoke tests).
   changes land in the commit.
 - CI only runs `cargo test --locked` on pull requests.
 - There is no `build.rs`; the GUI is plain Rust, so `cargo build` needs no code generation step.
+  Provisioning never runs from a build step, only from `cargo xtask` or the app at first run.
 
 ## Layout
 
@@ -49,6 +51,7 @@ src/ui/                         iced GUI: main.rs (iced entry), app.rs (shell + 
 src/ui/slint_bkp/                the parked Slint GUI, not compiled — reference for the port only
 src/cli/                        ratatui TUI: draw/ + events/
 tests/                          mirrors src/, single binary entry tests/mod.rs
+xtask/                          `cargo xtask llama install`: fetch, extract, cmake, install
 ```
 
 Layering rules the code actually follows:

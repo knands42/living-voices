@@ -11,6 +11,9 @@ path = "src/main.rs"
 name = "living_voices"
 path = "src/lib.rs"
 
+[workspace]
+members = ["xtask"]
+
 
 [dependencies]
 iced = { version = "0.14", features = ["image"] }
