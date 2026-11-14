@@ -6,13 +6,13 @@ use crate::backend::domain::message::Message as MessageLine;
 use crate::ui::pages::chat::composer::composer;
 use crate::ui::pages::chat::look::{AVATAR, initials_of, name_hue};
 use crate::ui::pages::chat::top::top;
-use crate::ui::pages::chat::{Message, State};
+use crate::ui::pages::chat::{Message, Scene};
 use crate::ui::{common, theme};
 
 const BUBBLE_LENGTH: f32 = 460.0;
 const NARRATOR_LENGTH: f32 = 560.0;
 
-pub fn transcript(chat_state: &State) -> Element<'_, Message> {
+pub fn transcript(chat_state: &Scene) -> Element<'_, Message> {
     let mut lines = column![].spacing(16.0).width(Length::Fill);
 
     if chat_state.messages.is_empty() && !chat_state.awaiting_reply {
@@ -60,7 +60,7 @@ fn blank_page() -> Element<'static, Message> {
     .into()
 }
 
-fn line<'a>(chat_state: &'a State, message: &'a MessageLine) -> Element<'a, Message> {
+fn line<'a>(chat_state: &'a Scene, message: &'a MessageLine) -> Element<'a, Message> {
     if message.narrator_id.is_some() {
         return narrator(message);
     }
@@ -92,7 +92,7 @@ fn narrator(message: &MessageLine) -> Element<'_, Message> {
         .into()
 }
 
-fn speech<'a>(chat_state: &'a State, message: &'a MessageLine) -> Element<'a, Message> {
+fn speech<'a>(chat_state: &'a Scene, message: &'a MessageLine) -> Element<'a, Message> {
     let hue = name_hue(message.speaker_name.as_str());
     let is_player = chat_state
         .adventure

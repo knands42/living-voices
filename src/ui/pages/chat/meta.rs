@@ -4,12 +4,12 @@ use iced::{Alignment, Element, Length};
 
 use crate::backend::domain::memory::state::State as SceneState;
 use crate::backend::domain::memory::{CharacterCondition, Fact};
-use crate::ui::pages::chat::{Message, State};
+use crate::ui::pages::chat::{Message, Scene};
 use crate::ui::{common, theme};
 
 const META_LENGTH: f32 = 300.0;
 
-pub fn meta_rail(chat_state: &State) -> Element<'_, Message> {
+pub fn meta_rail(chat_state: &Scene) -> Element<'_, Message> {
     let scene = chat_state.scene_state.as_ref();
 
     let conditions = scene

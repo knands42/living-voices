@@ -3,10 +3,10 @@ use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
 use crate::ui::pages::chat::cast::CAST_LENGTH;
-use crate::ui::pages::chat::{Message, State};
+use crate::ui::pages::chat::{Message, Scene};
 use crate::ui::{common, theme};
 
-pub fn header(chat_state: &State) -> Element<'_, Message> {
+pub fn header(chat_state: &Scene) -> Element<'_, Message> {
     let back = button(text("← Adventures Hub").size(11.5))
         .padding([7.0, 13.0])
         .style(theme::back_button)
@@ -41,14 +41,14 @@ pub fn header(chat_state: &State) -> Element<'_, Message> {
     .into()
 }
 
-fn title(chat_state: &State) -> &str {
+fn title(chat_state: &Scene) -> &str {
     chat_state
         .adventure
         .as_ref()
         .map_or("No adventure open", |adventure| adventure.title.as_str())
 }
 
-fn headline(chat_state: &State) -> &str {
+fn headline(chat_state: &Scene) -> &str {
     chat_state
         .adventure
         .as_ref()

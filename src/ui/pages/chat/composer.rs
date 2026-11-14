@@ -1,10 +1,10 @@
 use iced::widget::{button, row, text, text_input};
 use iced::{Alignment, Element, Length};
 
-use crate::ui::pages::chat::{Message, State};
+use crate::ui::pages::chat::{Message, Scene};
 use crate::ui::{common, theme};
 
-pub fn composer(chat_state: &State) -> Element<'_, Message> {
+pub fn composer(chat_state: &Scene) -> Element<'_, Message> {
     let can_send = !chat_state.input_message.trim().is_empty() && !chat_state.awaiting_reply;
 
     let input = text_input("Speak, or do something…", chat_state.input_message.as_str())

@@ -3,10 +3,10 @@ use iced::widget::{Space, column, container, row, text};
 use iced::{Alignment, Color, Element, Length};
 
 use crate::backend::domain::memory::{Act, ActStatus};
-use crate::ui::pages::chat::{Message, State};
+use crate::ui::pages::chat::{Message, Scene};
 use crate::ui::{common, theme};
 
-pub fn top(chat_state: &State) -> Element<'_, Message> {
+pub fn top(chat_state: &Scene) -> Element<'_, Message> {
     let voices = chat_state
         .adventure
         .as_ref()
@@ -35,7 +35,7 @@ pub fn top(chat_state: &State) -> Element<'_, Message> {
     .into()
 }
 
-fn setting(chat_state: &State) -> String {
+fn setting(chat_state: &Scene) -> String {
     match &chat_state.scene_state {
         Some(scene) => format!("{}, {}", scene.place, scene.day),
         None => "The story begins".to_string(),

@@ -34,7 +34,7 @@ pub struct App<
 > {
     page: Page,
     main_hub: main_hub::State,
-    chat: chat::State,
+    chat: chat::State<C, N, M, A>,
     setup: setup::State,
     rebuild: Rebuild<C, N, M, A, P, I>,
     auto_scale: f32,
@@ -63,8 +63,13 @@ impl<
     ) -> (Self, Task<Message>) {
         let handle = tokio::runtime::Handle::current();
 
-        let (chat, _chat_task) = chat::State::boot(ctx.adventure_manager.clone(), handle.clone());
-        let (main_hub, hub_task) = main_hub::State::boot(ctx.adventure_manager, handle.clone());
+        let (chat, _chat_task) = chat::State::boot(
+            ctx.adventure_manager.clone(),
+            ctx.message_manager.clone(),
+            handle.clone(),
+        );
+        let (main_hub, hub_task) =
+            main_hub::State::boot(ctx.adventure_manager.clone(), handle.clone());
         let (setup, setup_task) = setup::State::boot(config, gpu, handle.clone());
 
         let page = if open_setup || setup.needs_answer() {
@@ -203,7 +208,8 @@ impl<
 
         match (self.rebuild)(config) {
             Ok(ctx) => {
-                self.chat.rebind(ctx.adventure_manager.clone());
+                self.chat
+                    .rebind(ctx.adventure_manager.clone(), ctx.message_manager.clone());
                 self.main_hub.rebind(ctx.adventure_manager);
             }
             Err(err) => log::error!("could not point the app at the new engines: {err}"),
