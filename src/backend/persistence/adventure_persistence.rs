@@ -1,4 +1,4 @@
-use crate::backend::domain::adventure::{AdventureStatus, AdventureSummary};
+use crate::backend::domain::adventure::{AdventureStatus, AdventureSummary, OngoingAdventure};
 use crate::backend::domain::character::{Character, CharacterStatus};
 use crate::backend::domain::lore::Lore;
 use crate::backend::domain::narrator::Narrator;
@@ -42,6 +42,37 @@ impl FromRow<'_, SqliteRow> for AdventureRow {
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         })
+    }
+}
+
+struct OngoingRow {
+    adventure: AdventureRow,
+    current_act: i64,
+    total_acts: i64,
+}
+
+impl FromRow<'_, SqliteRow> for OngoingRow {
+    fn from_row(row: &SqliteRow) -> Result<Self, sqlx::Error> {
+        Ok(Self {
+            adventure: AdventureRow::from_row(row)?,
+            current_act: row.get("current_act"),
+            total_acts: row.get("total_acts"),
+        })
+    }
+}
+
+impl TryFrom<OngoingRow> for OngoingAdventure {
+    type Error = PersistenceError;
+    fn try_from(value: OngoingRow) -> Result<Self, Self::Error> {
+        let summary = AdventureSummary::try_from(value.adventure)?;
+        let last_played = summary.updated_at;
+
+        Ok(OngoingAdventure::new(
+            summary,
+            value.current_act as usize,
+            value.total_acts as usize,
+            last_played,
+        ))
     }
 }
 
@@ -344,6 +375,38 @@ LIMIT 10
     }
 
     Ok(adventures)
+}
+
+pub async fn get_ongoing_adventures(
+    conn: &mut SqliteConnection,
+) -> Result<Vec<OngoingAdventure>, PersistenceError> {
+    let rows = sqlx::query_as::<_, OngoingRow>(
+        r#"
+SELECT a.id,
+       a.title,
+       a.headline,
+       a.tone,
+       a.status,
+       a.created_at,
+       a.updated_at,
+       COALESCE(at.tags, '[]') AS adventure_tags,
+       active.ordinal AS current_act,
+       (SELECT COUNT(*) FROM act WHERE adventure_id = a.id) AS total_acts
+FROM adventure AS a
+JOIN act AS active
+  ON active.adventure_id = a.id AND active.status = 'active'
+LEFT JOIN (SELECT adventure_id,
+                  '[' || GROUP_CONCAT('"' || tag || '"', ',') || ']' AS tags
+           FROM adventure_tag
+           GROUP BY adventure_id) AS at
+  ON at.adventure_id = a.id
+ORDER BY a.updated_at DESC
+"#,
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+
+    rows.into_iter().map(OngoingAdventure::try_from).collect()
 }
 
 pub async fn attach_tag(

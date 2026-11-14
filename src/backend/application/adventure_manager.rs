@@ -6,7 +6,7 @@ use crate::backend::persistence::act_persistence::{
     activate_first_act, get_active_act, get_acts, insert_default_act, upsert_act,
 };
 use crate::backend::persistence::adventure_persistence::{
-    get_adventure_summaries, update_adventure, update_adventure_status,
+    get_adventure_summaries, get_ongoing_adventures, update_adventure, update_adventure_status,
 };
 use crate::backend::persistence::characters_persistence::insert_default_player_character;
 use crate::backend::persistence::fact_persistence::{get_facts, insert_default_facts};
@@ -277,7 +277,7 @@ impl AdventureManager {
         &self,
     ) -> Result<Vec<OngoingAdventure>, AdventureManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        todo!()
+        Ok(get_ongoing_adventures(&mut conn).await?)
     }
 
     pub async fn get_adventure(

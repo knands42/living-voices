@@ -8,7 +8,6 @@ CREATE TABLE adventure
     status         TEXT NOT NULL DEFAULT 'draft',
     created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-    last_opened_at TEXT,
 
     CONSTRAINT adventure_id_is_uuid CHECK (length(id) = 36),
     CONSTRAINT adventure_title_not_blank CHECK (length(trim(title)) > 0),
