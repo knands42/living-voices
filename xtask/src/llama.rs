@@ -4,8 +4,10 @@ use std::process::Command;
 
 use living_voices::config::base_dir;
 use living_voices::provision::fetch;
-use living_voices::provision::human_bytes;
 use living_voices::provision::llama::layout::llama_server_binary;
+
+use crate::cmd;
+use crate::progress::Progress;
 
 const LLAMA_URL: &str = "https://github.com/ggml-org/llama.cpp/archive/refs/tags/v0.9.0.tar.gz";
 
@@ -20,8 +22,6 @@ const CMAKE_FLAGS: &[&str] = &[
     "-DLLAMA_BUILD_EXAMPLES=OFF",
 ];
 
-const PROGRESS_STEP: u64 = 8 * 1024 * 1024;
-
 pub async fn fetch() -> Result<(), String> {
     let tarball = tarball();
     if tarball.is_file() {
@@ -29,10 +29,10 @@ pub async fn fetch() -> Result<(), String> {
         return Ok(());
     }
 
-    println!("downloading {}", env_or("LLAMA_URL", LLAMA_URL));
+    println!("downloading {}", crate::env_or("LLAMA_URL", LLAMA_URL));
     let mut progress = Progress::default();
     fetch::to_file(
-        &env_or("LLAMA_URL", LLAMA_URL),
+        &crate::env_or("LLAMA_URL", LLAMA_URL),
         &tarball,
         |file, written, total| progress.report(&file, written, total),
     )
@@ -85,7 +85,7 @@ pub fn build() -> Result<(), String> {
         ));
     }
 
-    run(
+    cmd::run(
         Command::new("cmake")
             .arg("-B")
             .arg(build_dir())
@@ -95,7 +95,7 @@ pub fn build() -> Result<(), String> {
         "cmake configure",
     )?;
 
-    run(
+    cmd::run(
         Command::new("cmake")
             .arg("--build")
             .arg(build_dir())
@@ -130,10 +130,6 @@ pub fn install() -> Result<(), String> {
     Ok(())
 }
 
-fn env_or(name: &str, default: &str) -> String {
-    std::env::var(name).unwrap_or_else(|_| default.to_string())
-}
-
 fn cmake_flags() -> Vec<String> {
     match std::env::var("LLAMA_CMAKE_FLAGS") {
         Ok(flags) => flags.split_whitespace().map(str::to_string).collect(),
@@ -146,18 +142,6 @@ fn jobs() -> String {
         .map(|count| count.get())
         .unwrap_or(4)
         .to_string()
-}
-
-fn run(command: &mut Command, what: &str) -> Result<(), String> {
-    let status = command
-        .status()
-        .map_err(|err| format!("{what}: could not start cmake: {err}"))?;
-
-    if !status.success() {
-        return Err(format!("{what} exited with {status}"));
-    }
-
-    Ok(())
 }
 
 fn only_child(dir: &Path) -> Result<PathBuf, String> {
@@ -223,31 +207,4 @@ fn built_server() -> PathBuf {
         .unwrap_or_default();
 
     build_dir().join("bin").join(name)
-}
-
-#[derive(Default)]
-struct Progress {
-    printed: u64,
-}
-
-impl Progress {
-    fn report(&mut self, file: &str, written: u64, total: Option<u64>) {
-        let complete = total.is_some_and(|total| written >= total);
-        if !complete && written.saturating_sub(self.printed) < PROGRESS_STEP {
-            return;
-        }
-
-        self.printed = written;
-        let line = match total {
-            Some(total) => format!("{file}: {} / {}", human_bytes(written), human_bytes(total)),
-            None => format!("{file}: {}", human_bytes(written)),
-        };
-
-        print!("\r{line}");
-        let _ = std::io::Write::flush(&mut std::io::stdout());
-    }
-
-    fn finish(&self) {
-        println!();
-    }
 }

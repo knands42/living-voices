@@ -9,3 +9,5 @@ living-voices = { path = ".." }
 tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread"] }
 flate2 = "1.1"
 tar = "0.4"
+zstd = "0.13"
+sha2 = "0.10"

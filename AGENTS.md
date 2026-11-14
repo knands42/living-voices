@@ -28,6 +28,8 @@ ComfyUI smoke tests).
 | `just provision-comfy` | pinned ComfyUI + `comfyui/python` + venv from `comfy-requirements.lock` inside `comfyui/`; models stay in `*-model-all` |
 | `just provision-comfy-lock` | re-freeze the lock and attach a wheel sha256 per pin (`uv pip compile --generate-hashes`); installs use `--require-hashes`, so bump it when a version/commit/index moves |
 | `just provision-comfy-bundle` | release artifact `provision/comfyui-<version>.tar.zst` + `.sha256` (no `.git`, no venv, no models) |
+| `cargo xtask comfy install` | the same thing in `xtask/`: checkout at the pinned commit, unpack the interpreter, build `venv/` from the lock |
+| `cargo xtask comfy bundle` | `install` first, then the packing; both `just provision-comfy*` recipes are one-line delegates |
 | `just provision` / `provision-clean` | all of the above / delete `./provision`, `./llama`, `./comfyui` |
 
 - `.githooks/pre-commit` runs `cargo fmt`, `git add -u`, then `cargo test` — staged formatting

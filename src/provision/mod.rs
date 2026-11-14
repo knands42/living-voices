@@ -1,4 +1,4 @@
-mod comfy;
+pub mod comfy;
 pub mod entrypoint;
 mod extract;
 pub mod fetch;

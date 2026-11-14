@@ -2,6 +2,8 @@ use crate::config::base_dir;
 use std::path::PathBuf;
 
 pub const COMFY_VERSION: &str = "v0.44.1";
+pub const COMFY_REPO: &str = "https://github.com/comfyanonymous/ComfyUI";
+pub const COMFY_COMMIT: &str = "49b61c3cd044fb65acd97a960467a00414694146";
 pub const COMFY_LOCK_FILE: &str = "comfy-requirements.lock";
 pub const COMFY_HOST: &str = "127.0.0.1";
 pub const COMFY_PORT: u16 = 8188;
