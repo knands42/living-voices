@@ -264,7 +264,6 @@ impl<
                 uncovered_messages,
             );
             let mut reply = self.chat_handler.character_respond(&context).await?;
-            log::info!("{} replies", character.name);
             if reply.replier.trim().is_empty() {
                 log::warn!(
                     "character reply had an empty speaker, defaulting to {}",
@@ -272,6 +271,7 @@ impl<
                 );
                 reply.replier = character.name.clone();
             }
+            log::info!("{} replies", reply.replier);
             return Ok(reply);
         }
 
