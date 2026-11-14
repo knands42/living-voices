@@ -1,18 +1,28 @@
-use std::sync::Arc;
+mod header;
+mod question;
+mod view;
+mod working;
 
-use iced::futures::channel::mpsc::Sender;
-use iced::widget::{Space, button, column, container, progress_bar, row, text, toggler};
-use iced::{Alignment, Color, Element, Length, Task};
+use std::sync::Arc;
 
 use crate::config::{Config, Settings};
 use crate::provision::entrypoint::start_provisioning;
 use crate::provision::{
     ComfyEvent, Gpu, MediaRecommendation, RunningEngines, human_bytes, start_engines,
 };
+use crate::ui::pages::setup::header::header;
+use crate::ui::pages::setup::question::question;
+use crate::ui::pages::setup::view::{specs, verdict};
+use crate::ui::pages::setup::working::working;
 use crate::ui::pages::{Event, Page};
 use crate::ui::task::on_tokio;
+use crate::ui::theme;
+use iced::futures::channel::mpsc::Sender;
+use iced::widget::{container, scrollable};
+use iced::{Alignment, Element, Length, Task};
 
 const PROGRESS_EVERY_BYTES: u64 = 64 * 1024 * 1024;
+pub const COLUMN_LENGTH: f32 = 620.0;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -36,8 +46,46 @@ pub enum Progress {
     },
 }
 
+impl Progress {
+    pub fn label(&self) -> String {
+        match self {
+            Self::InstallingDeps => "Installing ComfyUI dependencies".to_string(),
+            Self::Model {
+                file,
+                written,
+                total: Some(total),
+            } if *total > 0 => format!(
+                "{file}: {} / {}",
+                human_bytes(*written),
+                human_bytes(*total)
+            ),
+            Self::Model { file, written, .. } => format!("{file}: {}", human_bytes(*written)),
+        }
+    }
+
+    pub fn ratio(&self) -> f32 {
+        match self {
+            Self::Model {
+                written,
+                total: Some(total),
+                ..
+            } if *total > 0 => (*written as f32 / *total as f32).clamp(0.0, 1.0),
+            _ => 0.0,
+        }
+    }
+
+    pub fn percent(&self) -> Option<i32> {
+        match self {
+            Self::Model {
+                total: Some(total), ..
+            } if *total > 0 => Some((self.ratio() * 100.0).round() as i32),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
-enum Phase {
+pub(crate) enum Phase {
     Asking,
     Installing,
     Starting,
@@ -86,20 +134,6 @@ impl State {
         (state, task)
     }
 
-    pub fn needs_answer(&self) -> bool {
-        self.config.needs_setup()
-    }
-
-    pub fn view(&self) -> Element<'_, Message> {
-        render(self)
-    }
-
-    fn start(&mut self) -> Task<Message> {
-        self.phase = Phase::Installing;
-        self.progress = None;
-        bring_up(self.handle.clone(), self.config.settings.clone())
-    }
-
     pub fn update(&mut self, message: Message) -> (Task<Message>, Event) {
         match message {
             Message::MediaToggled(enabled) => {
@@ -142,6 +176,53 @@ impl State {
         }
 
         (Task::none(), Event::None)
+    }
+
+    pub fn view(&self) -> Element<'_, Message> {
+        let body = match &self.phase {
+            Phase::Installing => working("Installing the engines", 0, self.progress.as_ref()),
+            Phase::Starting => working("Starting the engines", 1, None),
+            Phase::Asking | Phase::Running | Phase::Failed(_) => question(self),
+        };
+
+        let centre = iced::widget::column![
+            specs(self.gpu, self.recommendation),
+            verdict(self.recommendation),
+            body,
+        ]
+        .spacing(14.0)
+        .width(Length::Fill);
+
+        // Scrolled, because a launcher window is often shorter than the page.
+        let scrolled = scrollable(
+            container(container(centre).width(Length::Fixed(COLUMN_LENGTH)))
+                .width(Length::Fill)
+                .align_x(Alignment::Center),
+        )
+        .height(Length::Fill)
+        .width(Length::Fill);
+
+        container(
+            iced::widget::column![header(self), scrolled]
+                .spacing(14.0)
+                .width(Length::Fill)
+                .height(Length::Fill),
+        )
+        .padding([18.0, 22.0])
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .style(theme::page)
+        .into()
+    }
+
+    pub fn needs_answer(&self) -> bool {
+        self.config.needs_setup()
+    }
+
+    fn start(&mut self) -> Task<Message> {
+        self.phase = Phase::Installing;
+        self.progress = None;
+        bring_up(self.handle.clone(), self.config.settings.clone())
     }
 }
 
@@ -216,162 +297,4 @@ fn bring_up(handle: tokio::runtime::Handle, settings: Settings) -> Task<Message>
         }),
         |message| message,
     )
-}
-
-impl Progress {
-    fn label(&self) -> String {
-        match self {
-            Self::InstallingDeps => "Installing ComfyUI dependencies".to_string(),
-            Self::Model {
-                file,
-                written,
-                total: Some(total),
-            } if *total > 0 => format!(
-                "{file}: {} / {}",
-                human_bytes(*written),
-                human_bytes(*total)
-            ),
-            Self::Model { file, written, .. } => format!("{file}: {}", human_bytes(*written)),
-        }
-    }
-
-    fn ratio(&self) -> f32 {
-        match self {
-            Self::Model {
-                written,
-                total: Some(total),
-                ..
-            } if *total > 0 => (*written as f32 / *total as f32).clamp(0.0, 1.0),
-            _ => 0.0,
-        }
-    }
-}
-
-fn render(state: &State) -> Element<'_, Message> {
-    let body = match &state.phase {
-        Phase::Installing => working("Installing the engines", state.progress.as_ref()),
-        Phase::Starting => working("Starting the engines", None),
-        Phase::Asking | Phase::Running | Phase::Failed(_) => question(state),
-    };
-
-    container(
-        column![
-            row![
-                text("Setup").size(28),
-                Space::new().width(Length::Fill),
-                button("Back to adventures").on_press(Message::BackRequested),
-            ]
-            .align_y(Alignment::Center),
-            text("Before the story starts, a word about images").size(16),
-            specs(state.gpu, state.recommendation),
-            text(headline(state.recommendation)).color(tone(state.recommendation)),
-            text(advice(state.recommendation)).size(14),
-            body,
-        ]
-        .spacing(16),
-    )
-    .style(container::rounded_box)
-    .padding(28)
-    .width(Length::Fill)
-    .center_x(560)
-    .into()
-}
-
-fn question(state: &State) -> Element<'_, Message> {
-    let footer = match (&state.phase, state.notice) {
-        (_, Some(notice)) => notice.to_string(),
-        (Phase::Failed(err), None) => format!("The engines could not start: {err}"),
-        (Phase::Running, None) => "The engines are running.".to_string(),
-        _ => "You can come back to this page any time.".to_string(),
-    };
-
-    column![
-        row![
-            toggler(state.media_engine)
-                .label("Media engine (ComfyUI)")
-                .on_toggle(Message::MediaToggled),
-            Space::new().width(Length::Fill),
-            button(text(if state.media_engine {
-                "Use images"
-            } else {
-                "Go without images"
-            }))
-            .style(button::primary)
-            .on_press(Message::Confirmed),
-        ]
-        .align_y(Alignment::Center)
-        .spacing(16),
-        text(footer).size(12),
-    ]
-    .spacing(12)
-    .into()
-}
-
-fn working<'a>(title: &'a str, progress: Option<&Progress>) -> Element<'a, Message> {
-    let label = progress.map(Progress::label).unwrap_or_default();
-    let ratio = progress.map(Progress::ratio).unwrap_or_default();
-
-    column![
-        text(title).size(16),
-        progress_bar(0.0..=1.0, ratio),
-        text(label).size(12),
-    ]
-    .spacing(8)
-    .into()
-}
-
-fn specs(gpu: Gpu, recommendation: MediaRecommendation) -> Element<'static, Message> {
-    container(
-        column![
-            row![
-                text("Graphics card").size(14),
-                Space::new().width(Length::Fill),
-                text(gpu.card_label()).size(14),
-            ],
-            row![
-                text("Video memory").size(14),
-                Space::new().width(Length::Fill),
-                text(gpu.vram_label()).size(14).color(tone(recommendation)),
-            ],
-        ]
-        .spacing(8),
-    )
-    .style(container::bordered_box)
-    .padding(14)
-    .width(Length::Fill)
-    .into()
-}
-
-fn tone(recommendation: MediaRecommendation) -> Color {
-    match recommendation {
-        MediaRecommendation::Comfortable => Color::from_rgb(0.42, 0.71, 0.42),
-        MediaRecommendation::Tight => Color::from_rgb(1.0, 0.62, 0.25),
-        MediaRecommendation::Limited => Color::from_rgb(0.75, 0.37, 0.31),
-    }
-}
-
-fn headline(recommendation: MediaRecommendation) -> &'static str {
-    match recommendation {
-        MediaRecommendation::Comfortable => "Plenty of room for images.",
-        MediaRecommendation::Tight => "Images will fit, with little headroom.",
-        MediaRecommendation::Limited => "Images will not run well on this machine.",
-    }
-}
-
-fn advice(recommendation: MediaRecommendation) -> &'static str {
-    match recommendation {
-        MediaRecommendation::Comfortable => {
-            "The card carries the full-quality model alongside the text engine, so scenes and \
-             portraits render while you keep talking."
-        }
-        MediaRecommendation::Tight => {
-            "Eight to twelve gigabytes fit the lighter model only. Shots take longer, the card stays \
-             warm, and the first run downloads the weights before anything draws. Leave it off and \
-             the story still works exactly the same."
-        }
-        MediaRecommendation::Limited => {
-            "No card with enough memory was found, so rendering would fall back to the processor or \
-             fail outright. Everything except generated art works without it."
-        }
-    }
 }
