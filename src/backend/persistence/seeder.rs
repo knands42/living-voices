@@ -10,7 +10,7 @@ use crate::backend::{
         adventure::Adventure,
         character::{Character, CharacterStatus},
         lore::Lore,
-        memory::{Act, ActStatus, CharacterCondition, Fact, Permanence, State},
+        memory::{Act, ActStatus, CharacterCondition, Fact, State},
         message::Message,
         narrator::Narrator,
     },
@@ -48,7 +48,6 @@ pub struct SeedAct {
 pub struct SeedFact {
     pub subject: &'static str,
     pub fact: &'static str,
-    pub permanence: Permanence,
 }
 
 pub struct SeedMessage {
@@ -204,17 +203,14 @@ Obal: "High water at eleven and forty. The shelf lamp goes dark at eleven and tw
             SeedFact {
                 subject: "The shelf ledger",
                 fact: "Every entry is the name of someone the sea has not yet taken.",
-                permanence: Permanence::Permanent,
             },
             SeedFact {
                 subject: "The lamplighter's oath",
                 fact: "A lamplighter must answer any call from the water once, and never ask twice what answered.",
-                permanence: Permanence::Permanent,
             },
             SeedFact {
                 subject: "Wren Ilverine",
                 fact: "Took the posting to avoid signing off wrecks she was not allowed to record.",
-                permanence: Permanence::Plot,
             },
         ],
         messages: &[
@@ -229,11 +225,6 @@ Obal: "High water at eleven and forty. The shelf lamp goes dark at eleven and tw
                 text: "Don't lean toward it, girl. It leans back. You answer the call \
                        once. You do not ask it what it is. Write that down if you must \
                        write something.",
-            },
-            SeedMessage {
-                speaker: Some("You"),
-                text: "I want to see the ledger first. If I'm going to answer that, I \
-                       want to know whose names are already in it.",
             },
             SeedMessage {
                 speaker: Some("Mistress Obal"),
@@ -367,17 +358,14 @@ SUITE-7: *a glass panel turns over, face out* "Filed. The answer is: you are spe
             SeedFact {
                 subject: "Kepler Station logs",
                 fact: "Everything is logged twice — once for the station, once for the agency — and the agency copy runs nine minutes ahead.",
-                permanence: Permanence::Permanent,
             },
             SeedFact {
                 subject: "The previous commander",
                 fact: "Filed a report describing a conversation with Reyes that had not yet happened, then left command.",
-                permanence: Permanence::Plot,
             },
             SeedFact {
                 subject: "SUITE-7",
                 fact: "Is the station's own audit process, not an intruder, and answers only to a named officer.",
-                permanence: Permanence::Permanent,
             },
         ],
         messages: &[
@@ -517,17 +505,14 @@ Clerk Ilm: "You ask the room, and the room gets read to you." *presses the book 
             SeedFact {
                 subject: "The Tribunal of the Ninth Reading",
                 fact: "Keeps its records in cinders; a judgment is valid only once spoken aloud from the ash-book.",
-                permanence: Permanence::Permanent,
             },
             SeedFact {
                 subject: "The Varn debt",
                 fact: "Was entered under the brothers' father's name and has been read aloud twice since.",
-                permanence: Permanence::Plot,
             },
             SeedFact {
                 subject: "Clerk Ilm",
                 fact: "Has recorded every reading since the last fire and can name who stood in the room for each.",
-                permanence: Permanence::Permanent,
             },
         ],
         messages: &[
@@ -549,12 +534,6 @@ Clerk Ilm: "You ask the room, and the room gets read to you." *presses the book 
                 text: "It is the last thing we own that is ours. I will stand and be read \
                        in its place if the Tribunal allows it. An honoured debt is not a \
                        grave, brother. It is a name that outlasts us.",
-            },
-            SeedMessage {
-                speaker: Some("You"),
-                text: "Then neither of you speaks until I've heard the clerk. If the entry \
-                       can be struck between readings, I want to know the price before the \
-                       curtain lifts.",
             },
         ],
     },
@@ -746,7 +725,7 @@ async fn seed_connection(
     let facts: Vec<Fact> = seed
         .facts
         .iter()
-        .map(|seed_fact| Fact::new(seed_fact.subject, seed_fact.fact, seed_fact.permanence))
+        .map(|seed_fact| Fact::new(seed_fact.subject, seed_fact.fact))
         .collect();
     upsert_facts(&mut *tx, adventure_summary.id, &facts).await?;
 

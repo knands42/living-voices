@@ -1,6 +1,6 @@
 use iced::widget::text::Wrapping;
-use iced::widget::{Space, column, container, row, scrollable, text};
-use iced::{Alignment, Element, Length};
+use iced::widget::{Space, column, container, scrollable, text};
+use iced::{Element, Length};
 
 use crate::backend::domain::memory::state::State as SceneState;
 use crate::backend::domain::memory::{CharacterCondition, Fact};
@@ -109,17 +109,10 @@ fn note_card(title: &str, items: Vec<String>) -> Element<'_, Message> {
 fn fact_row(fact: &Fact) -> Element<'_, Message> {
     container(
         column![
-            row![
-                text(fact.subject.as_str())
-                    .size(12.1)
-                    .color(theme::BRONZE)
-                    .font(common::semibold()),
-                text(fact.permanence.as_str())
-                    .size(9.8)
-                    .color(theme::TEXT_DIM),
-            ]
-            .spacing(6.0)
-            .align_y(Alignment::Center),
+            text(fact.subject.as_str())
+                .size(12.1)
+                .color(theme::BRONZE)
+                .font(common::semibold()),
             text(fact.fact.as_str())
                 .size(12.1)
                 .color(theme::TEXT_MUTED)

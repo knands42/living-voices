@@ -1,12 +1,12 @@
 use living_voices::ai::integrations::text::memory_handler::{
-    CharacterConditionSnapshot, MemoryHandler, Permanence,
+    CharacterConditionSnapshot, MemoryHandler,
 };
 
 #[test]
 fn parses_the_schema_shaped_object() {
     let reply = r#"{
         "facts": [
-            {"subject": "Mara", "fact": "Mara hates the sea.", "permanence": "permanent"}
+            {"subject": "Mara", "fact": "Mara hates the sea."}
         ],
         "state": {
             "day": "Day 1, noon",
@@ -23,7 +23,6 @@ fn parses_the_schema_shaped_object() {
     assert_eq!(update.facts.len(), 1);
     assert_eq!(update.facts[0].subject, "Mara");
     assert_eq!(update.facts[0].fact, "Mara hates the sea.");
-    assert_eq!(update.facts[0].permanence, Permanence::Permanent);
     assert_eq!(update.state.day, String::from("Day 1, noon"));
     assert_eq!(update.state.place, String::from("the drowned quarter"));
     assert_eq!(update.state.characters_present, vec!["Mara".to_string()]);
@@ -55,17 +54,6 @@ fn tolerates_leading_and_trailing_whitespace_and_empty_collections() {
 #[test]
 fn rejects_a_reply_without_the_expected_fields() {
     let reply = r#"{"unrelated": true}"#;
-
-    assert!(MemoryHandler::from_reply(reply).is_err());
-}
-
-#[test]
-fn rejects_an_unknown_permanence() {
-    let reply = r#"{
-        "facts": [{"subject": "Mara", "fact": "x", "permanence": "forever"}],
-        "state": {"day": null, "place": null, "characters_present": [],
-                  "open_threads": [], "character_conditions": []}
-    }"#;
 
     assert!(MemoryHandler::from_reply(reply).is_err());
 }

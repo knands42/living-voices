@@ -1,6 +1,6 @@
 use crate::backend::application::helper::setup_db;
 use crate::backend::persistence::helper::seed_adventure;
-use living_voices::backend::domain::memory::{Fact, Permanence};
+use living_voices::backend::domain::memory::Fact;
 use living_voices::backend::persistence::fact_persistence::{get_facts, upsert_facts};
 
 #[tokio::test]
@@ -10,8 +10,8 @@ async fn upsert_facts_stores_the_whole_snapshot() {
     let mut conn = pool.acquire().await.expect("acquire");
 
     let facts = vec![
-        Fact::new("Mira", "fears deep water", Permanence::Permanent),
-        Fact::new("the crown", "is lost", Permanence::Plot),
+        Fact::new("Mira", "fears deep water"),
+        Fact::new("the crown", "is lost"),
     ];
     upsert_facts(&mut conn, adventure.id, &facts)
         .await
@@ -38,12 +38,12 @@ async fn upsert_facts_replaces_the_previous_snapshot() {
     upsert_facts(
         &mut conn,
         adventure.id,
-        &[Fact::new("Mira", "fears deep water", Permanence::Permanent)],
+        &[Fact::new("Mira", "fears deep water")],
     )
     .await
     .expect("first upsert");
 
-    let replacement = vec![Fact::new("the crown", "is recovered", Permanence::Plot)];
+    let replacement = vec![Fact::new("the crown", "is recovered")];
     upsert_facts(&mut conn, adventure.id, &replacement)
         .await
         .expect("second upsert");

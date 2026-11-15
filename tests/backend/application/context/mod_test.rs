@@ -7,7 +7,7 @@ use living_voices::backend::application::port::chat_port::{PromptTurn, Speaker};
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::{Character, CharacterStatus, ImageFraming};
-use living_voices::backend::domain::memory::{Fact, Permanence};
+use living_voices::backend::domain::memory::Fact;
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::fact_persistence::upsert_facts;
 use living_voices::config::DirectorSettings;
@@ -223,7 +223,7 @@ async fn static_context_renders_the_fact_snapshot() {
         .expect("adventure to exist on the snapshot");
 
     let mut conn = pool.acquire().await.expect("acquire");
-    let fact = Fact::new("mira", "fears deep water", Permanence::Permanent);
+    let fact = Fact::new("mira", "fears deep water");
     upsert_facts(&mut conn, adventure.id, &[fact])
         .await
         .expect("upsert fact");
@@ -238,7 +238,7 @@ async fn static_context_renders_the_fact_snapshot() {
         .collect::<Vec<_>>()
         .join("\n");
     assert!(joined.contains("### FACTS"));
-    assert!(joined.contains("mira: fears deep water -> permanent"));
+    assert!(joined.contains("mira: fears deep water"));
 }
 
 #[tokio::test]

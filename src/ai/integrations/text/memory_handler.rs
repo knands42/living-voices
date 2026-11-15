@@ -7,32 +7,15 @@ use crate::ai::types::ChatMessage;
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::application::port::memory_port::{
     ActCloserPort, ClosedAct, ClosedActError, ClosedActStatus, DistillError, DistilledFact,
-    DistilledMemory, DistilledState, FactPermanence, MemoryDistillerPort,
+    DistilledMemory, DistilledState, MemoryDistillerPort,
 };
 use crate::backend::domain::memory::CharacterCondition;
 use crate::config::TextModel;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Permanence {
-    Permanent,
-    Plot,
-}
-
-impl From<Permanence> for FactPermanence {
-    fn from(value: Permanence) -> Self {
-        match value {
-            Permanence::Permanent => FactPermanence::Permanent,
-            Permanence::Plot => FactPermanence::Plot,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Fact {
     pub subject: String,
     pub fact: String,
-    pub permanence: Permanence,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -156,7 +139,6 @@ impl From<MemoryHandler> for DistilledMemory {
             .map(|fact| DistilledFact {
                 subject: fact.subject,
                 fact: fact.fact,
-                permanence: fact.permanence.into(),
             })
             .collect();
 
@@ -193,13 +175,9 @@ fn schema() -> JsonSchema {
                         "type": "object",
                         "properties": {
                             "subject": { "type": "string" },
-                            "fact": { "type": "string" },
-                            "permanence": {
-                                "type": "string",
-                                "enum": ["permanent", "plot"]
-                            }
+                            "fact": { "type": "string" }
                         },
-                        "required": ["subject", "fact", "permanence"],
+                        "required": ["subject", "fact"],
                         "additionalProperties": false
                     }
                 },

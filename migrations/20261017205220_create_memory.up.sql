@@ -48,7 +48,7 @@ CREATE TABLE fact
 (
     id           TEXT NOT NULL PRIMARY KEY,
     adventure_id TEXT NOT NULL UNIQUE REFERENCES adventure (id) ON DELETE CASCADE,
-    facts        TEXT NOT NULL DEFAULT "[]", -- json: [{"subject","fact","permanence"}]
+    facts        TEXT NOT NULL DEFAULT "[]", -- json: [{"subject","fact"}]
     updated_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
     CONSTRAINT fact_id_is_uuid CHECK (length(id) = 36)

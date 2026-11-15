@@ -4,7 +4,7 @@ use living_voices::backend::application::{
     state::SharedState,
 };
 use living_voices::backend::domain::adventure::AdventureStatus;
-use living_voices::backend::domain::memory::{Act, ActStatus, Fact, Permanence};
+use living_voices::backend::domain::memory::{Act, ActStatus, Fact};
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::act_persistence::get_acts;
 use living_voices::backend::persistence::adventure_persistence::get_adventure;
@@ -439,11 +439,7 @@ async fn saving_the_scene_state_and_facts_refreshes_the_shared_state() {
         .expect("an adventure always has a state row");
     scene.place = "the drowned harbour".to_string();
     scene.day = "the first night of the tide".to_string();
-    let facts = vec![Fact::new(
-        "the harbour",
-        "keeps the debts of the drowned",
-        Permanence::Permanent,
-    )];
+    let facts = vec![Fact::new("the harbour", "keeps the debts of the drowned")];
     adventure_manager
         .upsert_state(&scene)
         .await

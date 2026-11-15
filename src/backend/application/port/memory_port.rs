@@ -1,38 +1,13 @@
 use crate::backend::application::port::chat_port::PromptTurn;
-use crate::backend::domain::memory::{ActStatus, CharacterCondition, Fact, Permanence, State};
+use crate::backend::domain::memory::{ActStatus, CharacterCondition, Fact, State};
 use thiserror::Error;
 use uuid::Uuid;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FactPermanence {
-    Permanent,
-    Plot,
-}
-
-impl FactPermanence {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            FactPermanence::Permanent => "permanent",
-            FactPermanence::Plot => "plot",
-        }
-    }
-}
-
-impl From<FactPermanence> for Permanence {
-    fn from(value: FactPermanence) -> Self {
-        match value {
-            FactPermanence::Permanent => Permanence::Permanent,
-            FactPermanence::Plot => Permanence::Plot,
-        }
-    }
-}
 
 /// One atomic fact destined for a `facts` row.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DistilledFact {
     pub subject: String,
     pub fact: String,
-    pub permanence: FactPermanence,
 }
 
 impl DistilledFact {
@@ -41,7 +16,7 @@ impl DistilledFact {
     }
 
     fn into_fact(self) -> Fact {
-        Fact::new(self.subject, self.fact, Permanence::from(self.permanence))
+        Fact::new(self.subject, self.fact)
     }
 }
 

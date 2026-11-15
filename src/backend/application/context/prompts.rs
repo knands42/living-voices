@@ -110,21 +110,20 @@ out, once its goal is genuinely met."#;
 
 pub(crate) const DISTILL_PROMPT: &str = r#"## DISTILL
 You are given the memory as it stood (## CONTEXT: PAST ACTS, CURRENT ACT, FACTS as
-"subject: fact -> permanence", CURRENT STATE) and the turns since. The memory was
+"subject: fact", CURRENT STATE) and the turns since. The memory was
 true at its last update; the turns are what happened after.
 
 Return JSON only, with exactly three fields, describing the memory as it stands NOW —
 not only the new turns, and not a copy of the old one.
 
-- "facts": the complete replacement set of facts true at this moment. KEEP an
-  unchanged fact that still matters, OVERRIDE a changed one under the same "subject"
-  (a wound that healed, an ally who turned), ADD what the turns newly establish, DROP
-  a "plot" fact once it is resolved or moot. Never drop a "permanent" one. The turns
-  beat the memory: emit one version of a fact, never both. Each item is
+- "facts": the complete replacement set of facts true at this moment; whatever is
+  left out is gone. KEEP an unchanged fact that still matters, OVERRIDE a changed one
+  under the same "subject" (a wound that healed, an ally who turned), ADD what the
+  turns newly establish, DROP one once it is resolved or moot. The turns beat the
+  memory: emit one version of a fact, never both. Each item is
   { "subject": who or what it is about, verbatim and spelled as before so an update
     lines up, "fact": one short present-tense statement keeping names and numbers
-    verbatim, "permanence": "permanent" (an identity, a bond, an irreversible change)
-    or "plot" (true until the story moves on) }.
+    verbatim }.
 
 - "state": the single situation after these turns. Start from CURRENT STATE, change
   only what moved, carry the rest; never empty a field because the turns were silent.

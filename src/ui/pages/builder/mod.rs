@@ -16,7 +16,7 @@ use crate::backend::application::port::chat_port::PromptPort;
 use crate::backend::application::port::image_port::ImagePort;
 use crate::backend::domain::adventure::{Adventure, AdventureStatus};
 use crate::backend::domain::character::Character;
-use crate::backend::domain::memory::{Act, Fact, Permanence, State as SceneState};
+use crate::backend::domain::memory::{Act, Fact, State as SceneState};
 use crate::backend::domain::message::Message as MessageLine;
 use crate::ui::pages::builder::acts::acts;
 use crate::ui::pages::builder::cast::cast;
@@ -230,13 +230,7 @@ impl Opening {
         self.facts
             .iter()
             .filter(|draft| !draft.fact.trim().is_empty())
-            .map(|draft| {
-                Fact::new(
-                    draft.subject.trim(),
-                    draft.fact.trim(),
-                    Permanence::Permanent,
-                )
-            })
+            .map(|draft| Fact::new(draft.subject.trim(), draft.fact.trim()))
             .collect()
     }
 
