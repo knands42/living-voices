@@ -5,7 +5,7 @@ use ratatui::Frame;
 mod adventure_list;
 mod avatar;
 mod chat;
-pub mod main_page;
+mod main_page;
 mod theme;
 mod widgets;
 

@@ -2,8 +2,7 @@ use iced::widget::text::Wrapping;
 use iced::widget::{Space, column, container, scrollable, text};
 use iced::{Element, Length};
 
-use crate::backend::domain::memory::state::State as SceneState;
-use crate::backend::domain::memory::{CharacterCondition, Fact};
+use crate::backend::domain::memory::{CharacterCondition, Fact, State as SceneState};
 use crate::ui::pages::chat::{Message, Scene};
 use crate::ui::{common, theme};
 

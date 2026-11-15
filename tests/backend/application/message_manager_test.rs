@@ -5,9 +5,7 @@ use uuid::Uuid;
 use crate::backend::application::helper::{
     CONVERSATION, seed_conversation, setup_db, start_adventure_with_default_cast,
 };
-use living_voices::ai::integrations::text::chat_handler::ChatHandler;
-use living_voices::ai::integrations::text::narrator_handler::NarratorHandler;
-use living_voices::ai::{ActClose, MemoryHandler};
+use living_voices::ai::{ActClose, ChatHandler, MemoryHandler, NarratorHandler};
 use living_voices::backend::application::director::Director;
 use living_voices::backend::application::memory_manager::MemoryManager;
 use living_voices::backend::application::message_manager::MessageManager;

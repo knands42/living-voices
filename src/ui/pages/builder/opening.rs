@@ -1,11 +1,73 @@
-use iced::widget::{Space, button, column, row, text};
-use iced::{Alignment, Element, Length};
-
+use crate::backend::domain::adventure::Adventure;
 use crate::ui::pages::builder::widgets::{
     caption, card, editor, field, labelled, pill, section_header, surface,
 };
-use crate::ui::pages::builder::{Beat, Draft, FactDraft, Message, Opening, Speaker};
+use crate::ui::pages::builder::{Draft, FactDraft, Message, Opening, Speaker};
 use crate::ui::{common, theme};
+use iced::widget::{Space, button, column, row, text, text_editor};
+use iced::{Alignment, Element, Length};
+
+pub struct OpeningSettings {
+    pub speaker: Speaker,
+    pub content: text_editor::Content,
+}
+
+impl OpeningSettings {
+    pub fn narrator() -> Self {
+        Self {
+            speaker: Speaker::Narrator,
+            content: text_editor::Content::new(),
+        }
+    }
+
+    pub fn from_message(message: &crate::backend::domain::message::Message) -> Self {
+        let speaker = match message.character_id {
+            Some(character_id) => Speaker::Character(character_id),
+            None => Speaker::Narrator,
+        };
+
+        Self {
+            speaker,
+            content: text_editor::Content::with_text(&message.text),
+        }
+    }
+
+    pub fn text(&self) -> String {
+        self.content.text()
+    }
+
+    pub fn message(&self, adventure: &Adventure) -> crate::backend::domain::message::Message {
+        let text = self.text();
+
+        match self.speaker {
+            Speaker::Narrator => crate::backend::domain::message::Message::new(
+                adventure.id,
+                None,
+                Some(adventure.narrator.id),
+                crate::backend::domain::message::Message::NARRATOR_SPEAKER_NAME.to_string(),
+                text,
+                false,
+            ),
+            Speaker::Character(character_id) => {
+                let speaker_name = adventure
+                    .characters
+                    .iter()
+                    .find(|character| character.id == character_id)
+                    .map(|character| character.name.clone())
+                    .unwrap_or_default();
+
+                crate::backend::domain::message::Message::new(
+                    adventure.id,
+                    Some(character_id),
+                    None,
+                    speaker_name,
+                    text,
+                    false,
+                )
+            }
+        }
+    }
+}
 
 pub fn opening(draft: &Draft) -> Element<'_, Message> {
     let state = if draft.opening.is_ready() {
@@ -133,7 +195,11 @@ fn beat_fields(draft: &Draft) -> Element<'_, Message> {
     .into()
 }
 
-fn beat_card<'a>(draft: &'a Draft, index: usize, beat: &'a Beat) -> Element<'a, Message> {
+fn beat_card<'a>(
+    draft: &'a Draft,
+    index: usize,
+    beat: &'a OpeningSettings,
+) -> Element<'a, Message> {
     let speaker: Element<'_, Message> = if index == 0 {
         text("NARRATOR")
             .size(10.5)

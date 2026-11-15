@@ -3,8 +3,6 @@ pub mod domain;
 pub mod persistence;
 
 pub use persistence::{
-    db::open_pool,
-    error::PersistenceError,
-    migrator::run_migrations,
-    seeder::{SeedAdventure, SeedCharacter, find_seed, run_seeds, seed_one, seed_titles},
+    PersistenceError, SeedAdventure, SeedCharacter, db::open_pool, find_seed,
+    migrator::run_migrations, run_seeds, seed_one, seed_titles,
 };

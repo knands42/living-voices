@@ -20,7 +20,7 @@ use crate::backend::domain::memory::{Act, Fact, State as SceneState};
 use crate::backend::domain::message::Message as MessageLine;
 use crate::ui::pages::builder::acts::acts;
 use crate::ui::pages::builder::cast::cast;
-use crate::ui::pages::builder::opening::opening;
+use crate::ui::pages::builder::opening::{OpeningSettings, opening};
 use crate::ui::pages::builder::sidebar::sidebar;
 use crate::ui::pages::builder::story::story;
 use crate::ui::pages::{Event, Page};
@@ -111,68 +111,6 @@ pub enum Speaker {
     Character(Uuid),
 }
 
-pub struct Beat {
-    speaker: Speaker,
-    content: text_editor::Content,
-}
-
-impl Beat {
-    fn narrator() -> Self {
-        Self {
-            speaker: Speaker::Narrator,
-            content: text_editor::Content::new(),
-        }
-    }
-
-    fn from_message(message: &MessageLine) -> Self {
-        let speaker = match message.character_id {
-            Some(character_id) => Speaker::Character(character_id),
-            None => Speaker::Narrator,
-        };
-
-        Self {
-            speaker,
-            content: text_editor::Content::with_text(&message.text),
-        }
-    }
-
-    fn text(&self) -> String {
-        self.content.text()
-    }
-
-    fn message(&self, adventure: &Adventure) -> MessageLine {
-        let text = self.text();
-
-        match self.speaker {
-            Speaker::Narrator => MessageLine::new(
-                adventure.id,
-                None,
-                Some(adventure.narrator.id),
-                MessageLine::NARRATOR_SPEAKER_NAME.to_string(),
-                text,
-                false,
-            ),
-            Speaker::Character(character_id) => {
-                let speaker_name = adventure
-                    .characters
-                    .iter()
-                    .find(|character| character.id == character_id)
-                    .map(|character| character.name.clone())
-                    .unwrap_or_default();
-
-                MessageLine::new(
-                    adventure.id,
-                    Some(character_id),
-                    None,
-                    speaker_name,
-                    text,
-                    false,
-                )
-            }
-        }
-    }
-}
-
 #[derive(Default)]
 struct FactDraft {
     subject: String,
@@ -185,7 +123,7 @@ pub struct Opening {
     place: String,
     day: String,
     facts: Vec<FactDraft>,
-    beats: Vec<Beat>,
+    beats: Vec<OpeningSettings>,
 }
 
 impl Opening {
@@ -193,12 +131,12 @@ impl Opening {
 
     fn load(scene: &SceneState, facts: Vec<Fact>, messages: Vec<MessageLine>) -> Self {
         let beats = if messages.is_empty() {
-            vec![Beat::narrator()]
+            vec![OpeningSettings::narrator()]
         } else {
             messages
                 .iter()
                 .take(Self::MAX_BEATS)
-                .map(Beat::from_message)
+                .map(OpeningSettings::from_message)
                 .collect()
         };
 
@@ -253,7 +191,10 @@ impl Opening {
     }
 
     fn first_line(&self) -> String {
-        self.beats.first().map(Beat::text).unwrap_or_default()
+        self.beats
+            .first()
+            .map(OpeningSettings::text)
+            .unwrap_or_default()
     }
 
     fn add_fact(&mut self) {
@@ -284,7 +225,7 @@ impl Opening {
 
     fn add_beat(&mut self) {
         if self.beats.len() < Self::MAX_BEATS {
-            self.beats.push(Beat::narrator());
+            self.beats.push(OpeningSettings::narrator());
         }
     }
 

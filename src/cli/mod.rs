@@ -1,7 +1,9 @@
 mod draw;
 mod events;
-pub mod init;
+mod init;
 mod state;
+
+pub use init::run;
 
 use std::io::Stdout;
 

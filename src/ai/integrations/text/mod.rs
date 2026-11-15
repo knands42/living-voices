@@ -1,7 +1,7 @@
-pub mod chat_handler;
-pub mod memory_handler;
-pub mod narrator_handler;
-pub mod open_api_client;
+pub(crate) mod chat_handler;
+pub(crate) mod memory_handler;
+pub(crate) mod narrator_handler;
+pub(crate) mod open_api_client;
 
 use crate::config::TextModel;
 

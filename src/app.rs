@@ -1,9 +1,6 @@
 use sqlx::SqlitePool;
 
-use crate::ai::integrations::image::comfy_image::ComfyImage;
-use crate::ai::integrations::text::chat_handler::ChatHandler;
-use crate::ai::integrations::text::narrator_handler::NarratorHandler;
-use crate::ai::{ActClose, MemoryHandler};
+use crate::ai::{ActClose, ChatHandler, ComfyImage, MemoryHandler, NarratorHandler};
 use crate::backend::application::character_gallery::CharacterGallery;
 use crate::backend::application::director::Director;
 use crate::backend::application::port::chat_port::{ChatPort, NarratorPort, PromptPort};

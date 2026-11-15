@@ -1,4 +1,4 @@
 mod adventure_list;
-pub mod chat;
-pub mod event_handler;
+pub(crate) mod chat;
+pub(crate) mod event_handler;
 mod main;

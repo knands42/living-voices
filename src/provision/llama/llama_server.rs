@@ -127,8 +127,9 @@ fn log_path(binary: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod test {
+    use super::{CHAT_PORT, LlamaServer};
     use crate::provision::llama::llama_server::{EngineProfile, PORT_SEARCH_LIMIT};
-    use crate::provision::{CHAT_PORT, LlamaServer, util};
+    use crate::provision::util;
     use std::path::{Path, PathBuf};
 
     fn scratch(name: &str) -> PathBuf {

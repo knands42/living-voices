@@ -1,6 +1,6 @@
 mod gpu;
 
-pub use gpu::{Gpu, GraphicsCard};
+pub use gpu::Gpu;
 
 const COMFORTABLE_MIB: u64 = 16 * 1024;
 const TIGHT_MIB: u64 = 8 * 1024;
@@ -31,6 +31,7 @@ impl MediaRecommendation {
 
 #[cfg(test)]
 mod test {
+    use super::gpu::GraphicsCard;
     use super::*;
 
     fn gpu_with(vram_mb: Option<u64>) -> Gpu {

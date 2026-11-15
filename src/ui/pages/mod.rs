@@ -1,7 +1,7 @@
-pub mod builder;
-pub mod chat;
-pub mod main_hub;
-pub mod setup;
+pub(crate) mod builder;
+pub(crate) mod chat;
+pub(crate) mod main_hub;
+pub(crate) mod setup;
 
 use std::sync::Arc;
 

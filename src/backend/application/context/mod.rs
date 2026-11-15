@@ -2,12 +2,12 @@ mod chat_context;
 mod image_context;
 mod prompts;
 
+use crate::backend::PersistenceError;
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::memory::{Act, ActStatus, Fact, State};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::act_persistence::{count_messages_per_act, get_acts};
-use crate::backend::persistence::error::PersistenceError;
 use crate::backend::persistence::fact_persistence::get_facts;
 use crate::backend::persistence::state_persistence::get_state;
 use sqlx::SqliteConnection;

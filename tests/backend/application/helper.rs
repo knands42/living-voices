@@ -1,4 +1,4 @@
-use living_voices::ai::integrations::text::chat_handler::ChatHandler;
+use living_voices::ai::ChatHandler;
 use living_voices::backend::application::adventure_manager::AdventureManager;
 use living_voices::backend::application::character_gallery::CharacterGallery;
 use living_voices::backend::application::character_manager::CharacterManager;

@@ -1,7 +1,7 @@
 use crate::backend::application::helper::{
     StubImage, TempDb, setup_db, start_adventure_with_default_cast,
 };
-use living_voices::ai::integrations::text::chat_handler::ChatHandler;
+use living_voices::ai::ChatHandler;
 use living_voices::backend::application::{
     character_gallery::CharacterGallery,
     character_manager::{CharacterManager, CharacterManagerError},

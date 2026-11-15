@@ -1,4 +1,4 @@
-pub mod engine_profile;
+mod engine_profile;
 pub mod layout;
-pub mod llama_server;
-pub mod model;
+pub(crate) mod llama_server;
+pub(crate) mod model;

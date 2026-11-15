@@ -4,4 +4,4 @@ pub mod backend;
 pub mod cli;
 pub mod config;
 pub mod provision;
-pub mod ui;
+mod ui;

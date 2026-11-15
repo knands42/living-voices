@@ -6,9 +6,9 @@ mod working;
 use std::sync::Arc;
 
 use crate::config::{Config, Settings};
-use crate::provision::entrypoint::start_provisioning;
 use crate::provision::{
     ComfyEvent, Gpu, MediaRecommendation, RunningEngines, human_bytes, start_engines,
+    start_provisioning,
 };
 use crate::ui::pages::setup::header::header;
 use crate::ui::pages::setup::question::question;
@@ -23,7 +23,7 @@ use iced::widget::{container, scrollable};
 use iced::{Alignment, Element, Length, Task};
 
 const PROGRESS_EVERY_BYTES: u64 = 64 * 1024 * 1024;
-pub const COLUMN_LENGTH: f32 = 620.0;
+const COLUMN_LENGTH: f32 = 620.0;
 
 #[derive(Debug, Clone)]
 pub enum Message {

@@ -1,2 +1,2 @@
-pub mod comfy_image;
-pub mod workflow;
+pub(crate) mod comfy_image;
+pub(crate) mod workflow;

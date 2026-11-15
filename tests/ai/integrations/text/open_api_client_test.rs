@@ -1,5 +1,6 @@
-use living_voices::ai::integrations::text::memory_handler;
-use living_voices::ai::{ChatMessage, JsonSchema, OpenAiCompatibleClient, ResponseFormat};
+use living_voices::ai::{
+    ChatMessage, JsonSchema, MemoryHandler, OpenAiCompatibleClient, ResponseFormat,
+};
 use serde_json::json;
 
 const OLLAMA_URL: &str = "http://localhost:11434/v1";
@@ -73,15 +74,10 @@ async fn memory_model_returns_a_memory_record() {
         ChatMessage::user("I hate the sea."),
     ];
 
-    let update = memory_handler::MemoryHandler::distill(
-        &client(),
-        MEMORY_MODEL,
-        MEMORY_TEMPERATURE,
-        &history,
-        None,
-    )
-    .await
-    .expect("distill");
+    let update =
+        MemoryHandler::distill(&client(), MEMORY_MODEL, MEMORY_TEMPERATURE, &history, None)
+            .await
+            .expect("distill");
 
     // The distiller's wording is its own business; the contract is a record
     // carrying at least one structured fact and a usable state snapshot.

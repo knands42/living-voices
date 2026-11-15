@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use living_voices::ai::integrations::image::comfy_image::ComfyImage;
+use living_voices::ai::ComfyImage;
 use living_voices::backend::application::port::image_port::ImagePort;
 use living_voices::config::{ImageModel, SupportedModel};
 

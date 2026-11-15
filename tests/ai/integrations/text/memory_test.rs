@@ -1,6 +1,4 @@
-use living_voices::ai::integrations::text::memory_handler::{
-    CharacterConditionSnapshot, MemoryHandler,
-};
+use living_voices::ai::{CharacterConditionSnapshot, MemoryHandler};
 
 #[test]
 fn parses_the_schema_shaped_object() {

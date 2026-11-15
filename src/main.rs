@@ -2,10 +2,10 @@ use living_voices::backend::PersistenceError;
 #[cfg(debug_assertions)]
 use living_voices::backend::application::adventure_manager::AdventureManagerError;
 use living_voices::backend::application::port::image_port::ImageError;
-use living_voices::provision::entrypoint::{
-    default_media_progress_logger, default_text_progress_logger, start_provisioning,
+use living_voices::provision::{
+    Gpu, default_media_progress_logger, default_text_progress_logger, start_engines,
+    start_provisioning,
 };
-use living_voices::provision::{Gpu, start_engines};
 use living_voices::{
     app::App,
     backend::{open_pool, run_migrations},
@@ -103,7 +103,7 @@ async fn run_cli(app: &App, config: Config) -> Result<(), StartupError> {
     let ctx = app
         .context_for(&engines.stamp(config))
         .map_err(StartupError::Compose)?;
-    tokio::task::block_in_place(|| cli::init::run(&ctx)).map_err(StartupError::Cli)
+    tokio::task::block_in_place(|| cli::run(&ctx)).map_err(StartupError::Cli)
 }
 
 async fn run() -> Result<(), StartupError> {
