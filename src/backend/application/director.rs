@@ -25,9 +25,7 @@ impl Director {
             return true;
         }
 
-        if messages_since_narration
-            .is_some_and(|since| since < self.director_settings.narrator_min_gap)
-        {
+        if !self.narrator_gap_met(messages_since_narration) {
             return false;
         }
 
@@ -38,6 +36,11 @@ impl Director {
         }
 
         roll < self.narrator_chance(messages_since_narration.unwrap_or(u8::MAX))
+    }
+
+    pub fn narrator_gap_met(&self, messages_since_narration: Option<u8>) -> bool {
+        !messages_since_narration
+            .is_some_and(|since| since < self.director_settings.narrator_min_gap)
     }
 
     pub fn pick_character<'a>(&self, candidates: &'a [&Character]) -> Option<&'a Character> {

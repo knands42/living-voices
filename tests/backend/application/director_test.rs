@@ -145,6 +145,17 @@ fn a_narrator_that_never_spoke_is_not_gated() {
     assert!(d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), &line(false), None));
 }
 
+#[test]
+fn the_gap_helper_matches_the_speak_gate() {
+    // given: a 10-message gap
+    let d = gap_director(10);
+
+    // when/then: the helper exposes the same boundary the gate enforces
+    assert!(!d.narrator_gap_met(Some(9)));
+    assert!(d.narrator_gap_met(Some(10)));
+    assert!(d.narrator_gap_met(None));
+}
+
 // ------------------------------------------------------------ picking a character
 
 #[test]

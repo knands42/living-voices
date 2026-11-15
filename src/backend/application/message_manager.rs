@@ -3,7 +3,7 @@ use crate::backend::application::context::{ContextBuilder, ContextData};
 use crate::backend::application::director::Director;
 use crate::backend::application::memory_manager::{MemoryManager, MemoryManagerError};
 use crate::backend::application::port::chat_port::{
-    ChatPort, ChatReply, ChatResponseError, NarratorPort,
+    ChatPort, ChatReply, ChatResponseError, NarratorPort, PromptTurn,
 };
 use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
 use crate::backend::application::state::{SharedState, StateError};
@@ -35,7 +35,7 @@ pub enum MessageManagerError {
     NoAdventure,
 }
 
-struct TurnInput {
+struct MessageContext {
     adventure: Adventure,
     present_names: Vec<String>,
     messages_since_narration: Option<u8>,
@@ -100,7 +100,14 @@ impl<
         Ok(stored_reply)
     }
 
-    async fn run_follow_ups(&self, last_message: Message) -> Result<(), MessageManagerError> {
+    async fn create_message(&self, message: Message) -> Result<Message, MessageManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        let mut stored = insert_messages(&mut conn, std::slice::from_ref(&message)).await?;
+
+        Ok(stored.remove(0))
+    }
+
+    async fn run_follow_ups(&self, mut last_message: Message) -> Result<(), MessageManagerError> {
         let mut steps_taken = 0;
 
         loop {
@@ -137,11 +144,12 @@ impl<
             let stored = self.create_message(message).await?;
             log::info!("follow-up from {}", stored.speaker_name);
 
+            last_message = stored;
             steps_taken += 1;
         }
     }
 
-    async fn gather_data(&self) -> Result<TurnInput, MessageManagerError> {
+    async fn gather_data(&self) -> Result<MessageContext, MessageManagerError> {
         let adventure = {
             let guard = self.state.read()?;
             guard
@@ -157,7 +165,7 @@ impl<
         let active_act = get_active_act(&mut conn, adventure.id).await?;
         let uncovered_messages = self.load_uncovered(&mut conn, &active_act).await?;
 
-        Ok(TurnInput {
+        Ok(MessageContext {
             adventure,
             present_names,
             messages_since_narration,
@@ -169,7 +177,7 @@ impl<
     async fn respond(
         &self,
         incoming: &Message,
-        input: &TurnInput,
+        input: &MessageContext,
     ) -> Result<ChatReply, MessageManagerError> {
         let active_characters = input.adventure.active_characters(&input.present_names);
         let data = self.load_context(&input.adventure).await?;
@@ -198,7 +206,7 @@ impl<
     async fn process_respond(
         &self,
         chat_reply: ChatReply,
-        input: TurnInput,
+        input: MessageContext,
     ) -> Result<Message, MessageManagerError> {
         let reply_message = input
             .adventure
@@ -219,13 +227,6 @@ impl<
     ACT: ActCloserPort + Clone + 'static,
 > MessageManager<CHAT, NARRATOR, MEMORY, ACT>
 {
-    async fn create_message(&self, message: Message) -> Result<Message, MessageManagerError> {
-        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let mut stored = insert_messages(&mut conn, std::slice::from_ref(&message)).await?;
-
-        Ok(stored.remove(0))
-    }
-
     async fn send_to_handler(
         &self,
         adventure: &Adventure,
@@ -311,7 +312,7 @@ impl<
     async fn check_and_update_current_act(
         &self,
         chat_reply: ChatReply,
-        input: &TurnInput,
+        input: &MessageContext,
         last_message: Message,
     ) -> Result<(), MessageManagerError> {
         let score = chat_reply.act_closure.unwrap_or(0);
@@ -346,7 +347,7 @@ impl<
         Ok(())
     }
 
-    async fn close_current_act(&self, input: &TurnInput) -> Result<(), MessageManagerError> {
+    async fn close_current_act(&self, input: &MessageContext) -> Result<(), MessageManagerError> {
         let Some(act) = input.active_act.as_ref() else {
             log::error!("No active act found for adventure {}", input.adventure.id);
             return Ok(());
