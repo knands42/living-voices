@@ -3,7 +3,7 @@ use iced::{Alignment, Element, Length};
 
 use crate::backend::domain::message::Message as MessageLine;
 use crate::ui::pages::chat::composer::composer;
-use crate::ui::pages::chat::look::{AVATAR, initials_of, name_hue};
+use crate::ui::pages::chat::look::AVATAR;
 use crate::ui::pages::chat::markup::{Look, rich};
 use crate::ui::pages::chat::top::top;
 use crate::ui::pages::chat::{Message, Scene};
@@ -90,7 +90,7 @@ fn narrator(message: &MessageLine) -> Element<'_, Message> {
 }
 
 fn speech<'a>(chat_state: &'a Scene, message: &'a MessageLine) -> Element<'a, Message> {
-    let hue = name_hue(message.speaker_name.as_str());
+    let hue = common::name_hue(message.speaker_name.as_str());
     let is_player = chat_state
         .adventure
         .as_ref()
@@ -125,7 +125,7 @@ fn speech<'a>(chat_state: &'a Scene, message: &'a MessageLine) -> Element<'a, Me
         .max_width(BUBBLE_LENGTH)
         .style(move |_theme| theme::bubble(hue, is_player, 1.0));
 
-    let initials = initials_of(message.speaker_name.as_str());
+    let initials = common::initials_of(message.speaker_name.as_str());
     let avatar = common::initials(&initials, hue, AVATAR, 0.55);
 
     if is_player {

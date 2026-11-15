@@ -11,7 +11,9 @@ use crate::backend::persistence::adventure_persistence::{
 use crate::backend::persistence::characters_persistence::insert_default_player_character;
 use crate::backend::persistence::fact_persistence::{get_facts, insert_default_facts};
 use crate::backend::persistence::lore_persistence::insert_default_lore;
-use crate::backend::persistence::message_persistence::{fetch_last_n, insert_message};
+use crate::backend::persistence::message_persistence::{
+    fetch_last_n, fetch_opening, insert_message, update_opening_text,
+};
 use crate::backend::persistence::state_persistence::{get_state, insert_default_state};
 use crate::backend::{
     PersistenceError,
@@ -295,6 +297,39 @@ impl AdventureManager {
     ) -> Result<Vec<Message>, AdventureManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         Ok(fetch_last_n(&mut conn, adventure_id, limit as u16).await?)
+    }
+
+    pub async fn get_opening(
+        &self,
+        adventure_id: Uuid,
+    ) -> Result<Option<Message>, AdventureManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        Ok(fetch_opening(&mut conn, adventure_id).await?)
+    }
+
+    pub async fn save_opening(
+        &self,
+        adventure_id: Uuid,
+        text: &str,
+    ) -> Result<(), AdventureManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+
+        if update_opening_text(&mut conn, adventure_id, text).await? > 0 {
+            return Ok(());
+        }
+
+        let adventure = get_adventure(&mut conn, adventure_id).await?;
+        let opening = Message::new(
+            adventure_id,
+            None,
+            Some(adventure.narrator.id),
+            Message::NARRATOR_SPEAKER_NAME.to_string(),
+            text,
+            false,
+        );
+        insert_message(&mut conn, &opening).await?;
+
+        Ok(())
     }
 
     pub fn current_adventure(&self) -> Option<Adventure> {

@@ -6,7 +6,9 @@ use iced::{Element, Length, Task};
 use uuid::Uuid;
 
 use crate::backend::application::adventure_manager::{AdventureManager, AdventureManagerError};
-use crate::backend::domain::adventure::{Adventure, AdventureSummary, OngoingAdventure};
+use crate::backend::domain::adventure::{
+    Adventure, AdventureStatus, AdventureSummary, OngoingAdventure,
+};
 use crate::ui::layout;
 use crate::ui::pages::main_hub::body::{body, new_adventure_popup};
 use crate::ui::pages::main_hub::header::header;
@@ -91,7 +93,7 @@ impl State {
             Message::SetupRequested => return (Task::none(), Event::Show(Page::Setup)),
             Message::ChatRequested => return (Task::none(), Event::Show(Page::Chat)),
             Message::OpenAdventure(adventure_id) => {
-                return (Task::none(), Event::OpenChat(adventure_id));
+                return (Task::none(), self.opened(adventure_id));
             }
             Message::SearchChanged(query) => self.query = query,
             Message::TagSelected(tag) => self.active_tag = tag,
@@ -113,7 +115,7 @@ impl State {
                 return (self.create_adventure(draft), Event::None);
             }
             Message::AdventureDraftCreated(result) => match result {
-                Ok(_) => return (self.load(), Event::None),
+                Ok(adventure) => return (self.load(), Event::OpenBuilder(adventure.id)),
                 Err(err) => log::error!("could not create adventure: {err}"),
             },
             Message::Noop => {}
@@ -139,6 +141,20 @@ impl State {
             Stack::with_children([page, new_adventure_popup(self)]).into()
         } else {
             page
+        }
+    }
+
+    fn opened(&self, adventure_id: Uuid) -> Event {
+        match self
+            .catalogue
+            .adventures
+            .iter()
+            .find(|adventure| adventure.id == adventure_id)
+        {
+            Some(adventure) if adventure.status == AdventureStatus::Draft => {
+                Event::OpenBuilder(adventure_id)
+            }
+            _ => Event::OpenChat(adventure_id),
         }
     }
 

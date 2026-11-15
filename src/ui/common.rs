@@ -1,3 +1,6 @@
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
 use crate::ui::{assets, theme};
 use iced::widget::{Container, Space, container, image, progress_bar, text};
 use iced::{Alignment, ContentFit, Element, Font, Length};
@@ -23,6 +26,16 @@ pub fn italic() -> Font {
         style: iced::font::Style::Italic,
         ..Font::DEFAULT
     }
+}
+
+pub fn initials_of(name: &str) -> String {
+    name.chars().take(2).collect::<String>().to_uppercase()
+}
+
+pub fn name_hue(name: &str) -> f32 {
+    let mut hasher = DefaultHasher::new();
+    name.hash(&mut hasher);
+    (hasher.finish() % 360) as f32
 }
 
 /// A panel title, e.g. "Cast".

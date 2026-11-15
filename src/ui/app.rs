@@ -9,7 +9,7 @@ use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistil
 use crate::config::Config;
 use crate::provision::{Gpu, RunningEngines};
 use crate::ui::layout;
-use crate::ui::pages::{Event, Page, chat, main_hub, setup};
+use crate::ui::pages::{Event, Page, builder, chat, main_hub, setup};
 
 pub type Rebuild<C, N, M, A, P, I> =
     Arc<dyn Fn(&Config) -> Result<AppContext<C, N, M, A, P, I>, String> + Send + Sync>;
@@ -17,6 +17,7 @@ pub type Rebuild<C, N, M, A, P, I> =
 #[derive(Debug, Clone)]
 pub enum Message {
     MainHub(main_hub::Message),
+    Builder(builder::Message),
     Chat(chat::Message),
     Setup(setup::Message),
     WindowResized(Size),
@@ -34,6 +35,7 @@ pub struct App<
 > {
     page: Page,
     main_hub: main_hub::State,
+    builder: builder::State<P, I>,
     chat: chat::State<C, N, M, A>,
     setup: setup::State,
     rebuild: Rebuild<C, N, M, A, P, I>,
@@ -70,6 +72,11 @@ impl<
         );
         let (main_hub, hub_task) =
             main_hub::State::boot(ctx.adventure_manager.clone(), handle.clone());
+        let (builder, _builder_task) = builder::State::boot(
+            ctx.adventure_manager.clone(),
+            ctx.character_manager.clone(),
+            handle.clone(),
+        );
         let (setup, setup_task) = setup::State::boot(config, gpu, handle.clone());
 
         let page = if open_setup || setup.needs_answer() {
@@ -81,6 +88,7 @@ impl<
         let app = Self {
             page,
             main_hub,
+            builder,
             chat,
             setup,
             rebuild,
@@ -108,6 +116,10 @@ impl<
             Message::MainHub(message) => {
                 let outcome = self.main_hub.update(message);
                 self.route(outcome, Message::MainHub)
+            }
+            Message::Builder(message) => {
+                let outcome = self.builder.update(message);
+                self.route(outcome, Message::Builder)
             }
             Message::Chat(message) => {
                 let outcome = self.chat.update(message);
@@ -153,6 +165,7 @@ impl<
     pub fn view(&self) -> Element<'_, Message> {
         match self.page {
             Page::MainHub => self.main_hub.view().map(Message::MainHub),
+            Page::Builder => self.builder.view().map(Message::Builder),
             Page::Chat => self.chat.view().map(Message::Chat),
             Page::Setup => self.setup.view().map(Message::Setup),
         }
@@ -165,7 +178,7 @@ impl<
             Page::Setup => {
                 iced::Subscription::batch([self.setup.subscription().map(Message::Setup), resizes])
             }
-            Page::MainHub | Page::Chat => resizes,
+            Page::MainHub | Page::Builder | Page::Chat => resizes,
         }
     }
 
@@ -182,6 +195,10 @@ impl<
         match event {
             Event::None => Task::none(),
             Event::Show(page) => self.show(page),
+            Event::OpenBuilder(adventure_id) => {
+                self.page = Page::Builder;
+                self.builder.open(adventure_id).map(Message::Builder)
+            }
             Event::OpenChat(adventure_id) => {
                 self.page = Page::Chat;
                 self.chat.open(adventure_id).map(Message::Chat)
@@ -198,7 +215,7 @@ impl<
                 let outcome = self.main_hub.update(main_hub::Message::Refresh);
                 self.route(outcome, Message::MainHub)
             }
-            Page::Chat | Page::Setup => Task::none(),
+            Page::Builder | Page::Chat | Page::Setup => Task::none(),
         }
     }
 
@@ -210,6 +227,8 @@ impl<
             Ok(ctx) => {
                 self.chat
                     .rebind(ctx.adventure_manager.clone(), ctx.message_manager.clone());
+                self.builder
+                    .rebind(ctx.adventure_manager.clone(), ctx.character_manager.clone());
                 self.main_hub.rebind(ctx.adventure_manager);
             }
             Err(err) => log::error!("could not point the app at the new engines: {err}"),

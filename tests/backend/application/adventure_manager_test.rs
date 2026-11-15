@@ -5,6 +5,7 @@ use living_voices::backend::application::{
 };
 use living_voices::backend::domain::adventure::AdventureStatus;
 use living_voices::backend::domain::memory::{Act, ActStatus};
+use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::act_persistence::get_acts;
 use living_voices::backend::persistence::adventure_persistence::get_adventure;
 use living_voices::backend::persistence::fact_persistence::get_facts;
@@ -336,4 +337,53 @@ async fn start_adventure_requires_every_act_to_have_a_goal() {
         .expect("acts");
     assert_eq!(acts[0].status, ActStatus::Active);
     assert_eq!(acts[1].status, ActStatus::Unstarted);
+}
+
+#[tokio::test]
+async fn save_opening_writes_the_first_message_once_and_rewrites_it_after() {
+    // given: an adventure with no messages
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let adventure_manager = AdventureManager::new(state.clone(), pool.clone());
+    let adventure = adventure_manager
+        .create_adventure(
+            "Test adventure".into(),
+            "A drowned city".into(),
+            "tense".into(),
+        )
+        .await
+        .expect("create adventure");
+
+    // when: the narrator's first words are saved twice
+    adventure_manager
+        .save_opening(adventure.id, "The tide came in.")
+        .await
+        .expect("save opening");
+    adventure_manager
+        .save_opening(adventure.id, "The tide went out.")
+        .await
+        .expect("rewrite opening");
+
+    // then: the adventure still has a single opening, holding the last text
+    let messages = adventure_manager
+        .get_messages(adventure.id, 10)
+        .await
+        .expect("messages");
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0].text, "The tide went out.");
+    assert_eq!(messages[0].narrator_id, Some(adventure.narrator.id));
+    assert_eq!(
+        messages[0].speaker_name,
+        Message::NARRATOR_SPEAKER_NAME.to_string()
+    );
+
+    // and: the page reads the same opening back
+    let opening = adventure_manager
+        .get_opening(adventure.id)
+        .await
+        .expect("opening");
+    assert_eq!(
+        opening.map(|message| message.text),
+        Some("The tide went out.".to_string())
+    );
 }

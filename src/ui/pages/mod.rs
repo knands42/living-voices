@@ -1,4 +1,4 @@
-mod builder;
+pub mod builder;
 pub mod chat;
 pub mod main_hub;
 pub mod setup;
@@ -13,6 +13,7 @@ use crate::provision::RunningEngines;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Page {
     MainHub,
+    Builder,
     Chat,
     Setup,
 }
@@ -20,6 +21,7 @@ pub enum Page {
 pub enum Event {
     None,
     Show(Page),
+    OpenBuilder(Uuid),
     OpenChat(Uuid),
     EnginesReady {
         engines: Arc<RunningEngines>,

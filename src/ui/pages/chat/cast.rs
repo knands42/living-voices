@@ -3,7 +3,7 @@ use iced::widget::{column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
 
 use crate::backend::domain::character::Character;
-use crate::ui::pages::chat::look::{AVATAR, initials_of, name_hue};
+use crate::ui::pages::chat::look::AVATAR;
 use crate::ui::pages::chat::{Message, Scene};
 use crate::ui::{common, theme};
 
@@ -33,8 +33,8 @@ pub fn cast_rail(chat_state: &Scene) -> Element<'_, Message> {
 }
 
 fn cast_row(character: &Character) -> Element<'_, Message> {
-    let hue = name_hue(character.name.as_str());
-    let initials = initials_of(character.name.as_str());
+    let hue = common::name_hue(character.name.as_str());
+    let initials = common::initials_of(character.name.as_str());
     let avatar = common::initials(&initials, hue, AVATAR, 0.55);
 
     let name = row![

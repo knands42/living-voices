@@ -107,6 +107,44 @@ pub async fn fetch_last_n(
         .collect()
 }
 
+pub async fn fetch_opening(
+    conn: &mut SqliteConnection,
+    adventure_id: Uuid,
+) -> Result<Option<Message>, PersistenceError> {
+    let row = sqlx::query(
+        "SELECT seq, adventure_id, character_id, narrator_id, speaker_name, text, ooc, created_at
+         FROM message
+         WHERE adventure_id = ?1
+         ORDER BY seq ASC
+         LIMIT 1",
+    )
+    .bind(adventure_id.to_string())
+    .fetch_optional(&mut *conn)
+    .await?;
+
+    row.map(|row| MessageRow::decode(&row))
+        .map(Message::try_from)
+        .transpose()
+}
+
+pub async fn update_opening_text(
+    conn: &mut SqliteConnection,
+    adventure_id: Uuid,
+    text: &str,
+) -> Result<u64, PersistenceError> {
+    let result = sqlx::query(
+        "UPDATE message SET text = ?1
+         WHERE adventure_id = ?2
+           AND seq = (SELECT MIN(seq) FROM message WHERE adventure_id = ?2)",
+    )
+    .bind(text)
+    .bind(adventure_id.to_string())
+    .execute(&mut *conn)
+    .await?;
+
+    Ok(result.rows_affected())
+}
+
 /// How many messages have been appended since the narrator last spoke
 /// `None` when the narrator has not spoken in this adventure yet
 pub async fn count_since_last_narration(
