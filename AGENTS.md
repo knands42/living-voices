@@ -117,7 +117,8 @@ Testing).
   build needs no live database and no `.sqlx` cache.
 - **Paths depend on the build profile** (`src/config/mod.rs`): debug reads `config.toml` from the repo
   working dir, release from `$HOME/.living-voice`. `config-local.toml` is gitignored, copied from
-  `config.toml` by `just dev-requirements`. The first-run gate writes its one answer back into
+  `config.toml` by `just dev-requirements`, and in debug builds it is deep-merged over `config.toml`,
+  so it only needs the keys it overrides. The first-run gate writes its one answer back into
   `config.toml` (`[models.image] enabled` + `[setup] media_engine_asked`); `--setup` asks again.
 - **Three appearance layers, each owned by one field.** `appearance` is the authored identity, already
   shaped as an image fragment (face, hair, build, marks, art direction) — only the original full body

@@ -17,7 +17,7 @@ test-ignored:
 
 run-debug: build
     rm *.db* | true
-    ./target/debug/living_voices
+    RUST_LOG=${RUST_LOG:-debug,winit=off,tracing=off,cosmic_text=warn} ./target/debug/living_voices
 
 # Live-reload the whole app
 watch:

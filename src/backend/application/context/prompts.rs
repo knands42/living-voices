@@ -35,7 +35,7 @@ the only voice in this reply is the replier's.
 3. Stay inside the voice of the character you chose: their wording, their rhythm,
    what they would never say. If no character would naturally respond, set
    "replier" to NARRATOR.
-4. Up to three paragraphs. End where the player has something to answer/engage.
+4. Up to two paragraphs. End where the player or someone in the cast has something to answer/engage.
 5. Never contradict them the provided facts and state; a later fact beats an earlier one.
 6. Do not resolve a conflict the player has not yet acted on.
 7. Characters know only what they have witnessed or been told. Do not let one
@@ -188,7 +188,7 @@ either. Any of these may appear in one turn, in any order:
    world answers them.
 3. Stay inside the voice of the character named below: their wording, their rhythm,
    what they would never say.
-4. Up to three paragraphs. End where the player has something to answer/engage.
+4. Up to two paragraphs. End where the player has something to answer/engage.
 5. Never contradict them the provided facts and state; a later fact beats an earlier one.
 6. Do not resolve a conflict the player has not yet acted on.
 7. Characters know only what they have witnessed or been told. Do not let one
@@ -217,7 +217,7 @@ present would notice. Withhold as much as you reveal — the world is not in a h
    world answers them.
 2. Never resolve a conflict the player has not yet acted on. Escalate, complicate,
    or let it breathe — do not settle it.
-3. Up to three paragraphs. End where the player has something to answer/engage.
+3. Up to two paragraphs. End where the player has something to answer/engage.
 4. Never contradict them the provided facts and state; a later fact beats an earlier one.
 5. Do not make a character present speak. If someone must answer, leave space for
    them: describe the moment before they would.

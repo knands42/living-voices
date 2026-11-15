@@ -12,6 +12,7 @@ pub use settings::{
 };
 
 const CONFIG_FILE: &str = "config.toml";
+const LOCAL_CONFIG_FILE: &str = "config-local.toml";
 const DB_FILE: &str = "living_voices.db";
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,7 +52,7 @@ impl Config {
             Settings::write_template(&config_file)?;
         }
 
-        let mut settings = Settings::load(&config_file);
+        let mut settings = load_settings(&config_dir, &config_file);
         if settings.models.image.output_dir.is_relative() {
             settings.models.image.output_dir = config_dir.join(&settings.models.image.output_dir);
         }
@@ -113,6 +114,16 @@ impl Config {
         self.settings.update_file(self.config_file.as_path())?;
         Ok(())
     }
+}
+
+#[cfg_attr(not(debug_assertions), allow(unused_variables))]
+fn load_settings(config_dir: &Path, config_file: &Path) -> Settings {
+    #[cfg(debug_assertions)]
+    let settings = Settings::load_with_override(config_file, &config_dir.join(LOCAL_CONFIG_FILE));
+    #[cfg(not(debug_assertions))]
+    let settings = Settings::load(config_file);
+
+    settings
 }
 
 #[cfg(debug_assertions)]

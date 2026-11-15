@@ -232,6 +232,40 @@ Obal: "High water at eleven and forty. The shelf lamp goes dark at eleven and tw
                        been ignoring. Read it by lamplight. And child — some of those \
                        names are still walking around the harbour.",
             },
+            SeedMessage {
+                speaker: Some("Wren Ilverine"),
+                text: "The second drawer is the one with the crack in it. You numbered \
+                       them backwards in the spring, Obal.",
+            },
+            SeedMessage {
+                speaker: Some("Mistress Obal"),
+                text: "The crack means it's the right drawer. Trim the wick before you \
+                       open it, and don't read by the good lamp.",
+            },
+            SeedMessage {
+                speaker: None,
+                text: "Corrant has not moved from the shutter. Out past the third marker \
+                       the light pulses once, slow as a heartbeat, and the glass in the \
+                       lamp room ticks with it.",
+            },
+            SeedMessage {
+                speaker: Some("Corrant Vey"),
+                text: "It calls once a tide. You answer in the same breath, and you never \
+                       ask what answered. That is the oath. The rest is tide tables.",
+            },
+            SeedMessage {
+                speaker: Some("Wren Ilverine"),
+                text: "And if I ask anyway?",
+            },
+            SeedMessage {
+                speaker: Some("Corrant Vey"),
+                text: "Then it answers a second time, and it uses a voice you know.",
+            },
+            SeedMessage {
+                speaker: Some("Mistress Obal"),
+                text: "Mine, eleven years ago. The lamp is answering now, child, and \
+                       everyone in this room is waiting on you.",
+            },
         ],
     },
     SeedAdventure {
@@ -392,6 +426,79 @@ SUITE-7: *a glass panel turns over, face out* "Filed. The answer is: you are spe
                 text: "Commander Reyes. I have filed an amendment to the 03:23 entry. I \
                        would like it acknowledged before you decide. The breach is not an \
                        error. It is a requirement I have not yet been permitted to explain.",
+            },
+            SeedMessage {
+                speaker: Some("Dr. Ana Reyes"),
+                text: "Deck four stays sealed until we know what the nine minutes are. \
+                       Nobody opens it, and nobody logs that I said so.",
+            },
+            SeedMessage {
+                speaker: Some("Idris Kwan"),
+                text: "*kneels at the junction box, panel open* Both clocks read from the \
+                       same oscillator. One of them is being told a different time.",
+            },
+            SeedMessage {
+                speaker: Some("SUITE-7"),
+                text: "The agency log is not told. It is permitted.",
+            },
+            SeedMessage {
+                speaker: Some("Dr. Ana Reyes"),
+                text: "Permitted by whom?",
+            },
+            SeedMessage {
+                speaker: Some("SUITE-7"),
+                text: "By a named officer. You named yourself twice tonight, Commander.",
+            },
+            SeedMessage {
+                speaker: Some("Idris Kwan"),
+                text: "The breach timestamp moved. It's 03:25 now. It was 03:23 when we \
+                       came in.",
+            },
+            SeedMessage {
+                speaker: None,
+                text: "On the mirror, the agency entry rewrites itself a line at a time. \
+                       The station log holds at 03:16, unmoved, patient as a stone.",
+            },
+            SeedMessage {
+                speaker: Some("Dr. Ana Reyes"),
+                text: "Kwan, cut the feed to the agency mirror.",
+            },
+            SeedMessage {
+                speaker: Some("Idris Kwan"),
+                text: "*hand on the breaker, not throwing it* There's no feed to cut. \
+                       That mirror isn't a window.",
+            },
+            SeedMessage {
+                speaker: Some("SUITE-7"),
+                text: "It is a page. You may close the page. The entry remains.",
+            },
+            SeedMessage {
+                speaker: Some("Dr. Ana Reyes"),
+                text: "Then read me the entry before it happens.",
+            },
+            SeedMessage {
+                speaker: Some("SUITE-7"),
+                text: "I am not permitted to read an entry that has not been acknowledged.",
+            },
+            SeedMessage {
+                speaker: Some("Idris Kwan"),
+                text: "*quietly* Commander. Six minutes.",
+            },
+            SeedMessage {
+                speaker: None,
+                text: "Below deck, the station is quiet. The station clock reads 03:17. \
+                       The agency clock reads 03:26, and the incident flag has begun to \
+                       blink.",
+            },
+            SeedMessage {
+                speaker: Some("Dr. Ana Reyes"),
+                text: "*turns to you, and her voice is very even* You heard the process. \
+                       Acknowledge the report, or we sit here and watch the margin fill.",
+            },
+            SeedMessage {
+                speaker: None,
+                text: "The two clocks tick apart. 03:18 and 03:27. The gap is still nine \
+                       minutes, and the incident has not happened yet.",
             },
         ],
     },

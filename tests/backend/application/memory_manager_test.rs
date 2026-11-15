@@ -86,13 +86,14 @@ async fn compress_is_a_noop_without_a_current_adventure() {
     let (pool, _db) = setup_db().await;
     let manager = setup_memory_manager(&SharedState::new(), &pool);
     let act = Act::new(Uuid::new_v4(), 1, "reach the surface");
+    let facts_before = fact_count(&pool).await;
 
     // when: compressing
     let result = manager.compress_and_update(&act, &[]).await;
 
     // then: it succeeds without touching the database
     assert!(result.is_ok());
-    assert_eq!(fact_count(&pool).await, 0);
+    assert_eq!(fact_count(&pool).await, facts_before);
 }
 
 #[tokio::test]
@@ -169,13 +170,14 @@ async fn close_current_act_is_a_noop_without_a_current_adventure() {
     let (pool, _db) = setup_db().await;
     let memory_manager = setup_memory_manager(&SharedState::new(), &pool);
     let act = Act::new(Uuid::new_v4(), 1, "reach the surface");
+    let facts_before = fact_count(&pool).await;
 
     // when: closing the act
     let result = memory_manager.close_current_act(&act, &[]).await;
 
     // then: it succeeds without writing memory
     assert!(result.is_ok());
-    assert_eq!(fact_count(&pool).await, 0);
+    assert_eq!(fact_count(&pool).await, facts_before);
 }
 
 #[tokio::test]

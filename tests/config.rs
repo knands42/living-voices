@@ -91,3 +91,51 @@ fn the_gate_answer_is_written_into_config_toml() {
     assert!(!config.settings.models.image.enabled);
     assert!(!config.needs_setup());
 }
+
+#[cfg(debug_assertions)]
+#[test]
+fn a_local_config_overrides_only_the_keys_it_sets() {
+    // given a base config and a local file that changes one key
+    let dir = std::env::temp_dir().join(format!("lv_config_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).expect("create dir");
+    let base = dir.join("config.toml");
+    let local = dir.join("config-local.toml");
+    std::fs::write(
+        &base,
+        "[models.chat]\nmodel = \"base-model\"\ntemperature = 0.5\n",
+    )
+    .expect("write base");
+    std::fs::write(&local, "[models.chat]\ntemperature = 0.9\n").expect("write local");
+
+    // when the local layer is applied on top
+    let settings = Settings::load_with_override(&base, &local);
+    std::fs::remove_dir_all(&dir).expect("clean up");
+
+    // then the local key wins and every untouched base key survives
+    assert_eq!(settings.models.chat.temperature, 0.9);
+    assert_eq!(settings.models.chat.model, "base-model");
+}
+
+#[cfg(debug_assertions)]
+#[test]
+fn an_invalid_local_config_leaves_the_base_config_untouched() {
+    // given a local file whose value has the wrong type
+    let dir = std::env::temp_dir().join(format!("lv_config_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).expect("create dir");
+    let base = dir.join("config.toml");
+    let local = dir.join("config-local.toml");
+    std::fs::write(
+        &base,
+        "[models.chat]\nmodel = \"base-model\"\ntemperature = 0.5\n",
+    )
+    .expect("write base");
+    std::fs::write(&local, "[models.chat]\ntemperature = \"hot\"\n").expect("write local");
+
+    // when the local layer is applied on top
+    let settings = Settings::load_with_override(&base, &local);
+    std::fs::remove_dir_all(&dir).expect("clean up");
+
+    // then the broken layer is dropped and the base still holds
+    assert_eq!(settings.models.chat.temperature, 0.5);
+    assert_eq!(settings.models.chat.model, "base-model");
+}

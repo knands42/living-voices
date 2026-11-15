@@ -210,19 +210,50 @@ impl Default for ImageModel {
 
 impl Settings {
     pub fn load(path: &Path) -> Self {
-        match std::fs::read_to_string(path) {
-            Ok(text) => match toml::from_str(&text) {
-                Ok(settings) => settings,
-                Err(err) => {
-                    log::warn!("Invalid config at {}: {err}", path.display());
-                    Self::default()
-                }
-            },
-            Err(err) => {
-                log::warn!("Could not read config at {}: {err}", path.display());
-                Self::default()
+        Self::load_layered(&[path])
+    }
+
+    /// Debug builds layer `config-local.toml` over `config.toml`, so the local
+    /// file only has to carry the keys it changes.
+    #[cfg(debug_assertions)]
+    pub fn load_with_override(base: &Path, overrides: &Path) -> Self {
+        if !overrides.exists() {
+            return Self::load(base);
+        }
+
+        log::info!("Config overrides from {}", overrides.display());
+        Self::load_layered(&[base, overrides])
+    }
+
+    fn load_layered(paths: &[&Path]) -> Self {
+        let mut merged = toml::Value::Table(toml::Table::new());
+
+        for path in paths {
+            match Self::read_layer(path) {
+                Ok(value) => merge(&mut merged, value),
+                Err(err) => log::warn!("Ignoring {err}"),
             }
         }
+
+        merged.try_into().unwrap_or_else(|err| {
+            log::warn!("Invalid config: {err}");
+            Self::default()
+        })
+    }
+
+    fn read_layer(path: &Path) -> Result<toml::Value, String> {
+        let text = std::fs::read_to_string(path)
+            .map_err(|err| format!("config at {}: {err}", path.display()))?;
+        let value: toml::Value =
+            toml::from_str(&text).map_err(|err| format!("config at {}: {err}", path.display()))?;
+
+        // A layer with a wrong type must not poison the layers under it.
+        value
+            .clone()
+            .try_into::<Settings>()
+            .map_err(|err| format!("config at {}: {err}", path.display()))?;
+
+        Ok(value)
     }
 
     /// The commented template shipped with the binary, for a machine that has
@@ -248,5 +279,24 @@ impl Settings {
         log::info!("Config written to {}", path.display());
 
         Ok(())
+    }
+}
+
+fn merge(base: &mut toml::Value, overrides: toml::Value) {
+    match overrides {
+        toml::Value::Table(override_table) => match base {
+            toml::Value::Table(base_table) => {
+                for (key, value) in override_table {
+                    match base_table.get_mut(&key) {
+                        Some(slot) => merge(slot, value),
+                        None => {
+                            base_table.insert(key, value);
+                        }
+                    }
+                }
+            }
+            slot => *slot = toml::Value::Table(override_table),
+        },
+        other => *base = other,
     }
 }

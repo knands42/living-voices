@@ -461,8 +461,9 @@ mod load_uncovered_tests {
         (pool, db, adventure_id)
     }
 
-    async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: usize) {
+    async fn seed_messages(pool: &SqlitePool, adventure_id: Uuid, count: usize) -> Vec<Message> {
         let mut conn = pool.acquire().await.expect("acquire");
+        let mut stored = Vec::with_capacity(count);
         for i in 0..count {
             let message = Message::new(
                 adventure_id,
@@ -472,10 +473,20 @@ mod load_uncovered_tests {
                 format!("message {i}"),
                 false,
             );
-            insert_messages(&mut conn, std::slice::from_ref(&message))
-                .await
-                .expect("insert message");
+            stored.extend(
+                insert_messages(&mut conn, std::slice::from_ref(&message))
+                    .await
+                    .expect("insert message"),
+            );
         }
+        stored
+    }
+
+    fn last_seq(messages: &[Message]) -> u16 {
+        messages
+            .last()
+            .and_then(|message| message.seq)
+            .expect("a stored seq")
     }
 
     #[tokio::test]
@@ -493,12 +504,12 @@ mod load_uncovered_tests {
     #[tokio::test]
     async fn first_act_with_a_thin_tail_is_not_backfilled() {
         let (pool, _db, adventure_id) = setup().await;
-        seed_messages(&pool, adventure_id, 10).await;
+        let stored = seed_messages(&pool, adventure_id, 10).await;
         let mut conn = pool.acquire().await.expect("acquire");
 
         // first act (ordinal 0) with a watermark past every message: nothing uncovered
         let mut act = Act::new(adventure_id, 0, "goal");
-        act.digest_to_seq = 10;
+        act.digest_to_seq = last_seq(&stored);
 
         let messages = load_uncovered_messages(&mut conn, &Some(act), 50)
             .await
@@ -511,13 +522,13 @@ mod load_uncovered_tests {
     #[tokio::test]
     async fn fresh_later_act_backfills_the_recent_window() {
         let (pool, _db, adventure_id) = setup().await;
-        seed_messages(&pool, adventure_id, 10).await;
+        let stored = seed_messages(&pool, adventure_id, 10).await;
         let mut conn = pool.acquire().await.expect("acquire");
 
         // a later act (ordinal 1) just started: its watermark is at its own first
         // message, so it has no uncovered tail
         let mut act = Act::new(adventure_id, 1, "goal");
-        act.digest_to_seq = 10;
+        act.digest_to_seq = last_seq(&stored);
 
         let messages = load_uncovered_messages(&mut conn, &Some(act), 5)
             .await
@@ -531,18 +542,18 @@ mod load_uncovered_tests {
     #[tokio::test]
     async fn later_act_with_a_full_tail_uses_its_own_tail() {
         let (pool, _db, adventure_id) = setup().await;
-        seed_messages(&pool, adventure_id, 10).await;
+        let stored = seed_messages(&pool, adventure_id, 10).await;
         let mut conn = pool.acquire().await.expect("acquire");
 
         // a later act whose own uncovered tail already meets the window
         let mut act = Act::new(adventure_id, 1, "goal");
-        act.digest_to_seq = 4;
+        act.digest_to_seq = stored[3].seq.expect("a stored seq");
 
         let messages = load_uncovered_messages(&mut conn, &Some(act), 3)
             .await
             .expect("load uncovered");
 
-        // tail is seqs 5..=10 (six messages), above the window of 3: no backfill
+        // the six messages after the watermark are above the window of 3: no backfill
         assert_eq!(messages.len(), 6);
         assert_eq!(messages.first().expect("a message").text, "message 4");
     }
