@@ -14,7 +14,6 @@ pub use settings::{
 const CONFIG_FILE: &str = "config.toml";
 const DB_FILE: &str = "living_voices.db";
 
-// TODO: Use another one for the ai integration and provision module called Workflow, these ones only lists all available models, the other one will dictate what to install from a specific workflow (e.g., flux workflow automatically install kontext)
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum SupportedModel {

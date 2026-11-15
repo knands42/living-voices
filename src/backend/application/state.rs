@@ -16,7 +16,6 @@ pub enum StateError {
     WriteLockFailed(String),
 }
 
-//TODO: remove some of these irrelevant information form state, SLint can and will use it's own state for some fields
 #[derive(Debug, Default)]
 pub struct AppState {
     pub current_adventure: Option<Adventure>,

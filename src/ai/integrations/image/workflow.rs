@@ -37,20 +37,20 @@ impl Workflow {
     pub fn get_workflow_prompt(
         &self,
         original: SupportedModel,
-        edit: SupportedModel,
+        edit_model: SupportedModel,
     ) -> Result<Value, ImageError> {
         let Some((reference, framing)) = &self.reference else {
             return self.graph(original);
         };
 
-        if edit.is_reference_model() {
-            return Ok(self.kontext(reference, *framing, edit));
+        if edit_model.is_reference_model() {
+            return Ok(self.kontext(reference, *framing, edit_model));
         }
 
         Ok(Self::img2img(
-            self.graph(edit)?,
+            self.graph(edit_model)?,
             reference,
-            Self::denoise(edit),
+            Self::denoise(edit_model),
         ))
     }
 
