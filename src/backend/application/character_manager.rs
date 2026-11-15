@@ -18,8 +18,8 @@ use crate::backend::{
     domain::memory::CharacterCondition,
     persistence::adventure_persistence::get_adventure,
     persistence::characters_persistence::{
-        insert_character, update_appearance_current_body, update_appearance_current_outfit,
-        update_appearance_current_pose, update_character,
+        delete_character, insert_character, update_appearance_current_body,
+        update_appearance_current_outfit, update_appearance_current_pose, update_character,
     },
     persistence::message_persistence::fetch_last_n,
     persistence::state_persistence::get_state,
@@ -37,6 +37,8 @@ pub enum CharacterManagerError {
     Prompt(#[from] ChatResponseError),
     #[error(transparent)]
     Image(#[from] ImageError),
+    #[error("the player character cannot be deleted")]
+    PlayerCannotBeDeleted,
 }
 
 #[derive(Clone, Copy)]
@@ -126,6 +128,42 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         let character = Character::draft(adventure_id);
         self.create_character(character.clone()).await?;
         Ok(character)
+    }
+
+    pub async fn delete_character(
+        &self,
+        character: Character,
+    ) -> Result<(), CharacterManagerError> {
+        if character.is_player {
+            return Err(CharacterManagerError::PlayerCannotBeDeleted);
+        }
+
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        delete_character(&mut conn, character.id).await?;
+        update_character_presence(
+            &mut conn,
+            character.adventure_id,
+            &[],
+            &[character.name.as_str()],
+        )
+        .await?;
+
+        {
+            let mut guard = self.state.write()?;
+            if let Some(adventure) = &mut guard.current_adventure {
+                adventure
+                    .characters
+                    .retain(|existing| existing.id != character.id);
+            }
+            if let Some(state) = &mut guard.current_state {
+                state
+                    .characters_present
+                    .retain(|name| name != &character.name);
+            }
+        }
+
+        log::info!("character deleted: {} ({})", character.name, character.id);
+        Ok(())
     }
 
     pub async fn update_character(

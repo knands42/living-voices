@@ -3,11 +3,13 @@ use crate::backend::application::helper::{
 };
 use living_voices::ai::integrations::text::chat_handler::ChatHandler;
 use living_voices::backend::application::{
-    character_gallery::CharacterGallery, character_manager::CharacterManager, state::SharedState,
+    character_gallery::CharacterGallery,
+    character_manager::{CharacterManager, CharacterManagerError},
+    state::SharedState,
 };
 use living_voices::backend::domain::character::{Character, CharacterStatus};
 use living_voices::backend::domain::message::Message;
-use living_voices::backend::persistence::message_persistence::insert_message;
+use living_voices::backend::persistence::message_persistence::insert_messages;
 use living_voices::config::{Config, TextModel};
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
@@ -239,7 +241,7 @@ async fn create_character_outfit_prompt_uses_messages_and_persists_the_prompt() 
         "*strips off the soaked oilskin coat and hangs it by the stove*".to_string(),
         false,
     );
-    insert_message(&mut conn, &message)
+    insert_messages(&mut conn, std::slice::from_ref(&message))
         .await
         .expect("insert message");
     drop(conn);
@@ -299,7 +301,7 @@ async fn create_character_pose_prompt_uses_messages_and_persists_the_prompt() {
         "*reaches up to trim the lamp wick*".to_string(),
         false,
     );
-    insert_message(&mut conn, &message)
+    insert_messages(&mut conn, std::slice::from_ref(&message))
         .await
         .expect("insert message");
     drop(conn);
@@ -378,6 +380,81 @@ fn setup_character_manager(
         StubImage,
         CharacterGallery::new(std::env::temp_dir()),
     )
+}
+
+#[tokio::test]
+async fn delete_character_removes_it_from_the_cast_the_database_and_the_present_names() {
+    // given: an adventure with one authored cast member
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let character_manager = setup_character_manager(pool.clone(), state.clone());
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = adventure_manager
+        .current_adventure()
+        .expect("current adventure to be available");
+
+    let character = Character::new(
+        Uuid::new_v4(),
+        "Mara Venn".to_string(),
+        "female".to_string(),
+        adventure.id,
+        "A tide-singer",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
+    character_manager
+        .create_character(character.clone())
+        .await
+        .expect("create character");
+
+    // when: the cast member is removed
+    character_manager
+        .delete_character(character.clone())
+        .await
+        .expect("delete character");
+
+    // then: the row is gone
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM character WHERE id = ?1")
+        .bind(character.id.to_string())
+        .fetch_one(&pool)
+        .await
+        .expect("query character");
+    assert_eq!(count, 0);
+
+    // and: the shared state no longer lists them
+    assert!(
+        stored_npcs(&state)
+            .iter()
+            .all(|stored| stored.id != character.id)
+    );
+
+    // and: the state table no longer counts them present
+    let row = sqlx::query("SELECT characters_present FROM state WHERE adventure_id = ?1")
+        .bind(adventure.id.to_string())
+        .fetch_one(&pool)
+        .await
+        .expect("query state");
+    let present: Vec<String> =
+        serde_json::from_str(row.get::<String, _>("characters_present").as_str())
+            .unwrap_or_default();
+    assert!(!present.contains(&"Mara Venn".to_string()));
+
+    // and: the player character is refused
+    let player = adventure
+        .characters
+        .iter()
+        .find(|character| character.is_player)
+        .cloned()
+        .expect("the default player");
+    let error = character_manager
+        .delete_character(player)
+        .await
+        .expect_err("the player cannot be removed");
+    assert!(matches!(
+        error,
+        CharacterManagerError::PlayerCannotBeDeleted
+    ));
 }
 
 /// The non-player cast currently held in shared state.

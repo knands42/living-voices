@@ -18,7 +18,7 @@ use crate::backend::{
         act_persistence::upsert_act, adventure_persistence::insert_adventure,
         characters_persistence::insert_character, db::open_pool, error::PersistenceError,
         fact_persistence::upsert_facts, lore_persistence::insert_lore,
-        message_persistence::insert_message, narrator_persistence::insert_default_narrator,
+        message_persistence::insert_messages, narrator_persistence::insert_default_narrator,
         state_persistence::upsert_state,
     },
 };
@@ -750,6 +750,7 @@ async fn seed_connection(
         .collect();
     upsert_facts(&mut *tx, adventure_summary.id, &facts).await?;
 
+    let mut seeded_messages = Vec::with_capacity(seed.messages.len());
     for seed_message in seed.messages {
         let message = match seed_message.speaker {
             None => Message::new(
@@ -775,8 +776,10 @@ async fn seed_connection(
                 )
             }
         };
-        insert_message(&mut *tx, &message).await?;
+
+        seeded_messages.push(message);
     }
+    insert_messages(&mut *tx, &seeded_messages).await?;
 
     let narrator = Narrator::new(narrator_id, adventure_id, "NARRATOR", "");
     let mut adventure = Adventure::new(

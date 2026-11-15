@@ -776,7 +776,7 @@ async fn seed_player_message(
     author: &Character,
     text: &str,
 ) {
-    use living_voices::backend::persistence::message_persistence::insert_message;
+    use living_voices::backend::persistence::message_persistence::insert_messages;
     let mut conn = pool.acquire().await.expect("acquire");
     let message = Message::new(
         adventure.id,
@@ -786,7 +786,9 @@ async fn seed_player_message(
         text,
         false,
     );
-    insert_message(&mut conn, &message).await.expect("insert");
+    insert_messages(&mut conn, std::slice::from_ref(&message))
+        .await
+        .expect("insert");
 }
 
 async fn seed_cast_message(
@@ -795,7 +797,7 @@ async fn seed_cast_message(
     author: &Character,
     text: &str,
 ) {
-    use living_voices::backend::persistence::message_persistence::insert_message;
+    use living_voices::backend::persistence::message_persistence::insert_messages;
     let mut conn = pool.acquire().await.expect("acquire");
     let message = Message::new(
         adventure.id,
@@ -805,7 +807,9 @@ async fn seed_cast_message(
         text,
         false,
     );
-    insert_message(&mut conn, &message).await.expect("insert");
+    insert_messages(&mut conn, std::slice::from_ref(&message))
+        .await
+        .expect("insert");
 }
 
 async fn last_messages(conn: &mut SqliteConnection, adventure: &Adventure) -> Vec<Message> {

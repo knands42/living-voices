@@ -166,6 +166,18 @@ pub async fn attach_tag(
     Ok(())
 }
 
+pub async fn delete_character(
+    conn: &mut SqliteConnection,
+    character_id: Uuid,
+) -> Result<(), PersistenceError> {
+    sqlx::query("DELETE FROM character WHERE id = ?1")
+        .bind(character_id.to_string())
+        .execute(conn)
+        .await?;
+
+    Ok(())
+}
+
 pub async fn update_appearance_current_body(
     conn: &mut SqliteConnection,
     character_id: Uuid,

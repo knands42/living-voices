@@ -70,9 +70,12 @@ pub fn story(draft: &Draft) -> Element<'_, Message> {
             .width(Length::FillPortion(1)),
         ]
         .spacing(24.0),
-        column![caption("LORE"), editor(&draft.lore, Message::LoreEdited),]
-            .spacing(8.0)
-            .height(Length::FillPortion(2)),
+        column![
+            caption("LORE"),
+            editor(&draft.lore, 220.0, Message::LoreEdited),
+        ]
+        .spacing(8.0)
+        .height(Length::FillPortion(2)),
     ]
     .spacing(22.0)
     .height(Length::Fill)

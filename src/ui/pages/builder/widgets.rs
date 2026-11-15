@@ -68,15 +68,24 @@ pub fn field<'a>(
         .into()
 }
 
+/// A caption over its field, sized to share a row with its neighbours.
+pub fn labelled<'a>(label: &'a str, field: Element<'a, Message>) -> Element<'a, Message> {
+    column![caption(label), field]
+        .spacing(8.0)
+        .width(Length::FillPortion(1))
+        .into()
+}
+
 /// A multi-line field.
 pub fn editor<'a>(
     content: &'a text_editor::Content,
+    min_height: f32,
     on_action: impl Fn(text_editor::Action) -> Message + 'a,
 ) -> Element<'a, Message> {
     text_editor(content)
         .padding(12.0)
         .size(14.5)
-        .height(Length::Fill)
+        .min_height(min_height)
         .wrapping(Wrapping::Word)
         .style(|_theme, _status| editor_style())
         .on_action(on_action)
@@ -101,7 +110,6 @@ pub fn surface<'a>(content: impl Into<Element<'a, Message>>) -> Element<'a, Mess
     container(content)
         .padding(28.0)
         .width(Length::Fill)
-        .height(Length::Fill)
         .style(|_theme| {
             container::Style::default()
                 .background(theme::BG_PANEL)

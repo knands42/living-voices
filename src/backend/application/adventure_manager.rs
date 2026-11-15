@@ -9,12 +9,16 @@ use crate::backend::persistence::adventure_persistence::{
     get_adventure_summaries, get_ongoing_adventures, update_adventure, update_adventure_status,
 };
 use crate::backend::persistence::characters_persistence::insert_default_player_character;
-use crate::backend::persistence::fact_persistence::{get_facts, insert_default_facts};
+use crate::backend::persistence::fact_persistence::{
+    get_facts, insert_default_facts, upsert_facts,
+};
 use crate::backend::persistence::lore_persistence::insert_default_lore;
 use crate::backend::persistence::message_persistence::{
-    fetch_last_n, fetch_opening, insert_message, update_opening_text,
+    delete_messages, fetch_last_n, insert_messages,
 };
-use crate::backend::persistence::state_persistence::{get_state, insert_default_state};
+use crate::backend::persistence::state_persistence::{
+    get_state, insert_default_state, upsert_state,
+};
 use crate::backend::{
     PersistenceError,
     application::state::{AppState, SharedState, StateError},
@@ -24,7 +28,7 @@ use crate::backend::{
         narrator_persistence::insert_default_narrator,
     },
 };
-use sqlx::SqlitePool;
+use sqlx::{Acquire, SqlitePool};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -36,6 +40,8 @@ pub enum AdventureManagerError {
     DatabaseError(#[from] PersistenceError),
     #[error("adventure is incomplete: {0}")]
     AdventureIncomplete(String),
+    #[error("the adventure is not a draft: {0}")]
+    NotDraft(String),
 }
 
 #[derive(Clone, Debug)]
@@ -170,9 +176,7 @@ impl AdventureManager {
         messages: &[Message],
     ) -> Result<(), AdventureManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        for message in messages {
-            insert_message(&mut conn, &message.clone()).await?;
-        }
+        insert_messages(&mut conn, messages).await?;
 
         Ok(())
     }
@@ -299,35 +303,84 @@ impl AdventureManager {
         Ok(fetch_last_n(&mut conn, adventure_id, limit as u16).await?)
     }
 
-    pub async fn get_opening(
+    pub async fn get_state(
         &self,
         adventure_id: Uuid,
-    ) -> Result<Option<Message>, AdventureManagerError> {
+    ) -> Result<Option<State>, AdventureManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        Ok(fetch_opening(&mut conn, adventure_id).await?)
+        Ok(get_state(&mut conn, adventure_id).await?)
+    }
+
+    pub async fn upsert_state(&self, state: &State) -> Result<(), AdventureManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        upsert_state(&mut conn, state).await?;
+
+        match self.state.write() {
+            Ok(mut guard) => {
+                if guard
+                    .current_adventure
+                    .as_ref()
+                    .is_some_and(|adventure| adventure.id == state.adventure_id)
+                {
+                    guard.current_state = Some(state.clone());
+                }
+            }
+            Err(err) => log::warn!(
+                "could not update in-memory state for {}: {err}",
+                state.adventure_id
+            ),
+        }
+
+        Ok(())
+    }
+
+    pub async fn get_facts(&self, adventure_id: Uuid) -> Result<Vec<Fact>, AdventureManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        Ok(get_facts(&mut conn, adventure_id).await?)
+    }
+
+    pub async fn upsert_facts(
+        &self,
+        adventure_id: Uuid,
+        facts: &[Fact],
+    ) -> Result<(), AdventureManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+        upsert_facts(&mut conn, adventure_id, facts).await?;
+
+        match self.state.write() {
+            Ok(mut guard) => {
+                if guard
+                    .current_adventure
+                    .as_ref()
+                    .is_some_and(|adventure| adventure.id == adventure_id)
+                {
+                    guard.current_facts = facts.to_vec();
+                }
+            }
+            Err(err) => log::warn!("could not update in-memory facts for {adventure_id}: {err}"),
+        }
+
+        Ok(())
     }
 
     pub async fn save_opening(
         &self,
         adventure_id: Uuid,
-        text: &str,
+        messages: &[Message],
     ) -> Result<(), AdventureManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
 
-        if update_opening_text(&mut conn, adventure_id, text).await? > 0 {
-            return Ok(());
+        let adventure = get_adventure(&mut conn, adventure_id).await?;
+        if adventure.status != AdventureStatus::Draft {
+            return Err(AdventureManagerError::NotDraft(
+                adventure.status.to_string(),
+            ));
         }
 
-        let adventure = get_adventure(&mut conn, adventure_id).await?;
-        let opening = Message::new(
-            adventure_id,
-            None,
-            Some(adventure.narrator.id),
-            Message::NARRATOR_SPEAKER_NAME.to_string(),
-            text,
-            false,
-        );
-        insert_message(&mut conn, &opening).await?;
+        let mut transaction = conn.begin().await.map_err(PersistenceError::from)?;
+        delete_messages(&mut transaction, adventure_id).await?;
+        insert_messages(&mut transaction, messages).await?;
+        transaction.commit().await.map_err(PersistenceError::from)?;
 
         Ok(())
     }

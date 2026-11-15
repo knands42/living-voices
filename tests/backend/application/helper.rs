@@ -177,19 +177,26 @@ pub async fn seed_conversation(
     lines: &[SeedLine],
     count: usize,
 ) -> Vec<u16> {
-    use living_voices::backend::persistence::message_persistence::insert_message;
+    use living_voices::backend::persistence::message_persistence::insert_messages;
 
     let mut conn = pool.acquire().await.expect("acquire");
-    let mut seqs = Vec::with_capacity(count.min(lines.len()));
-    for line in lines.iter().take(count) {
-        let speaker = line.speaker.unwrap_or(Message::NARRATOR_SPEAKER_NAME);
-        let message = adventure.message_from_reply(speaker, line.text);
-        let stored = insert_message(&mut conn, &message)
-            .await
-            .expect("insert message");
-        seqs.push(stored.seq.expect("seeded message has a seq"));
-    }
-    seqs
+    let messages: Vec<Message> = lines
+        .iter()
+        .take(count)
+        .map(|line| {
+            adventure.message_from_reply(
+                line.speaker.unwrap_or(Message::NARRATOR_SPEAKER_NAME),
+                line.text,
+            )
+        })
+        .collect();
+
+    insert_messages(&mut conn, &messages)
+        .await
+        .expect("insert messages")
+        .into_iter()
+        .map(|message| message.seq.expect("seeded message has a seq"))
+        .collect()
 }
 
 pub const DEFAULT_CAST_MIRA: &'static str = "Mira";

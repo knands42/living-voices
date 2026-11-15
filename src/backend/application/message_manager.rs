@@ -15,7 +15,7 @@ use crate::backend::persistence::act_persistence::{
     get_active_act, update_active_act_last_closure_score,
 };
 use crate::backend::persistence::message_persistence::{
-    count_since_last_narration, fetch_last_n, fetch_since, insert_message,
+    count_since_last_narration, fetch_last_n, fetch_since, insert_messages,
 };
 use crate::backend::persistence::state_persistence::get_active_candidates;
 use sqlx::{SqliteConnection, SqlitePool};
@@ -221,9 +221,9 @@ impl<
 {
     async fn create_message(&self, message: Message) -> Result<Message, MessageManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-        let stored = insert_message(&mut conn, &message).await?;
+        let mut stored = insert_messages(&mut conn, std::slice::from_ref(&message)).await?;
 
-        Ok(stored)
+        Ok(stored.remove(0))
     }
 
     async fn send_to_handler(
@@ -424,7 +424,7 @@ fn should_close_act(score: u8, last_message: &Message, act_max_messages: u16) ->
 mod load_uncovered_tests {
     use super::*;
     use crate::backend::persistence::db::open_pool;
-    use crate::backend::persistence::message_persistence::insert_message;
+    use crate::backend::persistence::message_persistence::insert_messages;
     use crate::backend::persistence::migrator::run_migrations;
     use std::path::{Path, PathBuf};
     use uuid::Uuid;
@@ -472,7 +472,7 @@ mod load_uncovered_tests {
                 format!("message {i}"),
                 false,
             );
-            insert_message(&mut conn, &message)
+            insert_messages(&mut conn, std::slice::from_ref(&message))
                 .await
                 .expect("insert message");
         }

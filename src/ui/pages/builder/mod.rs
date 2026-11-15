@@ -5,17 +5,19 @@ mod sidebar;
 mod story;
 mod widgets;
 
+use chrono::Utc;
 use iced::widget::{container, row, scrollable, text_editor};
 use iced::{Element, Length, Task};
 use uuid::Uuid;
 
 use crate::backend::application::adventure_manager::{AdventureManager, AdventureManagerError};
-use crate::backend::application::character_manager::CharacterManager;
+use crate::backend::application::character_manager::{CharacterManager, CharacterManagerError};
 use crate::backend::application::port::chat_port::PromptPort;
 use crate::backend::application::port::image_port::ImagePort;
 use crate::backend::domain::adventure::{Adventure, AdventureStatus};
 use crate::backend::domain::character::Character;
-use crate::backend::domain::memory::Act;
+use crate::backend::domain::memory::{Act, Fact, Permanence, State as SceneState};
+use crate::backend::domain::message::Message as MessageLine;
 use crate::ui::pages::builder::acts::acts;
 use crate::ui::pages::builder::cast::cast;
 use crate::ui::pages::builder::opening::opening;
@@ -65,7 +67,11 @@ pub enum Message {
     StorySaved(Result<Adventure, String>),
     AddCharacter,
     CharacterAdded(Result<Character, String>),
-    CharacterNameChanged(Uuid, String),
+    CharacterPicked(usize),
+    CharacterChanged(Character),
+    CharacterEditClosed,
+    RemoveCharacter,
+    CharacterRemoved(Uuid, Result<(), String>),
     SaveCast,
     CastSaved(Result<(), String>),
     AddAct,
@@ -74,7 +80,15 @@ pub enum Message {
     ActTriggerChanged(String),
     SaveAct,
     ActSaved(Result<Act, String>),
-    OpeningEdited(text_editor::Action),
+    OpeningPlaceChanged(String),
+    OpeningDayChanged(String),
+    FactSubjectChanged(usize, String),
+    FactTextChanged(usize, String),
+    AddFact,
+    BeatEdited(usize, text_editor::Action),
+    BeatSpeakerPicked(usize, Speaker),
+    AddBeat,
+    RemoveBeat(usize),
     SaveOpening,
     OpeningSaved(Result<(), String>),
     Publish,
@@ -85,7 +99,222 @@ pub enum Message {
 pub struct Opened {
     adventure: Adventure,
     acts: Vec<Act>,
-    opening: Option<String>,
+    scene: Option<SceneState>,
+    facts: Vec<Fact>,
+    messages: Vec<MessageLine>,
+}
+
+/// Who says one line of the opening.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Speaker {
+    Narrator,
+    Character(Uuid),
+}
+
+pub struct Beat {
+    speaker: Speaker,
+    content: text_editor::Content,
+}
+
+impl Beat {
+    fn narrator() -> Self {
+        Self {
+            speaker: Speaker::Narrator,
+            content: text_editor::Content::new(),
+        }
+    }
+
+    fn from_message(message: &MessageLine) -> Self {
+        let speaker = match message.character_id {
+            Some(character_id) => Speaker::Character(character_id),
+            None => Speaker::Narrator,
+        };
+
+        Self {
+            speaker,
+            content: text_editor::Content::with_text(&message.text),
+        }
+    }
+
+    fn text(&self) -> String {
+        self.content.text()
+    }
+
+    fn message(&self, adventure: &Adventure) -> MessageLine {
+        let text = self.text();
+
+        match self.speaker {
+            Speaker::Narrator => MessageLine::new(
+                adventure.id,
+                None,
+                Some(adventure.narrator.id),
+                MessageLine::NARRATOR_SPEAKER_NAME.to_string(),
+                text,
+                false,
+            ),
+            Speaker::Character(character_id) => {
+                let speaker_name = adventure
+                    .characters
+                    .iter()
+                    .find(|character| character.id == character_id)
+                    .map(|character| character.name.clone())
+                    .unwrap_or_default();
+
+                MessageLine::new(
+                    adventure.id,
+                    Some(character_id),
+                    None,
+                    speaker_name,
+                    text,
+                    false,
+                )
+            }
+        }
+    }
+}
+
+#[derive(Default)]
+struct FactDraft {
+    subject: String,
+    fact: String,
+}
+
+/// The scene the adventure starts in: where and when, the facts around it, and
+/// the first lines, the first of which the narrator speaks.
+pub struct Opening {
+    place: String,
+    day: String,
+    facts: Vec<FactDraft>,
+    beats: Vec<Beat>,
+}
+
+impl Opening {
+    const MAX_BEATS: usize = 3;
+
+    fn load(scene: &SceneState, facts: Vec<Fact>, messages: Vec<MessageLine>) -> Self {
+        let beats = if messages.is_empty() {
+            vec![Beat::narrator()]
+        } else {
+            messages
+                .iter()
+                .take(Self::MAX_BEATS)
+                .map(Beat::from_message)
+                .collect()
+        };
+
+        let facts = facts
+            .into_iter()
+            .map(|fact| FactDraft {
+                subject: fact.subject,
+                fact: fact.fact,
+            })
+            .collect();
+
+        Self {
+            place: from_scene(&scene.place),
+            day: from_scene(&scene.day),
+            facts,
+            beats,
+        }
+    }
+
+    fn stored_place(&self) -> String {
+        to_scene(&self.place)
+    }
+
+    fn stored_day(&self) -> String {
+        to_scene(&self.day)
+    }
+
+    fn fact_snapshot(&self) -> Vec<Fact> {
+        self.facts
+            .iter()
+            .filter(|draft| !draft.fact.trim().is_empty())
+            .map(|draft| {
+                Fact::new(
+                    draft.subject.trim(),
+                    draft.fact.trim(),
+                    Permanence::Permanent,
+                )
+            })
+            .collect()
+    }
+
+    fn messages(&self, adventure: &Adventure) -> Vec<MessageLine> {
+        self.beats
+            .iter()
+            .filter(|beat| !beat.text().trim().is_empty())
+            .map(|beat| beat.message(adventure))
+            .collect()
+    }
+
+    fn is_ready(&self) -> bool {
+        !self.place.trim().is_empty()
+            && !self.day.trim().is_empty()
+            && !self.first_line().trim().is_empty()
+    }
+
+    fn can_save(&self) -> bool {
+        !self.first_line().trim().is_empty()
+    }
+
+    fn first_line(&self) -> String {
+        self.beats.first().map(Beat::text).unwrap_or_default()
+    }
+
+    fn add_fact(&mut self) {
+        self.facts.push(FactDraft::default());
+    }
+
+    fn edit_fact(&mut self, index: usize, change: impl FnOnce(&mut FactDraft)) {
+        if let Some(fact) = self.facts.get_mut(index) {
+            change(fact);
+        }
+    }
+
+    fn edit_beat(&mut self, index: usize, action: text_editor::Action) {
+        if let Some(beat) = self.beats.get_mut(index) {
+            beat.content.perform(action);
+        }
+    }
+
+    fn pick_speaker(&mut self, index: usize, speaker: Speaker) {
+        if index == 0 {
+            return;
+        }
+
+        if let Some(beat) = self.beats.get_mut(index) {
+            beat.speaker = speaker;
+        }
+    }
+
+    fn add_beat(&mut self) {
+        if self.beats.len() < Self::MAX_BEATS {
+            self.beats.push(Beat::narrator());
+        }
+    }
+
+    fn remove_beat(&mut self, index: usize) {
+        if index > 0 && index < self.beats.len() {
+            self.beats.remove(index);
+        }
+    }
+}
+
+fn from_scene(value: &str) -> String {
+    if value == SceneState::UNKNOWN {
+        String::new()
+    } else {
+        value.to_string()
+    }
+}
+
+fn to_scene(value: &str) -> String {
+    if value.trim().is_empty() {
+        SceneState::UNKNOWN.to_string()
+    } else {
+        value.trim().to_string()
+    }
 }
 
 /// The adventure as the page edits it: the persisted copy plus the edits that
@@ -93,29 +322,31 @@ pub struct Opened {
 pub struct Draft {
     adventure: Adventure,
     acts: Vec<Act>,
+    scene: SceneState,
+    opening: Opening,
     lore: text_editor::Content,
-    opening: text_editor::Content,
-    opening_saved: bool,
     story_changed: bool,
     act_index: Option<usize>,
+    character_index: Option<usize>,
 }
 
 impl Draft {
     fn new(opened: Opened) -> Self {
+        let scene = opened
+            .scene
+            .unwrap_or_else(|| SceneState::new(Uuid::new_v4(), opened.adventure.id));
         let lore = text_editor::Content::with_text(&opened.adventure.lore.text);
-        let opening = match &opened.opening {
-            Some(text) => text_editor::Content::with_text(text),
-            None => text_editor::Content::new(),
-        };
+        let opening = Opening::load(&scene, opened.facts, opened.messages);
 
         Self {
             adventure: opened.adventure,
             acts: opened.acts,
-            lore,
+            scene,
             opening,
-            opening_saved: opened.opening.is_some(),
+            lore,
             story_changed: false,
             act_index: None,
+            character_index: None,
         }
     }
 
@@ -150,20 +381,22 @@ impl Draft {
     }
 
     fn cast_can_save(&self) -> bool {
-        self.adventure
-            .characters
-            .iter()
-            .any(|character| !character.is_player)
+        !self.adventure.characters.is_empty()
     }
 
-    fn name_character(&mut self, character_id: Uuid, name: String) {
-        if let Some(character) = self
+    fn edited_character(&self) -> Option<&Character> {
+        self.character_index
+            .and_then(|index| self.adventure.characters.get(index))
+    }
+
+    fn replace_character(&mut self, character: Character) {
+        if let Some(existing) = self
             .adventure
             .characters
             .iter_mut()
-            .find(|character| character.id == character_id)
+            .find(|existing| existing.id == character.id)
         {
-            character.name = name;
+            *existing = character;
         }
     }
 
@@ -171,16 +404,12 @@ impl Draft {
         !self.acts.is_empty() && self.acts.iter().all(Act::is_valid_act)
     }
 
-    fn opening_can_save(&self) -> bool {
-        !self.opening.text().trim().is_empty()
-    }
-
     fn section_is_done(&self, section: Section) -> bool {
         match section {
             Section::Story => self.story_is_ready(),
             Section::Cast => self.cast_is_ready(),
             Section::Acts => self.acts_are_ready(),
-            Section::Opening => self.opening_saved,
+            Section::Opening => self.opening.is_ready(),
         }
     }
 
@@ -259,12 +488,18 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
             on_tokio(self.handle.clone(), async move {
                 let adventure = adventure_manager.get_adventure(adventure_id).await?;
                 let acts = adventure_manager.get_acts(adventure_id).await?;
-                let opening = adventure_manager.get_opening(adventure_id).await?;
+                let scene = adventure_manager.get_state(adventure_id).await?;
+                let facts = adventure_manager.get_facts(adventure_id).await?;
+                let messages = adventure_manager
+                    .get_messages(adventure_id, Opening::MAX_BEATS)
+                    .await?;
 
                 Ok::<_, AdventureManagerError>(Opened {
                     adventure,
                     acts,
-                    opening: opening.map(|message| message.text),
+                    scene,
+                    facts,
+                    messages,
                 })
             }),
             |result| {
@@ -302,13 +537,37 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
             Message::CharacterAdded(Ok(character)) => {
                 if let Some(draft) = &mut self.draft {
                     draft.adventure.characters.push(character);
+                    draft.character_index = Some(draft.adventure.characters.len() - 1);
                 }
             }
             Message::CharacterAdded(Err(err)) => log::error!("could not add a character: {err}"),
-            Message::CharacterNameChanged(character_id, name) => {
+            Message::CharacterPicked(index) => {
                 if let Some(draft) = &mut self.draft {
-                    draft.name_character(character_id, name);
+                    draft.character_index = Some(index);
                 }
+            }
+            Message::CharacterChanged(character) => {
+                if let Some(draft) = &mut self.draft {
+                    draft.replace_character(character);
+                }
+            }
+            Message::CharacterEditClosed => {
+                if let Some(draft) = &mut self.draft {
+                    draft.character_index = None;
+                }
+            }
+            Message::RemoveCharacter => return (self.remove_character(), Event::None),
+            Message::CharacterRemoved(character_id, Ok(())) => {
+                if let Some(draft) = &mut self.draft {
+                    draft
+                        .adventure
+                        .characters
+                        .retain(|character| character.id != character_id);
+                    draft.character_index = None;
+                }
+            }
+            Message::CharacterRemoved(_, Err(err)) => {
+                log::error!("could not remove the character: {err}")
             }
             Message::SaveCast => return (self.save_cast(), Event::None),
             Message::CastSaved(result) => {
@@ -340,18 +599,31 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
             }
             Message::SaveAct => return (self.save_act(), Event::None),
             Message::ActSaved(result) => self.act_saved(result),
-            Message::OpeningEdited(action) => {
-                if let Some(draft) = &mut self.draft {
-                    draft.opening.perform(action);
-                }
+            Message::OpeningPlaceChanged(place) => {
+                self.edit_opening(|opening| opening.place = place)
             }
+            Message::OpeningDayChanged(day) => self.edit_opening(|opening| opening.day = day),
+            Message::FactSubjectChanged(index, subject) => {
+                self.edit_opening(|opening| opening.edit_fact(index, |fact| fact.subject = subject))
+            }
+            Message::FactTextChanged(index, text) => {
+                self.edit_opening(|opening| opening.edit_fact(index, |fact| fact.fact = text))
+            }
+            Message::AddFact => self.edit_opening(Opening::add_fact),
+            Message::BeatEdited(index, action) => {
+                self.edit_opening(|opening| opening.edit_beat(index, action))
+            }
+            Message::BeatSpeakerPicked(index, speaker) => {
+                self.edit_opening(|opening| opening.pick_speaker(index, speaker))
+            }
+            Message::AddBeat => self.edit_opening(Opening::add_beat),
+            Message::RemoveBeat(index) => self.edit_opening(|opening| opening.remove_beat(index)),
             Message::SaveOpening => return (self.save_opening(), Event::None),
-            Message::OpeningSaved(Ok(())) => {
-                if let Some(draft) = &mut self.draft {
-                    draft.opening_saved = true;
+            Message::OpeningSaved(result) => {
+                if let Err(err) = result {
+                    log::error!("could not save the opening: {err}");
                 }
             }
-            Message::OpeningSaved(Err(err)) => log::error!("could not save the opening: {err}"),
             Message::Publish => return (self.publish(), Event::None),
             Message::Published(Ok(())) => {
                 if let Some(draft) = &mut self.draft {
@@ -393,6 +665,12 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
         }
     }
 
+    fn edit_opening(&mut self, change: impl FnOnce(&mut Opening)) {
+        if let Some(draft) = &mut self.draft {
+            change(&mut draft.opening);
+        }
+    }
+
     fn save_story(&self) -> Task<Message> {
         let Some(draft) = &self.draft else {
             return Task::none();
@@ -404,10 +682,7 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
 
         Task::perform(
             on_tokio(self.handle.clone(), async move {
-                adventure_manager
-                    .update_adventure(&adventure)
-                    .await
-                    .map_err(|err| err.to_string())
+                adventure_manager.update_adventure(&adventure).await
             }),
             |result| Message::StorySaved(resolved(result, "saving the story failed")),
         )
@@ -437,12 +712,35 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
 
         Task::perform(
             on_tokio(self.handle.clone(), async move {
-                character_manager
-                    .create_draft(adventure_id)
-                    .await
-                    .map_err(|err| err.to_string())
+                character_manager.create_draft(adventure_id).await
             }),
             |result| Message::CharacterAdded(resolved(result, "adding the character failed")),
+        )
+    }
+
+    fn remove_character(&self) -> Task<Message> {
+        let Some(character) = self
+            .draft
+            .as_ref()
+            .and_then(Draft::edited_character)
+            .cloned()
+        else {
+            return Task::none();
+        };
+
+        let character_id = character.id;
+        let character_manager = self.character_manager.clone();
+
+        Task::perform(
+            on_tokio(self.handle.clone(), async move {
+                character_manager.delete_character(character).await
+            }),
+            move |result| {
+                Message::CharacterRemoved(
+                    character_id,
+                    resolved(result, "removing the character failed"),
+                )
+            },
         )
     }
 
@@ -451,24 +749,15 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
             return Task::none();
         };
 
-        let cast: Vec<Character> = draft
-            .adventure
-            .characters
-            .iter()
-            .filter(|character| !character.is_player)
-            .cloned()
-            .collect();
+        let cast = draft.adventure.characters.clone();
         let character_manager = self.character_manager.clone();
 
         Task::perform(
             on_tokio(self.handle.clone(), async move {
                 for character in cast {
-                    character_manager
-                        .update_character(character)
-                        .await
-                        .map_err(|err| err.to_string())?;
+                    character_manager.update_character(character).await?;
                 }
-                Ok(())
+                Ok::<_, CharacterManagerError>(())
             }),
             |result| Message::CastSaved(resolved(result, "saving the cast failed")),
         )
@@ -483,11 +772,8 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
 
         Task::perform(
             on_tokio(self.handle.clone(), async move {
-                adventure_manager
-                    .upsert_act(&act)
-                    .await
-                    .map_err(|err| err.to_string())?;
-                Ok(act)
+                adventure_manager.upsert_act(&act).await?;
+                Ok::<_, AdventureManagerError>(act)
             }),
             |result| Message::ActSaved(resolved(result, "saving the act failed")),
         )
@@ -514,16 +800,24 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
             return Task::none();
         };
 
+        let mut scene = draft.scene.clone();
+        scene.place = draft.opening.stored_place();
+        scene.day = draft.opening.stored_day();
+        scene.updated_at = Utc::now();
+
         let adventure_id = draft.adventure.id;
-        let text = draft.opening.text();
+        let facts = draft.opening.fact_snapshot();
+        let messages = draft.opening.messages(&draft.adventure);
         let adventure_manager = self.adventure_manager.clone();
 
         Task::perform(
             on_tokio(self.handle.clone(), async move {
+                adventure_manager.upsert_state(&scene).await?;
+                adventure_manager.upsert_facts(adventure_id, &facts).await?;
                 adventure_manager
-                    .save_opening(adventure_id, &text)
-                    .await
-                    .map_err(|err| err.to_string())
+                    .save_opening(adventure_id, &messages)
+                    .await?;
+                Ok::<_, AdventureManagerError>(())
             }),
             |result| Message::OpeningSaved(resolved(result, "saving the opening failed")),
         )
@@ -542,17 +836,19 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
                 adventure_manager
                     .update_status(adventure_id, AdventureStatus::Public)
                     .await
-                    .map_err(|err| err.to_string())
             }),
             |result| Message::Published(resolved(result, "publishing the adventure failed")),
         )
     }
 }
 
-fn resolved<T>(result: Option<Result<T, String>>, failure: &'static str) -> Result<T, String> {
+fn resolved<T, E: ToString>(
+    result: Option<Result<T, E>>,
+    failure: &'static str,
+) -> Result<T, String> {
     match result {
         Some(Ok(value)) => Ok(value),
-        Some(Err(err)) => Err(err),
+        Some(Err(err)) => Err(err.to_string()),
         None => Err(failure.to_string()),
     }
 }

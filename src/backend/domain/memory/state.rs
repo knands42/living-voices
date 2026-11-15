@@ -48,12 +48,14 @@ pub struct State {
 }
 
 impl State {
+    pub const UNKNOWN: &'static str = "unknown";
+
     pub fn new(id: Uuid, adventure_id: Uuid) -> Self {
         Self {
             id,
             adventure_id,
-            day: String::from("unknown"),
-            place: String::from("unknown"),
+            day: Self::UNKNOWN.to_string(),
+            place: Self::UNKNOWN.to_string(),
             characters_present: Vec::new(),
             open_threads: Vec::new(),
             character_conditions: Vec::new(),

@@ -4,7 +4,7 @@ use living_voices::backend::application::{
     state::SharedState,
 };
 use living_voices::backend::domain::adventure::AdventureStatus;
-use living_voices::backend::domain::memory::{Act, ActStatus};
+use living_voices::backend::domain::memory::{Act, ActStatus, Fact, Permanence};
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::act_persistence::get_acts;
 use living_voices::backend::persistence::adventure_persistence::get_adventure;
@@ -340,8 +340,85 @@ async fn start_adventure_requires_every_act_to_have_a_goal() {
 }
 
 #[tokio::test]
-async fn save_opening_writes_the_first_message_once_and_rewrites_it_after() {
-    // given: an adventure with no messages
+async fn save_opening_replaces_the_first_lines_and_keeps_who_spoke() {
+    // given: an adventure with a narrator and a player
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let adventure_manager = AdventureManager::new(state.clone(), pool.clone());
+    let adventure = adventure_manager
+        .create_adventure(
+            "Test adventure".into(),
+            "A drowned city".into(),
+            "tense".into(),
+        )
+        .await
+        .expect("create adventure");
+    let player = adventure.characters[0].clone();
+
+    // when: the opening is saved with the narrator and then the player
+    let lines = vec![
+        Message::new(
+            adventure.id,
+            None,
+            Some(adventure.narrator.id),
+            Message::NARRATOR_SPEAKER_NAME.to_string(),
+            "The tide came in.".to_string(),
+            false,
+        ),
+        Message::new(
+            adventure.id,
+            Some(player.id),
+            None,
+            player.name.clone(),
+            "Not again.".to_string(),
+            false,
+        ),
+    ];
+    adventure_manager
+        .save_opening(adventure.id, &lines)
+        .await
+        .expect("save opening");
+
+    // then: both lines are stored in the order they were written
+    let messages = adventure_manager
+        .get_messages(adventure.id, 10)
+        .await
+        .expect("messages");
+    assert_eq!(messages.len(), 2);
+    assert_eq!(messages[0].text, "The tide came in.");
+    assert_eq!(messages[0].narrator_id, Some(adventure.narrator.id));
+    assert_eq!(messages[1].text, "Not again.");
+    assert_eq!(messages[1].character_id, Some(player.id));
+
+    // when: the opening is saved again with a single line
+    adventure_manager
+        .save_opening(adventure.id, &lines[..1])
+        .await
+        .expect("rewrite opening");
+
+    // then: the old lines are gone, not appended to
+    let messages = adventure_manager
+        .get_messages(adventure.id, 10)
+        .await
+        .expect("messages");
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0].text, "The tide came in.");
+
+    // and: once the adventure leaves the draft, the opening is frozen
+    adventure_manager
+        .update_status(adventure.id, AdventureStatus::Public)
+        .await
+        .expect("publish");
+    let error = adventure_manager
+        .save_opening(adventure.id, &lines)
+        .await
+        .expect_err("only a draft keeps its opening editable");
+    assert!(matches!(error, AdventureManagerError::NotDraft(_)));
+}
+
+#[tokio::test]
+async fn saving_the_scene_state_and_facts_refreshes_the_shared_state() {
+    // given: an adventure whose state and facts only hold their defaults
     let (pool, _db) = setup_db().await;
     let state = SharedState::new();
     let adventure_manager = AdventureManager::new(state.clone(), pool.clone());
@@ -354,36 +431,49 @@ async fn save_opening_writes_the_first_message_once_and_rewrites_it_after() {
         .await
         .expect("create adventure");
 
-    // when: the narrator's first words are saved twice
-    adventure_manager
-        .save_opening(adventure.id, "The tide came in.")
+    // when: the opening names where and when it begins, with one fact
+    let mut scene = adventure_manager
+        .get_state(adventure.id)
         .await
-        .expect("save opening");
+        .expect("state")
+        .expect("an adventure always has a state row");
+    scene.place = "the drowned harbour".to_string();
+    scene.day = "the first night of the tide".to_string();
+    let facts = vec![Fact::new(
+        "the harbour",
+        "keeps the debts of the drowned",
+        Permanence::Permanent,
+    )];
     adventure_manager
-        .save_opening(adventure.id, "The tide went out.")
+        .upsert_state(&scene)
         .await
-        .expect("rewrite opening");
+        .expect("save state");
+    adventure_manager
+        .upsert_facts(adventure.id, &facts)
+        .await
+        .expect("save facts");
 
-    // then: the adventure still has a single opening, holding the last text
-    let messages = adventure_manager
-        .get_messages(adventure.id, 10)
+    // then: both are stored
+    let stored_state = adventure_manager
+        .get_state(adventure.id)
         .await
-        .expect("messages");
-    assert_eq!(messages.len(), 1);
-    assert_eq!(messages[0].text, "The tide went out.");
-    assert_eq!(messages[0].narrator_id, Some(adventure.narrator.id));
+        .expect("state")
+        .expect("state row");
+    assert_eq!(stored_state.place, "the drowned harbour");
+    assert_eq!(stored_state.day, "the first night of the tide");
     assert_eq!(
-        messages[0].speaker_name,
-        Message::NARRATOR_SPEAKER_NAME.to_string()
+        adventure_manager
+            .get_facts(adventure.id)
+            .await
+            .expect("facts"),
+        facts
     );
 
-    // and: the page reads the same opening back
-    let opening = adventure_manager
-        .get_opening(adventure.id)
-        .await
-        .expect("opening");
+    // and: the shared state the managers read from carries them too
+    let snapshot = adventure_manager.current_snapshot();
     assert_eq!(
-        opening.map(|message| message.text),
-        Some("The tide went out.".to_string())
+        snapshot.current_state.map(|scene| scene.place),
+        Some("the drowned harbour".to_string())
     );
+    assert_eq!(snapshot.current_facts, facts);
 }

@@ -1,4 +1,4 @@
-use sqlx::{Row, SqliteConnection};
+use sqlx::{QueryBuilder, Row, Sqlite, SqliteConnection};
 use uuid::Uuid;
 
 use crate::backend::persistence::db::{from_str_to_timestamp, from_str_to_uuid};
@@ -33,32 +33,44 @@ impl MessageRow {
     }
 }
 
-/// Append a new message row. `seq` is assigned by `AUTOINCREMENT` and stored
-pub async fn insert_message(
+pub async fn insert_messages(
     conn: &mut SqliteConnection,
-    msg: &Message,
-) -> Result<Message, PersistenceError> {
-    let row = sqlx::query(
-        "INSERT INTO message (adventure_id, character_id, narrator_id, speaker_name, text,
-                              ooc, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-         RETURNING seq",
-    )
-    .bind(msg.adventure_id.to_string())
-    .bind(msg.character_id.map(|id| id.to_string()))
-    .bind(msg.narrator_id.map(|id| id.to_string()))
-    .bind(&msg.speaker_name)
-    .bind(&msg.text)
-    .bind(msg.ooc as u16)
-    .bind(from_timestamp_to_str(&msg.created_at))
-    .fetch_one(&mut *conn)
-    .await?;
+    messages: &[Message],
+) -> Result<Vec<Message>, PersistenceError> {
+    if messages.is_empty() {
+        return Ok(Vec::new());
+    }
 
-    let seq = row.get::<u16, _>("seq");
-    Ok(Message {
-        seq: Some(seq),
-        ..msg.clone()
-    })
+    let mut builder = QueryBuilder::<Sqlite>::new(
+        "INSERT INTO message (adventure_id, character_id, narrator_id, speaker_name, text, ooc, created_at) ",
+    );
+
+    builder.push_values(messages, |mut row, message| {
+        row.push_bind(message.adventure_id.to_string())
+            .push_bind(message.character_id.map(|id| id.to_string()))
+            .push_bind(message.narrator_id.map(|id| id.to_string()))
+            .push_bind(message.speaker_name.as_str())
+            .push_bind(message.text.as_str())
+            .push_bind(message.ooc as u16)
+            .push_bind(from_timestamp_to_str(&message.created_at));
+    });
+    builder.push(" RETURNING seq");
+
+    let rows = builder.build().fetch_all(&mut *conn).await?;
+
+    // `RETURNING` does not promise a row order; a multi-row VALUES list assigns
+    // rowids left to right, so the sorted seqs line up with the input order.
+    let mut seqs: Vec<u16> = rows.iter().map(|row| row.get("seq")).collect();
+    seqs.sort_unstable();
+
+    Ok(messages
+        .iter()
+        .zip(seqs)
+        .map(|(message, seq)| Message {
+            seq: Some(seq),
+            ..message.clone()
+        })
+        .collect())
 }
 
 pub async fn fetch_since(
@@ -107,40 +119,14 @@ pub async fn fetch_last_n(
         .collect()
 }
 
-pub async fn fetch_opening(
+pub async fn delete_messages(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
-) -> Result<Option<Message>, PersistenceError> {
-    let row = sqlx::query(
-        "SELECT seq, adventure_id, character_id, narrator_id, speaker_name, text, ooc, created_at
-         FROM message
-         WHERE adventure_id = ?1
-         ORDER BY seq ASC
-         LIMIT 1",
-    )
-    .bind(adventure_id.to_string())
-    .fetch_optional(&mut *conn)
-    .await?;
-
-    row.map(|row| MessageRow::decode(&row))
-        .map(Message::try_from)
-        .transpose()
-}
-
-pub async fn update_opening_text(
-    conn: &mut SqliteConnection,
-    adventure_id: Uuid,
-    text: &str,
 ) -> Result<u64, PersistenceError> {
-    let result = sqlx::query(
-        "UPDATE message SET text = ?1
-         WHERE adventure_id = ?2
-           AND seq = (SELECT MIN(seq) FROM message WHERE adventure_id = ?2)",
-    )
-    .bind(text)
-    .bind(adventure_id.to_string())
-    .execute(&mut *conn)
-    .await?;
+    let result = sqlx::query("DELETE FROM message WHERE adventure_id = ?1")
+        .bind(adventure_id.to_string())
+        .execute(&mut *conn)
+        .await?;
 
     Ok(result.rows_affected())
 }

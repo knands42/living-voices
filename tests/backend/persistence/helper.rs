@@ -7,7 +7,7 @@ use uuid::Uuid;
 use living_voices::backend::domain::adventure::AdventureSummary;
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
-use living_voices::backend::persistence::message_persistence::insert_message;
+use living_voices::backend::persistence::message_persistence::insert_messages;
 
 pub async fn seed_adventure(pool: &SqlitePool) -> AdventureSummary {
     let mut conn = pool.acquire().await.expect("acquire");
@@ -45,9 +45,10 @@ pub async fn seed_act(
 pub async fn seed_message(pool: &SqlitePool, adventure_id: Uuid, text: &str) -> u16 {
     let mut conn = pool.acquire().await.expect("acquire");
     let message = Message::new(adventure_id, None, None, "Speaker".into(), text, false);
-    insert_message(&mut conn, &message)
+    insert_messages(&mut conn, std::slice::from_ref(&message))
         .await
         .expect("insert message")
+        .remove(0)
         .seq
         .expect("seq")
 }

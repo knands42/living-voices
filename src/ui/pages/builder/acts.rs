@@ -126,11 +126,11 @@ fn ordinal(ordinal: u16) -> Element<'static, Message> {
         text(ordinal.to_string())
             .size(12.0)
             .color(theme::GOLD)
-            .font(common::brand())
-            .align_x(alignment::Horizontal::Center),
+            .font(common::brand()),
     )
     .width(Length::Fixed(30.0))
     .height(Length::Fixed(30.0))
+    .align_x(alignment::Horizontal::Center)
     .align_y(alignment::Vertical::Center)
     .style(|_theme| {
         container::Style::default()
