@@ -1,64 +1,129 @@
 use iced::widget::text::Wrapping;
 use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Background, Border, Element, Length, alignment};
+use uuid::Uuid;
 
 use crate::backend::domain::memory::Act;
+use crate::ui::pages::builder::Effect;
 use crate::ui::pages::builder::widgets::{card, empty_state, field, pill, section_header};
-use crate::ui::pages::builder::{Draft, Message};
 use crate::ui::{common, theme};
 
-pub fn acts(draft: &Draft) -> Element<'_, Message> {
-    let head = row![
-        section_header(
-            "Acts",
-            "The story's movements, in order. Each act has a goal."
-        ),
-        pill("+ Add act", 120.0, true, Message::AddAct),
-    ]
-    .spacing(16.0)
-    .align_y(Alignment::Center);
-
-    let body: Element<'_, Message> = if draft.acts.is_empty() {
-        empty_state("No acts yet — add the first movement.")
-    } else {
-        let rows: Vec<Element<'_, Message>> = draft
-            .acts
-            .iter()
-            .enumerate()
-            .map(|(index, act)| act_row(draft, index, act))
-            .collect();
-
-        column(rows).spacing(10.0).width(Length::Fill).into()
-    };
-
-    column![
-        head,
-        body,
-        text("Every act needs a real goal before the story can start.")
-            .size(11.0)
-            .color(theme::TEXT_DIM),
-    ]
-    .spacing(20.0)
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .into()
+#[derive(Debug, Clone)]
+pub enum Message {
+    AddRequested,
+    Picked(usize),
+    GoalChanged(String),
+    TriggerChanged(String),
+    SaveRequested,
+    Saved(Result<Act, String>),
 }
 
-fn act_row<'a>(draft: &'a Draft, index: usize, act: &'a Act) -> Element<'a, Message> {
+pub struct State {
+    acts: Vec<Act>,
+    index: Option<usize>,
+}
+
+impl State {
+    pub fn load(acts: Vec<Act>) -> Self {
+        Self { acts, index: None }
+    }
+
+    pub fn update(&mut self, message: Message, adventure_id: Uuid) -> Option<Effect> {
+        match message {
+            Message::AddRequested => {
+                let ordinal = self.acts.len() as u16;
+                self.acts.push(Act::new(adventure_id, ordinal, ""));
+                self.index = Some(self.acts.len() - 1);
+            }
+            Message::Picked(index) => self.index = Some(index),
+            Message::GoalChanged(goal) => self.edit_open(|act| act.goal = goal),
+            Message::TriggerChanged(trigger) => self.edit_open(|act| {
+                act.trigger = (!trigger.trim().is_empty()).then_some(trigger);
+            }),
+            Message::SaveRequested => return Some(Effect::SaveAct),
+            Message::Saved(Ok(saved)) => {
+                if let Some(slot) = self.acts.iter_mut().find(|act| act.id == saved.id) {
+                    *slot = saved;
+                }
+                self.index = None;
+            }
+            Message::Saved(Err(err)) => log::error!("could not save the act: {err}"),
+        }
+
+        None
+    }
+
+    pub fn view(&self) -> Element<'_, Message> {
+        let head = row![
+            section_header(
+                "Acts",
+                "The story's movements, in order. Each act has a goal."
+            ),
+            pill("+ Add act", 120.0, true, Message::AddRequested),
+        ]
+        .spacing(16.0)
+        .align_y(Alignment::Center);
+
+        let body: Element<'_, Message> = if self.acts.is_empty() {
+            empty_state("No acts yet — add the first movement.")
+        } else {
+            let rows: Vec<Element<'_, Message>> = self
+                .acts
+                .iter()
+                .enumerate()
+                .map(|(index, act)| act_row(index, act, self.index == Some(index)))
+                .collect();
+
+            column(rows).spacing(10.0).width(Length::Fill).into()
+        };
+
+        column![
+            head,
+            body,
+            text("Every act needs a real goal before the story can start.")
+                .size(11.0)
+                .color(theme::TEXT_DIM),
+        ]
+        .spacing(20.0)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
+    }
+
+    pub fn len(&self) -> usize {
+        self.acts.len()
+    }
+
+    pub fn is_ready(&self) -> bool {
+        !self.acts.is_empty() && self.acts.iter().all(Act::is_valid_act)
+    }
+
+    pub fn open(&self) -> Option<&Act> {
+        self.index.and_then(|index| self.acts.get(index))
+    }
+
+    fn edit_open(&mut self, change: impl FnOnce(&mut Act)) {
+        if let Some(act) = self.index.and_then(|index| self.acts.get_mut(index)) {
+            change(act);
+        }
+    }
+}
+
+fn act_row(index: usize, act: &Act, editing: bool) -> Element<'_, Message> {
     let edge = if act.is_valid_act() {
         theme::BRONZE_DIM
     } else {
         theme::AMBER
     };
 
-    let content: Element<'a, Message> = if draft.act_index == Some(index) {
+    let content: Element<'_, Message> = if editing {
         fields(act)
     } else {
         button(read(act))
             .padding(0.0)
             .width(Length::Fill)
             .style(act_row_style)
-            .on_press(Message::ActPicked(index))
+            .on_press(Message::Picked(index))
             .into()
     };
 
@@ -80,17 +145,18 @@ fn fields(act: &Act) -> Element<'_, Message> {
     };
 
     column![
-        field(
-            goal,
-            "What must be true by the end…",
-            Message::ActGoalChanged
-        ),
+        field(goal, "What must be true by the end…", Message::GoalChanged),
         field(
             act.trigger.as_deref().unwrap_or_default(),
             "Trigger, or nothing to follow on",
-            Message::ActTriggerChanged
+            Message::TriggerChanged
         ),
-        pill("Save act", 110.0, act.is_valid_act(), Message::SaveAct),
+        pill(
+            "Save act",
+            110.0,
+            act.is_valid_act(),
+            Message::SaveRequested
+        ),
     ]
     .spacing(8.0)
     .width(Length::Fill)

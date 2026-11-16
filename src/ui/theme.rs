@@ -21,7 +21,6 @@ pub const TEXT_MUTED: Color = Color::from_rgb8(0x9a, 0x90, 0x82);
 pub const TEXT_DIM: Color = Color::from_rgb8(0x6b, 0x63, 0x58);
 
 /// `hsv(hue, saturation, value)`: `hue` in degrees, the other two in `0.0..=1.0`
-/// TODO: Is hsv really needed or just a leftover to keep consistent with slint?
 pub fn hsv(hue: f32, saturation: f32, value: f32) -> Color {
     let h = hue.rem_euclid(360.0) / 60.0;
     let c = value * saturation;

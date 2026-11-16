@@ -1,45 +1,120 @@
 use iced::widget::text::Wrapping;
 use iced::widget::{Space, button, column, container, row, scrollable, text};
 use iced::{Alignment, Background, Border, Element, Length};
+use uuid::Uuid;
 
 use crate::backend::domain::character::{Character, CharacterStatus};
+use crate::ui::pages::builder::Effect;
 use crate::ui::pages::builder::widgets::{
     caption, empty_state, field, labelled, pill, section_header, surface, tag,
 };
-use crate::ui::pages::builder::{Draft, Message};
 use crate::ui::{common, theme};
 
 const CARD_WIDTH: f32 = 260.0;
 
-pub fn cast(draft: &Draft) -> Element<'_, Message> {
-    let head = row![
-        section_header("The Cast", "Characters, their traits and relationships."),
-        pill("Save cast", 120.0, draft.cast_can_save(), Message::SaveCast),
-        pill("+ Add character", 150.0, true, Message::AddCharacter),
-    ]
-    .spacing(16.0)
-    .align_y(Alignment::Center);
-
-    let body: Element<'_, Message> = match draft.edited_character() {
-        Some(character) => character_editor(character),
-        None => grid(draft),
-    };
-
-    column![head, body]
-        .spacing(20.0)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+#[derive(Debug, Clone)]
+pub enum Message {
+    AddRequested,
+    Added(Result<Character, String>),
+    Picked(usize),
+    Changed(Character),
+    EditClosed,
+    RemoveRequested,
+    Removed(Uuid, Result<(), String>),
+    SaveRequested,
+    Saved(Result<(), String>),
 }
 
-fn grid(draft: &Draft) -> Element<'_, Message> {
-    if draft.adventure.characters.is_empty() {
+#[derive(Default)]
+pub struct State {
+    index: Option<usize>,
+}
+
+impl State {
+    pub fn update(&mut self, message: Message, characters: &mut Vec<Character>) -> Option<Effect> {
+        match message {
+            Message::AddRequested => return Some(Effect::AddCharacter),
+            Message::Added(Ok(character)) => {
+                characters.push(character);
+                self.index = Some(characters.len() - 1);
+            }
+            Message::Added(Err(err)) => log::error!("could not add a character: {err}"),
+            Message::Picked(index) => self.index = Some(index),
+            Message::Changed(character) => {
+                if let Some(existing) = characters
+                    .iter_mut()
+                    .find(|existing| existing.id == character.id)
+                {
+                    *existing = character;
+                }
+            }
+            Message::EditClosed => self.index = None,
+            Message::RemoveRequested => {
+                let character = self.index.and_then(|index| characters.get(index))?;
+                return Some(Effect::RemoveCharacter(character.id));
+            }
+            Message::Removed(character_id, Ok(())) => {
+                characters.retain(|character| character.id != character_id);
+                self.index = None;
+            }
+            Message::Removed(_, Err(err)) => {
+                log::error!("could not remove the character: {err}")
+            }
+            Message::SaveRequested => return Some(Effect::SaveCast),
+            Message::Saved(Err(err)) => log::error!("could not save the cast: {err}"),
+            Message::Saved(Ok(())) => {}
+        }
+
+        None
+    }
+
+    pub fn view<'a>(&'a self, characters: &'a [Character]) -> Element<'a, Message> {
+        let head = row![
+            section_header("The Cast", "Characters, their traits and relationships."),
+            pill(
+                "Save cast",
+                120.0,
+                self.can_save(characters),
+                Message::SaveRequested
+            ),
+            pill("+ Add character", 150.0, true, Message::AddRequested),
+        ]
+        .spacing(16.0)
+        .align_y(Alignment::Center);
+
+        let body: Element<'a, Message> = match self.edited(characters) {
+            Some(character) => character_editor(character),
+            None => grid(characters),
+        };
+
+        column![head, body]
+            .spacing(20.0)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+    }
+
+    pub fn is_ready(&self, characters: &[Character]) -> bool {
+        characters
+            .iter()
+            .any(|character| !character.is_player && !character.is_placeholder())
+    }
+
+    pub fn can_save(&self, characters: &[Character]) -> bool {
+        !characters.is_empty()
+    }
+
+    fn edited<'a>(&self, characters: &'a [Character]) -> Option<&'a Character> {
+        self.index.and_then(|index| characters.get(index))
+    }
+}
+
+fn grid(characters: &[Character]) -> Element<'_, Message> {
+    if characters.is_empty() {
         return empty_state("No cast yet — add your first character.");
     }
 
-    let cards: Vec<Element<'_, Message>> = draft
-        .adventure
-        .characters
+    let cards: Vec<Element<'_, Message>> = characters
         .iter()
         .enumerate()
         .map(|(index, character)| cast_card(index, character))
@@ -108,7 +183,7 @@ fn cast_card(index: usize, character: &Character) -> Element<'_, Message> {
         .width(Length::Fixed(CARD_WIDTH))
         .padding(0.0)
         .style(card_style)
-        .on_press(Message::CharacterPicked(index))
+        .on_press(Message::Picked(index))
         .into()
 }
 
@@ -146,7 +221,7 @@ fn character_editor(character: &Character) -> Element<'_, Message> {
             button(text("Remove").size(12.0))
                 .padding([6.0, 14.0])
                 .style(theme::back_button)
-                .on_press(Message::RemoveCharacter),
+                .on_press(Message::RemoveRequested),
         );
     }
 
@@ -154,7 +229,7 @@ fn character_editor(character: &Character) -> Element<'_, Message> {
         button(text("Done").size(12.0))
             .padding([6.0, 14.0])
             .style(theme::back_button)
-            .on_press(Message::CharacterEditClosed),
+            .on_press(Message::EditClosed),
     );
 
     let form = column![
@@ -247,7 +322,7 @@ fn status_field(character: &Character) -> Element<'_, Message> {
             button(text(status.as_str()).size(11.0))
                 .padding([5.0, 10.0])
                 .style(theme::chip(character.status == status))
-                .on_press(Message::CharacterChanged(Character {
+                .on_press(Message::Changed(Character {
                     status,
                     ..character.clone()
                 }))
@@ -272,7 +347,7 @@ fn edit_field<'a>(
     field(value, placeholder, move |edited| {
         let mut character = base.clone();
         change(&mut character, edited);
-        Message::CharacterChanged(character)
+        Message::Changed(character)
     })
 }
 

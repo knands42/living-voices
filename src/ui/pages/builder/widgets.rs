@@ -2,11 +2,10 @@ use iced::widget::text::Wrapping;
 use iced::widget::{button, column, container, text, text_editor, text_input};
 use iced::{Alignment, Background, Border, Element, Length, alignment};
 
-use crate::ui::pages::builder::Message;
 use crate::ui::{common, theme};
 
 /// The heading at the top of a section, with its muted subtitle.
-pub fn section_header<'a>(title: &'a str, subtitle: &'a str) -> Element<'a, Message> {
+pub fn section_header<'a, M: Clone + 'a>(title: &'a str, subtitle: &'a str) -> Element<'a, M> {
     column![
         text(title)
             .size(22.0)
@@ -23,12 +22,12 @@ pub fn section_header<'a>(title: &'a str, subtitle: &'a str) -> Element<'a, Mess
 }
 
 /// A gold pill. `enabled` greys it and takes the press away.
-pub fn pill<'a>(
+pub fn pill<'a, M: Clone + 'a>(
     label: &'a str,
     width: f32,
     enabled: bool,
-    message: Message,
-) -> Element<'a, Message> {
+    message: M,
+) -> Element<'a, M> {
     button(
         container(
             text(label)
@@ -46,7 +45,7 @@ pub fn pill<'a>(
 }
 
 /// A small caps caption above a field.
-pub fn caption(label: &str) -> Element<'static, Message> {
+pub fn caption<'a, M: Clone + 'a>(label: &str) -> Element<'a, M> {
     text(label.to_uppercase())
         .size(11.0)
         .color(theme::TEXT_MUTED)
@@ -55,11 +54,11 @@ pub fn caption(label: &str) -> Element<'static, Message> {
 }
 
 /// A single-line field, styled like the composer so the forms read as one product.
-pub fn field<'a>(
+pub fn field<'a, M: Clone + 'a>(
     value: &'a str,
     placeholder: &'a str,
-    on_input: impl Fn(String) -> Message + 'a,
-) -> Element<'a, Message> {
+    on_input: impl Fn(String) -> M + 'a,
+) -> Element<'a, M> {
     text_input(placeholder, value)
         .padding([10.0, 14.0])
         .size(14.5)
@@ -69,7 +68,7 @@ pub fn field<'a>(
 }
 
 /// A caption over its field, sized to share a row with its neighbours.
-pub fn labelled<'a>(label: &'a str, field: Element<'a, Message>) -> Element<'a, Message> {
+pub fn labelled<'a, M: Clone + 'a>(label: &'a str, field: Element<'a, M>) -> Element<'a, M> {
     column![caption(label), field]
         .spacing(8.0)
         .width(Length::FillPortion(1))
@@ -77,11 +76,11 @@ pub fn labelled<'a>(label: &'a str, field: Element<'a, Message>) -> Element<'a, 
 }
 
 /// A multi-line field.
-pub fn editor<'a>(
+pub fn editor<'a, M: Clone + 'a>(
     content: &'a text_editor::Content,
     min_height: f32,
-    on_action: impl Fn(text_editor::Action) -> Message + 'a,
-) -> Element<'a, Message> {
+    on_action: impl Fn(text_editor::Action) -> M + 'a,
+) -> Element<'a, M> {
     text_editor(content)
         .padding(12.0)
         .size(14.5)
@@ -106,7 +105,7 @@ fn editor_style() -> text_editor::Style {
 }
 
 /// The bordered panel a section sets its fields into.
-pub fn surface<'a>(content: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
+pub fn surface<'a, M: Clone + 'a>(content: impl Into<Element<'a, M>>) -> Element<'a, M> {
     container(content)
         .padding(28.0)
         .width(Length::Fill)
@@ -124,7 +123,7 @@ pub fn surface<'a>(content: impl Into<Element<'a, Message>>) -> Element<'a, Mess
 }
 
 /// The quiet panel a section shows while its list is empty.
-pub fn empty_state(label: &str) -> Element<'static, Message> {
+pub fn empty_state<'a, M: Clone + 'a>(label: &str) -> Element<'a, M> {
     container(text(label.to_string()).size(12.5).color(theme::TEXT_MUTED))
         .padding(28.0)
         .width(Length::Fill)
@@ -136,11 +135,11 @@ pub fn empty_state(label: &str) -> Element<'static, Message> {
 }
 
 /// A panel the sections set their cards and act rows into.
-pub fn card<'a>(
-    content: impl Into<Element<'a, Message>>,
+pub fn card<'a, M: Clone + 'a>(
+    content: impl Into<Element<'a, M>>,
     width: Length,
     edge: iced::Color,
-) -> Element<'a, Message> {
+) -> Element<'a, M> {
     container(content)
         .padding(14.0)
         .width(width)
@@ -153,7 +152,7 @@ pub fn card<'a>(
 }
 
 /// A rounded tag, used for genres, traits and act statuses.
-pub fn tag<'a>(label: &'a str, tint: iced::Color) -> Element<'a, Message> {
+pub fn tag<'a, M: Clone + 'a>(label: &'a str, tint: iced::Color) -> Element<'a, M> {
     container(
         text(label)
             .size(10.5)
