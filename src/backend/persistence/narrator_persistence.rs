@@ -9,7 +9,7 @@ struct NarratorRow {
     id: String,
     adventure_id: String,
     name: String,
-    tone: String,
+    instructions: String,
 }
 
 impl FromRow<'_, SqliteRow> for NarratorRow {
@@ -18,7 +18,7 @@ impl FromRow<'_, SqliteRow> for NarratorRow {
             id: row.get("id"),
             adventure_id: row.get("adventure_id"),
             name: row.get("name"),
-            tone: row.get("tone"),
+            instructions: row.get("instructions"),
         })
     }
 }
@@ -46,7 +46,7 @@ impl TryFrom<NarratorRow> for Narrator {
             id: from_str_to_uuid(&value.id)?,
             adventure_id: from_str_to_uuid(&value.adventure_id)?,
             name: value.name,
-            tone: value.tone,
+            instructions: value.instructions,
         })
     }
 }

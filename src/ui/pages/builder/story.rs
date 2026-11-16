@@ -15,7 +15,7 @@ pub fn story(draft: &Draft) -> Element<'_, Message> {
     let head = row![
         section_header(
             "The Story",
-            "Title, headline, lore, narrator voice and tone."
+            "Title, headline, lore, narrator voice and the adventure's tone."
         ),
         text(saved.0).size(12.0).color(saved.1),
         pill(

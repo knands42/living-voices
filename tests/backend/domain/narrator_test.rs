@@ -6,20 +6,20 @@ fn new_narrator() -> Narrator {
 }
 
 #[test]
-fn new_sets_name_and_leaves_tone_unset() {
+fn new_sets_name_and_instructions() {
     let narrator = new_narrator();
 
     assert_eq!(narrator.name, "The Chronicler");
-    assert!(!narrator.tone.is_empty());
+    assert!(!narrator.instructions.is_empty());
     assert_ne!(narrator.id, Uuid::nil());
 }
 
 #[test]
-fn new_keeps_the_given_tone() {
-    let narrator =
-        Narrator::new(Uuid::new_v4(), Uuid::new_v4(), "The Chronicler", "casual").with_tone("grim");
+fn new_keeps_the_given_instructions() {
+    let narrator = Narrator::new(Uuid::new_v4(), Uuid::new_v4(), "The Chronicler", "casual")
+        .with_instructions("grim");
 
-    assert_eq!(narrator.tone, String::from("grim"));
+    assert_eq!(narrator.instructions, String::from("grim"));
 }
 
 #[test]

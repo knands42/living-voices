@@ -83,6 +83,12 @@ impl ContextBuilder {
             lines.push(format!("Lore: {}", adventure.lore.text));
         }
         lines.push(format!("Narrator: {}", adventure.narrator.name));
+        if !adventure.narrator.instructions.trim().is_empty() {
+            lines.push(format!(
+                "Narrator instructions: {}",
+                adventure.narrator.instructions
+            ));
+        }
 
         lines.join("\n")
     }

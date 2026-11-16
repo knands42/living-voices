@@ -14,11 +14,11 @@ VALUES ('7a1c0f42-9d3e-4b6a-8f21-000000000001', 'fantasy'),
        ('7a1c0f42-9d3e-4b6a-8f21-000000000001', 'intimate'),
        ('7a1c0f42-9d3e-4b6a-8f21-000000000001', 'grounded');
 
-INSERT INTO narrator (id, adventure_id, name, tone)
+INSERT INTO narrator (id, adventure_id, name, instructions)
 VALUES ('7a1c0f42-9d3e-4b6a-8f21-000000000002',
         '7a1c0f42-9d3e-4b6a-8f21-000000000001',
         'Narrator',
-        'Dry and warm, with a courier''s eye for roads and small mercies. Short sentences; let the weather and the gatehouse do the talking.');
+        'Narrate dry and warm, with a courier''s eye for roads and small mercies. Keep sentences short and let the weather and the gatehouse do the talking.');
 
 INSERT INTO lore (id, adventure_id, text)
 VALUES ('7a1c0f42-9d3e-4b6a-8f21-000000000003',

@@ -125,7 +125,7 @@ struct CompleteAdventureRow {
     character_message_example: Option<String>,
     narrator_id: String,
     narrator_name: String,
-    narrator_tone: String,
+    narrator_instructions: String,
 }
 
 impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
@@ -158,7 +158,7 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
             character_message_example: row.get("character_message_example"),
             narrator_id: row.get("narrator_id"),
             narrator_name: row.get("narrator_name"),
-            narrator_tone: row.get("narrator_tone"),
+            narrator_instructions: row.get("narrator_instructions"),
         })
     }
 }
@@ -214,7 +214,7 @@ impl TryFrom<CompleteAdventureRow> for Adventure {
             narrator_id_uuid,
             adventure_id_uuid,
             value.narrator_name.clone(),
-            value.narrator_tone.clone(),
+            value.narrator_instructions.clone(),
         );
 
         let lore_texts = parse_json_array(Some(value.adventure_lore.as_str()))?;
@@ -302,7 +302,7 @@ SELECT a.id                      AS adventure_id,
        COALESCE(ct.trait, '[]')  AS character_traits,
        c.relations AS character_relations,
        c.message_example AS character_message_example,
-       n.id AS narrator_id, n.name AS narrator_name, n.tone AS narrator_tone
+       n.id AS narrator_id, n.name AS narrator_name, n.instructions AS narrator_instructions
 FROM adventure AS a
          LEFT JOIN (SELECT adventure_id,
                            '[' || GROUP_CONCAT('"' || tag || '"', ',') || ']' AS tags
@@ -453,9 +453,9 @@ pub async fn update_adventure(
     .await?;
 
     // TODO: This will move out when narrator manager exists
-    sqlx::query("UPDATE narrator SET name = ?1, tone = ?2 WHERE adventure_id = ?3")
+    sqlx::query("UPDATE narrator SET name = ?1, instructions = ?2 WHERE adventure_id = ?3")
         .bind(&adventure.narrator.name)
-        .bind(&adventure.narrator.tone)
+        .bind(&adventure.narrator.instructions)
         .bind(adventure.id.to_string())
         .execute(&mut *conn)
         .await?;

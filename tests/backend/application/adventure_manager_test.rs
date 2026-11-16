@@ -34,7 +34,7 @@ async fn create_adventure_creates_default_entities_and_initial_shared_state() {
     // and: it has a default narrator
     assert_eq!(adventure.narrator.adventure_id, adventure.id);
     assert_eq!(adventure.narrator.name, "Narrator");
-    assert!(!adventure.narrator.tone.trim().is_empty());
+    assert!(!adventure.narrator.instructions.trim().is_empty());
 
     // and: it has an empty default lore
     assert_eq!(adventure.lore.text, "");
@@ -218,7 +218,7 @@ async fn update_adventure_overwrites_fields_narrator_and_lore() {
     adventure.tone = "tense".to_string();
     adventure.status = AdventureStatus::Private;
     adventure.narrator.name = "The Tide".to_string();
-    adventure.narrator.tone = "ominous".to_string();
+    adventure.narrator.instructions = "ominous".to_string();
     adventure.lore.text = "The city drowned in a single night.".to_string();
 
     let updated = adventure_manager
@@ -232,7 +232,7 @@ async fn update_adventure_overwrites_fields_narrator_and_lore() {
     assert_eq!(updated.tone, "tense");
     assert_eq!(updated.status, AdventureStatus::Private);
     assert_eq!(updated.narrator.name, "The Tide");
-    assert_eq!(updated.narrator.tone, "ominous");
+    assert_eq!(updated.narrator.instructions, "ominous");
     assert_eq!(updated.lore.text, "The city drowned in a single night.");
 
     // and: a fresh read from the database agrees

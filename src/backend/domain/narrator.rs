@@ -5,7 +5,7 @@ pub struct Narrator {
     pub id: Uuid,
     pub adventure_id: Uuid,
     pub name: String,
-    pub tone: String,
+    pub instructions: String,
 }
 
 impl Narrator {
@@ -13,13 +13,13 @@ impl Narrator {
         id: Uuid,
         adventure_id: Uuid,
         name: impl Into<String>,
-        tone: impl Into<String>,
+        instructions: impl Into<String>,
     ) -> Self {
         Self {
             id,
             adventure_id,
             name: name.into(),
-            tone: tone.into(),
+            instructions: instructions.into(),
         }
     }
 
@@ -28,8 +28,8 @@ impl Narrator {
         self
     }
 
-    pub fn with_tone(mut self, tone: impl Into<String>) -> Self {
-        self.tone = tone.into();
+    pub fn with_instructions(mut self, instructions: impl Into<String>) -> Self {
+        self.instructions = instructions.into();
         self
     }
 }
