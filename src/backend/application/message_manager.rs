@@ -85,9 +85,10 @@ impl<
 
     pub async fn send_message(&self, incoming: Message) -> Result<Message, MessageManagerError> {
         log::info!(
-            "turn start: adventure={} speaker={}",
+            "turn start: adventure={} character={:?} narrator={:?}",
             incoming.adventure_id,
-            incoming.speaker_name
+            incoming.character_id,
+            incoming.narrator_id
         );
         self.create_message(incoming.clone()).await?;
 
@@ -142,7 +143,7 @@ impl<
                 .adventure
                 .message_from_reply(&reply.replier, &reply.reply);
             let stored = self.create_message(message).await?;
-            log::info!("follow-up from {}", stored.speaker_name);
+            log::info!("follow-up from {}", input.adventure.speaker_name(&stored));
 
             last_message = stored;
             steps_taken += 1;
@@ -359,7 +360,11 @@ impl<
         );
 
         let data = self.load_context(&input.adventure).await?;
-        let prompt = ContextBuilder::build_act_transition_prompt(&data, &input.uncovered_messages);
+        let prompt = ContextBuilder::build_act_transition_prompt(
+            &input.adventure,
+            &data,
+            &input.uncovered_messages,
+        );
 
         let narration = self.narrator_handler.narrator_respond(&prompt).await?;
         let narration_message = input
@@ -466,14 +471,7 @@ mod load_uncovered_tests {
         let mut conn = pool.acquire().await.expect("acquire");
         let mut stored = Vec::with_capacity(count);
         for i in 0..count {
-            let message = Message::new(
-                adventure_id,
-                None,
-                None,
-                Message::NARRATOR_SPEAKER_NAME.to_string(),
-                format!("message {i}"),
-                false,
-            );
+            let message = Message::new(adventure_id, None, None, format!("message {i}"), false);
             stored.extend(
                 insert_messages(&mut conn, std::slice::from_ref(&message))
                     .await
@@ -566,14 +564,7 @@ mod should_close_tests {
     use uuid::Uuid;
 
     fn beat_at(seq: Option<u16>) -> Message {
-        let mut message = Message::new(
-            Uuid::new_v4(),
-            None,
-            None,
-            Message::NARRATOR_SPEAKER_NAME.to_string(),
-            "a beat",
-            false,
-        );
+        let mut message = Message::new(Uuid::new_v4(), None, None, "a beat", false);
         message.seq = seq;
         message
     }
@@ -623,7 +614,6 @@ mod follow_up {
             adventure_id,
             None,
             narrator.then(Uuid::new_v4),
-            "someone".to_string(),
             "a beat".to_string(),
             false,
         )

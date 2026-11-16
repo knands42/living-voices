@@ -177,21 +177,23 @@ impl ContextBuilder {
         if Self::is_player_message(adventure, message) {
             PromptTurn::player(message.text.clone())
         } else {
-            PromptTurn::cast(Self::render_cast_turn(message, cast_turn))
+            PromptTurn::cast(Self::render_cast_turn(adventure, message, cast_turn))
         }
     }
 
-    fn render_cast_turn(message: &Message, cast_turn: CastTurn) -> String {
+    fn render_cast_turn(adventure: &Adventure, message: &Message, cast_turn: CastTurn) -> String {
+        let speaker_name = adventure.speaker_name(message);
+
         match cast_turn {
-            CastTurn::Narrator => format!("{}: {}", message.speaker_name, message.text),
+            CastTurn::Narrator => format!("{speaker_name}: {}", message.text),
             CastTurn::Autonomous => serde_json::json!({
-                "replier": message.speaker_name,
+                "replier": speaker_name,
                 "reply": message.text,
                 "act_closure": null,
             })
             .to_string(),
             CastTurn::TargetCharacter => serde_json::json!({
-                "replier": message.speaker_name,
+                "replier": speaker_name,
                 "reply": message.text,
             })
             .to_string(),

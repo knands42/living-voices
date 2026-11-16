@@ -81,14 +81,7 @@ impl Scene {
 
         let adventure = self.adventure.as_ref()?;
         let player = adventure.characters.iter().find(|cast| cast.is_player)?;
-        let line = MessageLine::new(
-            adventure.id,
-            Some(player.id),
-            None,
-            player.name.clone(),
-            text,
-            false,
-        );
+        let line = MessageLine::new(adventure.id, Some(player.id), None, text, false);
 
         self.messages.push(line.clone());
         self.input_message.clear();

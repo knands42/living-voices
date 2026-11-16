@@ -1,3 +1,6 @@
+use sqlx::query;
+use uuid::Uuid;
+
 use crate::backend::application::helper::setup_db;
 use crate::backend::persistence::helper::seed_adventure;
 use living_voices::backend::domain::message::Message;
@@ -5,20 +8,20 @@ use living_voices::backend::persistence::message_persistence::{fetch_since, inse
 
 #[tokio::test]
 async fn insert_and_fetch_round_trip_keeps_the_message() {
-    // Given a migrated database with an adventure
+    // Given a migrated database with an adventure and its narrator
     let (pool, _db) = setup_db().await;
     let adventure = seed_adventure(&pool).await;
     let mut conn = pool.acquire().await.expect("acquire");
+    let narrator_id = Uuid::new_v4();
+    query("INSERT INTO narrator (id, adventure_id) VALUES (?1, ?2)")
+        .bind(narrator_id.to_string())
+        .bind(adventure.id.to_string())
+        .execute(&mut *conn)
+        .await
+        .expect("insert narrator");
 
-    // When inserting a player message
-    let message = Message::new(
-        adventure.id,
-        None,
-        None,
-        "Alice".to_string(),
-        "come here",
-        false,
-    );
+    // When inserting a narrator message
+    let message = Message::new(adventure.id, None, Some(narrator_id), "come here", false);
     let stored = insert_messages(&mut conn, std::slice::from_ref(&message))
         .await
         .expect("insert message")
@@ -32,7 +35,8 @@ async fn insert_and_fetch_round_trip_keeps_the_message() {
         .await
         .expect("fetch messages");
     assert_eq!(messages.len(), 1);
-    assert_eq!(messages[0].speaker_name, "Alice");
+    assert_eq!(messages[0].narrator_id, Some(narrator_id));
+    assert!(messages[0].character_id.is_none());
     assert_eq!(messages[0].text, "come here");
     assert!(!messages[0].ooc);
 }
@@ -45,16 +49,7 @@ async fn fetch_since_excludes_messages_at_or_below_the_cursor() {
     let mut conn = pool.acquire().await.expect("acquire");
 
     let batch: Vec<Message> = (1..=3)
-        .map(|i| {
-            Message::new(
-                adventure.id,
-                None,
-                None,
-                format!("Speaker {i}"),
-                format!("line {i}"),
-                false,
-            )
-        })
+        .map(|i| Message::new(adventure.id, None, None, format!("line {i}"), false))
         .collect();
 
     // When inserting them as one batch

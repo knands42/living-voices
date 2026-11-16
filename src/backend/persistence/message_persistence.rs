@@ -12,7 +12,6 @@ struct MessageRow {
     adventure_id: String,
     narrator_id: Option<String>,
     character_id: Option<String>,
-    speaker_name: String,
     text: String,
     ooc: bool,
     created_at: String,
@@ -25,7 +24,6 @@ impl MessageRow {
             adventure_id: row.get("adventure_id"),
             narrator_id: row.get("narrator_id"),
             character_id: row.get("character_id"),
-            speaker_name: row.get("speaker_name"),
             text: row.get("text"),
             ooc: row.get::<u8, _>("ooc") != 0,
             created_at: row.get("created_at"),
@@ -42,14 +40,13 @@ pub async fn insert_messages(
     }
 
     let mut builder = QueryBuilder::<Sqlite>::new(
-        "INSERT INTO message (adventure_id, character_id, narrator_id, speaker_name, text, ooc, created_at) ",
+        "INSERT INTO message (adventure_id, character_id, narrator_id, text, ooc, created_at) ",
     );
 
     builder.push_values(messages, |mut row, message| {
         row.push_bind(message.adventure_id.to_string())
             .push_bind(message.character_id.map(|id| id.to_string()))
             .push_bind(message.narrator_id.map(|id| id.to_string()))
-            .push_bind(message.speaker_name.as_str())
             .push_bind(message.text.as_str())
             .push_bind(message.ooc as u16)
             .push_bind(from_timestamp_to_str(&message.created_at));
@@ -79,7 +76,7 @@ pub async fn fetch_since(
     after_seq: u16,
 ) -> Result<Vec<Message>, PersistenceError> {
     let rows = sqlx::query(
-        "SELECT seq, adventure_id, character_id, narrator_id, speaker_name, text, ooc, created_at
+        "SELECT seq, adventure_id, character_id, narrator_id, text, ooc, created_at
          FROM message
          WHERE adventure_id = ?1 AND seq > ?2
          ORDER BY seq ASC",
@@ -101,7 +98,7 @@ pub async fn fetch_last_n(
     limit: u16,
 ) -> Result<Vec<Message>, PersistenceError> {
     let rows = sqlx::query(
-        "SELECT seq, adventure_id, character_id, narrator_id, speaker_name, text, ooc, created_at
+        "SELECT seq, adventure_id, character_id, narrator_id, text, ooc, created_at
          FROM message
          WHERE adventure_id = ?1
          ORDER BY seq DESC
@@ -180,7 +177,6 @@ impl TryFrom<MessageRow> for Message {
             adventure_id,
             character_id,
             narrator_id,
-            speaker_name: row.speaker_name,
             text: row.text,
             ooc: row.ooc,
             created_at,

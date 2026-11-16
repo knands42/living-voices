@@ -44,7 +44,7 @@ pub async fn seed_act(
 
 pub async fn seed_message(pool: &SqlitePool, adventure_id: Uuid, text: &str) -> u16 {
     let mut conn = pool.acquire().await.expect("acquire");
-    let message = Message::new(adventure_id, None, None, "Speaker".into(), text, false);
+    let message = Message::new(adventure_id, None, None, text, false);
     insert_messages(&mut conn, std::slice::from_ref(&message))
         .await
         .expect("insert message")

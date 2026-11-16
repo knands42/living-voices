@@ -602,19 +602,12 @@ async fn distill_prompt_leads_with_the_distill_instruction_and_the_turns() {
     let mut conn = pool.acquire().await.expect("acquire");
 
     let messages = vec![
-        Message::new(adventure.id, None, None, "Hero".into(), "We fled.", false),
-        Message::new(
-            adventure.id,
-            None,
-            None,
-            "Mira".into(),
-            "They followed.",
-            false,
-        ),
+        adventure.message_from_reply("Mira", "We fled."),
+        adventure.message_from_reply("Kael", "They followed."),
     ];
 
     let data = context_data(&mut conn, &adventure).await;
-    let turns = ContextBuilder::build_distill_prompt(&data, &messages);
+    let turns = ContextBuilder::build_distill_prompt(&adventure, &data, &messages);
 
     assert_eq!(turns[0].speaker, Speaker::System);
     assert!(turns[0].text.contains("## DISTILL"));
@@ -624,8 +617,8 @@ async fn distill_prompt_leads_with_the_distill_instruction_and_the_turns() {
         .map(|t| t.text.as_str())
         .collect::<Vec<_>>()
         .join("\n");
-    assert!(joined.contains("Hero: We fled."));
-    assert!(joined.contains("Mira: They followed."));
+    assert!(joined.contains("Mira: We fled."));
+    assert!(joined.contains("Kael: They followed."));
 }
 // endregion
 
@@ -688,7 +681,6 @@ async fn outfit_prompt_carries_the_scene_messages() {
         adventure.id,
         Some(character.id),
         None,
-        "Mara Venn".to_string(),
         "*throws the soaked coat onto the fire*".to_string(),
         false,
     )];
@@ -778,14 +770,7 @@ async fn seed_player_message(
 ) {
     use living_voices::backend::persistence::message_persistence::insert_messages;
     let mut conn = pool.acquire().await.expect("acquire");
-    let message = Message::new(
-        adventure.id,
-        Some(author.id),
-        None,
-        author.name.clone(),
-        text,
-        false,
-    );
+    let message = Message::new(adventure.id, Some(author.id), None, text, false);
     insert_messages(&mut conn, std::slice::from_ref(&message))
         .await
         .expect("insert");
@@ -799,14 +784,7 @@ async fn seed_cast_message(
 ) {
     use living_voices::backend::persistence::message_persistence::insert_messages;
     let mut conn = pool.acquire().await.expect("acquire");
-    let message = Message::new(
-        adventure.id,
-        Some(author.id),
-        None,
-        author.name.clone(),
-        text,
-        false,
-    );
+    let message = Message::new(adventure.id, Some(author.id), None, text, false);
     insert_messages(&mut conn, std::slice::from_ref(&message))
         .await
         .expect("insert");

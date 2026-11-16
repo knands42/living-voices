@@ -98,7 +98,7 @@ impl<D: MemoryDistillerPort, C: ActCloserPort> MemoryManager<D, C> {
             uncovered.len(),
             act.id
         );
-        let prompt = ContextBuilder::build_distill_prompt(&data, uncovered);
+        let prompt = ContextBuilder::build_distill_prompt(&adventure, &data, uncovered);
         let distilled = self.distiller.distill(&prompt).await?;
 
         self.persist_distilled(&mut conn, &adventure, act, distilled, digest_to_seq)
@@ -132,12 +132,14 @@ impl<D: MemoryDistillerPort, C: ActCloserPort> MemoryManager<D, C> {
 
         // Distill first so facts/state can be up to date
         let distilled = {
-            let prompt = ContextBuilder::build_distill_prompt(&data, uncovered_messages);
+            let prompt =
+                ContextBuilder::build_distill_prompt(&adventure, &data, uncovered_messages);
             self.distiller.distill(&prompt).await?
         };
 
         let closed = {
-            let prompt = ContextBuilder::build_act_close_prompt(&data, uncovered_messages);
+            let prompt =
+                ContextBuilder::build_act_close_prompt(&adventure, &data, uncovered_messages);
             self.closer.close_act(&prompt).await?
         };
 

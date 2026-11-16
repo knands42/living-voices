@@ -23,14 +23,7 @@ fn cast(names: &[&str]) -> Vec<Character> {
 }
 
 fn line(ooc: bool) -> Message {
-    Message::new(
-        Uuid::new_v4(),
-        None,
-        None,
-        "Player".to_string(),
-        "hello",
-        ooc,
-    )
+    Message::new(Uuid::new_v4(), None, None, "hello", ooc)
 }
 
 fn director(targeted_pick_chance: f32, narrator_change_if_ooc: f32, ramp: (u8, u8)) -> Director {

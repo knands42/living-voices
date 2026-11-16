@@ -5,17 +5,19 @@
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
+use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::message::Message;
 use crate::cli::draw::theme::{GOLD, dim, ink, muted, speaker_color};
 
-pub(super) fn message_line<'a>(message: &Message) -> Line<'a> {
+pub(super) fn message_line<'a>(adventure: &'a Adventure, message: &'a Message) -> Line<'a> {
     // The narrator speaks in the voice of the world, not a cast member — give it
     // its own gold sigil and italic name so it reads as scene, not dialogue.
     let is_narrator = message.narrator_id.is_some();
+    let speaker_name = adventure.speaker_name(message);
     let hue = if is_narrator {
         GOLD
     } else {
-        speaker_color(&message.speaker_name)
+        speaker_color(speaker_name)
     };
 
     let gutter_glyph = if is_narrator { "❧ " } else { "▍ " };
@@ -30,7 +32,7 @@ pub(super) fn message_line<'a>(message: &Message) -> Line<'a> {
     let mut spans = vec![
         gutter,
         Span::styled(
-            message.speaker_name.clone(),
+            speaker_name,
             Style::default().fg(hue).add_modifier(name_modifier),
         ),
         Span::styled(" ❯ ", dim()),

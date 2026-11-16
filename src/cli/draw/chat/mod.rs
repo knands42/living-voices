@@ -226,7 +226,7 @@ fn render_transcript(
     frame.render_widget(block, area);
     fill_bg(inner, frame.buffer_mut(), PANEL);
 
-    if adventure.is_none() {
+    let Some(adventure) = adventure else {
         scatter_runes(inner, frame.buffer_mut(), 17);
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
@@ -237,7 +237,7 @@ fn render_transcript(
             inner,
         );
         return;
-    }
+    };
 
     if messages.is_empty() {
         scatter_runes(inner, frame.buffer_mut(), 17);
@@ -252,7 +252,10 @@ fn render_transcript(
         return;
     }
 
-    let lines: Vec<Line> = messages.iter().map(transcript::message_line).collect();
+    let lines: Vec<Line> = messages
+        .iter()
+        .map(|message| transcript::message_line(adventure, message))
+        .collect();
 
     // Keep the latest lines in view: scroll so the tail sits at the bottom.
     let total = lines.len() as u16;

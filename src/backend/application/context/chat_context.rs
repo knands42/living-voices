@@ -113,19 +113,28 @@ impl ContextBuilder {
         turns
     }
 
-    pub fn build_distill_prompt(data: &ContextData, messages: &[Message]) -> Vec<PromptTurn> {
-        Self::build_memory_prompt(data, messages, DISTILL_PROMPT)
-    }
-
-    pub fn build_act_close_prompt(data: &ContextData, messages: &[Message]) -> Vec<PromptTurn> {
-        Self::build_memory_prompt(data, messages, ACT_CLOSE_PROMPT)
-    }
-
-    pub fn build_act_transition_prompt(
+    pub fn build_distill_prompt(
+        adventure: &Adventure,
         data: &ContextData,
         messages: &[Message],
     ) -> Vec<PromptTurn> {
-        Self::build_memory_prompt(data, messages, ACT_TRANSITION_PROMPT)
+        Self::build_memory_prompt(adventure, data, messages, DISTILL_PROMPT)
+    }
+
+    pub fn build_act_close_prompt(
+        adventure: &Adventure,
+        data: &ContextData,
+        messages: &[Message],
+    ) -> Vec<PromptTurn> {
+        Self::build_memory_prompt(adventure, data, messages, ACT_CLOSE_PROMPT)
+    }
+
+    pub fn build_act_transition_prompt(
+        adventure: &Adventure,
+        data: &ContextData,
+        messages: &[Message],
+    ) -> Vec<PromptTurn> {
+        Self::build_memory_prompt(adventure, data, messages, ACT_TRANSITION_PROMPT)
     }
 }
 
@@ -178,6 +187,7 @@ impl ContextBuilder {
     }
 
     fn build_memory_prompt(
+        adventure: &Adventure,
         data: &ContextData,
         messages: &[Message],
         lead_prompt: &str,
@@ -187,7 +197,11 @@ impl ContextBuilder {
         turns.push(PromptTurn::system(Self::build_static_context(data)));
 
         turns.extend(messages.iter().map(|message| {
-            PromptTurn::player(format!("{}: {}", message.speaker_name, message.text))
+            PromptTurn::player(format!(
+                "{}: {}",
+                adventure.speaker_name(message),
+                message.text
+            ))
         }));
 
         turns

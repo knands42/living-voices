@@ -152,7 +152,10 @@ async fn send_message_routes_to_the_narrator() {
     // then: the narrator answers (narrator id, no character id)
     assert_eq!(reply.narrator_id, Some(adventure.narrator.id));
     assert!(reply.character_id.is_none());
-    assert_eq!(reply.speaker_name, Message::NARRATOR_SPEAKER_NAME);
+    assert_eq!(
+        adventure.speaker_name(&reply),
+        Message::NARRATOR_SPEAKER_NAME
+    );
 }
 
 // ---------------------------------------------------------------- 3. a random character is picked
@@ -184,10 +187,10 @@ async fn send_message_routes_to_a_random_cast_member() {
         "a character, not the narrator, should answer"
     );
     let present = ["Mira", "Kael"];
+    let speaker_name = adventure.speaker_name(&reply);
     assert!(
-        present.contains(&reply.speaker_name.as_str()),
-        "reply speaker `{}` should be one of the present cast",
-        reply.speaker_name
+        present.contains(&speaker_name),
+        "reply speaker `{speaker_name}` should be one of the present cast"
     );
 }
 
@@ -340,14 +343,7 @@ fn setup_message_manager(
 
 fn player_line(adventure: &Adventure, text: &str) -> Message {
     let player = player_character(adventure);
-    Message::new(
-        adventure.id,
-        Some(player.id),
-        None,
-        player.name.clone(),
-        text,
-        false,
-    )
+    Message::new(adventure.id, Some(player.id), None, text, false)
 }
 
 // ---------------------------------------------------------------- assertions (one value each)

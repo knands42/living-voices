@@ -90,7 +90,13 @@ fn narrator(message: &MessageLine) -> Element<'_, Message> {
 }
 
 fn speech<'a>(chat_state: &'a Scene, message: &'a MessageLine) -> Element<'a, Message> {
-    let hue = common::name_hue(message.speaker_name.as_str());
+    let speaker_name = chat_state
+        .adventure
+        .as_ref()
+        .map_or(MessageLine::UNKNOWN_SPEAKER_NAME, |adventure| {
+            adventure.speaker_name(message)
+        });
+    let hue = common::name_hue(speaker_name);
     let is_player = chat_state
         .adventure
         .as_ref()
@@ -98,7 +104,7 @@ fn speech<'a>(chat_state: &'a Scene, message: &'a MessageLine) -> Element<'a, Me
         .is_some_and(|player| message.character_id == Some(player.id));
 
     let mut heading = row![
-        text(message.speaker_name.as_str())
+        text(speaker_name)
             .size(11.5)
             .color(theme::hsv(hue, 0.45, 0.95))
             .font(common::semibold()),
@@ -125,7 +131,7 @@ fn speech<'a>(chat_state: &'a Scene, message: &'a MessageLine) -> Element<'a, Me
         .max_width(BUBBLE_LENGTH)
         .style(move |_theme| theme::bubble(hue, is_player, 1.0));
 
-    let initials = common::initials_of(message.speaker_name.as_str());
+    let initials = common::initials_of(speaker_name);
     let avatar = common::initials(&initials, hue, AVATAR, 0.55);
 
     if is_player {

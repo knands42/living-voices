@@ -180,6 +180,19 @@ impl Adventure {
             .map(|c| c.name.as_str())
     }
 
+    pub fn speaker_name(&self, message: &Message) -> &str {
+        if message.narrator_id.is_some() {
+            return Message::NARRATOR_SPEAKER_NAME;
+        }
+
+        message
+            .character_id
+            .and_then(|character_id| self.find_character(character_id))
+            .map_or(Message::UNKNOWN_SPEAKER_NAME, |character| {
+                character.name.as_str()
+            })
+    }
+
     pub fn message_from_reply(&self, replier: &str, text: &str) -> Message {
         let character = if Adventure::is_narrator_reply(replier) {
             None
@@ -188,24 +201,13 @@ impl Adventure {
         };
 
         let (character_id, narrator_id, speaker_name) = match character {
-            Some(character) => (Some(character.id), None, character.name.clone()),
-            None => (
-                None,
-                Some(self.narrator.id),
-                Message::NARRATOR_SPEAKER_NAME.to_string(),
-            ),
+            Some(character) => (Some(character.id), None, character.name.as_str()),
+            None => (None, Some(self.narrator.id), Message::NARRATOR_SPEAKER_NAME), // TODO: Consider not using narrator here, it might be good to have a chat bubble for an NPC outside the cast on the chat UI
         };
 
-        let body = Adventure::strip_speaker_prefix(text, &speaker_name);
+        let body = Adventure::strip_speaker_prefix(text, speaker_name);
 
-        Message::new(
-            self.id,
-            character_id,
-            narrator_id,
-            speaker_name,
-            body,
-            false,
-        )
+        Message::new(self.id, character_id, narrator_id, body, false)
     }
 
     /// The model sometimes echoes the speaker into the reply body as `"Name: ..."` -> Remove leftovers

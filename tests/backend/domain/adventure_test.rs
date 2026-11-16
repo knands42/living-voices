@@ -172,9 +172,24 @@ fn message_from_reply_builds_a_character_say_when_replier_is_in_the_cast() {
     assert_eq!(message.adventure_id, adventure.id);
     assert_eq!(message.character_id, Some(mira.id));
     assert!(message.narrator_id.is_none());
-    assert_eq!(message.speaker_name, "Mira");
+    assert_eq!(adventure.speaker_name(&message), "Mira");
     assert_eq!(message.text, "The tide is turning.");
     assert!(!message.ooc);
+}
+
+#[test]
+fn speaker_name_follows_a_character_rename() {
+    // Given a message spoken by "Mira"
+    let (mut adventure, mira) = adventure_with_character("Mira");
+    let message = adventure.message_from_reply("Mira", "The tide is turning.");
+
+    // When the character is renamed after the message was written
+    if let Some(character) = adventure.characters.iter_mut().find(|c| c.id == mira.id) {
+        character.name = "Mira Vale".to_string();
+    }
+
+    // Then the stored message speaks under the new name
+    assert_eq!(adventure.speaker_name(&message), "Mira Vale");
 }
 
 #[test]
@@ -188,7 +203,7 @@ fn message_from_reply_falls_through_to_the_narrator_for_an_unknown_replier() {
     // Then it is spoken by the narrator, carrying the narrator id and no character id
     assert!(message.character_id.is_none());
     assert_eq!(message.narrator_id, Some(adventure.narrator.id));
-    assert_eq!(message.speaker_name, "NARRATOR");
+    assert_eq!(adventure.speaker_name(&message), "NARRATOR");
     assert_eq!(message.text, "The city holds its breath.");
 }
 
@@ -203,7 +218,7 @@ fn message_from_reply_strips_a_character_header_before_matching() {
     // Then it still resolves to the character rather than collapsing to the narrator
     assert_eq!(message.character_id, Some(mira.id));
     assert!(message.narrator_id.is_none());
-    assert_eq!(message.speaker_name, "Mira");
+    assert_eq!(adventure.speaker_name(&message), "Mira");
 }
 
 #[test]
@@ -214,9 +229,9 @@ fn message_from_reply_drops_the_speaker_name_echoed_into_the_body() {
     // When the model echoes the speaker into the reply body
     let message = adventure.message_from_reply("Mira", "Mira: The tide is turning.");
 
-    // Then only the body survives; the speaker lives in speaker_name
+    // Then only the body survives; the speaker is resolved from the character id
     assert_eq!(message.text, "The tide is turning.");
-    assert_eq!(message.speaker_name, "Mira");
+    assert_eq!(adventure.speaker_name(&message), "Mira");
 }
 
 #[test]
@@ -236,7 +251,7 @@ fn message_from_reply_drops_the_narrator_name_echoed_into_the_body() {
     let message = adventure.message_from_reply("NARRATOR", "NARRATOR: A horn sounds.");
 
     assert_eq!(message.text, "A horn sounds.");
-    assert_eq!(message.speaker_name, "NARRATOR");
+    assert_eq!(adventure.speaker_name(&message), "NARRATOR");
 }
 
 #[test]
@@ -264,7 +279,7 @@ fn message_from_reply_strips_a_trailing_target_qualifier() {
     let message = adventure.message_from_reply("[CHARACTER] Mira | target: Kael", "Over here.");
 
     assert_eq!(message.character_id, Some(mira.id));
-    assert_eq!(message.speaker_name, "Mira");
+    assert_eq!(adventure.speaker_name(&message), "Mira");
 }
 
 #[test]
@@ -274,7 +289,7 @@ fn message_from_reply_matches_a_character_case_insensitively() {
     let message = adventure.message_from_reply("  mira  ", "The gate is shut.");
 
     assert_eq!(message.character_id, Some(mira.id));
-    assert_eq!(message.speaker_name, "Mira");
+    assert_eq!(adventure.speaker_name(&message), "Mira");
 }
 
 #[test]
@@ -288,7 +303,7 @@ fn message_from_reply_routes_an_explicit_narrator_header_to_the_narrator() {
     // Then it is attributed to the narrator
     assert!(message.character_id.is_none());
     assert_eq!(message.narrator_id, Some(adventure.narrator.id));
-    assert_eq!(message.speaker_name, "NARRATOR");
+    assert_eq!(adventure.speaker_name(&message), "NARRATOR");
 }
 
 #[test]

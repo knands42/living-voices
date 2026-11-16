@@ -8,7 +8,6 @@ pub struct Message {
     pub adventure_id: Uuid,
     pub character_id: Option<Uuid>,
     pub narrator_id: Option<Uuid>,
-    pub speaker_name: String,
     pub text: String,
     pub ooc: bool,
     pub created_at: DateTime<Utc>,
@@ -16,12 +15,12 @@ pub struct Message {
 
 impl Message {
     pub const NARRATOR_SPEAKER_NAME: &'static str = "NARRATOR";
+    pub const UNKNOWN_SPEAKER_NAME: &'static str = "Unknown";
 
     pub fn new(
         adventure_id: Uuid,
         character_id: Option<Uuid>,
         narrator_id: Option<Uuid>,
-        speaker_name: String,
         text: impl Into<String>,
         ooc: bool,
     ) -> Self {
@@ -30,7 +29,6 @@ impl Message {
             adventure_id,
             character_id,
             narrator_id,
-            speaker_name,
             text: text.into(),
             ooc,
             created_at: Utc::now(),

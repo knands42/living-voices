@@ -241,30 +241,11 @@ impl Beat {
         let text = self.text();
 
         match self.speaker {
-            Speaker::Narrator => MessageLine::new(
-                adventure.id,
-                None,
-                Some(adventure.narrator.id),
-                MessageLine::NARRATOR_SPEAKER_NAME.to_string(),
-                text,
-                false,
-            ),
+            Speaker::Narrator => {
+                MessageLine::new(adventure.id, None, Some(adventure.narrator.id), text, false)
+            }
             Speaker::Character(character_id) => {
-                let speaker_name = adventure
-                    .characters
-                    .iter()
-                    .find(|character| character.id == character_id)
-                    .map(|character| character.name.clone())
-                    .unwrap_or_default();
-
-                MessageLine::new(
-                    adventure.id,
-                    Some(character_id),
-                    None,
-                    speaker_name,
-                    text,
-                    false,
-                )
+                MessageLine::new(adventure.id, Some(character_id), None, text, false)
             }
         }
     }
@@ -439,12 +420,7 @@ fn speaker_picker<'a>(
     row(chips).spacing(6.0).wrap().into()
 }
 
-fn speaker_chip<'a>(
-    speaker: Speaker,
-    label: &'a str,
-    chosen: Speaker,
-    index: usize,
-) -> Element<'a, Message> {
+fn speaker_chip(speaker: Speaker, label: &str, chosen: Speaker, index: usize) -> Element<Message> {
     button(text(label).size(11.0))
         .padding([5.0, 10.0])
         .style(theme::chip(chosen == speaker))

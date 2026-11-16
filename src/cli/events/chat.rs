@@ -7,8 +7,6 @@ use crate::cli::state::{ChatEvent, CliState, Page};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
-const DEFAULT_PLAYER_NAME: &str = "You";
-
 pub fn handle_chat(
     key: KeyEvent,
     state: &mut CliState,
@@ -94,6 +92,17 @@ fn char_index_to_byte(input: &str, char_index: usize) -> usize {
 }
 
 fn send_current_input(state: &mut CliState, ctx: &DefaultContext, runtime: &Handle) {
+    let Some(adventure) = ctx.adventure_manager.current_adventure() else {
+        state.status = Some("open a tale before sending".into());
+        return;
+    };
+
+    // Identify the player: the character flagged is_player.
+    let Some(player) = adventure.characters.iter().find(|c| c.is_player) else {
+        state.status = Some("this tale has no player character".into());
+        return;
+    };
+
     let text = {
         let Page::Chat { input, cursor } = &mut state.page else {
             return;
@@ -108,19 +117,7 @@ fn send_current_input(state: &mut CliState, ctx: &DefaultContext, runtime: &Hand
         return;
     }
 
-    let Some(adventure) = ctx.adventure_manager.current_adventure() else {
-        state.status = Some("open a tale before sending".into());
-        return;
-    };
-
-    // Identify the player: the character flagged is_player, else a generic voice.
-    let player = adventure.characters.iter().find(|c| c.is_player);
-    let (character_id, speaker_name) = match player {
-        Some(c) => (Some(c.id), c.name.clone()),
-        None => (None, DEFAULT_PLAYER_NAME.to_string()),
-    };
-
-    let outgoing = Message::new(adventure.id, character_id, None, speaker_name, text, false);
+    let outgoing = Message::new(adventure.id, Some(player.id), None, text, false);
 
     // Instant echo: show the player's line before the model is even called.
     state.messages.push(outgoing.clone());

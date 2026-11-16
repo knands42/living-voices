@@ -237,7 +237,6 @@ async fn create_character_outfit_prompt_uses_messages_and_persists_the_prompt() 
         adventure.id,
         Some(character.id),
         None,
-        character.name.clone(),
         "*strips off the soaked oilskin coat and hangs it by the stove*".to_string(),
         false,
     );
@@ -297,7 +296,6 @@ async fn create_character_pose_prompt_uses_messages_and_persists_the_prompt() {
         adventure.id,
         Some(character.id),
         None,
-        character.name.clone(),
         "*reaches up to trim the lamp wick*".to_string(),
         false,
     );

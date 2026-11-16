@@ -843,7 +843,6 @@ async fn seed_connection(
                 adventure_summary.id,
                 None,
                 Some(narrator_id),
-                Message::NARRATOR_SPEAKER_NAME.to_string(),
                 seed_message.text,
                 false,
             ),
@@ -856,7 +855,6 @@ async fn seed_connection(
                     adventure_summary.id,
                     Some(character.id),
                     None,
-                    character.name.clone(),
                     seed_message.text,
                     false,
                 )
