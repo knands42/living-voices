@@ -3,12 +3,12 @@ use iced::widget::{Space, column, container, scrollable, text};
 use iced::{Element, Length};
 
 use crate::backend::domain::memory::{CharacterCondition, Fact, State as SceneState};
-use crate::ui::pages::chat::{Message, Scene};
+use crate::ui::pages::chat::{Message, OngoingAdventure};
 use crate::ui::{common, theme};
 
 const META_LENGTH: f32 = 300.0;
 
-pub fn meta_rail(chat_state: &Scene) -> Element<'_, Message> {
+pub fn meta_rail(chat_state: &OngoingAdventure) -> Element<'_, Message> {
     let scene = chat_state.scene_state.as_ref();
 
     let conditions = scene

@@ -4,12 +4,12 @@ use iced::{Alignment, Element, Length};
 
 use crate::backend::domain::character::Character;
 use crate::ui::pages::chat::look::AVATAR;
-use crate::ui::pages::chat::{Message, Scene};
+use crate::ui::pages::chat::{Message, OngoingAdventure};
 use crate::ui::{common, theme};
 
 pub const CAST_LENGTH: f32 = 300.0;
 
-pub fn cast_rail(chat_state: &Scene) -> Element<'_, Message> {
+pub fn cast_rail(chat_state: &OngoingAdventure) -> Element<'_, Message> {
     let mut rows = column![].spacing(4.0).width(Length::Fill);
 
     if let Some(adventure) = &chat_state.adventure {

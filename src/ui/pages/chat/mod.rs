@@ -50,7 +50,7 @@ pub struct Opened {
 }
 
 #[derive(Default)]
-pub struct Scene {
+pub struct OngoingAdventure {
     pub adventure: Option<Adventure>,
     pub act: Option<Act>,
     pub scene_state: Option<SceneState>,
@@ -60,7 +60,7 @@ pub struct Scene {
     pub awaiting_reply: bool,
 }
 
-impl Scene {
+impl OngoingAdventure {
     fn adventure_id(&self) -> Option<Uuid> {
         self.adventure.as_ref().map(|adventure| adventure.id)
     }
@@ -100,7 +100,7 @@ pub struct State<
     handle: tokio::runtime::Handle,
     adventure_manager: AdventureManager,
     message_manager: MessageManager<C, N, M, A>,
-    scene: Scene,
+    scene: OngoingAdventure,
 }
 
 impl<
@@ -120,7 +120,7 @@ impl<
                 handle,
                 adventure_manager,
                 message_manager,
-                scene: Scene::default(),
+                scene: OngoingAdventure::default(),
             },
             Task::none(),
         )
@@ -136,7 +136,7 @@ impl<
     }
 
     pub fn open(&mut self, adventure_id: Uuid) -> Task<Message> {
-        self.scene = Scene::default();
+        self.scene = OngoingAdventure::default();
 
         let adventure_manager = self.adventure_manager.clone();
 

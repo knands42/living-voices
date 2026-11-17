@@ -2,12 +2,12 @@ use iced::widget::{Space, button, column, container, row, text, text_input};
 use iced::{Alignment, Element, Length};
 
 use crate::ui::pages::chat::markup::{Look, has_markup, rich};
-use crate::ui::pages::chat::{Message, Scene};
+use crate::ui::pages::chat::{Message, OngoingAdventure};
 use crate::ui::{common, theme};
 
 const PREVIEW_SIZE: f32 = 11.5;
 
-pub fn composer(chat_state: &Scene) -> Element<'_, Message> {
+pub fn composer(chat_state: &OngoingAdventure) -> Element<'_, Message> {
     let can_send = !chat_state.input_message.trim().is_empty() && !chat_state.awaiting_reply;
 
     let input = text_input("Speak, or do something…", chat_state.input_message.as_str())
