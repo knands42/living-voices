@@ -18,7 +18,7 @@ pub fn header(chat_state: &OngoingAdventure) -> Element<'_, Message> {
             .color(theme::GOLD)
             .font(common::brand()),
         text(headline(chat_state))
-            .size(11.0)
+            .size(14.0)
             .color(theme::TEXT_MUTED)
             .width(Length::Fill)
             .align_x(Alignment::Center)

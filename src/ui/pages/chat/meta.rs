@@ -52,11 +52,11 @@ pub fn meta_rail(chat_state: &OngoingAdventure) -> Element<'_, Message> {
 fn time_and_place(scene_state: &SceneState) -> Element<Message> {
     let card = column![
         text(scene_state.place.as_str())
-            .size(13.2)
+            .size(13.9)
             .color(theme::TEXT_LIGHT)
             .wrapping(Wrapping::Word),
         text(scene_state.day.as_str())
-            .size(12.1)
+            .size(12.8)
             .color(theme::TEXT_MUTED)
             .width(Length::Fill)
             .wrapping(Wrapping::Word),
@@ -83,7 +83,7 @@ fn note_card(title: &str, items: Vec<String>) -> Element<'_, Message> {
     for item in items {
         rows = rows.push(
             text(format!("· {item}"))
-                .size(12.1)
+                .size(12.8)
                 .color(theme::TEXT_MUTED)
                 .width(Length::Fill)
                 .wrapping(Wrapping::Word),
@@ -102,11 +102,11 @@ fn fact_row(fact: &Fact) -> Element<'_, Message> {
     container(
         column![
             text(fact.subject.as_str())
-                .size(12.1)
+                .size(12.8)
                 .color(theme::BRONZE)
                 .font(common::semibold()),
             text(fact.fact.as_str())
-                .size(12.1)
+                .size(12.8)
                 .color(theme::TEXT_MUTED)
                 .width(Length::Fill)
                 .wrapping(Wrapping::Word),

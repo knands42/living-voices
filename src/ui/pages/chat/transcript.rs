@@ -47,7 +47,7 @@ pub fn transcript(chat_state: &OngoingAdventure) -> Element<'_, Message> {
 fn blank_page() -> Element<'static, Message> {
     container(
         column![
-            text("◆").size(11.0).color(theme::alpha(theme::GOLD, 0.55)),
+            text("◆").size(12.0).color(theme::alpha(theme::GOLD, 0.55)),
             text("The page is blank. Say what you do.")
                 .size(12.5)
                 .color(theme::TEXT_DIM)
@@ -73,7 +73,7 @@ fn line<'a>(chat_state: &'a OngoingAdventure, message: &'a MessageLine) -> Eleme
 fn narrator(message: &MessageLine) -> Element<'_, Message> {
     let card = container(
         column![
-            text("◆").size(9.0).color(theme::alpha(theme::AMBER, 0.9)),
+            text("◆").size(13.0).color(theme::alpha(theme::AMBER, 0.9)),
             rich::<Message>(message.text.as_str(), &Look::narrator(NARRATOR_SIZE)),
         ]
         .spacing(5.0)
@@ -101,11 +101,11 @@ fn speech<'a>(chat_state: &'a OngoingAdventure, message: &'a MessageLine) -> Ele
 
     let mut heading = row![
         text(speaker_name)
-            .size(11.5)
+            .size(13.5)
             .color(theme::hsv(hue, 0.45, 0.95))
             .font(common::semibold()),
         text(message.created_at.format("%H:%M").to_string())
-            .size(9.5)
+            .size(11.5)
             .color(theme::TEXT_DIM),
     ]
     .spacing(7.0)
@@ -114,7 +114,7 @@ fn speech<'a>(chat_state: &'a OngoingAdventure, message: &'a MessageLine) -> Ele
     if message.ooc {
         heading = heading.push(
             text("ooc")
-                .size(9.0)
+                .size(10.0)
                 .color(theme::AMBER)
                 .font(common::semibold()),
         );
@@ -167,7 +167,7 @@ fn typing() -> Element<'static, Message> {
     row![
         dots,
         text("writing…")
-            .size(10.5)
+            .size(11)
             .color(theme::TEXT_DIM)
             .font(common::italic()),
     ]

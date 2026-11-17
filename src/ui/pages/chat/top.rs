@@ -43,11 +43,11 @@ fn act_chip(act: &Act) -> Element<'_, Message> {
     container(
         row![
             text(format!("ACT {}", roman(usize::from(act.ordinal) + 1)))
-                .size(10.0)
+                .size(12.0)
                 .color(status_color(act.status))
                 .font(common::semibold()),
             text(act.goal.as_str())
-                .size(10.5)
+                .size(12.5)
                 .color(theme::TEXT_DIM)
                 .wrapping(Wrapping::Word),
         ]

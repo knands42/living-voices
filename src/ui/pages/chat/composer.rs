@@ -5,7 +5,7 @@ use crate::ui::pages::chat::markup::{Look, has_markup, rich};
 use crate::ui::pages::chat::{Message, OngoingAdventure};
 use crate::ui::{common, theme};
 
-const PREVIEW_SIZE: f32 = 11.5;
+const PREVIEW_SIZE: f32 = 13.5;
 
 pub fn composer(chat_state: &OngoingAdventure) -> Element<'_, Message> {
     let can_send = !chat_state.input_message.trim().is_empty() && !chat_state.awaiting_reply;
@@ -14,10 +14,10 @@ pub fn composer(chat_state: &OngoingAdventure) -> Element<'_, Message> {
         .on_input(Message::InputMessageChanged)
         .on_submit(Message::Send)
         .padding([13.0, 15.0])
-        .size(13.5)
+        .size(14.5)
         .style(theme::composer);
 
-    let send = button(text("Send  ↵").size(13.0).font(common::semibold()))
+    let send = button(text("Send  ↵").size(14.0).font(common::semibold()))
         .padding([12.0, 20.0])
         .style(theme::send_button)
         .on_press_maybe(can_send.then_some(Message::Send));
