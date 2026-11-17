@@ -2,6 +2,7 @@
 -- or deleted, so there is no updated_at column and no touch trigger
 CREATE TABLE message
 (
+    -- Use composed pk here, otherwise seq will be shared across adventures
     seq                   INTEGER PRIMARY KEY AUTOINCREMENT,
     adventure_id          TEXT    NOT NULL REFERENCES adventure (id) ON DELETE CASCADE,
     character_id          TEXT    NULL REFERENCES character (id) ON DELETE SET NULL,

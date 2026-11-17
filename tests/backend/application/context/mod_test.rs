@@ -136,12 +136,62 @@ async fn previous_messages_classify_player_and_cast_turns() {
         .iter()
         .find(|t| t.speaker == Speaker::Player)
         .expect("a player turn");
-    assert_eq!(player_turn.text, "I open the door.");
+    assert_eq!(
+        player_turn.text,
+        r#"{"act_closure":null,"replier":"You","reply":"I open the door."}"#
+    );
 
     let cast_turn = turns
         .iter()
         .find(|t| t.speaker == Speaker::Cast)
         .expect("a cast turn");
+    assert_eq!(
+        cast_turn.text,
+        r#"{"act_closure":null,"replier":"Mira","reply":"It creaks."}"#
+    );
+}
+
+#[tokio::test]
+async fn narrator_history_uses_the_json_reply_shape() {
+    // given a player line and a cast line in the history
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
+    let adventure = adventure_manager
+        .current_adventure()
+        .expect("adventure to exist on the snapshot");
+
+    let player = adventure.characters[0].clone();
+    let npc = adventure.characters[1].clone();
+    seed_player_message(&pool, &adventure, &player, "I open the door.").await;
+    seed_cast_message(&pool, &adventure, &npc, "It creaks.").await;
+
+    let mut conn = pool.acquire().await.expect("acquire");
+    let messages = last_messages(&mut conn, &adventure).await;
+    let data = context_data(&mut conn, &adventure).await;
+
+    // when the narrator prompt is built
+    let turns = ContextBuilder::build_narrator_chat_prompt(
+        &adventure,
+        &low_closure_director(),
+        &data,
+        &messages,
+    );
+
+    let player_turn = turns
+        .iter()
+        .find(|t| t.speaker == Speaker::Player)
+        .expect("a player turn");
+    let cast_turn = turns
+        .iter()
+        .find(|t| t.speaker == Speaker::Cast)
+        .expect("a cast turn");
+
+    // then both history turns use the same JSON shape as the expected reply
+    assert_eq!(
+        player_turn.text,
+        r#"{"act_closure":null,"replier":"You","reply":"I open the door."}"#
+    );
     assert_eq!(
         cast_turn.text,
         r#"{"act_closure":null,"replier":"Mira","reply":"It creaks."}"#
@@ -175,7 +225,10 @@ async fn the_player_characters_line_is_a_player_turn() {
         .iter()
         .find(|t| t.speaker == Speaker::Player)
         .expect("the player character's line must be a player turn");
-    assert_eq!(player_turn.text, "I stare at the sky.");
+    assert_eq!(
+        player_turn.text,
+        r#"{"act_closure":null,"replier":"You","reply":"I stare at the sky."}"#
+    );
 }
 
 #[tokio::test]

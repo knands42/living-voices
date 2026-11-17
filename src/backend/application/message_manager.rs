@@ -92,11 +92,13 @@ impl<
         );
         self.create_message(incoming.clone()).await?;
 
-        let input_data = self.gather_data().await?;
+        let mut input_data = self.gather_data().await?;
         let chat_reply = self.respond(&incoming, &input_data).await?;
-        let stored_reply = self.process_respond(chat_reply, input_data).await?;
+        let (stored_reply, act_closed) = self.process_respond(chat_reply, &mut input_data).await?;
 
-        self.run_follow_ups(stored_reply.clone()).await?;
+        if !act_closed {
+            self.run_follow_ups(stored_reply.clone()).await?;
+        }
 
         Ok(stored_reply)
     }
@@ -207,17 +209,22 @@ impl<
     async fn process_respond(
         &self,
         chat_reply: ChatReply,
-        input: MessageContext,
-    ) -> Result<Message, MessageManagerError> {
-        let reply_message = input
+        message_context: &mut MessageContext,
+    ) -> Result<(Message, bool), MessageManagerError> {
+        let reply_message = message_context
             .adventure
             .message_from_reply(&chat_reply.replier, &chat_reply.reply);
         let stored_reply = self.create_message(reply_message).await?;
 
-        self.check_and_update_current_act(chat_reply, &input, stored_reply.clone())
+        message_context
+            .uncovered_messages
+            .push(stored_reply.clone());
+
+        let act_closed = self
+            .check_and_update_current_act(chat_reply, message_context)
             .await?;
 
-        Ok(stored_reply)
+        Ok((stored_reply, act_closed))
     }
 }
 
@@ -248,13 +255,13 @@ impl<
                 data,
                 uncovered_messages,
             );
-            let reply = self.narrator_handler.narrator_respond(&context).await?;
+            let mut reply = self
+                .narrator_handler
+                .narrator_chat_respond(&context)
+                .await?;
+            reply.replier = Message::NARRATOR_SPEAKER_NAME.to_string();
             log::info!("narrator replies");
-            return Ok(ChatReply {
-                replier: Message::NARRATOR_SPEAKER_NAME.to_string(),
-                reply,
-                act_closure: None,
-            });
+            return Ok(reply);
         }
 
         if let Some(character) = self.director.pick_character(active_characters) {
@@ -313,9 +320,8 @@ impl<
     async fn check_and_update_current_act(
         &self,
         chat_reply: ChatReply,
-        input: &MessageContext,
-        last_message: Message,
-    ) -> Result<(), MessageManagerError> {
+        message_context: &mut MessageContext,
+    ) -> Result<bool, MessageManagerError> {
         let score = chat_reply.act_closure.unwrap_or(0);
         if chat_reply.act_closure.is_none() && chat_reply.replier != Message::NARRATOR_SPEAKER_NAME
         {
@@ -327,28 +333,37 @@ impl<
         log::debug!(
             "act closure score {} for adventure {}",
             score,
-            input.adventure.id
+            message_context.adventure.id
         );
 
         let updated_act = {
             let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
-            update_active_act_last_closure_score(&mut conn, input.adventure.id, score).await?
+            update_active_act_last_closure_score(&mut conn, message_context.adventure.id, score)
+                .await?
         };
 
-        if should_close_act(score, &last_message, self.director.get_max_act_messages()) {
-            return self.close_current_act(input).await;
+        let Some(last_message) = message_context.uncovered_messages.last() else {
+            return Ok(false);
+        };
+        if should_close_act(score, last_message, self.director.get_max_act_messages()) {
+            self.close_current_act(message_context).await?;
+            return Ok(true);
         }
 
-        self.state.write()?.current_act = updated_act;
-
-        if let Some(act) = input.active_act.as_ref() {
-            self.check_and_compress_memory(act, &input.uncovered_messages);
+        if let Some(act) = message_context.active_act.as_ref() {
+            self.check_and_compress_memory(act, &message_context.uncovered_messages);
         }
 
-        Ok(())
+        let mut guard = self.state.write()?;
+        guard.current_act = updated_act;
+
+        Ok(false)
     }
 
-    async fn close_current_act(&self, input: &MessageContext) -> Result<(), MessageManagerError> {
+    async fn close_current_act(
+        &self,
+        input: &mut MessageContext,
+    ) -> Result<(), MessageManagerError> {
         let Some(act) = input.active_act.as_ref() else {
             log::error!("No active act found for adventure {}", input.adventure.id);
             return Ok(());
@@ -359,24 +374,27 @@ impl<
             input.adventure.id
         );
 
-        let data = self.load_context(&input.adventure).await?;
-        let prompt = ContextBuilder::build_act_transition_prompt(
-            &input.adventure,
-            &data,
-            &input.uncovered_messages,
-        );
+        if let Some(last_message) = input.uncovered_messages.last() {
+            if last_message.narrator_id.is_none() {
+                let data = self.load_context(&input.adventure).await?;
+                let prompt = ContextBuilder::build_act_transition_prompt(
+                    &input.adventure,
+                    &data,
+                    &input.uncovered_messages,
+                );
 
-        let narration = self.narrator_handler.narrator_respond(&prompt).await?;
-        let narration_message = input
-            .adventure
-            .message_from_reply(Message::NARRATOR_SPEAKER_NAME, &narration);
-        let stored = self.create_message(narration_message).await?;
+                let narration = self.narrator_handler.narrator_respond(&prompt).await?;
+                let narration_message = input
+                    .adventure
+                    .message_from_reply(Message::NARRATOR_SPEAKER_NAME, &narration);
+                let stored = self.create_message(narration_message).await?;
 
-        let mut all_messages = input.uncovered_messages.clone();
-        all_messages.push(stored);
+                input.uncovered_messages.push(stored);
+            }
+        }
 
         self.memory_manager
-            .close_current_act(act, &all_messages)
+            .close_current_act(act, &input.uncovered_messages)
             .await?;
         log::info!("act {} closed", act.id);
 

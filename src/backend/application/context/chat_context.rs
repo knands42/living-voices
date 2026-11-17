@@ -1,5 +1,5 @@
 use crate::backend::application::context::prompts::*;
-use crate::backend::application::context::{CastTurn, ContextBuilder, ContextData};
+use crate::backend::application::context::{ContextBuilder, ContextData, HistoryFor};
 use crate::backend::application::director::Director;
 use crate::backend::application::port::chat_port::PromptTurn;
 use crate::backend::domain::adventure::Adventure;
@@ -28,7 +28,7 @@ impl ContextBuilder {
         turns.extend(Self::build_previous_messages(
             adventure,
             messages,
-            CastTurn::Autonomous,
+            HistoryFor::AutonomousChat,
         ));
 
         Self::append_pacing_and_closure(director, data, &mut turns);
@@ -59,7 +59,7 @@ impl ContextBuilder {
         turns.extend(Self::build_previous_messages(
             adventure,
             messages,
-            CastTurn::TargetCharacter,
+            HistoryFor::TargetCharacterChat,
         ));
 
         turns
@@ -82,7 +82,7 @@ impl ContextBuilder {
         turns.extend(Self::build_previous_messages(
             adventure,
             messages,
-            CastTurn::Narrator,
+            HistoryFor::NarratorChat,
         ));
 
         Self::append_pacing_and_closure(director, data, &mut turns);
@@ -108,8 +108,16 @@ impl ContextBuilder {
         turns.extend(Self::build_previous_messages(
             adventure,
             messages,
-            CastTurn::TargetCharacter,
+            HistoryFor::TargetCharacterChat,
         ));
+
+        if let Some(last) = messages.last() {
+            let previous_speaker = adventure.speaker_name(last);
+            turns.push(PromptTurn::player(format!(
+                "Continue the scene with one present cast member other than {previous_speaker}. Do not repeat a line from the history."
+            )));
+        }
+
         turns
     }
 

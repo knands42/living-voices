@@ -20,12 +20,14 @@ pub struct ContextBuilder;
 /// their index line, so the block stops growing with the length of the adventure.
 const DIGESTED_PAST_ACTS: usize = 2;
 
-/// How a past cast turn is written into the history
+/// Which consumer a history is being built for. The purpose decides how each
+/// stored turn is rendered, so chat prompts and image prompts do not share a shape.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CastTurn {
-    Narrator,
-    TargetCharacter,
-    Autonomous,
+pub enum HistoryFor {
+    NarratorChat,
+    AutonomousChat,
+    TargetCharacterChat,
+    ImagePrompt,
 }
 
 #[derive(Error, Debug)]
@@ -160,39 +162,76 @@ impl ContextBuilder {
     fn build_previous_messages(
         adventure: &Adventure,
         messages: &[Message],
-        cast_turn: CastTurn,
+        history_for: HistoryFor,
     ) -> Vec<PromptTurn> {
-        messages
-            .iter()
-            .map(|message| Self::message_to_turn(adventure, message, cast_turn))
-            .collect()
+        let mut history = vec![PromptTurn::system("## HISTORY".to_string())];
+
+        history.extend(
+            messages
+                .iter()
+                .map(|message| Self::message_to_turn(adventure, message, history_for)),
+        );
+
+        history
     }
 
     /// Classify a stored message. Does it come from the player or NPC?
     fn message_to_turn(
         adventure: &Adventure,
         message: &Message,
-        cast_turn: CastTurn,
+        history_for: HistoryFor,
     ) -> PromptTurn {
         if Self::is_player_message(adventure, message) {
-            PromptTurn::player(message.text.clone())
+            PromptTurn::player(Self::render_player_turn(adventure, message, history_for))
         } else {
-            PromptTurn::cast(Self::render_cast_turn(adventure, message, cast_turn))
+            PromptTurn::cast(Self::render_cast_turn(adventure, message, history_for))
         }
     }
 
-    fn render_cast_turn(adventure: &Adventure, message: &Message, cast_turn: CastTurn) -> String {
+    fn render_player_turn(
+        adventure: &Adventure,
+        message: &Message,
+        history_for: HistoryFor,
+    ) -> String {
+        if history_for == HistoryFor::ImagePrompt {
+            return format!(
+                "{}: {}",
+                adventure.player_name().unwrap_or("UNKNOWN"),
+                message.text
+            )
+            .to_string();
+        }
+
+        serde_json::json!({
+            "replier": adventure.player_name(),
+            "reply": message.text,
+            "act_closure": null,
+        })
+        .to_string()
+    }
+
+    fn render_cast_turn(
+        adventure: &Adventure,
+        message: &Message,
+        history_for: HistoryFor,
+    ) -> String {
         let speaker_name = adventure.speaker_name(message);
 
-        match cast_turn {
-            CastTurn::Narrator => format!("{speaker_name}: {}", message.text),
-            CastTurn::Autonomous => serde_json::json!({
+        match history_for {
+            HistoryFor::ImagePrompt => format!("{speaker_name}: {}", message.text),
+            HistoryFor::NarratorChat => serde_json::json!({
                 "replier": speaker_name,
                 "reply": message.text,
                 "act_closure": null,
             })
             .to_string(),
-            CastTurn::TargetCharacter => serde_json::json!({
+            HistoryFor::AutonomousChat => serde_json::json!({
+                "replier": speaker_name,
+                "reply": message.text,
+                "act_closure": null,
+            })
+            .to_string(),
+            HistoryFor::TargetCharacterChat => serde_json::json!({
                 "replier": speaker_name,
                 "reply": message.text,
             })

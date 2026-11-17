@@ -1,6 +1,9 @@
 use std::future::Future;
 
+use crate::backend::domain::adventure::Adventure;
+use crate::backend::domain::message::Message;
 use thiserror::Error;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Speaker {
@@ -73,6 +76,11 @@ pub trait NarratorPort: Send + Sync {
         &self,
         context: &[PromptTurn],
     ) -> impl Future<Output = Result<String, ChatResponseError>> + Send;
+
+    fn narrator_chat_respond(
+        &self,
+        context: &[PromptTurn],
+    ) -> impl Future<Output = Result<ChatReply, ChatResponseError>> + Send;
 }
 
 pub trait PromptPort: Send + Sync {
