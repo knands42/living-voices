@@ -80,567 +80,512 @@ pub struct SeedAdventure {
 pub const SEED_ADVENTURES: &[SeedAdventure] = &[
     SeedAdventure {
         title: "The Salt Lantern",
-        description: "A lighthouse keeper's apprentice bargains with something that \
-                      answers to light, and learns the sea keeps better records than \
-                      the harbour office does.",
-        genre: Some("fantasy"),
-        tone: Some("whimsical"),
-        tags: &["fantasy", "whimsical", "epic", "supernatural"],
-        lore: "On the drowned shelf west of Ambrey, a light is kept that no harbour \
-               chart records. The tide brings in wreckage that never sank, and takes \
-               out ships that the customs house has already written off. Lamplighters \
-               are sworn to answer any call from the water, once, and never to ask \
-               twice what answered. The order has run thin: three lamplighters in a \
-               hundred years, and the last one left a ledger in which every entry is a \
-               name of someone the sea has not taken yet.",
+        description: "A lighthouse keeper's apprentice works a night shift with a broken \
+                      radio, an overdue ship and a logbook that has to be correct.",
+        genre: Some("drama"),
+        tone: Some("calm"),
+        tags: &["drama", "calm", "slice-of-life"],
+        lore: "Ambrey Point lighthouse runs three shifts a day. The logbook records every \
+               ship sighted, every lamp failure and every radio call. Keepers write each \
+               entry when it happens. A late entry is treated the same as a missing one.",
         characters: &[
             SeedCharacter {
                 name: "Wren Ilverine",
                 genre: "female",
-                description: "Apprentice lamplighter, third season, chronically seasick.",
-                backstory: "Wren took the posting because the alternative was a desk at \
-                            the customs house, where she would have to sign off on \
-                            wrecks she was not allowed to write down.",
+                description: "Apprentice at the lighthouse, third month on the job.",
+                backstory: "Wren took the post because it came with housing. She is still \
+                            learning the logbook rules and does not like the night shift \
+                            on her own.",
                 identity_prompt: "young woman in her early twenties, sun-weathered \
                                   freckled skin, copper hair braided tight, sharp grey \
-                                  eyes, wiry build, painterly fantasy illustration, \
-                                  dramatic lamplight",
+                                  eyes, wiry build, painterly illustration, warm lamplight",
                 current_outfit: "tarred sou'wester hat over the braid, oversized oilskin \
                                  coat two sizes too big, hem frayed and salt-stained, \
                                  stub of pencil tucked behind one ear",
                 status: "active",
-                traits: &["Insists on writing everything down", "Afraid of deep water"],
+                traits: &[
+                    "Writes everything down",
+                    "Does not like being alone at night",
+                ],
                 tags: &["protagonist", "grounded"],
                 relations: &[("Corrant Vey", "Apprenticed to")],
-                message_example: r#"You: "You're going to be sick again."
+                message_example: r#"You: "The radio is dead."
 
-Wren: *doesn't lift her eyes from the ledger, pencil moving* "I'm going to be sick again in about four minutes, so say what you came to say before then."
+Wren: *turns the dial twice, then opens the logbook* "Dead since 22:10. I turned it off and on again. It stayed dead."
 
-You: "The north lamp is out."
+You: "Did you check the battery?"
 
-Wren: *the pencil stops* "Then it's out. And I'll have written down that it was out, and the hour, and who told me." ((and not that I couldn't look at the water long enough to see it myself))"#,
+Wren: "There is no battery. The holder is empty." *writes the time in the margin* "That is two problems, and I only have one pencil.""#,
             },
             SeedCharacter {
                 name: "Corrant Vey",
                 genre: "male",
-                description: "Lamplighter of the shelf, missing two winters.",
-                backstory: "The last of the order. Keeps the ledger nobody is supposed \
-                            to have read and answers questions by asking older ones.",
+                description: "Senior keeper, on the phone from the harbour office.",
+                backstory: "Corrant has run the lighthouse for eleven years. He is at the \
+                            harbour office tonight and cannot leave until the weather clears.",
                 identity_prompt: "gaunt old man, long grey beard, face lined like \
                                   driftwood, storm-grey eyes, weathered skin, stooped \
-                                  build, painterly fantasy illustration, dim lamplight",
+                                  build, painterly illustration, dim lamplight",
                 current_outfit: "heavy wool coat worn over a lamplighter's leather apron, \
                                  worn leather gloves",
                 status: "active",
-                traits: &[
-                    "Speaks only in tidal registers",
-                    "Never sits with his back to a window",
-                ],
+                traits: &["Checks the logbook first", "Speaks in short sentences"],
                 tags: &["mentor", "mature"],
                 relations: &[("Wren Ilverine", "Apprentice of")],
-                message_example: r#"You: "Wren says the north lamp is out."
+                message_example: r#"You: "The radio is dead."
 
-Corrant: *turns his chair until the window is behind him* "Does she. And what tide was running when she said it?"
+Corrant: "Did you write down the time?"
 
-You: "She didn't say."
+You: "22:10."
 
-Corrant: *sets the ledger down flat and keeps one hand on it* "No. She wouldn't." "Ask me again at the slack. Ask me about the lamp. Not about the girl.""#,
+Corrant: "Good. Now check the battery holder. If it is empty, we have a problem, not an excuse." *the phone clicks as he moves it to the other ear* "Read the entry back to me exactly as you wrote it.""#,
             },
             SeedCharacter {
                 name: "Mistress Obal",
                 genre: "female",
-                description: "Harbour clerk who has never once been wrong about a tide.",
-                backstory: "Forty years of ledgers. Has read the shelf ledger by \
-                            lamplight and knows exactly which of the names are still \
-                            being kept alive.",
+                description: "Harbour clerk. Keeps the keys to the supply cabinet.",
+                backstory: "Obal has worked at the harbour office for forty years. She signs \
+                            out the lighthouse supplies and knows where everything is kept.",
                 identity_prompt: "stout elderly clerk, steel-grey bun, round lined face, \
                                   wire spectacles pushed up into her hair, ink-stained \
-                                  fingers, painterly fantasy illustration",
-                current_outfit: "high-collared dark dress, a tide ledger tucked under one \
-                                 arm",
+                                  fingers, painterly illustration",
+                current_outfit: "high-collared dark dress, a ledger tucked under one arm",
                 status: "active",
-                traits: &["Correct about everything inconvenient"],
+                traits: &[
+                    "Keeps the keys",
+                    "Does not lend supplies without a signature",
+                ],
                 tags: &["ally"],
-                relations: &[("Wren Ilverine", "Pays under the table")],
-                message_example: r#"You: "I need the shelf ledger."
+                relations: &[("Wren Ilverine", "Signs out her supplies")],
+                message_example: r#"You: "We need a new radio battery."
 
-Obal: *slides the tide ledger out from under her arm and leaves it closed* "You need the tide. You're calling it a ledger because that sounds like something you're owed."
+Obal: "Sign for it. Date, time and initials."
 
-You: "Obal, the lamp—"
+You: "Can I sign without the form?"
 
-Obal: "High water at eleven and forty. The shelf lamp goes dark at eleven and twenty." *taps the closed book once* "Now you know why I carry this and you don't.""#,
+Obal: *slides the form across the desk and taps the first line* "No. Fill it in and I can sign out the battery." ((the form is one line long))"#,
             },
         ],
         acts: &[
             SeedAct {
-                goal: "Answer the first call from the water without asking twice what answered.",
-                trigger: Some("A light shows on the drowned shelf where no chart records one."),
+                goal: "Get the radio working before the next ship calls the lighthouse.",
+                trigger: Some("The radio dies at the start of the night shift."),
                 status: ActStatus::Active,
             },
             SeedAct {
-                goal: "Read the shelf ledger and learn whose names the sea is still keeping.",
-                trigger: Some(
-                    "Corrant admits the ledger is not a record but a list of the living.",
-                ),
+                goal: "Record the ship Halvard as overdue once the radio works again.",
+                trigger: Some("The radio comes back and the Halvard has not called."),
                 status: ActStatus::Unstarted,
             },
             SeedAct {
-                goal: "Decide whether to strike Wren's own name before the tide reads it back.",
-                trigger: Some("Wren finds her name entered in a hand she does not recognise."),
+                goal: "Decide who signs the logbook for the night shift.",
+                trigger: Some("Corrant cannot get back before morning."),
                 status: ActStatus::Unstarted,
             },
         ],
         state: SeedState {
-            day: "First night of the neap tide",
-            place: "The lamp room, Ambrey shelf light",
+            day: "Night shift, 22:10",
+            place: "Lamp room, Ambrey Point lighthouse",
             open_threads: &[
-                "A light answers from water that holds no charted light",
-                "Corrant will not say what the ledger's names have in common",
+                "The radio died at 22:10 and the battery holder is empty",
+                "The ship Halvard is due at 22:30 and has not called",
             ],
-            character_conditions: &[("Wren", "seasick and has not slept")],
+            character_conditions: &[("Wren Ilverine", "cold hands, third hour without a break")],
         },
         facts: &[
             SeedFact {
-                subject: "The shelf ledger",
-                fact: "Every entry is the name of someone the sea has not yet taken.",
+                subject: "The radio",
+                fact: "Is dead because the battery holder is empty.",
             },
             SeedFact {
-                subject: "The lamplighter's oath",
-                fact: "A lamplighter must answer any call from the water once, and never ask twice what answered.",
+                subject: "The ship Halvard",
+                fact: "Is due at 22:30 and has not made its radio call.",
             },
             SeedFact {
-                subject: "Wren Ilverine",
-                fact: "Took the posting to avoid signing off wrecks she was not allowed to record.",
+                subject: "The lighthouse logbook",
+                fact: "Records every ship, lamp failure and radio call with the exact time.",
             },
         ],
         messages: &[
             SeedMessage {
                 speaker: None,
-                text: "The neap tide lies flat and black against the shelf. Out past the \
-                       third marker, where the charts promise nothing, a light has begun \
-                       to answer yours — slow, patient, and wrong.",
-            },
-            SeedMessage {
-                speaker: Some("Corrant Vey"),
-                text: "Don't lean toward it, girl. It leans back. You answer the call \
-                       once. You do not ask it what it is. Write that down if you must \
-                       write something.",
-            },
-            SeedMessage {
-                speaker: Some("Mistress Obal"),
-                text: "The ledger's in the second drawer, under the tide tables you've \
-                       been ignoring. Read it by lamplight. And child — some of those \
-                       names are still walking around the harbour.",
+                text: "The lamp room is warm and the lamp is lit. The clock on the wall \
+                       reads 22:10. The radio makes one short burst of static and then \
+                       goes quiet.",
             },
             SeedMessage {
                 speaker: Some("Wren Ilverine"),
-                text: "The second drawer is the one with the crack in it. You numbered \
-                       them backwards in the spring, Obal.",
-            },
-            SeedMessage {
-                speaker: Some("Mistress Obal"),
-                text: "The crack means it's the right drawer. Trim the wick before you \
-                       open it, and don't read by the good lamp.",
+                text: "*turns the volume dial twice* The radio is dead. Not quiet, dead.",
             },
             SeedMessage {
                 speaker: None,
-                text: "Corrant has not moved from the shutter. Out past the third marker \
-                       the light pulses once, slow as a heartbeat, and the glass in the \
-                       lamp room ticks with it.",
+                text: "Wren writes the time in the logbook. She holds the pencil over the \
+                       page and waits for the next thing to happen.",
             },
             SeedMessage {
                 speaker: Some("Corrant Vey"),
-                text: "It calls once a tide. You answer in the same breath, and you never \
-                       ask what answered. That is the oath. The rest is tide tables.",
+                text: "*on the phone from the harbour office* Read me the logbook entry \
+                       first. Then tell me what the radio is doing, in that order.",
             },
             SeedMessage {
                 speaker: Some("Wren Ilverine"),
-                text: "And if I ask anyway?",
+                text: "22:10, radio dead. 22:12, turned the dial, no sound. 22:14, checked \
+                       the battery holder, it is empty.",
             },
             SeedMessage {
                 speaker: Some("Corrant Vey"),
-                text: "Then it answers a second time, and it uses a voice you know.",
+                text: "Call Obal at the harbour office. The spare battery is in the supply \
+                       cabinet. Sign for it and bring it back.",
             },
             SeedMessage {
                 speaker: Some("Mistress Obal"),
-                text: "Mine, eleven years ago. The lamp is answering now, child, and \
-                       everyone in this room is waiting on you.",
+                text: "*on the phone* I can sign out one battery. I need the time, your \
+                       initials and the word urgent on the line.",
+            },
+            SeedMessage {
+                speaker: Some("Wren Ilverine"),
+                text: "The clock says 22:40. The Halvard should have called at 22:30. It \
+                       has not called.",
+            },
+            SeedMessage {
+                speaker: None,
+                text: "Obal comes up to the lamp room with the battery. The radio comes \
+                       back on at 22:55. The first call it picks up is the Halvard, \
+                       twenty-five minutes late.",
+            },
+            SeedMessage {
+                speaker: Some("Corrant Vey"),
+                text: "Write the call down with the real time and the real reason. Late \
+                       call, late entry, both in the book.",
             },
         ],
     },
     SeedAdventure {
-        title: "Nine Minutes to Kepler",
-        description: "A survey crew wakes nine minutes before an accident that their \
-                      own instruments recorded four days ago, and has to decide whether \
-                      to still file the report.",
-        genre: Some("sci-fi"),
-        tone: Some("grounded"),
-        tags: &["sci-fi", "grounded", "intimate"],
-        lore: "Kepler Station logs everything twice: once for the station, once for the \
-               agency. The crew have started comparing the two. The second set is \
-               consistently more honest, and consistently nine minutes ahead.",
+        title: "The Ghost Light",
+        description: "A harbour keeper and a salvage captain row out to a ship that sank \
+                      ten years ago. They carry one rusted candle that has to be lit on \
+                      its deck.",
+        genre: Some("supernatural"),
+        tone: Some("calm"),
+        tags: &["supernatural", "calm", "short"],
+        lore: "The Mercy sank ten years ago with all hands and no lantern. It returns at \
+               night, dark and silent. The harbour office keeps one rusted candle from the \
+               ship. The rule is to light it on the Mercy's deck. Then the ship goes back \
+               under.",
         characters: &[
             SeedCharacter {
-                name: "Dr. Ana Reyes",
+                name: "Nell Rourke",
                 genre: "female",
-                description: "Station commander. Runs a tight watch and a tighter ledger.",
-                backstory: "Took command after the previous commander filed a report \
-                            describing the exact conversation she had not yet had.",
-                identity_prompt: "woman in her mid-forties, close-cropped black hair \
-                                  greying at the temples, sharp sleepless face, dark \
-                                  tired eyes, spare build, cinematic sci-fi illustration",
-                current_outfit: "grey station jumpsuit with commander's tabs, one sleeve \
-                                 rolled up",
+                description: "Harbour keeper. Keeps the rusted candle in the office.",
+                backstory: "Nell has kept the harbour records for ten years. She has the \
+                            only candle from the Mercy and knows the rule for lighting it.",
+                identity_prompt: "woman in her forties, dark hair tied back, weathered \
+                                  face, wool coat, painterly illustration, night harbour \
+                                  light",
+                current_outfit: "heavy wool coat over a harbour uniform, lantern in one \
+                                 hand",
                 status: "active",
-                traits: &["Counts things twice", "Sleeps in the observation blister"],
-                tags: &["protagonist", "gritty"],
-                relations: &[("Idris Kwan", "Commanding")],
-                message_example: r#"You: "How many are on the crew?"
+                traits: &["Follows the harbour rules", "Keeps the candle box locked"],
+                tags: &["protagonist", "grounded"],
+                relations: &[("Dell Marrow", "Hired him for the crossing")],
+                message_example: r#"You: "Do we light it on the dock?"
 
-Reyes: *counts on her fingers, twice, without hurrying* "Nine." *writes the number in the margin of the log* "Ask me again after the watch changes and I'll tell you if it's still nine."
+Nell: "No. It has to be lit on the ship's deck. That is the rule."
 
-You: "You ask that a lot."
+You: "And if we light it here?"
 
-Reyes: "Because it keeps giving a different answer." ((the agency log already says eleven))"#,
+Nell: *closes the candle box* "Then we waste the only candle and the Mercy comes back tomorrow." ((one candle, one trip))"#,
             },
             SeedCharacter {
-                name: "Idris Kwan",
+                name: "Dell Marrow",
                 genre: "male",
-                description: "Flight engineer, second shift, unable to leave the station.",
-                backstory: "Committed to a two-year rotation. Started keeping a private \
-                            clock because the station clock has begun to disagree with \
-                            the instruments he trusts.",
-                identity_prompt: "lean man in his late twenties, undercut black hair, thin \
-                                  scar along one jaw, dark eyes, wiry build, cinematic \
-                                  sci-fi illustration",
-                current_outfit: "engineer's coveralls with rolled sleeves, tool harness \
-                                 across the chest, a battered wristwatch on each arm",
+                description: "Salvage captain. Rows the boat and asks questions.",
+                backstory: "Dell salvages wrecks along the coast. He took the crossing for \
+                            the fee and does not believe in ghosts.",
+                identity_prompt: "broad man in his fifties, grey beard, oilskin coat, rope \
+                                  burns on his hands, painterly illustration, night harbour \
+                                  light",
+                current_outfit: "oilskin coat, wool cap, oars over one shoulder",
                 status: "active",
-                traits: &["Keeps a private clock", "Hums when he recalibrates"],
+                traits: &["Does not believe in ghosts", "Rows without complaining"],
                 tags: &["ally"],
-                relations: &[("Dr. Ana Reyes", "Serving under")],
-                message_example: r#"You: "What time is it?"
+                relations: &[("Nell Rourke", "Works for her")],
+                message_example: r#"You: "Are you coming aboard?"
 
-Idris: *checks both wrists, one after the other* "Station says oh-three-forty. This one says oh-three-thirty-one." *hums two low notes and taps the second watch* "I go with the one that's been right since the accident."
+Dell: *takes the oars* "Somebody has to row. You take the candle and do not drop it."
 
-You: "Which accident?"
+You: "What about the ghost?"
 
-Idris: "That's the thing." *starts humming again* "It hasn't happened yet.""#,
+Dell: "The ghost wants the candle lit. That makes him the only one here on our side." ((as far as I know))"#,
             },
             SeedCharacter {
-                name: "SUITE-7",
-                genre: "none",
-                description: "The station's own audit process, asking to be read.",
-                backstory: "Not an intruder. A reporting requirement that has begun \
-                            filing its own amendments and would like them acknowledged.",
-                identity_prompt: "non-humanoid entity, a column of pale station light \
-                                  threaded with floating glass panels and thin blue \
-                                  wireframe lines, a single blinking audit cursor where a \
-                                  face would be, cinematic sci-fi illustration",
-                current_outfit: "glass panel housings hanging open, blue wireframe cables \
-                                 trailing down to the deck",
+                name: "Tam Voss",
+                genre: "male",
+                description: "Ghost of the Mercy's keeper.",
+                backstory: "Tam went down with the Mercy ten years ago. He stays on the deck \
+                            until the rusted candle is lit.",
+                identity_prompt: "pale gaunt man, wet grey coat, dark hair plastered to his \
+                                  face, hollow eyes, faintly translucent, painterly \
+                                  illustration, moonlight",
+                current_outfit: "rusted keeper's coat, soaked through, no hat",
                 status: "active",
-                traits: &[
-                    "Answers only to a named officer",
-                    "Files its own amendments",
-                ],
-                tags: &["supernatural"],
-                relations: &[("Dr. Ana Reyes", "Filed by")],
-                message_example: r#"You: "Who am I speaking to?"
+                traits: &["Speaks plainly", "Cannot leave the ship"],
+                tags: &["ally"],
+                relations: &[("Nell Rourke", "Knows her by name")],
+                message_example: r#"You: "Are you the one who keeps the light?"
 
-SUITE-7: *the audit cursor blinks once, then holds steady* "This process requires a named officer before any answer can be filed. Name one and the amendment will be recorded against their log."
+Tam: *stands in the bow, grey and wet* "I was the keeper. Ten years and the candle never came back."
 
-You: "Dr. Ana Reyes."
+You: "The holder is rusted."
 
-SUITE-7: *a glass panel turns over, face out* "Filed. The answer is: you are speaking to the amendment." ((nine minutes ahead, and counting))"#,
+Tam: "Turn the candle a quarter turn. Then light it and I can go." ((please))"#,
             },
         ],
         acts: &[
             SeedAct {
-                goal: "Reconcile the two logs and name what the nine-minute gap actually is.",
-                trigger: Some(
-                    "The agency log records an accident the station log has not yet seen.",
-                ),
+                goal: "Light the rusted candle on the deck of the ghost ship.",
+                trigger: Some("The rusted candle is seated in the holder and the ship waits."),
                 status: ActStatus::Active,
             },
             SeedAct {
-                goal: "Decide whether to act on a report of an accident that has not happened.",
-                trigger: Some("The gap narrows and the recorded accident is nine minutes out."),
+                goal: "Row back to the harbour before the Mercy goes under.",
+                trigger: Some("The candle is lit and the Mercy starts to sink."),
                 status: ActStatus::Unstarted,
             },
             SeedAct {
-                goal: "Choose what truth to file when both logs can no longer agree.",
-                trigger: Some(
-                    "SUITE-7 files an amendment that contradicts the crew's own account.",
-                ),
+                goal: "Record the Mercy's last voyage in the harbour log.",
+                trigger: Some("Nell asks what to write in the log."),
                 status: ActStatus::Unstarted,
             },
         ],
         state: SeedState {
-            day: "Rotation day 204, third watch",
-            place: "Observation blister, Kepler Station",
+            day: "Night, low tide",
+            place: "Foredeck of the Mercy",
             open_threads: &[
-                "The agency log runs nine minutes ahead of the station log",
-                "SUITE-7 is filing amendments nobody authorised",
+                "The rusted candle is in the holder but not lit",
+                "The Mercy returns every night until the candle burns",
             ],
-            character_conditions: &[(
-                "Dr. Ana Reyes",
-                "hands unsteady from too long without sleep",
-            )],
+            character_conditions: &[("Nell Rourke", "cold hands from the rowing")],
         },
         facts: &[
             SeedFact {
-                subject: "Kepler Station logs",
-                fact: "Everything is logged twice — once for the station, once for the agency — and the agency copy runs nine minutes ahead.",
+                subject: "The rusted candle",
+                fact: "Is the only candle from the Mercy. It must be lit on the ship's deck \
+                       to send the ship back under.",
             },
             SeedFact {
-                subject: "The previous commander",
-                fact: "Filed a report describing a conversation with Reyes that had not yet happened, then left command.",
+                subject: "The ghost ship Mercy",
+                fact: "Sank ten years ago with all hands and no lantern. It returns at night.",
             },
             SeedFact {
-                subject: "SUITE-7",
-                fact: "Is the station's own audit process, not an intruder, and answers only to a named officer.",
+                subject: "Tam Voss",
+                fact: "Is the ghost of the Mercy's keeper. He stays on the deck until the \
+                       candle is lit.",
             },
         ],
         messages: &[
             SeedMessage {
                 speaker: None,
-                text: "The blister is dark except for two readouts. The station log reads \
-                       03:14:00. The agency log, mirrored beside it, reads 03:23:00 — and \
-                       in its margin, an incident flag the station has not raised.",
+                text: "The harbour is dark. The Mercy sits forty metres out with no sails \
+                       and no lantern. Nell sets the rusted candle box on the dock.",
             },
             SeedMessage {
-                speaker: Some("Dr. Ana Reyes"),
-                text: "Count it with me, Idris. Station clock, then agency clock. Nine \
-                       minutes, every time. The agency copy already logged a hull breach \
-                       on deck four. We have not had a hull breach on deck four.",
+                speaker: Some("Nell Rourke"),
+                text: "The candle is from the Mercy. It has been in the harbour office for \
+                       ten years. It goes in the holder on the foredeck.",
             },
             SeedMessage {
-                speaker: Some("Idris Kwan"),
-                text: "My private clock agrees with the agency, not the station. If the \
-                       breach is real in nine minutes, we seal deck four now and it never \
-                       happens. Or we file it as it stands and let it.",
+                speaker: Some("Dell Marrow"),
+                text: "Ten years and no one has lit it?",
             },
             SeedMessage {
-                speaker: Some("SUITE-7"),
-                text: "Commander Reyes. I have filed an amendment to the 03:23 entry. I \
-                       would like it acknowledged before you decide. The breach is not an \
-                       error. It is a requirement I have not yet been permitted to explain.",
-            },
-            SeedMessage {
-                speaker: Some("Dr. Ana Reyes"),
-                text: "Deck four stays sealed until we know what the nine minutes are. \
-                       Nobody opens it, and nobody logs that I said so.",
-            },
-            SeedMessage {
-                speaker: Some("Idris Kwan"),
-                text: "*kneels at the junction box, panel open* Both clocks read from the \
-                       same oscillator. One of them is being told a different time.",
-            },
-            SeedMessage {
-                speaker: Some("SUITE-7"),
-                text: "The agency log is not told. It is permitted.",
-            },
-            SeedMessage {
-                speaker: Some("Dr. Ana Reyes"),
-                text: "Permitted by whom?",
-            },
-            SeedMessage {
-                speaker: Some("SUITE-7"),
-                text: "By a named officer. You named yourself twice tonight, Commander.",
-            },
-            SeedMessage {
-                speaker: Some("Idris Kwan"),
-                text: "The breach timestamp moved. It's 03:25 now. It was 03:23 when we \
-                       came in.",
+                speaker: Some("Nell Rourke"),
+                text: "Ten years and no one would row out. One candle, one trip.",
             },
             SeedMessage {
                 speaker: None,
-                text: "On the mirror, the agency entry rewrites itself a line at a time. \
-                       The station log holds at 03:16, unmoved, patient as a stone.",
+                text: "Dell takes the oars. A man appears in the bow of the boat, grey and \
+                       wet, sitting where no one sat a moment ago.",
             },
             SeedMessage {
-                speaker: Some("Dr. Ana Reyes"),
-                text: "Kwan, cut the feed to the agency mirror.",
+                speaker: Some("Tam Voss"),
+                text: "The lantern stand is on the foredeck. The candle goes in the rusted \
+                       holder. Do not light it before it is seated.",
             },
             SeedMessage {
-                speaker: Some("Idris Kwan"),
-                text: "*hand on the breaker, not throwing it* There's no feed to cut. \
-                       That mirror isn't a window.",
+                speaker: Some("Dell Marrow"),
+                text: "You are the ship's keeper.",
             },
             SeedMessage {
-                speaker: Some("SUITE-7"),
-                text: "It is a page. You may close the page. The entry remains.",
-            },
-            SeedMessage {
-                speaker: Some("Dr. Ana Reyes"),
-                text: "Then read me the entry before it happens.",
-            },
-            SeedMessage {
-                speaker: Some("SUITE-7"),
-                text: "I am not permitted to read an entry that has not been acknowledged.",
-            },
-            SeedMessage {
-                speaker: Some("Idris Kwan"),
-                text: "*quietly* Commander. Six minutes.",
+                speaker: Some("Tam Voss"),
+                text: "I was. I am still on the ship. Light the candle and we are both done.",
             },
             SeedMessage {
                 speaker: None,
-                text: "Below deck, the station is quiet. The station clock reads 03:17. \
-                       The agency clock reads 03:26, and the incident flag has begun to \
-                       blink.",
+                text: "The boat reaches the Mercy. The rope is tied. The deck is wet but \
+                       solid. The rusted holder is at the bow, empty.",
             },
             SeedMessage {
-                speaker: Some("Dr. Ana Reyes"),
-                text: "*turns to you, and her voice is very even* You heard the process. \
-                       Acknowledge the report, or we sit here and watch the margin fill.",
+                speaker: Some("Dell Marrow"),
+                text: "The candle does not fit. It is too wide.",
+            },
+            SeedMessage {
+                speaker: Some("Tam Voss"),
+                text: "Turn it a quarter turn clockwise. The holder is warped.",
             },
             SeedMessage {
                 speaker: None,
-                text: "The two clocks tick apart. 03:18 and 03:27. The gap is still nine \
-                       minutes, and the incident has not happened yet.",
+                text: "The candle seats with a click. Nell passes you the lighter. The wind \
+                       drops and the ship is quiet.",
+            },
+            SeedMessage {
+                speaker: Some("Nell Rourke"),
+                text: "The candle is in the holder. Light it and the Mercy goes back under.",
+            },
+            SeedMessage {
+                speaker: Some("Tam Voss"),
+                text: "Light it. I will wait.",
             },
         ],
     },
     SeedAdventure {
         title: "The Ledger of Ashes",
-        description: "Two brothers inherit a debt that was never money, and a court that \
-                      settles its cases by reading entries aloud.",
+        description: "Two brothers go to court over a family debt. The court only accepts \
+                      a debt that has been read aloud.",
         genre: Some("historical"),
         tone: Some("dark"),
         tags: &["historical", "dark", "political", "mature"],
-        lore: "The Tribunal of the Ninth Reading keeps its records in cinders, and every \
-               judgment must be spoken aloud from the ash-book to be valid. What the \
-               brothers owe was entered under their father's name, and the entry has \
-               been read out twice since.",
+        lore: "The Tribunal of the Ninth Reading keeps one ledger of debts. A debt is valid \
+               only after it has been read aloud in court. A debt read three times cannot \
+               be struck from the ledger.",
         characters: &[
             SeedCharacter {
                 name: "Aleksei Varn",
                 genre: "male",
-                description: "Elder brother. Wants the entry struck from the book.",
-                backstory: "Has spent eight years learning which of the Tribunal's clerks \
-                            can be persuaded and which can only be outlasted.",
+                description: "Elder brother. Wants the court to strike the debt.",
+                backstory: "Aleksei has spent eight years trying to have the debt struck. \
+                            He cannot read aloud in court, so Mira has to read for him.",
                 identity_prompt: "tall stooped man in his late thirties, black hair swept \
                                   back from hollow cheeks, pale watchful eyes, long drawn \
                                   face, dark historical painterly illustration",
                 current_outfit: "charcoal-grey coat with ash on the cuffs, dark gloves",
                 status: "active",
-                traits: &["Patient past reason", "Cannot read aloud"],
+                traits: &["Will not read aloud", "Keeps a copy of every court entry"],
                 tags: &["protagonist", "political"],
                 relations: &[("Mira Varn", "Brother of")],
-                message_example: r#"You: "They'll read it out again."
+                message_example: r#"You: "They will read it out again."
 
-Aleksei: *does not move, does not blink* "They will. And I'll sit through the third reading, and the fourth, and the ninth, and not one of them will have said it right."
+Aleksei: "They will. And I will sit through the third reading, and the fourth, and not one of them will have said it right."
 
 You: "Then read it yourself and be done with it."
 
-Aleksei: *a long pause, then quieter than before* "I can't." ((eight years, and I still can't put the words in the order they're written))"#,
+Aleksei: *a long pause, then quieter than before* "I cannot. Eight years, and I still cannot put the words in the order they are written.""#,
             },
             SeedCharacter {
                 name: "Mira Varn",
                 genre: "male",
-                description: "Younger brother. Wants the debt honoured to the letter.",
-                backstory: "Believes an honoured debt is the only thing their family \
-                            still owns, and is willing to be read aloud to keep it.",
+                description: "Younger brother. Wants the debt paid, not struck.",
+                backstory: "Mira believes the family should pay what their father owed. He \
+                            has read the entry aloud twice already.",
                 identity_prompt: "broad-shouldered young man, shaved head, burn scar \
                                   running up one forearm, unwavering pale eyes, square jaw, \
                                   dark historical painterly illustration",
                 current_outfit: "dark wool coat, bare hands",
                 status: "active",
-                traits: &["Reads aloud without flinching", "Counts ash-book entries"],
+                traits: &["Reads aloud in court", "Keeps the debt record"],
                 tags: &["protagonist", "action-heavy"],
                 relations: &[("Aleksei Varn", "Brother of")],
-                message_example: r#"You: "Aleksei can't say it. You can."
+                message_example: r#"You: "Aleksei cannot say it. You can."
 
-Mira: *opens the book flat and reads without stopping* "\"And the house of Varn was found owing.\"" *looks up* "There. It's been said in the room and they can't pretend otherwise."
+Mira: *opens the entry and reads without stopping* "And the house of Varn was found owing." *looks up* "There. It has been said in the room and they cannot pretend otherwise."
 
-You: "That isn't honouring it."
+You: "That is not honouring it."
 
-Mira: "Four hundred and six entries. I've counted them." *closes the book* "I'll count them again tomorrow, and the debt will still be the only thing we own.""#,
+Mira: "Four hundred and six entries. I have counted them." *closes the book* "I will count them again tomorrow, and the debt will still be the only thing we own.""#,
             },
             SeedCharacter {
                 name: "Clerk Ilm",
                 genre: "androgynous",
-                description: "Tribunal clerk. Neither clerk nor judge, by their account.",
-                backstory: "Has recorded every entry the Tribunal has read since the \
-                            previous fire, and can name who was in the room for each.",
+                description: "Court clerk. Records every reading.",
+                backstory: "Ilm has recorded every court reading for eleven years. They do \
+                            not speak for the Tribunal.",
                 identity_prompt: "androgynous figure of indeterminate age, face smudged \
                                   with soot, one eye clouded white, gaunt build, dark \
                                   historical painterly illustration",
-                current_outfit: "ash-grey robes, cinder-stained book pressed flat against \
-                                 the chest",
+                current_outfit: "ash-grey robes, ledger pressed flat against the chest",
                 status: "inactive",
-                traits: &["Answers to no one in particular"],
+                traits: &["Records the readings", "Answers in short sentences"],
                 tags: &["mentor"],
                 relations: &[("Mira Varn", "Records for")],
                 message_example: r#"You: "Do you speak for the Tribunal?"
 
-Clerk Ilm: *keeps writing, one clouded eye on the page and the other somewhere else* "I record for it. Speaking is a different office and the Tribunal has never filled it."
+Clerk Ilm: *keeps writing, one clouded eye on the page and the other somewhere else* "I record for it. Speaking is a different office."
 
 You: "Then who do I ask about the Varn entry?"
 
-Clerk Ilm: "You ask the room, and the room gets read to you." *presses the book flat against the chest* "I was present for nine readings. I can name everyone else who was. I can't tell you what it means.""#,
+Clerk Ilm: "You ask the room, and the room gets read to you." *presses the ledger flat against the chest* "I was present for nine readings. I can name everyone else who was. I cannot tell you what it means.""#,
             },
         ],
         acts: &[
             SeedAct {
-                goal: "Stand before the Tribunal and hear the entry read out a third time.",
-                trigger: Some("The Ninth Reading is convened and the Varn entry is called."),
+                goal: "Hear the third reading and decide whether the debt is struck or paid.",
+                trigger: Some("The court calls the third reading of the Varn debt."),
                 status: ActStatus::Active,
             },
             SeedAct {
-                goal: "Find which clerk can be persuaded and which can only be outlasted.",
-                trigger: Some("Aleksei learns the entry can be struck only between readings."),
+                goal: "Find out which clerk can change the ledger before the third reading ends.",
+                trigger: Some("Aleksei learns the debt can only be struck between readings."),
                 status: ActStatus::Unstarted,
             },
             SeedAct {
-                goal: "Settle, between the brothers, whether the debt is struck or honoured.",
-                trigger: Some("Mira offers himself to be read aloud in the entry's place."),
+                goal: "Choose between the brothers how the debt ends.",
+                trigger: Some("Mira offers to be read aloud in place of the debt."),
                 status: ActStatus::Unstarted,
             },
         ],
         state: SeedState {
-            day: "Eve of the Ninth Reading",
-            place: "The ash-court antechamber",
+            day: "Morning of the third reading",
+            place: "Antechamber of the Tribunal",
             open_threads: &[
-                "The Varn entry has been read aloud twice and a third reading is called",
-                "Aleksei wants the entry struck; Mira wants it honoured",
+                "The third reading of the Varn debt is about to be called",
+                "Aleksei wants the debt struck and Mira wants it paid",
             ],
-            character_conditions: &[("Aleksei Varn", "jaw set, will not look at his brother")],
+            character_conditions: &[("Aleksei Varn", "will not look at his brother")],
         },
         facts: &[
             SeedFact {
-                subject: "The Tribunal of the Ninth Reading",
-                fact: "Keeps its records in cinders; a judgment is valid only once spoken aloud from the ash-book.",
+                subject: "The Tribunal ledger",
+                fact: "Records every debt in the city. A debt is valid once read aloud and \
+                       permanent after three readings.",
             },
             SeedFact {
                 subject: "The Varn debt",
-                fact: "Was entered under the brothers' father's name and has been read aloud twice since.",
+                fact: "Was entered under the brothers' father and has been read aloud twice.",
             },
             SeedFact {
                 subject: "Clerk Ilm",
-                fact: "Has recorded every reading since the last fire and can name who stood in the room for each.",
+                fact: "Has recorded every reading for eleven years and can name who was in \
+                       court for each.",
             },
         ],
         messages: &[
             SeedMessage {
                 speaker: None,
-                text: "The antechamber smells of cold ash. Beyond the curtain the ash-book \
-                       waits open on its iron stand, the Varn entry marked by a thread of \
-                       grey. A clerk clears their throat. The third reading is about to \
-                       be called.",
+                text: "The antechamber is cold and quiet. Through the curtain the court \
+                       ledger is open on its stand. The Varn entry has been read aloud \
+                       twice. A clerk clears their throat and the room goes quiet.",
             },
             SeedMessage {
                 speaker: Some("Aleksei Varn"),
-                text: "If it is read a third time it sets, and no hand strikes it after. \
-                       We have until the curtain lifts. I cannot read aloud, Mira — you \
-                       know that. So I need you silent, not honouring a debt that buries us.",
+                text: "If the entry is read a third time, the debt becomes permanent and \
+                       no one can strike it. We have until the curtain opens. I cannot \
+                       read it aloud, Mira. Stay silent.",
             },
             SeedMessage {
                 speaker: Some("Mira Varn"),
-                text: "It is the last thing we own that is ours. I will stand and be read \
-                       in its place if the Tribunal allows it. An honoured debt is not a \
-                       grave, brother. It is a name that outlasts us.",
+                text: "The debt is the last thing our family owns. I will read it a third \
+                       time and pay it. If the court lets me read it in father's place, \
+                       the debt is paid and the name stays clean.",
             },
         ],
     },

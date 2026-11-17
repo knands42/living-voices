@@ -89,7 +89,6 @@ impl Director {
         }
 
         let chance = self.director_settings.follow_up_chance / (steps_taken as f32 + 1.0);
-        log::debug!("Follow up chance: {}", chance);
         rand < chance
     }
 

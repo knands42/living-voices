@@ -596,7 +596,7 @@ mod should_close_tests {
 }
 
 #[cfg(test)]
-mod follow_up {
+mod follow_up_tests {
     use super::*;
     use crate::config::DirectorSettings;
     use uuid::Uuid;
