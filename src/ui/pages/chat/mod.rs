@@ -7,7 +7,7 @@ mod meta;
 mod top;
 mod transcript;
 
-use iced::widget::{column, container, row};
+use iced::widget::{button, column, container, row, text};
 use iced::{Element, Length, Task};
 use uuid::Uuid;
 
@@ -20,6 +20,7 @@ use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistil
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::memory::{Act, Fact, State as SceneState};
 use crate::backend::domain::message::Message as MessageLine;
+use crate::ui::common;
 use crate::ui::pages::chat::cast::cast_rail;
 use crate::ui::pages::chat::header::header;
 use crate::ui::pages::chat::meta::meta_rail;
@@ -49,11 +50,22 @@ pub struct Opened {
     messages: Vec<MessageLine>,
 }
 
-#[derive(Default)]
+impl Opened {
+    fn into_scene(self) -> Option<OngoingAdventure> {
+        Some(OngoingAdventure::new(
+            self.snapshot.current_adventure?,
+            self.snapshot.current_act?,
+            self.snapshot.current_state?,
+            self.snapshot.current_facts,
+            self.messages,
+        ))
+    }
+}
+
 pub struct OngoingAdventure {
-    pub adventure: Option<Adventure>,
-    pub act: Option<Act>,
-    pub scene_state: Option<SceneState>,
+    pub adventure: Adventure,
+    pub act: Act,
+    pub scene_state: SceneState,
     pub facts: Vec<Fact>,
     pub messages: Vec<MessageLine>,
     pub input_message: String,
@@ -61,16 +73,26 @@ pub struct OngoingAdventure {
 }
 
 impl OngoingAdventure {
-    fn adventure_id(&self) -> Option<Uuid> {
-        self.adventure.as_ref().map(|adventure| adventure.id)
+    fn new(
+        adventure: Adventure,
+        act: Act,
+        scene_state: SceneState,
+        facts: Vec<Fact>,
+        messages: Vec<MessageLine>,
+    ) -> Self {
+        Self {
+            adventure,
+            act,
+            scene_state,
+            facts,
+            messages,
+            input_message: String::new(),
+            awaiting_reply: false,
+        }
     }
 
-    fn open(&mut self, opened: Opened) {
-        self.adventure = opened.snapshot.current_adventure;
-        self.act = opened.snapshot.current_act;
-        self.scene_state = opened.snapshot.current_state;
-        self.facts = opened.snapshot.current_facts;
-        self.messages = opened.messages;
+    fn adventure_id(&self) -> Uuid {
+        self.adventure.id
     }
 
     fn take_outgoing(&mut self) -> Option<MessageLine> {
@@ -79,9 +101,12 @@ impl OngoingAdventure {
             return None;
         }
 
-        let adventure = self.adventure.as_ref()?;
-        let player = adventure.characters.iter().find(|cast| cast.is_player)?;
-        let line = MessageLine::new(adventure.id, Some(player.id), None, text, false);
+        let player = self
+            .adventure
+            .characters
+            .iter()
+            .find(|cast| cast.is_player)?;
+        let line = MessageLine::new(self.adventure.id, Some(player.id), None, text, false);
 
         self.messages.push(line.clone());
         self.input_message.clear();
@@ -100,7 +125,7 @@ pub struct State<
     handle: tokio::runtime::Handle,
     adventure_manager: AdventureManager,
     message_manager: MessageManager<C, N, M, A>,
-    scene: OngoingAdventure,
+    scene: Option<OngoingAdventure>,
 }
 
 impl<
@@ -120,7 +145,7 @@ impl<
                 handle,
                 adventure_manager,
                 message_manager,
-                scene: OngoingAdventure::default(),
+                scene: None,
             },
             Task::none(),
         )
@@ -136,7 +161,7 @@ impl<
     }
 
     pub fn open(&mut self, adventure_id: Uuid) -> Task<Message> {
-        self.scene = OngoingAdventure::default();
+        self.scene = None;
 
         let adventure_manager = self.adventure_manager.clone();
 
@@ -161,7 +186,11 @@ impl<
     }
 
     fn send(&mut self) -> Task<Message> {
-        let Some(line) = self.scene.take_outgoing() else {
+        let Some(line) = self
+            .scene
+            .as_mut()
+            .and_then(OngoingAdventure::take_outgoing)
+        else {
             return Task::none();
         };
 
@@ -199,23 +228,33 @@ impl<
     pub fn update(&mut self, message: Message) -> (Task<Message>, Event) {
         match message {
             Message::BackRequested => return (Task::none(), Event::Show(Page::MainHub)),
-            Message::InputMessageChanged(value) => self.scene.input_message = value,
+            Message::InputMessageChanged(value) => {
+                if let Some(scene) = self.scene.as_mut() {
+                    scene.input_message = value;
+                }
+            }
             Message::Send => return (self.send(), Event::None),
             Message::Replied {
                 adventure_id,
                 sent,
                 messages,
             } => {
-                if self.scene.adventure_id() != Some(adventure_id) {
+                let Some(scene) = self.scene.as_mut() else {
+                    return (Task::none(), Event::None);
+                };
+                if scene.adventure_id() != adventure_id {
                     return (Task::none(), Event::None);
                 }
                 if let Err(err) = sent {
                     log::error!("could not complete the turn: {err}");
                 }
-                self.scene.messages = messages;
-                self.scene.awaiting_reply = false;
+                scene.messages = messages;
+                scene.awaiting_reply = false;
             }
-            Message::Opened(Ok(opened)) => self.scene.open(opened),
+            Message::Opened(Ok(opened)) => match opened.into_scene() {
+                Some(scene) => self.scene = Some(scene),
+                None => log::error!("the adventure opened without an act or scene state"),
+            },
             Message::Opened(Err(err)) => log::error!("could not open adventure: {err}"),
         }
 
@@ -223,7 +262,9 @@ impl<
     }
 
     pub fn view(&self) -> Element<'_, Message> {
-        let scene = &self.scene;
+        let Some(scene) = self.scene.as_ref() else {
+            return opening();
+        };
 
         container(
             column![
@@ -243,4 +284,25 @@ impl<
         .style(theme::page)
         .into()
     }
+}
+
+fn opening() -> Element<'static, Message> {
+    container(
+        column![
+            button(text("← Adventures Hub").size(11.5))
+                .padding([7.0, 13.0])
+                .style(theme::back_button)
+                .on_press(Message::BackRequested),
+            text("The story is opening.")
+                .size(12.5)
+                .color(theme::TEXT_MUTED)
+                .font(common::italic()),
+        ]
+        .spacing(16.0),
+    )
+    .padding([18.0, 22.0])
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .style(theme::page)
+    .into()
 }

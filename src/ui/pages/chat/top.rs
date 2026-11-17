@@ -1,5 +1,5 @@
 use iced::widget::text::Wrapping;
-use iced::widget::{Space, column, container, row, text};
+use iced::widget::{column, container, row, text};
 use iced::{Alignment, Color, Element, Length};
 
 use crate::backend::domain::memory::{Act, ActStatus};
@@ -7,10 +7,7 @@ use crate::ui::pages::chat::{Message, OngoingAdventure};
 use crate::ui::{common, theme};
 
 pub fn top(chat_state: &OngoingAdventure) -> Element<'_, Message> {
-    let voices = chat_state
-        .adventure
-        .as_ref()
-        .map_or(0, |adventure| adventure.characters.len());
+    let voices = chat_state.adventure.characters.len();
 
     row![
         column![
@@ -28,7 +25,7 @@ pub fn top(chat_state: &OngoingAdventure) -> Element<'_, Message> {
         ]
         .spacing(2.0)
         .width(Length::Fill),
-        act_chip(chat_state.act.as_ref()),
+        act_chip(&chat_state.act),
     ]
     .spacing(12.0)
     .align_y(Alignment::Center)
@@ -36,17 +33,13 @@ pub fn top(chat_state: &OngoingAdventure) -> Element<'_, Message> {
 }
 
 fn setting(chat_state: &OngoingAdventure) -> String {
-    match &chat_state.scene_state {
-        Some(scene) => format!("{}, {}", scene.place, scene.day),
-        None => "The story begins".to_string(),
-    }
+    format!(
+        "{}, {}",
+        chat_state.scene_state.place, chat_state.scene_state.day
+    )
 }
 
-fn act_chip(act: Option<&Act>) -> Element<'_, Message> {
-    let Some(act) = act else {
-        return Space::new().into();
-    };
-
+fn act_chip(act: &Act) -> Element<'_, Message> {
     container(
         row![
             text(format!("ACT {}", roman(usize::from(act.ordinal) + 1)))

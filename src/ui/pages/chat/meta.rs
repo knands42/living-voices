@@ -9,21 +9,15 @@ use crate::ui::{common, theme};
 const META_LENGTH: f32 = 300.0;
 
 pub fn meta_rail(chat_state: &OngoingAdventure) -> Element<'_, Message> {
-    let scene = chat_state.scene_state.as_ref();
+    let scene = &chat_state.scene_state;
 
     let conditions = scene
-        .map(|scene| {
-            scene
-                .character_conditions
-                .iter()
-                .map(CharacterCondition::to_string)
-                .collect()
-        })
-        .unwrap_or_default();
+        .character_conditions
+        .iter()
+        .map(CharacterCondition::to_string)
+        .collect();
 
-    let threads = scene
-        .map(|scene| scene.open_threads.clone())
-        .unwrap_or_default();
+    let threads = scene.open_threads.clone();
 
     let mut notes = column![common::heading("What's going on")]
         .spacing(12.0)
@@ -42,13 +36,12 @@ pub fn meta_rail(chat_state: &OngoingAdventure) -> Element<'_, Message> {
         notes = notes.push(facts);
     }
 
-    let mut rail = column![scrollable(notes).height(Length::Fill)]
-        .spacing(12.0)
-        .width(Length::Fill);
-
-    if let Some(scene_state) = scene {
-        rail = rail.push(time_and_place(scene_state));
-    }
+    let rail = column![
+        scrollable(notes).height(Length::Fill),
+        time_and_place(scene)
+    ]
+    .spacing(12.0)
+    .width(Length::Fill);
 
     common::panel(rail, 14.0)
         .width(Length::Fixed(META_LENGTH))

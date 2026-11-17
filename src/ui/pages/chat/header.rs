@@ -42,17 +42,9 @@ pub fn header(chat_state: &OngoingAdventure) -> Element<'_, Message> {
 }
 
 fn title(chat_state: &OngoingAdventure) -> &str {
-    chat_state
-        .adventure
-        .as_ref()
-        .map_or("No adventure open", |adventure| adventure.title.as_str())
+    chat_state.adventure.title.as_str()
 }
 
 fn headline(chat_state: &OngoingAdventure) -> &str {
-    chat_state
-        .adventure
-        .as_ref()
-        .map_or("Pick an adventure from the shelf", |adventure| {
-            adventure.headline.as_str()
-        })
+    chat_state.adventure.headline.as_str()
 }

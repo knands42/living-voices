@@ -90,17 +90,13 @@ fn narrator(message: &MessageLine) -> Element<'_, Message> {
 }
 
 fn speech<'a>(chat_state: &'a OngoingAdventure, message: &'a MessageLine) -> Element<'a, Message> {
-    let speaker_name = chat_state
-        .adventure
-        .as_ref()
-        .map_or(MessageLine::UNKNOWN_SPEAKER_NAME, |adventure| {
-            adventure.speaker_name(message)
-        });
+    let speaker_name = chat_state.adventure.speaker_name(message);
     let hue = common::name_hue(speaker_name);
     let is_player = chat_state
         .adventure
-        .as_ref()
-        .and_then(|adventure| adventure.characters.iter().find(|cast| cast.is_player))
+        .characters
+        .iter()
+        .find(|cast| cast.is_player)
         .is_some_and(|player| message.character_id == Some(player.id));
 
     let mut heading = row![

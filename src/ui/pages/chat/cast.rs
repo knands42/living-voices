@@ -12,10 +12,8 @@ pub const CAST_LENGTH: f32 = 300.0;
 pub fn cast_rail(chat_state: &OngoingAdventure) -> Element<'_, Message> {
     let mut rows = column![].spacing(4.0).width(Length::Fill);
 
-    if let Some(adventure) = &chat_state.adventure {
-        for character in &adventure.characters {
-            rows = rows.push(cast_row(character));
-        }
+    for character in &chat_state.adventure.characters {
+        rows = rows.push(cast_row(character));
     }
 
     common::panel(
