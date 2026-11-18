@@ -40,30 +40,49 @@ pub async fn insert_messages(
     }
 
     let mut builder = QueryBuilder::<Sqlite>::new(
-        "INSERT INTO message (adventure_id, character_id, narrator_id, text, ooc, created_at) ",
+        "WITH incoming(ord, adventure_id, character_id, narrator_id, text, ooc, created_at) AS (",
     );
 
-    builder.push_values(messages, |mut row, message| {
-        row.push_bind(message.adventure_id.to_string())
-            .push_bind(message.character_id.map(|id| id.to_string()))
-            .push_bind(message.narrator_id.map(|id| id.to_string()))
-            .push_bind(message.text.as_str())
-            .push_bind(message.ooc as u16)
-            .push_bind(from_timestamp_to_str(&message.created_at));
-    });
-    builder.push(" RETURNING seq");
+    builder.push_values(
+        messages.iter().enumerate(),
+        |mut row, (ordinal, message)| {
+            row.push_bind(ordinal as i64)
+                .push_bind(message.adventure_id.to_string())
+                .push_bind(message.character_id.map(|id| id.to_string()))
+                .push_bind(message.narrator_id.map(|id| id.to_string()))
+                .push_bind(message.text.as_str())
+                .push_bind(message.ooc as u16)
+                .push_bind(from_timestamp_to_str(&message.created_at));
+        },
+    );
+    builder.push(
+        r#") INSERT INTO message (adventure_id, seq, character_id, narrator_id, text, ooc, created_at)
+         SELECT incoming.adventure_id,
+                COALESCE(stored.max_seq, 0) + ROW_NUMBER() OVER (
+                    PARTITION BY incoming.adventure_id ORDER BY incoming.ord
+                ),
+                incoming.character_id, incoming.narrator_id, incoming.text,
+                incoming.ooc, incoming.created_at
+         FROM incoming
+         LEFT JOIN (SELECT adventure_id, MAX(seq) AS max_seq
+                    FROM message GROUP BY adventure_id) AS stored
+           ON stored.adventure_id = incoming.adventure_id
+         RETURNING rowid, seq"#,
+    );
 
     let rows = builder.build().fetch_all(&mut *conn).await?;
 
-    // `RETURNING` does not promise a row order; a multi-row VALUES list assigns
-    // rowids left to right, so the sorted seqs line up with the input order.
-    let mut seqs: Vec<u16> = rows.iter().map(|row| row.get("seq")).collect();
-    seqs.sort_unstable();
+    // `RETURNING` does not promise a row order; rowids follow the insert order.
+    let mut assigned: Vec<(i64, u16)> = rows
+        .iter()
+        .map(|row| (row.get("rowid"), row.get("seq")))
+        .collect();
+    assigned.sort_unstable_by_key(|(rowid, _)| *rowid);
 
     Ok(messages
         .iter()
-        .zip(seqs)
-        .map(|(message, seq)| Message {
+        .zip(assigned)
+        .map(|(message, (_, seq))| Message {
             seq: Some(seq),
             ..message.clone()
         })

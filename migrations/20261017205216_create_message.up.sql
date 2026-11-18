@@ -2,8 +2,7 @@
 -- or deleted, so there is no updated_at column and no touch trigger
 CREATE TABLE message
 (
-    -- Use composed pk here, otherwise seq will be shared across adventures
-    seq                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    seq                   INTEGER NOT NULL,
     adventure_id          TEXT    NOT NULL REFERENCES adventure (id) ON DELETE CASCADE,
     character_id          TEXT    NULL REFERENCES character (id) ON DELETE SET NULL,
     narrator_id           TEXT    NULL REFERENCES narrator (id) ON DELETE SET NULL,
@@ -11,8 +10,7 @@ CREATE TABLE message
     ooc                   INTEGER NOT NULL DEFAULT 0,
     created_at            TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
+    PRIMARY KEY (adventure_id, seq),
     CONSTRAINT message_text_not_blank CHECK (length(trim(text)) > 0),
     CONSTRAINT message_ooc_is_bool CHECK (ooc IN (0, 1))
 );
-
-CREATE INDEX message_adventure_seq_idx ON message (adventure_id, seq);

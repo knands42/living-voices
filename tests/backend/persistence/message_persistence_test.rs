@@ -75,3 +75,42 @@ async fn fetch_since_excludes_messages_at_or_below_the_cursor() {
     assert_eq!(messages[0].text, "line 2");
     assert_eq!(messages[1].text, "line 3");
 }
+
+#[tokio::test]
+async fn seq_starts_at_one_for_each_adventure() {
+    // given two adventures
+    let (pool, _db) = setup_db().await;
+    let first = seed_adventure(&pool).await;
+    let second = seed_adventure(&pool).await;
+    let mut conn = pool.acquire().await.expect("acquire");
+
+    // when each adventure gets a batch of two messages
+    let first_batch: Vec<Message> = (1..=2)
+        .map(|i| Message::new(first.id, None, None, format!("first {i}"), false))
+        .collect();
+    let second_batch: Vec<Message> = (1..=2)
+        .map(|i| Message::new(second.id, None, None, format!("second {i}"), false))
+        .collect();
+    let first_stored = insert_messages(&mut conn, &first_batch)
+        .await
+        .expect("insert first batch");
+    let second_stored = insert_messages(&mut conn, &second_batch)
+        .await
+        .expect("insert second batch");
+
+    // then each adventure's seqs start at one and keep their input order
+    let first_seqs: Vec<u16> = first_stored
+        .iter()
+        .map(|message| message.seq.expect("assigned seq"))
+        .collect();
+    let second_seqs: Vec<u16> = second_stored
+        .iter()
+        .map(|message| message.seq.expect("assigned seq"))
+        .collect();
+    assert_eq!(first_seqs, [1, 2]);
+    assert_eq!(second_seqs, [1, 2]);
+    assert_eq!(first_stored[0].text, "first 1");
+    assert_eq!(first_stored[1].text, "first 2");
+    assert_eq!(second_stored[0].text, "second 1");
+    assert_eq!(second_stored[1].text, "second 2");
+}
