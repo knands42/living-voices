@@ -1,36 +1,68 @@
 use iced::widget::text::Wrapping;
-use iced::widget::{column, container, row, scrollable, text};
+use iced::widget::{column, container, mouse_area, row, scrollable, text};
 use iced::{Alignment, Element, Length};
+use uuid::Uuid;
 
+use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::Character;
 use crate::ui::pages::chat::look::AVATAR;
-use crate::ui::pages::chat::{Message, OngoingAdventure};
 use crate::ui::{common, theme};
 
 pub const CAST_LENGTH: f32 = 300.0;
 
-pub fn cast_rail(chat_state: &OngoingAdventure) -> Element<'_, Message> {
-    let mut rows = column![].spacing(4.0).width(Length::Fill);
-
-    for character in &chat_state.adventure.characters {
-        rows = rows.push(cast_row(character));
-    }
-
-    common::panel(
-        column![
-            common::heading("Cast"),
-            scrollable(rows).height(Length::Fill),
-        ]
-        .spacing(10.0)
-        .height(Length::Fill),
-        14.0,
-    )
-    .width(Length::Fixed(CAST_LENGTH))
-    .height(Length::Fill)
-    .into()
+#[derive(Debug, Clone)]
+pub enum Message {
+    Picked(Uuid),
 }
 
-fn cast_row(character: &Character) -> Element<'_, Message> {
+pub enum Effect {
+    LoadGallery(Uuid),
+}
+
+#[derive(Default)]
+pub struct State {
+    selected: Option<Uuid>,
+}
+
+impl State {
+    pub fn update(&mut self, message: Message) -> Option<Effect> {
+        match message {
+            Message::Picked(character_id) => {
+                if self.selected == Some(character_id) {
+                    self.selected = None;
+                    return None;
+                }
+
+                self.selected = Some(character_id);
+                Some(Effect::LoadGallery(character_id))
+            }
+        }
+    }
+
+    pub fn view<'a>(&self, adventure: &'a Adventure) -> Element<'a, Message> {
+        let mut rows = column![].spacing(4.0).width(Length::Fill);
+
+        for character in &adventure.characters {
+            let selected = self.selected == Some(character.id);
+            rows = rows.push(cast_row(character, selected));
+        }
+
+        common::panel(
+            column![
+                common::heading("Cast"),
+                scrollable(rows).height(Length::Fill),
+            ]
+            .spacing(10.0)
+            .height(Length::Fill),
+            14.0,
+        )
+        .width(Length::Fixed(CAST_LENGTH))
+        .height(Length::Fill)
+        .into()
+    }
+}
+
+fn cast_row(character: &Character, selected: bool) -> Element<'_, Message> {
     let hue = common::name_hue(character.name.as_str());
     let initials = common::initials_of(character.name.as_str());
     let avatar = common::initials(&initials, hue, AVATAR, 0.55);
@@ -62,12 +94,19 @@ fn cast_row(character: &Character) -> Element<'_, Message> {
         .spacing(9.0)
         .align_y(Alignment::Start);
 
-    if character.is_player {
-        container(body)
-            .padding(9.0)
-            .style(theme::player_card)
-            .into()
-    } else {
-        container(body).padding(9.0).into()
-    }
+    let is_player = character.is_player;
+    let card = container(body)
+        .padding(9.0)
+        .width(Length::Fill)
+        .style(move |theme| {
+            if is_player && !selected {
+                crate::ui::theme::player_card(theme)
+            } else {
+                crate::ui::theme::cast_row(0.0, selected, hue)
+            }
+        });
+
+    mouse_area(card)
+        .on_press(Message::Picked(character.id))
+        .into()
 }

@@ -21,7 +21,6 @@ use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::memory::{Act, Fact, State as SceneState};
 use crate::backend::domain::message::Message as MessageLine;
 use crate::ui::common;
-use crate::ui::pages::chat::cast::cast_rail;
 use crate::ui::pages::chat::header::header;
 use crate::ui::pages::chat::meta::meta_rail;
 use crate::ui::pages::chat::transcript::transcript;
@@ -36,6 +35,7 @@ pub enum Message {
     BackRequested,
     InputMessageChanged(String),
     Send,
+    Cast(cast::Message),
     Opened(Result<Opened, String>),
     Replied {
         adventure_id: Uuid,
@@ -139,6 +139,7 @@ pub struct State<
     handle: tokio::runtime::Handle,
     adventure_manager: AdventureManager,
     message_manager: MessageManager<C, N, M, A>,
+    cast: cast::State,
     scene: Option<OngoingAdventure>,
 }
 
@@ -159,6 +160,7 @@ impl<
                 handle,
                 adventure_manager,
                 message_manager,
+                cast: cast::State::default(),
                 scene: None,
             },
             Task::none(),
@@ -176,9 +178,9 @@ impl<
 
     pub fn open(&mut self, adventure_id: Uuid) -> Task<Message> {
         self.scene = None;
+        self.cast = cast::State::default();
 
         let adventure_manager = self.adventure_manager.clone();
-
         Task::perform(
             on_tokio(self.handle.clone(), async move {
                 adventure_manager.start_adventure(adventure_id).await?;
@@ -246,6 +248,15 @@ impl<
         )
     }
 
+    fn perform(&self, effect: cast::Effect) -> Task<Message> {
+        match effect {
+            cast::Effect::LoadGallery(character_id) => {
+                log::debug!("cast gallery requested for {character_id}");
+                Task::none()
+            }
+        }
+    }
+
     pub fn update(&mut self, message: Message) -> (Task<Message>, Event) {
         match message {
             Message::BackRequested => return (Task::none(), Event::Show(Page::MainHub)),
@@ -255,6 +266,11 @@ impl<
                 }
             }
             Message::Send => return (self.send(), Event::None),
+            Message::Cast(message) => {
+                if let Some(effect) = self.cast.update(message) {
+                    return (self.perform(effect), Event::None);
+                }
+            }
             Message::Replied {
                 adventure_id,
                 sent,
@@ -275,7 +291,30 @@ impl<
                 scene.apply_snapshot(snapshot);
             }
             Message::Opened(Ok(opened)) => match opened.into_scene() {
-                Some(scene) => self.scene = Some(scene),
+                Some(scene) => {
+                    let companion = {
+                        let mut companions = scene
+                            .adventure
+                            .characters
+                            .iter()
+                            .filter(|character| !character.is_player);
+                        match (companions.next(), companions.next()) {
+                            (Some(companion), None) => Some(companion.id),
+                            _ => None,
+                        }
+                    };
+
+                    let task = match companion {
+                        Some(character_id) => self
+                            .cast
+                            .update(cast::Message::Picked(character_id))
+                            .map_or_else(|| Task::none(), |effect| self.perform(effect)),
+                        None => Task::none(),
+                    };
+
+                    self.scene = Some(scene);
+                    return (task, Event::None);
+                }
                 None => log::error!("the adventure opened without an act or scene state"),
             },
             Message::Opened(Err(err)) => log::error!("could not open adventure: {err}"),
@@ -292,10 +331,14 @@ impl<
         container(
             column![
                 header(scene),
-                row![cast_rail(scene), transcript(scene), meta_rail(scene)]
-                    .spacing(14.0)
-                    .width(Length::Fill)
-                    .height(Length::Fill),
+                row![
+                    self.cast.view(&scene.adventure).map(Message::Cast),
+                    transcript(scene),
+                    meta_rail(scene)
+                ]
+                .spacing(14.0)
+                .width(Length::Fill)
+                .height(Length::Fill),
             ]
             .spacing(14.0)
             .width(Length::Fill)
