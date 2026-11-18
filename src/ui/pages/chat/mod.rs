@@ -41,6 +41,7 @@ pub enum Message {
         adventure_id: Uuid,
         sent: Result<(), String>,
         messages: Vec<MessageLine>,
+        snapshot: MemorySnapshot,
     },
 }
 
@@ -113,6 +114,19 @@ impl OngoingAdventure {
         self.awaiting_reply = true;
 
         Some(line)
+    }
+
+    fn apply_snapshot(&mut self, snapshot: MemorySnapshot) {
+        if let Some(adventure) = snapshot.current_adventure {
+            self.adventure = adventure;
+        }
+        if let Some(act) = snapshot.current_act {
+            self.act = act;
+        }
+        if let Some(scene_state) = snapshot.current_state {
+            self.scene_state = scene_state;
+        }
+        self.facts = snapshot.current_facts;
     }
 }
 
@@ -209,17 +223,24 @@ impl<
                     .get_messages(adventure_id, HISTORY_LIMIT)
                     .await
                     .unwrap_or_default();
+                let snapshot = adventure_manager.current_snapshot();
 
-                (sent, messages)
+                (sent, messages, snapshot)
             }),
             move |outcome| {
-                let (sent, messages) = outcome
-                    .unwrap_or_else(|| (Err("the turn task failed".to_string()), Vec::new()));
+                let (sent, messages, snapshot) = outcome.unwrap_or_else(|| {
+                    (
+                        Err("the turn task failed".to_string()),
+                        Vec::new(),
+                        MemorySnapshot::default(),
+                    )
+                });
 
                 Message::Replied {
                     adventure_id,
                     sent,
                     messages,
+                    snapshot,
                 }
             },
         )
@@ -238,6 +259,7 @@ impl<
                 adventure_id,
                 sent,
                 messages,
+                snapshot,
             } => {
                 let Some(scene) = self.scene.as_mut() else {
                     return (Task::none(), Event::None);
@@ -250,6 +272,7 @@ impl<
                 }
                 scene.messages = messages;
                 scene.awaiting_reply = false;
+                scene.apply_snapshot(snapshot);
             }
             Message::Opened(Ok(opened)) => match opened.into_scene() {
                 Some(scene) => self.scene = Some(scene),
