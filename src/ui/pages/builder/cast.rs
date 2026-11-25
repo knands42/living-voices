@@ -21,7 +21,6 @@ pub enum Message {
     EditClosed,
     RemoveRequested,
     Removed(Uuid, Result<(), String>),
-    SaveRequested,
     Saved(Result<(), String>),
 }
 
@@ -48,7 +47,10 @@ impl State {
                     *existing = character;
                 }
             }
-            Message::EditClosed => self.index = None,
+            Message::EditClosed => {
+                self.index = None;
+                return Some(Effect::SaveCast);
+            }
             Message::RemoveRequested => {
                 let character = self.index.and_then(|index| characters.get(index))?;
                 return Some(Effect::RemoveCharacter(character.id));
@@ -60,7 +62,6 @@ impl State {
             Message::Removed(_, Err(err)) => {
                 log::error!("could not remove the character: {err}")
             }
-            Message::SaveRequested => return Some(Effect::SaveCast),
             Message::Saved(Err(err)) => log::error!("could not save the cast: {err}"),
             Message::Saved(Ok(())) => {}
         }
@@ -69,15 +70,15 @@ impl State {
     }
 
     pub fn view<'a>(&'a self, characters: &'a [Character]) -> Element<'a, Message> {
+        let action = if self.edited(characters).is_some() {
+            pill("Save", 150.0, true, Message::EditClosed)
+        } else {
+            pill("+ Add character", 150.0, true, Message::AddRequested)
+        };
+
         let head = row![
             section_header("The Cast", "Characters, their traits and relationships."),
-            pill(
-                "Save cast",
-                120.0,
-                self.can_save(characters),
-                Message::SaveRequested
-            ),
-            pill("+ Add character", 150.0, true, Message::AddRequested),
+            action,
         ]
         .spacing(16.0)
         .align_y(Alignment::Center);
@@ -224,13 +225,6 @@ fn character_editor(character: &Character) -> Element<'_, Message> {
                 .on_press(Message::RemoveRequested),
         );
     }
-
-    heading = heading.push(
-        button(text("Done").size(12.0))
-            .padding([6.0, 14.0])
-            .style(theme::back_button)
-            .on_press(Message::EditClosed),
-    );
 
     let form = column![
         heading,
