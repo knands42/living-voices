@@ -7,8 +7,8 @@ use crate::backend::application::helper::{
 };
 use living_voices::ai::{ActClose, ChatHandler, MemoryHandler, NarratorHandler};
 use living_voices::backend::application::director::Director;
+use living_voices::backend::application::managers::message::message_manager::MessageManager;
 use living_voices::backend::application::memory_manager::MemoryManager;
-use living_voices::backend::application::message_manager::MessageManager;
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::Character;

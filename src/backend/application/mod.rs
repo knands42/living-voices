@@ -1,9 +1,9 @@
-pub mod adventure_manager;
 pub mod character_gallery;
-pub mod character_manager;
 pub mod context;
 pub mod director;
-pub mod memory_manager;
-pub mod message_manager;
+pub mod managers;
 pub mod port;
 pub mod state;
+
+pub use managers::message::message_manager;
+pub use managers::{adventure_manager, character_manager, memory_manager};

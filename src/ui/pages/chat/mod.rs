@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::backend::application::adventure_manager::{
     AdventureManager, AdventureManagerError, MemorySnapshot,
 };
-use crate::backend::application::message_manager::MessageManager;
+use crate::backend::application::managers::message::message_manager::MessageManager;
 use crate::backend::application::port::chat_port::{ChatPort, NarratorPort};
 use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
 use crate::backend::domain::adventure::Adventure;

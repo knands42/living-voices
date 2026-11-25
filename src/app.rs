@@ -3,13 +3,14 @@ use sqlx::SqlitePool;
 use crate::ai::{ActClose, ChatHandler, ComfyImage, MemoryHandler, NarratorHandler};
 use crate::backend::application::character_gallery::CharacterGallery;
 use crate::backend::application::director::Director;
+use crate::backend::application::managers::message::message_manager::MessageManager;
 use crate::backend::application::port::chat_port::{ChatPort, NarratorPort, PromptPort};
 use crate::backend::application::port::image_port::{ImageError, ImagePort};
 use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
 use crate::{
     backend::application::{
         adventure_manager::AdventureManager, character_manager::CharacterManager,
-        memory_manager::MemoryManager, message_manager::MessageManager, state::SharedState,
+        memory_manager::MemoryManager, state::SharedState,
     },
     config::{Config, Settings},
     provision::Gpu,
