@@ -17,7 +17,7 @@ impl Director {
     pub fn should_narrator_speak(
         &self,
         candidates: &[&Character],
-        incoming: &Message,
+        is_ooc: bool,
         messages_since_narration: Option<u8>,
     ) -> bool {
         // No cast to speak => narrator by necessity.
@@ -31,7 +31,7 @@ impl Director {
 
         let roll = rand::random::<f32>();
         // If the incoming message is OOC, the narrator has a chance to speak.
-        if incoming.ooc {
+        if is_ooc {
             return roll < self.director_settings.narrator_change_if_ooc;
         }
 

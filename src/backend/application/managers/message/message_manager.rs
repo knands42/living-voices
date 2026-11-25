@@ -76,9 +76,21 @@ impl<
         self.create_message(incoming.clone()).await?;
 
         let mut input_data = self.gather_data().await?;
-        let chat_reply = self.respond(&incoming, &input_data).await?;
+        let chat_reply = self.respond(&input_data).await?;
         let (stored_reply, act_closed) = self.process_respond(chat_reply, &mut input_data).await?;
+        if !act_closed {
+            self.run_follow_ups(stored_reply.clone()).await?;
+        }
 
+        Ok(stored_reply)
+    }
+
+    pub async fn request_new_message(&self) -> Result<Message, MessageManagerError> {
+        log::info!("requesting a new message");
+
+        let mut input_data = self.gather_data().await?;
+        let chat_reply = self.respond(&input_data).await?;
+        let (stored_reply, act_closed) = self.process_respond(chat_reply, &mut input_data).await?;
         if !act_closed {
             self.run_follow_ups(stored_reply.clone()).await?;
         }

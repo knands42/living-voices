@@ -220,6 +220,37 @@ async fn send_message_routes_to_a_specific_targeted_character() {
     assert!(reply.narrator_id.is_none());
 }
 
+// ---------------------------------------------------------------- 5. a new message is requested
+
+#[tokio::test]
+#[ignore = "requires a running Ollama server"]
+async fn request_new_message_answers_the_pending_line_without_storing_another() {
+    // given: a seeded trail that ends on the player's line, left without a reply
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
+    let memory_settings = memory_high_distiller_trigger();
+    let memory_manager = setup_memory_manager(state.clone(), &pool, memory_settings);
+    let manager = setup_message_manager(&state, &pool, &director_pick_narrator(), &memory_manager);
+    let adventure = adventure_manager.current_adventure().unwrap();
+
+    seed_conversation(&pool, &adventure, CONVERSATION, 4).await;
+    let seeded = message_count(&pool, adventure.id).await;
+
+    // when: the player asks for the reply again
+    let reply = manager
+        .request_new_message()
+        .await
+        .expect("request succeeds");
+
+    // then: the reply is stored as the next row and attributed to the narrator
+    assert_eq!(reply.seq, Some(seeded + 1));
+    assert_eq!(reply.narrator_id, Some(adventure.narrator.id));
+
+    // and: the pending player line was not written a second time
+    assert_eq!(message_count(&pool, adventure.id).await, seeded + 1);
+}
+
 // ---------------------------------------------------------------- handler wiring (real models)
 
 fn chat_model() -> TextModel {
@@ -410,6 +441,15 @@ async fn fact_count(pool: &SqlitePool, act_id: Uuid) -> u16 {
         .fetch_one(&mut *conn)
         .await
         .expect("fact count")
+}
+
+async fn message_count(pool: &SqlitePool, adventure_id: Uuid) -> u16 {
+    let mut conn = pool.acquire().await.expect("acquire");
+    query_scalar("SELECT COUNT(*) FROM message WHERE adventure_id = ?1")
+        .bind(adventure_id.to_string())
+        .fetch_one(&mut *conn)
+        .await
+        .expect("message count")
 }
 
 async fn message_is_narrator(pool: &SqlitePool, adventure_id: Uuid, seq: i64) -> bool {

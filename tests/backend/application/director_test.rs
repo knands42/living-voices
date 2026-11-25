@@ -47,22 +47,21 @@ fn narrator_speaks_when_there_is_no_cast() {
     // given: a director and an empty cast
     let d = director(1.0, 0.0, (255, 255));
     // when/then: the narrator speaks, short-circuiting before any roll
-    assert!(d.should_narrator_speak(&[], &line(false), Some(0)));
+    assert!(d.should_narrator_speak(&[], false, Some(0)));
 }
 
 #[test]
 fn ooc_goes_to_the_narrator_only_when_its_chance_is_certain() {
     // given: a present cast and an out-of-character line
     let cast = cast(&["Mira"]);
-    let ooc = line(true);
 
     // when: the ooc->narrator chance is certain -> then the narrator speaks
     let certain = director(1.0, 1.0, (255, 255));
-    assert!(certain.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), &ooc, Some(0)));
+    assert!(certain.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), true, Some(0)));
 
     // when: the chance is zero -> then a character speaks instead
     let never = director(1.0, 0.0, (255, 255));
-    assert!(!never.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), &ooc, Some(0)));
+    assert!(!never.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), true, Some(0)));
 }
 
 // ---------------------------------------------------------------- the ramp
@@ -73,7 +72,7 @@ fn ramp_is_zero_below_min() {
     let d = director(1.0, 0.0, (20, 30));
     let cast = cast(&["Mira"]);
     // when: 19 messages (below min) -> then the narrator never speaks
-    assert!(!d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), &line(false), Some(19)));
+    assert!(!d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), false, Some(19)));
 }
 
 #[test]
@@ -82,8 +81,8 @@ fn ramp_is_certain_at_or_after_max() {
     let d = director(1.0, 0.0, (20, 30));
     let cast = cast(&["Mira"]);
     // when: at or past max -> then the narrator always speaks
-    assert!(d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), &line(false), Some(30)));
-    assert!(d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), &line(false), Some(100)));
+    assert!(d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), false, Some(30)));
+    assert!(d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), false, Some(100)));
 }
 
 // ---------------------------------------------------------------- the narrator gap
@@ -111,8 +110,8 @@ fn narrator_stays_silent_inside_the_gap() {
     // when: fewer than 10 messages passed since the last narration -> then it stays silent,
     // whether the player's line is in character or out of character
     for since in 0..10 {
-        assert!(!d.should_narrator_speak(&candidates, &line(false), Some(since)));
-        assert!(!d.should_narrator_speak(&candidates, &line(true), Some(since)));
+        assert!(!d.should_narrator_speak(&candidates, false, Some(since)));
+        assert!(!d.should_narrator_speak(&candidates, true, Some(since)));
     }
 }
 
@@ -124,8 +123,8 @@ fn narrator_may_speak_once_the_gap_is_met() {
     let candidates = cast.iter().collect::<Vec<_>>();
 
     // when: at or past the gap -> then the narrator is free to speak again
-    assert!(d.should_narrator_speak(&candidates, &line(false), Some(10)));
-    assert!(d.should_narrator_speak(&candidates, &line(false), Some(42)));
+    assert!(d.should_narrator_speak(&candidates, false, Some(10)));
+    assert!(d.should_narrator_speak(&candidates, false, Some(42)));
 }
 
 #[test]
@@ -135,7 +134,7 @@ fn a_narrator_that_never_spoke_is_not_gated() {
     let cast = cast(&["Mira"]);
 
     // when/then: there is no previous narration to keep the gap from, so it may speak
-    assert!(d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), &line(false), None));
+    assert!(d.should_narrator_speak(&cast.iter().collect::<Vec<_>>(), false, None));
 }
 
 #[test]

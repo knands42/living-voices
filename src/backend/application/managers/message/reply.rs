@@ -19,7 +19,6 @@ impl<
 {
     pub(super) async fn respond(
         &self,
-        incoming: &Message,
         input: &MessageContext,
     ) -> Result<ChatReply, MessageManagerError> {
         let active_characters = input.adventure.active_characters(&input.present_names);
@@ -29,7 +28,6 @@ impl<
             let reply = self
                 .send_to_handler(
                     &input.adventure,
-                    incoming,
                     &active_characters,
                     input.messages_since_narration,
                     &input.uncovered_messages,
@@ -55,17 +53,17 @@ impl<
     async fn send_to_handler(
         &self,
         adventure: &Adventure,
-        incoming: &Message,
         active_characters: &[&Character],
         messages_since_narration: Option<u8>,
         uncovered_messages: &[Message],
         data: &ContextData,
     ) -> Result<ChatReply, MessageManagerError> {
-        if self.director.should_narrator_speak(
-            active_characters,
-            incoming,
-            messages_since_narration,
-        ) {
+        let is_ooc = uncovered_messages.last().map(|m| m.ooc).unwrap_or(false);
+
+        if self
+            .director
+            .should_narrator_speak(active_characters, is_ooc, messages_since_narration)
+        {
             let context = ContextBuilder::build_narrator_chat_prompt(
                 adventure,
                 &self.director,
