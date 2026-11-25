@@ -305,22 +305,22 @@ SELECT a.id                      AS adventure_id,
        n.id AS narrator_id, n.name AS narrator_name, n.instructions AS narrator_instructions
 FROM adventure AS a
          LEFT JOIN (SELECT adventure_id,
-                           '[' || GROUP_CONCAT('"' || tag || '"', ',') || ']' AS tags
+                           json_group_array(tag) AS tags
                     FROM adventure_tag GROUP BY adventure_id) AS at
                    ON at.adventure_id = a.id
          LEFT JOIN (SELECT adventure_id,
-                           '[' || GROUP_CONCAT('"' || text || '"', ',') || ']' AS lore,
+                           json_group_array(text) AS lore,
                            MIN(id) AS lore_id,
                            '' AS lore_text
                     FROM lore GROUP BY adventure_id) AS l
                    ON l.adventure_id = a.id
          LEFT JOIN character AS c ON c.adventure_id = a.id
          LEFT JOIN (SELECT character_id,
-                           '[' || GROUP_CONCAT('"' || tag || '"', ',') || ']' AS tags
+                           json_group_array(tag) AS tags
                     FROM character_tag GROUP BY character_id) AS ctag
                    ON ctag.character_id = c.id
          LEFT JOIN (SELECT character_id,
-                           '[' || GROUP_CONCAT('"' || value || '"', ',') || ']' AS trait
+                           json_group_array(value) AS trait
                     FROM character_trait GROUP BY character_id) AS ct
                    ON ct.character_id = c.id
          LEFT JOIN narrator AS n ON n.adventure_id = a.id
@@ -358,7 +358,7 @@ SELECT a.id,
        COALESCE(at.tags, '[]') AS adventure_tags
 FROM adventure AS a
 LEFT JOIN (SELECT adventure_id,
-                  '[' || GROUP_CONCAT('"' || tag || '"', ',') || ']' AS tags
+                  json_group_array(tag) AS tags
            FROM adventure_tag
            GROUP BY adventure_id) AS at
   ON at.adventure_id = a.id
@@ -396,7 +396,7 @@ FROM adventure AS a
 JOIN act AS active
   ON active.adventure_id = a.id AND active.status = 'active'
 LEFT JOIN (SELECT adventure_id,
-                  '[' || GROUP_CONCAT('"' || tag || '"', ',') || ']' AS tags
+                  json_group_array(tag) AS tags
            FROM adventure_tag
            GROUP BY adventure_id) AS at
   ON at.adventure_id = a.id

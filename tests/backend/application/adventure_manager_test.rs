@@ -471,3 +471,34 @@ async fn saving_the_scene_state_and_facts_refreshes_the_shared_state() {
     );
     assert_eq!(snapshot.current_facts, facts);
 }
+
+#[tokio::test]
+async fn multiline_lore_reopens_without_breaking_the_cast_query() {
+    // given: a draft whose lore the story editor saved across blank lines, quotes included
+    let (pool, _db) = setup_db().await;
+    let state = SharedState::new();
+    let adventure_manager = AdventureManager::new(state.clone(), pool.clone());
+    let mut adventure = adventure_manager
+        .create_adventure(
+            "Test adventure".into(),
+            "A drowned city".into(),
+            "tense".into(),
+        )
+        .await
+        .expect("create adventure");
+    adventure.lore.text =
+        "The resistance calls it a warehouse.\n\nWaiting to be \"offered\".".to_string();
+    adventure_manager
+        .update_adventure(&adventure)
+        .await
+        .expect("save lore");
+
+    // when: the builder opens it again
+    let reopened = adventure_manager
+        .get_adventure(adventure.id)
+        .await
+        .expect("reopen");
+
+    // then: the lore comes back intact
+    assert_eq!(reopened.lore.text, adventure.lore.text);
+}

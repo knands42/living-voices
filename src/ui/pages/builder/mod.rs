@@ -221,14 +221,7 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
                 if let cast::Message::Saved(Ok(character)) = &message
                     && let Some(draft) = &mut self.draft
                 {
-                    match draft
-                        .saved_cast
-                        .iter_mut()
-                        .find(|saved| saved.id == character.id)
-                    {
-                        Some(saved) => *saved = character.clone(),
-                        None => draft.saved_cast.push(character.clone()),
-                    }
+                    update_cast(&mut draft.saved_cast, character.clone());
                 }
 
                 if let Some(effect) =
@@ -404,23 +397,25 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
 
         Task::perform(
             on_tokio(self.handle.clone(), async move {
+                let body = needs_body_prompt(previous.as_ref(), &character);
+                let outfit = needs_outfit_prompt(previous.as_ref(), &character);
                 let mut character = character;
 
-                if needs_body_prompt(previous.as_ref(), &character) {
+                character_manager
+                    .update_character(character.clone())
+                    .await?;
+
+                if body {
                     character = character_manager
                         .create_character_body_prompt(&character)
                         .await?;
                 }
 
-                if needs_outfit_prompt(previous.as_ref(), &character) {
+                if outfit {
                     character = character_manager
                         .create_character_outfit_prompt(&character)
                         .await?;
                 }
-
-                character_manager
-                    .update_character(character.clone())
-                    .await?;
 
                 Ok::<_, CharacterManagerError>(character)
             }),
@@ -520,6 +515,13 @@ fn resolved<T, E: ToString>(
         Some(Ok(value)) => Ok(value),
         Some(Err(err)) => Err(err.to_string()),
         None => Err(failure.to_string()),
+    }
+}
+
+fn update_cast(cast: &mut Vec<Character>, character: Character) {
+    match cast.iter_mut().find(|saved| saved.id == character.id) {
+        Some(saved) => *saved = character,
+        None => cast.push(character),
     }
 }
 
