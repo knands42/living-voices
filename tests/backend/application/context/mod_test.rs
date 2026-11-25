@@ -655,8 +655,12 @@ async fn distill_prompt_leads_with_the_distill_instruction_and_the_turns() {
     let mut conn = pool.acquire().await.expect("acquire");
 
     let messages = vec![
-        adventure.message_from_reply("Mira", "We fled."),
-        adventure.message_from_reply("Kael", "They followed."),
+        adventure
+            .message_from_reply("Mira", "We fled.")
+            .expect("reply has a body"),
+        adventure
+            .message_from_reply("Kael", "They followed.")
+            .expect("reply has a body"),
     ];
 
     let data = context_data(&mut conn, &adventure).await;

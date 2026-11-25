@@ -166,7 +166,9 @@ fn message_from_reply_builds_a_character_say_when_replier_is_in_the_cast() {
     let (adventure, mira) = adventure_with_character("Mira");
 
     // When building a reply message attributed to "Mira"
-    let message = adventure.message_from_reply("Mira", "The tide is turning.");
+    let message = adventure
+        .message_from_reply("Mira", "The tide is turning.")
+        .expect("reply has a body");
 
     // Then it is attributed to that character, carrying the character id and no narrator id
     assert_eq!(message.adventure_id, adventure.id);
@@ -181,7 +183,9 @@ fn message_from_reply_builds_a_character_say_when_replier_is_in_the_cast() {
 fn speaker_name_follows_a_character_rename() {
     // Given a message spoken by "Mira"
     let (mut adventure, mira) = adventure_with_character("Mira");
-    let message = adventure.message_from_reply("Mira", "The tide is turning.");
+    let message = adventure
+        .message_from_reply("Mira", "The tide is turning.")
+        .expect("reply has a body");
 
     // When the character is renamed after the message was written
     if let Some(character) = adventure.characters.iter_mut().find(|c| c.id == mira.id) {
@@ -198,7 +202,9 @@ fn message_from_reply_falls_through_to_the_narrator_for_an_unknown_replier() {
     let (adventure, _mira) = adventure_with_character("Mira");
 
     // When building a reply message attributed to a name outside the cast
-    let message = adventure.message_from_reply("Ghost", "The city holds its breath.");
+    let message = adventure
+        .message_from_reply("Ghost", "The city holds its breath.")
+        .expect("reply has a body");
 
     // Then it is spoken by the narrator, carrying the narrator id and no character id
     assert!(message.character_id.is_none());
@@ -213,7 +219,9 @@ fn message_from_reply_strips_a_character_header_before_matching() {
     let (adventure, mira) = adventure_with_character("Mira");
 
     // When the replier arrives wrapped in the model's header noise
-    let message = adventure.message_from_reply("[CHARACTER] Mira", "The tide is turning.");
+    let message = adventure
+        .message_from_reply("[CHARACTER] Mira", "The tide is turning.")
+        .expect("reply has a body");
 
     // Then it still resolves to the character rather than collapsing to the narrator
     assert_eq!(message.character_id, Some(mira.id));
@@ -227,7 +235,9 @@ fn message_from_reply_drops_the_speaker_name_echoed_into_the_body() {
     let (adventure, _mira) = adventure_with_character("Mira");
 
     // When the model echoes the speaker into the reply body
-    let message = adventure.message_from_reply("Mira", "Mira: The tide is turning.");
+    let message = adventure
+        .message_from_reply("Mira", "Mira: The tide is turning.")
+        .expect("reply has a body");
 
     // Then only the body survives; the speaker is resolved from the character id
     assert_eq!(message.text, "The tide is turning.");
@@ -235,11 +245,29 @@ fn message_from_reply_drops_the_speaker_name_echoed_into_the_body() {
 }
 
 #[test]
+fn message_from_reply_rejects_a_reply_that_has_no_body() {
+    // Given a cast with "Mira"
+    let (adventure, _mira) = adventure_with_character("Mira");
+
+    // When the model answers with whitespace or only the speaker echo
+    let whitespace = adventure.message_from_reply("Mira", "   ");
+    let speaker_echo = adventure.message_from_reply("Mira", "Mira:");
+    let empty_narration = adventure.message_from_reply("NARRATOR", "");
+
+    // Then no message is produced for any of them
+    assert!(whitespace.is_none());
+    assert!(speaker_echo.is_none());
+    assert!(empty_narration.is_none());
+}
+
+#[test]
 fn message_from_reply_keeps_a_colon_that_is_not_the_speaker_name() {
     let (adventure, _mira) = adventure_with_character("Mira");
 
     // A line that merely contains a colon is left untouched
-    let message = adventure.message_from_reply("Mira", "Note: the map is wrong.");
+    let message = adventure
+        .message_from_reply("Mira", "Note: the map is wrong.")
+        .expect("reply has a body");
 
     assert_eq!(message.text, "Note: the map is wrong.");
 }
@@ -248,7 +276,9 @@ fn message_from_reply_keeps_a_colon_that_is_not_the_speaker_name() {
 fn message_from_reply_drops_the_narrator_name_echoed_into_the_body() {
     let (adventure, _mira) = adventure_with_character("Mira");
 
-    let message = adventure.message_from_reply("NARRATOR", "NARRATOR: A horn sounds.");
+    let message = adventure
+        .message_from_reply("NARRATOR", "NARRATOR: A horn sounds.")
+        .expect("reply has a body");
 
     assert_eq!(message.text, "A horn sounds.");
     assert_eq!(adventure.speaker_name(&message), "NARRATOR");
@@ -276,7 +306,9 @@ fn player_name_returns_the_is_player_characters_name() {
 fn message_from_reply_strips_a_trailing_target_qualifier() {
     let (adventure, mira) = adventure_with_character("Mira");
 
-    let message = adventure.message_from_reply("[CHARACTER] Mira | target: Kael", "Over here.");
+    let message = adventure
+        .message_from_reply("[CHARACTER] Mira | target: Kael", "Over here.")
+        .expect("reply has a body");
 
     assert_eq!(message.character_id, Some(mira.id));
     assert_eq!(adventure.speaker_name(&message), "Mira");
@@ -286,7 +318,9 @@ fn message_from_reply_strips_a_trailing_target_qualifier() {
 fn message_from_reply_matches_a_character_case_insensitively() {
     let (adventure, mira) = adventure_with_character("Mira");
 
-    let message = adventure.message_from_reply("  mira  ", "The gate is shut.");
+    let message = adventure
+        .message_from_reply("  mira  ", "The gate is shut.")
+        .expect("reply has a body");
 
     assert_eq!(message.character_id, Some(mira.id));
     assert_eq!(adventure.speaker_name(&message), "Mira");
@@ -298,7 +332,9 @@ fn message_from_reply_routes_an_explicit_narrator_header_to_the_narrator() {
     let (adventure, _mira) = adventure_with_character("Mira");
 
     // When the reply is explicitly the narrator's
-    let message = adventure.message_from_reply("[NARRATOR]", "Torches flare along the wall.");
+    let message = adventure
+        .message_from_reply("[NARRATOR]", "Torches flare along the wall.")
+        .expect("reply has a body");
 
     // Then it is attributed to the narrator
     assert!(message.character_id.is_none());
@@ -310,7 +346,9 @@ fn message_from_reply_routes_an_explicit_narrator_header_to_the_narrator() {
 fn message_from_reply_routes_a_bare_narrator_name_to_the_narrator() {
     let (adventure, _mira) = adventure_with_character("Mira");
 
-    let message = adventure.message_from_reply("NARRATOR", "The sea keeps its own ledger.");
+    let message = adventure
+        .message_from_reply("NARRATOR", "The sea keeps its own ledger.")
+        .expect("reply has a body");
 
     assert!(message.character_id.is_none());
     assert_eq!(message.narrator_id, Some(adventure.narrator.id));

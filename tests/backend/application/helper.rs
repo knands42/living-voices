@@ -183,7 +183,7 @@ pub async fn seed_conversation(
     let messages: Vec<Message> = lines
         .iter()
         .take(count)
-        .map(|line| {
+        .filter_map(|line| {
             adventure.message_from_reply(
                 line.speaker.unwrap_or(Message::NARRATOR_SPEAKER_NAME),
                 line.text,

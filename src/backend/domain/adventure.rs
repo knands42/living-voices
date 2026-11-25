@@ -193,7 +193,7 @@ impl Adventure {
             })
     }
 
-    pub fn message_from_reply(&self, replier: &str, text: &str) -> Message {
+    pub fn message_from_reply(&self, replier: &str, text: &str) -> Option<Message> {
         let character = if Adventure::is_narrator_reply(replier) {
             None
         } else {
@@ -206,8 +206,17 @@ impl Adventure {
         };
 
         let body = Adventure::strip_speaker_prefix(text, speaker_name);
+        if body.trim().is_empty() {
+            return None;
+        }
 
-        Message::new(self.id, character_id, narrator_id, body, false)
+        Some(Message::new(
+            self.id,
+            character_id,
+            narrator_id,
+            body,
+            false,
+        ))
     }
 
     /// The model sometimes echoes the speaker into the reply body as `"Name: ..."` -> Remove leftovers

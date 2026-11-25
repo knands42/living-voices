@@ -21,6 +21,8 @@ use crate::backend::persistence::state_persistence::get_active_candidates;
 use sqlx::{SqliteConnection, SqlitePool};
 use thiserror::Error;
 
+const REPLY_ATTEMPTS: u8 = 2;
+
 #[derive(Error, Debug)]
 pub enum MessageManagerError {
     #[error(transparent)]
@@ -31,6 +33,8 @@ pub enum MessageManagerError {
     Chat(#[from] ChatResponseError),
     #[error(transparent)]
     Memory(#[from] MemoryManagerError),
+    #[error("the model returned an empty reply")]
+    EmptyReply,
     #[error("no adventure is currently loaded")]
     NoAdventure,
 }
@@ -141,9 +145,16 @@ impl<
                 return Ok(());
             }
 
-            let message = input
+            let Some(message) = input
                 .adventure
-                .message_from_reply(&reply.replier, &reply.reply);
+                .message_from_reply(&reply.replier, &reply.reply)
+            else {
+                log::debug!(
+                    "follow-up from {} had no body; stopping the follow-ups",
+                    reply.replier
+                );
+                return Ok(());
+            };
             let stored = self.create_message(message).await?;
             log::info!("follow-up from {}", input.adventure.speaker_name(&stored));
 
@@ -185,15 +196,31 @@ impl<
         let active_characters = input.adventure.active_characters(&input.present_names);
         let data = self.load_context(&input.adventure).await?;
 
-        self.send_to_handler(
-            &input.adventure,
-            incoming,
-            &active_characters,
-            input.messages_since_narration,
-            &input.uncovered_messages,
-            &data,
-        )
-        .await
+        for attempt in 1..=REPLY_ATTEMPTS {
+            let reply = self
+                .send_to_handler(
+                    &input.adventure,
+                    incoming,
+                    &active_characters,
+                    input.messages_since_narration,
+                    &input.uncovered_messages,
+                    &data,
+                )
+                .await?;
+            if input
+                .adventure
+                .message_from_reply(&reply.replier, &reply.reply)
+                .is_some()
+            {
+                return Ok(reply);
+            }
+            log::warn!(
+                "empty reply from {} (attempt {attempt}/{REPLY_ATTEMPTS})",
+                reply.replier
+            );
+        }
+
+        Err(MessageManagerError::EmptyReply)
     }
 
     async fn load_context(
@@ -213,7 +240,8 @@ impl<
     ) -> Result<(Message, bool), MessageManagerError> {
         let reply_message = message_context
             .adventure
-            .message_from_reply(&chat_reply.replier, &chat_reply.reply);
+            .message_from_reply(&chat_reply.replier, &chat_reply.reply)
+            .ok_or(MessageManagerError::EmptyReply)?;
         let stored_reply = self.create_message(reply_message).await?;
 
         message_context
@@ -260,7 +288,7 @@ impl<
                 .narrator_chat_respond(&context)
                 .await?;
             reply.replier = Message::NARRATOR_SPEAKER_NAME.to_string();
-            log::info!("narrator replies");
+            log::info!("narrator will reply");
             return Ok(reply);
         }
 
@@ -279,7 +307,7 @@ impl<
                 );
                 reply.replier = character.name.clone();
             }
-            log::info!("{} replies", reply.replier);
+            log::info!("{} will reply", reply.replier);
             return Ok(reply);
         }
 
@@ -289,8 +317,9 @@ impl<
             data,
             uncovered_messages,
         );
+
+        log::info!("autonomous will reply");
         let reply = self.chat_handler.autonomous_respond(&context).await?;
-        log::info!("autonomous reply");
         Ok(reply)
     }
 
@@ -384,12 +413,18 @@ impl<
                 );
 
                 let narration = self.narrator_handler.narrator_respond(&prompt).await?;
-                let narration_message = input
+                match input
                     .adventure
-                    .message_from_reply(Message::NARRATOR_SPEAKER_NAME, &narration);
-                let stored = self.create_message(narration_message).await?;
-
-                input.uncovered_messages.push(stored);
+                    .message_from_reply(Message::NARRATOR_SPEAKER_NAME, &narration)
+                {
+                    Some(narration_message) => {
+                        let stored = self.create_message(narration_message).await?;
+                        input.uncovered_messages.push(stored);
+                    }
+                    None => log::warn!(
+                        "the act transition narration had no body; closing act without one"
+                    ),
+                }
             }
         }
 
