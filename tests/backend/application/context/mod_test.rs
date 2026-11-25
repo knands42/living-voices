@@ -716,6 +716,7 @@ async fn body_prompt_hands_over_the_author_identity() {
 
     assert!(turns[0].text.contains("## CHARACTER CURRENT BODY"));
     assert!(prompt.contains("Mara Venn"));
+    assert!(prompt.contains("### Character Genre. female"));
     assert!(prompt.contains("Copper hair, grey eyes, a salt-stained coat"));
     // Identity never frames the shot: framing is decided when the image is asked for.
     assert!(!prompt.to_lowercase().contains("head-and-shoulders"));
@@ -743,6 +744,7 @@ async fn outfit_prompt_carries_the_scene_messages() {
     let prompt = joined(&turns);
 
     assert!(turns[0].text.contains("## CHARACTER CURRENT OUTFIT"));
+    assert!(prompt.contains("### Character Genre. female"));
     assert!(prompt.contains("*throws the soaked coat onto the fire*"));
 }
 

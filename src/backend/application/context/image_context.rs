@@ -29,7 +29,7 @@ impl ContextBuilder {
             return Self::build_character_prompt(
                 CHAR_CURRENT_BODY_PROMPT,
                 adventure,
-                character.name.as_str(),
+                character,
                 character_conditions,
                 identity,
                 uncovered_messages,
@@ -49,7 +49,7 @@ impl ContextBuilder {
             return Self::build_character_prompt(
                 CHAR_OUTFIT_PROMPT,
                 adventure,
-                character.name.as_str(),
+                character,
                 character_conditions,
                 &character.appearance_current_outfit,
                 uncovered_messages,
@@ -73,7 +73,7 @@ impl ContextBuilder {
         Self::build_character_prompt(
             CHAR_POSE_BODY_PROMPT,
             adventure,
-            character.name.as_str(),
+            character,
             character_conditions,
             &current_look,
             uncovered_messages,
@@ -125,14 +125,19 @@ impl ContextBuilder {
     fn build_character_prompt(
         instruction: &str,
         adventure: &Adventure,
-        character_name: &str,
+        character: &Character,
         character_conditions: Vec<CharacterCondition>,
         look: &str,
         uncovered_messages: &[Message],
     ) -> Result<Vec<PromptTurn>, ContextBuilderError> {
-        let mut subject = vec![format!("## {}", character_name)];
+        let mut subject = vec![format!("## {}", character.name)];
         let mut messages_content: Vec<PromptTurn> = Vec::with_capacity(uncovered_messages.len());
 
+        let genre = character.genre.trim();
+        if !genre.is_empty() {
+            subject.push("### Character Genre".to_string());
+            subject.push(genre.to_string());
+        }
         if !look.is_empty() {
             subject.push("### Character Look".to_string());
             subject.push(look.to_string());

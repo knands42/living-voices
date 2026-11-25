@@ -34,8 +34,10 @@ shared core, and SQLite for persistence.
                 │ state + messages
 ┌───────────────┴───────────────┐
 │  Core (Rust)                  │
-│  adventures · characters ·    │
-│  messages · memory            │
+│  managers & domain            │
+│  adventure_manager · adventure│
+│  character_manager · character│
+│  memory_manager ·    narrator │
 └──────┬─────────────────┬──────┘
        │                 │
 ┌──────┴──────┐   ┌──────┴──────┐
@@ -85,7 +87,8 @@ provision-comfy   # pinned ComfyUI v0.44.1 + its own CPython + locked deps into 
 
 ### Execute the App
 
-First it will prompt a setup page on the iced desktop app for the initial setup, choose to enable media-engine (`comfyui`)
+First it will prompt a setup page on the iced desktop app for the initial setup, choose to enable media-engine
+(`comfyui`)
 only if more then 8GB of VRAM.
 
 ```bash

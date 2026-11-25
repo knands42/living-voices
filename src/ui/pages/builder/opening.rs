@@ -26,6 +26,7 @@ pub enum Message {
     FactSubjectChanged(usize, String),
     FactTextChanged(usize, String),
     AddFact,
+    RemoveFact(usize),
     BeatEdited(usize, text_editor::Action),
     BeatSpeakerPicked(usize, Speaker),
     AddBeat,
@@ -93,6 +94,7 @@ impl State {
             }
             Message::FactTextChanged(index, text) => self.edit_fact(index, |fact| fact.fact = text),
             Message::AddFact => self.facts.push(FactDraft::default()),
+            Message::RemoveFact(index) => self.remove_fact(index),
             Message::BeatEdited(index, action) => {
                 if let Some(beat) = self.beats.get_mut(index) {
                     beat.content.perform(action);
@@ -187,6 +189,12 @@ impl State {
     fn edit_fact(&mut self, index: usize, change: impl FnOnce(&mut FactDraft)) {
         if let Some(fact) = self.facts.get_mut(index) {
             change(fact);
+        }
+    }
+
+    fn remove_fact(&mut self, index: usize) {
+        if index < self.facts.len() {
+            self.facts.remove(index);
         }
     }
 
@@ -330,8 +338,13 @@ fn fact_row(index: usize, fact: &FactDraft) -> Element<'_, Message> {
         field(fact.fact.as_str(), "what is true about it", move |text| {
             Message::FactTextChanged(index, text)
         }),
+        button(text("×").size(14.0))
+            .padding([5.0, 9.0])
+            .style(theme::back_button)
+            .on_press(Message::RemoveFact(index)),
     ]
     .spacing(10.0)
+    .align_y(Alignment::Center)
     .into()
 }
 

@@ -530,14 +530,31 @@ fn needs_body_prompt(previous: Option<&Character>, character: &Character) -> boo
         .is_some_and(|appearance| !appearance.trim().is_empty());
 
     filled
-        && previous.and_then(|previous| previous.appearance.as_deref())
-            != character.appearance.as_deref()
+        && previous
+            .is_none_or(|previous| body_prompt_inputs(previous) != body_prompt_inputs(character))
+}
+
+fn body_prompt_inputs(character: &Character) -> (&str, &str, Option<&str>) {
+    (
+        character.name.as_str(),
+        character.genre.trim(),
+        character.appearance.as_deref(),
+    )
 }
 
 fn needs_outfit_prompt(previous: Option<&Character>, character: &Character) -> bool {
     let filled = !character.appearance_current_outfit.trim().is_empty();
 
     filled
-        && previous.map(|previous| previous.appearance_current_outfit.as_str())
-            != Some(character.appearance_current_outfit.as_str())
+        && previous.is_none_or(|previous| {
+            outfit_prompt_inputs(previous) != outfit_prompt_inputs(character)
+        })
+}
+
+fn outfit_prompt_inputs(character: &Character) -> (&str, &str, &str) {
+    (
+        character.name.as_str(),
+        character.genre.trim(),
+        character.appearance_current_outfit.trim(),
+    )
 }
