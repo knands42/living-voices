@@ -1,12 +1,12 @@
 use iced::widget::text::Wrapping;
-use iced::widget::{Space, button, column, container, row, scrollable, text};
+use iced::widget::{Space, button, column, container, row, scrollable, text, text_editor};
 use iced::{Alignment, Background, Border, Element, Length};
 use uuid::Uuid;
 
 use crate::backend::domain::character::{Character, CharacterStatus};
 use crate::ui::pages::builder::Effect;
 use crate::ui::pages::builder::widgets::{
-    caption, empty_state, field, labelled, pill, section_header, surface, tag,
+    caption, editor, empty_state, field, hinted, labelled, pill, section_header, surface, tag,
 };
 use crate::ui::{common, theme};
 
@@ -18,15 +18,25 @@ pub enum Message {
     Added(Result<Character, String>),
     Picked(usize),
     Changed(Character),
+    BackstoryEdited(text_editor::Action),
     EditClosed,
     RemoveRequested,
     Removed(Uuid, Result<(), String>),
     Saved(Result<Character, String>),
 }
 
-#[derive(Default)]
 pub struct State {
     index: Option<usize>,
+    backstory: text_editor::Content,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            index: None,
+            backstory: text_editor::Content::new(),
+        }
+    }
 }
 
 impl State {
@@ -34,17 +44,29 @@ impl State {
         match message {
             Message::AddRequested => return Some(Effect::AddCharacter),
             Message::Added(Ok(character)) => {
+                self.backstory = text_editor::Content::with_text(&character.backstory);
                 characters.push(character);
                 self.index = Some(characters.len() - 1);
             }
             Message::Added(Err(err)) => log::error!("could not add a character: {err}"),
-            Message::Picked(index) => self.index = Some(index),
+            Message::Picked(index) => {
+                if let Some(character) = characters.get(index) {
+                    self.backstory = text_editor::Content::with_text(&character.backstory);
+                }
+                self.index = Some(index);
+            }
             Message::Changed(character) => {
                 if let Some(existing) = characters
                     .iter_mut()
                     .find(|existing| existing.id == character.id)
                 {
                     *existing = character;
+                }
+            }
+            Message::BackstoryEdited(action) => {
+                self.backstory.perform(action);
+                if let Some(character) = self.index.and_then(|index| characters.get_mut(index)) {
+                    character.backstory = self.backstory.text();
                 }
             }
             Message::EditClosed => {
@@ -93,7 +115,7 @@ impl State {
         .align_y(Alignment::Center);
 
         let body: Element<'a, Message> = match self.edited(characters) {
-            Some(character) => character_editor(character),
+            Some(character) => character_editor(character, &self.backstory),
             None => grid(characters),
         };
 
@@ -215,7 +237,10 @@ fn card_style(_theme: &iced::Theme, status: button::Status) -> button::Style {
     }
 }
 
-fn character_editor(character: &Character) -> Element<'_, Message> {
+fn character_editor<'a>(
+    character: &'a Character,
+    backstory: &'a text_editor::Content,
+) -> Element<'a, Message> {
     let mut heading = row![
         text(character.name.as_str())
             .size(18.0)
@@ -271,12 +296,7 @@ fn character_editor(character: &Character) -> Element<'_, Message> {
         status_field(character),
         labelled(
             "BACKSTORY",
-            edit_field(
-                character.backstory.as_str(),
-                "What happened before the story…",
-                character,
-                |character, value| character.backstory = value
-            )
+            editor(backstory, 96.0, Message::BackstoryEdited)
         ),
         look_fields(character),
     ]
@@ -287,8 +307,9 @@ fn character_editor(character: &Character) -> Element<'_, Message> {
 }
 
 fn look_fields(character: &Character) -> Element<'_, Message> {
-    let look = labelled(
+    let look = hinted(
         "LOOK",
+        "Seed for the body image prompt. On Save the model rewrites it into the body description the pictures use.",
         edit_field(
             character.appearance.as_deref().unwrap_or_default(),
             "Face, hair, build and marks…",
@@ -299,8 +320,9 @@ fn look_fields(character: &Character) -> Element<'_, Message> {
 
     row![
         look,
-        labelled(
+        hinted(
             "OUTFIT",
+            "Seed for the outfit image prompt. On Save the model rewrites it into the outfit description the pictures use.",
             edit_field(
                 character.appearance_current_outfit.as_str(),
                 "Cloak, boots, the token at your throat…",

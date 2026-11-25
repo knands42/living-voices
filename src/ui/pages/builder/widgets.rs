@@ -1,5 +1,5 @@
 use iced::widget::text::Wrapping;
-use iced::widget::{button, column, container, text, text_editor, text_input};
+use iced::widget::{button, column, container, row, text, text_editor, text_input, tooltip};
 use iced::{Alignment, Background, Border, Element, Length, alignment};
 
 use crate::ui::{common, theme};
@@ -73,6 +73,59 @@ pub fn labelled<'a, M: Clone + 'a>(label: &'a str, field: Element<'a, M>) -> Ele
         .spacing(8.0)
         .width(Length::FillPortion(1))
         .into()
+}
+
+/// A labelled field whose caption carries an info icon explaining what the field feeds.
+pub fn hinted<'a, M: Clone + 'a>(
+    label: &'a str,
+    hint: &'a str,
+    field: Element<'a, M>,
+) -> Element<'a, M> {
+    column![
+        row![caption(label), info(hint)]
+            .spacing(6.0)
+            .align_y(Alignment::Center),
+        field,
+    ]
+    .spacing(8.0)
+    .width(Length::FillPortion(1))
+    .into()
+}
+
+fn info<'a, M: Clone + 'a>(hint: &'a str) -> Element<'a, M> {
+    let badge = container(
+        text("i")
+            .size(9.0)
+            .color(theme::BG_PANEL)
+            .font(common::semibold()),
+    )
+    .width(Length::Fixed(14.0))
+    .height(Length::Fixed(14.0))
+    .align_x(Alignment::Center)
+    .align_y(Alignment::Center)
+    .style(|_theme| container::Style {
+        background: Some(Background::Color(theme::TEXT_MUTED)),
+        border: Border::default().rounded(7.0),
+        ..container::Style::default()
+    });
+
+    let body = container(
+        text(hint)
+            .size(11.5)
+            .color(theme::TEXT_LIGHT)
+            .width(Length::Fixed(230.0)),
+    )
+    .padding(10.0)
+    .style(|_theme| container::Style {
+        background: Some(Background::Color(theme::BG_PANEL)),
+        border: Border::default()
+            .rounded(8.0)
+            .width(1.0)
+            .color(theme::BRONZE_DIM),
+        ..container::Style::default()
+    });
+
+    tooltip(badge, body, tooltip::Position::Top).gap(6.0).into()
 }
 
 /// A multi-line field.
