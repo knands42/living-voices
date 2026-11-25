@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::backend::domain::{

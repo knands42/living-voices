@@ -96,27 +96,27 @@ impl<
             input.adventure.id
         );
 
-        if let Some(last_message) = input.uncovered_messages.last() {
-            if last_message.narrator_id.is_none() {
-                let data = self.load_context(&input.adventure).await?;
-                let prompt = ContextBuilder::build_act_transition_prompt(
-                    &input.adventure,
-                    &data,
-                    &input.uncovered_messages,
-                );
+        if let Some(last_message) = input.uncovered_messages.last()
+            && last_message.narrator_id.is_none()
+        {
+            let data = self.load_context(&input.adventure).await?;
+            let prompt = ContextBuilder::build_act_transition_prompt(
+                &input.adventure,
+                &data,
+                &input.uncovered_messages,
+            );
 
-                let narration = self.narrator_handler.narrator_respond(&prompt).await?;
-                match input
-                    .adventure
-                    .message_from_reply(Message::NARRATOR_SPEAKER_NAME, &narration)
-                {
-                    Some(narration_message) => {
-                        let stored = self.create_message(narration_message).await?;
-                        input.uncovered_messages.push(stored);
-                    }
-                    None => log::warn!(
-                        "the act transition narration had no body; closing act without one"
-                    ),
+            let narration = self.narrator_handler.narrator_respond(&prompt).await?;
+            match input
+                .adventure
+                .message_from_reply(Message::NARRATOR_SPEAKER_NAME, &narration)
+            {
+                Some(narration_message) => {
+                    let stored = self.create_message(narration_message).await?;
+                    input.uncovered_messages.push(stored);
+                }
+                None => {
+                    log::warn!("the act transition narration had no body; closing act without one")
                 }
             }
         }

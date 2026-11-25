@@ -308,7 +308,7 @@ impl<
                         Some(character_id) => self
                             .cast
                             .update(cast::Message::Picked(character_id))
-                            .map_or_else(|| Task::none(), |effect| self.perform(effect)),
+                            .map_or_else(Task::none, |effect| self.perform(effect)),
                         None => Task::none(),
                     };
 

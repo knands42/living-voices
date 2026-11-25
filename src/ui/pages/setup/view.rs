@@ -36,7 +36,7 @@ pub fn specs(gpu: Gpu, recommendation: MediaRecommendation) -> Element<'static, 
 }
 
 /// One sunk cell: a tiny all-caps label over a value.
-fn reading(label: &str, value: String, tint: Color) -> Element<Message> {
+fn reading(label: &str, value: String, tint: Color) -> Element<'_, Message> {
     container(
         column![
             common::eyebrow(label),

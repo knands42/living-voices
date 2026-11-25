@@ -2,7 +2,7 @@ use std::f32::consts::FRAC_PI_2;
 
 use iced::gradient::Linear;
 use iced::widget::{button, container, progress_bar, text_input};
-use iced::{Background, Border, Color, Font, Radians, Shadow, Theme, Vector};
+use iced::{Background, Border, Color, Radians, Shadow, Theme, Vector};
 
 // The palette
 pub const BG_DEEPEST: Color = Color::from_rgb8(0x12, 0x10, 0x0e);
@@ -244,18 +244,6 @@ pub fn narrator(a: f32) -> container::Style {
         )
 }
 
-/// The inline dice result. Gold when it lands, rose when it costs you.
-pub fn roll_chip(color: Color, a: f32) -> container::Style {
-    container::Style::default()
-        .background(alpha(color, 0.08 * a))
-        .border(
-            Border::default()
-                .rounded(999.0)
-                .width(1.0)
-                .color(alpha(color, 0.45 * a)),
-        )
-}
-
 // --- interactive ----------------------------------------------------------
 
 pub fn back_button(_theme: &Theme, status: button::Status) -> button::Style {
@@ -303,49 +291,6 @@ pub fn send_button(_theme: &Theme, status: button::Status) -> button::Style {
     }
 }
 
-/// The one-tap suggestions under the composer.
-pub fn quick_chip(_theme: &Theme, status: button::Status) -> button::Style {
-    let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
-    let active = matches!(status, button::Status::Active);
-
-    button::Style {
-        background: Some(Background::Color(if hovered {
-            alpha(AMBER, 0.16)
-        } else if active {
-            alpha(BG_PANEL_ALT, 0.6)
-        } else {
-            Color::TRANSPARENT
-        })),
-        text_color: if hovered { GOLD } else { TEXT_MUTED },
-        border: Border::default()
-            .rounded(999.0)
-            .width(1.0)
-            .color(if hovered {
-                alpha(GOLD, 0.55)
-            } else {
-                alpha(BRONZE_DIM, 0.9)
-            }),
-        ..button::Style::default()
-    }
-}
-
-pub fn icon_button(_theme: &Theme, status: button::Status) -> button::Style {
-    let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
-
-    button::Style {
-        background: Some(Background::Color(alpha(
-            Color::WHITE,
-            if hovered { 0.10 } else { 0.04 },
-        ))),
-        text_color: if hovered { TEXT_LIGHT } else { TEXT_MUTED },
-        border: Border::default()
-            .rounded(999.0)
-            .width(1.0)
-            .color(alpha(BRONZE_DIM, 0.9)),
-        ..button::Style::default()
-    }
-}
-
 pub fn composer(_theme: &Theme, status: text_input::Status) -> text_input::Style {
     let focused = matches!(status, text_input::Status::Focused { .. });
 
@@ -364,18 +309,6 @@ pub fn composer(_theme: &Theme, status: text_input::Status) -> text_input::Style
         value: TEXT_LIGHT,
         selection: alpha(BRONZE, 0.85),
     }
-}
-
-/// The chips under a dossier's name.
-pub fn trait_chip(hue: f32) -> container::Style {
-    container::Style::default()
-        .background(alpha(hsv(hue, 0.30, 0.55), 0.16))
-        .border(
-            Border::default()
-                .rounded(999.0)
-                .width(1.0)
-                .color(alpha(hsv(hue, 0.40, 0.70), 0.35)),
-        )
 }
 
 // --- bars -----------------------------------------------------------------
@@ -409,22 +342,6 @@ pub fn lightbox_card(_theme: &Theme) -> container::Style {
             offset: Vector::new(0.0, 24.0),
             blur_radius: 60.0,
         })
-}
-
-/// The gallery tile's frame: a hairline that warms on hover.
-pub fn tile(hovered: bool, hue: f32) -> container::Style {
-    container::Style::default()
-        .border(
-            Border::default()
-                .rounded(10.0)
-                .width(1.0)
-                .color(if hovered {
-                    alpha(hsv(hue, 0.45, 0.85), 0.9)
-                } else {
-                    alpha(BRONZE_DIM, 0.9)
-                }),
-        )
-        .background(BG_SUNK)
 }
 
 // --- setup / launcher -----------------------------------------------------
@@ -536,26 +453,6 @@ pub fn cover(hue: f32) -> impl Fn(&Theme) -> container::Style {
     }
 }
 
-/// A row in the catalogue. `sweep` is the eased hover, `0.0` to `1.0`: the
-/// tint comes in from the left and the hairline warms with it.
-pub fn library_row(sweep: f32, hue: f32) -> impl Fn(&Theme) -> container::Style {
-    move |_theme| {
-        let sweep = sweep.clamp(0.0, 1.0);
-        let lit = hsv(hue, 0.30, 0.30);
-
-        container::Style::default()
-            .background(horizontal(&[
-                (0.0, blend(BG_PANEL_ALT, lit, 0.55 * sweep)),
-                (0.62, blend(BG_PANEL, lit, 0.18 * sweep)),
-                (1.0, alpha(BG_PANEL, 0.94)),
-            ]))
-            .border(Border::default().rounded(14.0).width(1.0).color(alpha(
-                blend(BRONZE_DIM, hsv(hue, 0.45, 0.78), sweep),
-                0.65 + 0.35 * sweep,
-            )))
-    }
-}
-
 /// A story in progress, in the row under the banner: quieter than a catalogue
 /// row, with the hue of its own cover.
 pub fn shelf_card(hue: f32, glow: f32) -> impl Fn(&Theme) -> container::Style {
@@ -608,37 +505,6 @@ pub fn chip(selected: bool) -> impl Fn(&Theme, button::Status) -> button::Style 
     }
 }
 
-/// The order tabs, right of the chips: no border, just weight.
-pub fn sort_tab(selected: bool) -> impl Fn(&Theme, button::Status) -> button::Style {
-    move |_theme, status| {
-        let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
-
-        button::Style {
-            background: Some(Background::Color(if hovered && !selected {
-                alpha(Color::WHITE, 0.05)
-            } else {
-                Color::TRANSPARENT
-            })),
-            text_color: if selected {
-                TEXT_LIGHT
-            } else if hovered {
-                TEXT_MUTED
-            } else {
-                TEXT_DIM
-            },
-            border: Border::default()
-                .rounded(8.0)
-                .width(1.0)
-                .color(if selected {
-                    alpha(GOLD, 0.35)
-                } else {
-                    Color::TRANSPARENT
-                }),
-            ..button::Style::default()
-        }
-    }
-}
-
 /// The rail's "write your own" card: the one surface on the page allowed to
 /// be gold.
 pub fn create_card(_theme: &Theme) -> container::Style {
@@ -658,30 +524,6 @@ pub fn create_card(_theme: &Theme) -> container::Style {
             offset: Vector::new(0.0, 8.0),
             blur_radius: 24.0,
         })
-}
-
-/// A starting-point row in the create sheet: a radio without a widget.
-pub fn start_row(selected: bool) -> impl Fn(&Theme, button::Status) -> button::Style {
-    move |theme, status| {
-        let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
-        let mut style = switch_row(
-            selected,
-            theme,
-            if hovered {
-                button::Status::Hovered
-            } else {
-                button::Status::Active
-            },
-        );
-        // The sheet sits on a dim; keep the unselected rows darker than the page.
-        if !selected {
-            style.background = Some(Background::Color(alpha(
-                Color::BLACK,
-                if hovered { 0.28 } else { 0.20 },
-            )));
-        }
-        style
-    }
 }
 
 /// A small status pill: "new", "trending", "12 open".

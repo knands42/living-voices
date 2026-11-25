@@ -30,7 +30,7 @@ pub fn header(home_state: &State) -> Element<'_, Message> {
     .align_y(Alignment::Center);
 
     let search = text_input("Search adventures, people, worlds", &home_state.query)
-        .on_input(|value| Message::SearchChanged(value))
+        .on_input(Message::SearchChanged)
         .padding([10.0, 14.0])
         .size(13.0)
         .style(theme::composer);

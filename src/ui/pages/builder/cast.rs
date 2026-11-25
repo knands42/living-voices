@@ -132,10 +132,6 @@ impl State {
             .any(|character| !character.is_player && !character.is_placeholder())
     }
 
-    pub fn can_save(&self, characters: &[Character]) -> bool {
-        !characters.is_empty()
-    }
-
     fn edited<'a>(&self, characters: &'a [Character]) -> Option<&'a Character> {
         self.index.and_then(|index| characters.get(index))
     }

@@ -146,7 +146,7 @@ fn featured(home_state: &State) -> Element<'_, Message> {
 // --- what you already have open -------------------------------------------
 
 fn shelf(home_state: &State) -> Element<'_, Message> {
-    if home_state.catalogue.shelf.len() == 0 {
+    if home_state.catalogue.shelf.is_empty() {
         return column![].spacing(10.0).width(Length::Fill).into();
     }
 
@@ -209,7 +209,7 @@ fn shelf_card(entry: &OngoingAdventure) -> Element<'_, Message> {
                 "act {} of {} · {}",
                 entry.current_act,
                 entry.total_acts,
-                entry.last_played.format("%b %d").to_string()
+                entry.last_played.format("%b %d")
             ))
             .size(10.5)
             .color(theme::TEXT_DIM),

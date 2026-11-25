@@ -49,7 +49,7 @@ pub fn meta_rail(chat_state: &OngoingAdventure) -> Element<'_, Message> {
         .into()
 }
 
-fn time_and_place(scene_state: &SceneState) -> Element<Message> {
+fn time_and_place(scene_state: &SceneState) -> Element<'_, Message> {
     let card = column![
         text(scene_state.place.as_str())
             .size(13.9)

@@ -215,7 +215,7 @@ fn act_row_style(_theme: &iced::Theme, status: button::Status) -> button::Style 
     let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
 
     button::Style {
-        background: hovered.then(|| Background::Color(theme::BG_PANEL_ALT)),
+        background: hovered.then_some(Background::Color(theme::BG_PANEL_ALT)),
         text_color: theme::TEXT_LIGHT,
         border: Border::default().rounded(12.0),
         ..button::Style::default()

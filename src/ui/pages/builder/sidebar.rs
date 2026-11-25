@@ -134,7 +134,7 @@ fn nav_row_style(active: bool, hovered: bool) -> button::Style {
     let lit = active || hovered;
 
     button::Style {
-        background: lit.then(|| Background::Color(theme::BG_PANEL_ALT)),
+        background: lit.then_some(Background::Color(theme::BG_PANEL_ALT)),
         text_color: theme::TEXT_LIGHT,
         border: if active {
             Border::default()

@@ -1,6 +1,5 @@
 use env_logger::{Builder, Target};
 use serde::{Deserialize, Serialize};
-use std::fs::File;
 use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
 

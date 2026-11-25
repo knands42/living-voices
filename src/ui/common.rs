@@ -48,7 +48,7 @@ pub fn heading<Message: 'static>(label: &str) -> Element<'_, Message> {
 }
 
 /// A section title inside a panel, e.g. "Conditions".
-pub fn subheading<Message: 'static>(label: &str) -> Element<Message> {
+pub fn subheading<Message: 'static>(label: &str) -> Element<'_, Message> {
     text(label)
         .size(12.0)
         .color(theme::AMBER)

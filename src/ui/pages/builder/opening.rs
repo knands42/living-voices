@@ -433,7 +433,12 @@ fn speaker_picker<'a>(
     row(chips).spacing(6.0).wrap().into()
 }
 
-fn speaker_chip(speaker: Speaker, label: &str, chosen: Speaker, index: usize) -> Element<Message> {
+fn speaker_chip(
+    speaker: Speaker,
+    label: &str,
+    chosen: Speaker,
+    index: usize,
+) -> Element<'_, Message> {
     button(text(label).size(11.0))
         .padding([5.0, 10.0])
         .style(theme::chip(chosen == speaker))

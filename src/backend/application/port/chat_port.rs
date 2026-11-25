@@ -1,9 +1,6 @@
 use std::future::Future;
 
-use crate::backend::domain::adventure::Adventure;
-use crate::backend::domain::message::Message;
 use thiserror::Error;
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Speaker {

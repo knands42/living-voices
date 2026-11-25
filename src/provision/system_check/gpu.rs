@@ -137,7 +137,7 @@ fn sysfs_mib(path: &Path) -> Option<u64> {
     let bytes = fs::read_to_string(path).ok()?;
     let bytes = bytes.trim().parse::<u64>().ok()?;
 
-    (bytes > 0).then(|| bytes / MIB)
+    (bytes > 0).then_some(bytes / MIB)
 }
 
 #[cfg(any(target_os = "linux", test))]

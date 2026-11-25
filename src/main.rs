@@ -49,9 +49,6 @@ enum StartupError {
     Seed(#[source] PersistenceError),
     #[error("failed to initialize the app context: {0}")]
     Compose(#[source] ImageError),
-    #[cfg(debug_assertions)]
-    #[error("could not open seeded adventure: {0}")]
-    LoadAdventure(#[source] AdventureManagerError),
     #[error("could not run the desktop frontend: {0}")]
     Ui(#[source] iced::Error),
     #[error("could not run the terminal frontend: {0}")]
@@ -71,7 +68,7 @@ async fn prepare_database(config: &Config) -> Result<sqlx::SqlitePool, StartupEr
 }
 
 #[cfg(debug_assertions)]
-async fn seed_and_load(config: &Config, app: &App) -> Result<(), StartupError> {
+async fn seed_and_load(config: &Config, _app: &App) -> Result<(), StartupError> {
     use living_voices::backend::{run_seeds, seed_titles};
 
     log::info!("Seeding demo world: {}", seed_titles().join(", "));
