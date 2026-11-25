@@ -1,42 +1,16 @@
 use iced::widget::text::Wrapping;
-use iced::widget::{column, container, row, text};
-use iced::{Alignment, Color, Element, Length};
+use iced::widget::{container, row, text};
+use iced::{Alignment, Color, Element};
 
 use crate::backend::domain::memory::{Act, ActStatus};
 use crate::ui::pages::chat::{Message, OngoingAdventure};
 use crate::ui::{common, theme};
 
 pub fn top(chat_state: &OngoingAdventure) -> Element<'_, Message> {
-    let voices = chat_state.adventure.characters.len();
-
-    row![
-        column![
-            text(setting(chat_state))
-                .size(15.5)
-                .color(theme::GOLD)
-                .font(common::semibold())
-                .wrapping(Wrapping::Word),
-            text(format!(
-                "{} lines · {voices} voices",
-                chat_state.messages.len()
-            ))
-            .size(10.5)
-            .color(theme::TEXT_DIM),
-        ]
-        .spacing(2.0)
-        .width(Length::Fill),
-        act_chip(&chat_state.act),
-    ]
-    .spacing(12.0)
-    .align_y(Alignment::Center)
-    .into()
-}
-
-fn setting(chat_state: &OngoingAdventure) -> String {
-    format!(
-        "{}, {}",
-        chat_state.scene_state.place, chat_state.scene_state.day
-    )
+    row![act_chip(&chat_state.act),]
+        .spacing(12.0)
+        .align_y(Alignment::Center)
+        .into()
 }
 
 fn act_chip(act: &Act) -> Element<'_, Message> {
