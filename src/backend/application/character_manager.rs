@@ -197,7 +197,7 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
     pub async fn create_character_body_prompt(
         &self,
         character: &Character,
-    ) -> Result<(), CharacterManagerError> {
+    ) -> Result<Character, CharacterManagerError> {
         self.create_character_image_prompt(character, ImagePromptKind::Body)
             .await
     }
@@ -205,7 +205,7 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
     pub async fn create_character_outfit_prompt(
         &self,
         character: &Character,
-    ) -> Result<(), CharacterManagerError> {
+    ) -> Result<Character, CharacterManagerError> {
         self.create_character_image_prompt(character, ImagePromptKind::Outfit)
             .await
     }
@@ -213,7 +213,7 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
     pub async fn create_character_pose_prompt(
         &self,
         character: &Character,
-    ) -> Result<(), CharacterManagerError> {
+    ) -> Result<Character, CharacterManagerError> {
         self.create_character_image_prompt(character, ImagePromptKind::Pose)
             .await
     }
@@ -312,7 +312,7 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         &self,
         character: &Character,
         kind: ImagePromptKind,
-    ) -> Result<(), CharacterManagerError> {
+    ) -> Result<Character, CharacterManagerError> {
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
 
         let adventure = get_adventure(&mut conn, character.adventure_id).await?;
@@ -358,21 +358,37 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
             .trim()
             .to_string();
 
+        let mut updated = character.clone();
+        set_image_prompt(&mut updated, kind, &generated_prompt);
+
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         match kind {
             ImagePromptKind::Body => {
                 update_appearance_current_body(
                     &mut conn,
                     character.id,
-                    body_change(character, &generated_prompt).as_deref(),
+                    updated.appearance_current_body.as_deref(),
                 )
                 .await?
             }
             ImagePromptKind::Outfit => {
-                update_appearance_current_outfit(&mut conn, character.id, &generated_prompt).await?
+                update_appearance_current_outfit(
+                    &mut conn,
+                    character.id,
+                    &updated.appearance_current_outfit,
+                )
+                .await?
             }
             ImagePromptKind::Pose => {
-                update_appearance_current_pose(&mut conn, character.id, &generated_prompt).await?
+                update_appearance_current_pose(
+                    &mut conn,
+                    character.id,
+                    updated
+                        .appearance_current_pose
+                        .as_deref()
+                        .unwrap_or_default(),
+                )
+                .await?
             }
         }
         drop(conn);
@@ -380,7 +396,7 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         self.update_image_prompt_shared_state(character.id, kind, &generated_prompt)?;
         log::info!("stored {} prompt for {}", kind.label(), character.name);
 
-        Ok(())
+        Ok(updated)
     }
 
     fn update_image_prompt_shared_state(

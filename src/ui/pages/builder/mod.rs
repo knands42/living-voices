@@ -15,6 +15,7 @@ use crate::backend::application::character_manager::{CharacterManager, Character
 use crate::backend::application::port::chat_port::PromptPort;
 use crate::backend::application::port::image_port::ImagePort;
 use crate::backend::domain::adventure::{Adventure, AdventureStatus};
+use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, Fact, State as SceneState};
 use crate::backend::domain::message::Message as MessageLine;
 use crate::ui::pages::builder::sidebar::sidebar;
@@ -66,7 +67,7 @@ pub(crate) enum Effect {
     AddCharacter,
     RemoveCharacter(Uuid),
     SaveStory,
-    SaveCast,
+    SaveCharacter(Uuid),
     SaveAct,
     SaveOpening,
 }
@@ -84,6 +85,7 @@ pub struct Opened {
 /// each section keeps while it is being edited.
 pub struct Draft {
     adventure: Adventure,
+    saved_cast: Vec<Character>,
     scene: SceneState,
     story: story::State,
     cast: cast::State,
@@ -99,9 +101,11 @@ impl Draft {
         let story = story::State::load(&opened.adventure.lore.text);
         let acts = acts::State::load(opened.acts);
         let opening = opening::State::load(&scene, opened.facts, opened.messages);
+        let saved_cast = opened.adventure.characters.clone();
 
         Self {
             adventure: opened.adventure,
+            saved_cast,
             scene,
             story,
             cast: cast::State::default(),
@@ -214,6 +218,19 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
                 }
             }
             Message::Cast(message) => {
+                if let cast::Message::Saved(Ok(character)) = &message
+                    && let Some(draft) = &mut self.draft
+                {
+                    match draft
+                        .saved_cast
+                        .iter_mut()
+                        .find(|saved| saved.id == character.id)
+                    {
+                        Some(saved) => *saved = character.clone(),
+                        None => draft.saved_cast.push(character.clone()),
+                    }
+                }
+
                 if let Some(effect) =
                     self.edit(|draft| draft.cast.update(message, &mut draft.adventure.characters))
                 {
@@ -282,7 +299,7 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
             Effect::AddCharacter => self.add_character(),
             Effect::RemoveCharacter(character_id) => self.remove_character(character_id),
             Effect::SaveStory => self.save_story(),
-            Effect::SaveCast => self.save_cast(),
+            Effect::SaveCharacter(character_id) => self.save_character(character_id),
             Effect::SaveAct => self.save_act(),
             Effect::SaveOpening => self.save_opening(),
         }
@@ -363,25 +380,54 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
         )
     }
 
-    fn save_cast(&self) -> Task<Message> {
+    fn save_character(&self, character_id: Uuid) -> Task<Message> {
         let Some(draft) = &self.draft else {
             return Task::none();
         };
 
-        let cast = draft.adventure.characters.clone();
+        let Some(character) = draft
+            .adventure
+            .characters
+            .iter()
+            .find(|character| character.id == character_id)
+            .cloned()
+        else {
+            return Task::none();
+        };
+
+        let previous = draft
+            .saved_cast
+            .iter()
+            .find(|saved| saved.id == character_id)
+            .cloned();
         let character_manager = self.character_manager.clone();
 
         Task::perform(
             on_tokio(self.handle.clone(), async move {
-                for character in cast {
-                    character_manager.update_character(character).await?;
+                let mut character = character;
+
+                if needs_body_prompt(previous.as_ref(), &character) {
+                    character = character_manager
+                        .create_character_body_prompt(&character)
+                        .await?;
                 }
-                Ok::<_, CharacterManagerError>(())
+
+                if needs_outfit_prompt(previous.as_ref(), &character) {
+                    character = character_manager
+                        .create_character_outfit_prompt(&character)
+                        .await?;
+                }
+
+                character_manager
+                    .update_character(character.clone())
+                    .await?;
+
+                Ok::<_, CharacterManagerError>(character)
             }),
             |result| {
                 Message::Cast(cast::Message::Saved(resolved(
                     result,
-                    "saving the cast failed",
+                    "saving the character failed",
                 )))
             },
         )
@@ -475,4 +521,23 @@ fn resolved<T, E: ToString>(
         Some(Err(err)) => Err(err.to_string()),
         None => Err(failure.to_string()),
     }
+}
+
+fn needs_body_prompt(previous: Option<&Character>, character: &Character) -> bool {
+    let filled = character
+        .appearance
+        .as_deref()
+        .is_some_and(|appearance| !appearance.trim().is_empty());
+
+    filled
+        && previous.and_then(|previous| previous.appearance.as_deref())
+            != character.appearance.as_deref()
+}
+
+fn needs_outfit_prompt(previous: Option<&Character>, character: &Character) -> bool {
+    let filled = !character.appearance_current_outfit.trim().is_empty();
+
+    filled
+        && previous.map(|previous| previous.appearance_current_outfit.as_str())
+            != Some(character.appearance_current_outfit.as_str())
 }

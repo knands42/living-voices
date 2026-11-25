@@ -21,7 +21,7 @@ pub enum Message {
     EditClosed,
     RemoveRequested,
     Removed(Uuid, Result<(), String>),
-    Saved(Result<(), String>),
+    Saved(Result<Character, String>),
 }
 
 #[derive(Default)]
@@ -48,8 +48,9 @@ impl State {
                 }
             }
             Message::EditClosed => {
+                let character_id = self.edited(characters).map(|character| character.id);
                 self.index = None;
-                return Some(Effect::SaveCast);
+                return character_id.map(Effect::SaveCharacter);
             }
             Message::RemoveRequested => {
                 let character = self.index.and_then(|index| characters.get(index))?;
@@ -62,8 +63,16 @@ impl State {
             Message::Removed(_, Err(err)) => {
                 log::error!("could not remove the character: {err}")
             }
-            Message::Saved(Err(err)) => log::error!("could not save the cast: {err}"),
-            Message::Saved(Ok(())) => {}
+            Message::Saved(Ok(updated)) => {
+                if let Some(existing) = characters
+                    .iter_mut()
+                    .find(|existing| existing.id == updated.id)
+                {
+                    existing.appearance_current_body = updated.appearance_current_body;
+                    existing.appearance_current_outfit = updated.appearance_current_outfit;
+                }
+            }
+            Message::Saved(Err(err)) => log::error!("could not save the character: {err}"),
         }
 
         None
@@ -287,10 +296,6 @@ fn look_fields(character: &Character) -> Element<'_, Message> {
             set_appearance,
         ),
     );
-
-    if !character.is_player {
-        return look;
-    }
 
     row![
         look,
