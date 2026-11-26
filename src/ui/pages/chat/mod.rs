@@ -185,10 +185,10 @@ impl<
     }
 
     fn rail_placement(&self, rail: layout::Rail) -> layout::Placement {
-        let fit = layout::chat_layout(self.window_width);
+        let window_layout = layout::chat_layout(self.window_width);
         match rail {
-            layout::Rail::Cast => fit.cast,
-            layout::Rail::Facts => fit.facts,
+            layout::Rail::Cast => window_layout.cast,
+            layout::Rail::Facts => window_layout.facts,
         }
     }
 
@@ -382,10 +382,13 @@ impl<
         };
 
         container(
-            column![header(scene, layout, self.revealed), columns]
-                .spacing(14.0)
-                .width(Length::Fill)
-                .height(Length::Fill),
+            column![
+                header(scene, layout, self.revealed, layout.adventure_headline),
+                columns
+            ]
+            .spacing(14.0)
+            .width(Length::Fill)
+            .height(Length::Fill),
         )
         .padding([18.0, 22.0])
         .width(Length::Fill)

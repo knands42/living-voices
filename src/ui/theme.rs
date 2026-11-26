@@ -505,6 +505,37 @@ pub fn chip(selected: bool) -> impl Fn(&Theme, button::Status) -> button::Style 
     }
 }
 
+/// The header's control for opening a rail as a sheet. A real button, unlike
+/// the passive chips: outlined when closed, lit gold while its sheet is open.
+pub fn rail_toggle(active: bool) -> impl Fn(&Theme, button::Status) -> button::Style {
+    move |_theme, status| {
+        let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
+
+        button::Style {
+            background: Some(Background::Color(if active {
+                alpha(GOLD, if hovered { 0.28 } else { 0.18 })
+            } else {
+                alpha(BG_PANEL_ALT, if hovered { 1.0 } else { 0.92 })
+            })),
+            text_color: if active { GOLD } else { TEXT_LIGHT },
+            border: Border::default()
+                .rounded(999.0)
+                .width(1.0)
+                .color(if active {
+                    alpha(GOLD, 0.75)
+                } else {
+                    alpha(BRONZE, if hovered { 0.9 } else { 0.55 })
+                }),
+            shadow: Shadow {
+                color: alpha(BG_DEEPEST, 0.35),
+                offset: Vector::new(0.0, 1.0),
+                blur_radius: 4.0,
+            },
+            ..button::Style::default()
+        }
+    }
+}
+
 /// The rail's "write your own" card: the one surface on the page allowed to
 /// be gold.
 pub fn create_card(_theme: &Theme) -> container::Style {

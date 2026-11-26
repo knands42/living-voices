@@ -7,6 +7,7 @@ const MAX_SCALE: f32 = 1.15;
 pub const DEFAULT_WINDOW: Size = Size::new(1360.0, 900.0);
 
 pub const CHAT_ACT_HIDDEN_BELOW: f32 = 1180.0;
+pub const ADVENTURE_HEADLINE_HIDDEN_BELOW: f32 = 700.0;
 pub const CHAT_FACTS_HIDDEN_BELOW: f32 = 1300.0;
 pub const CHAT_CAST_HIDDEN_BELOW: f32 = 900.0;
 
@@ -34,6 +35,7 @@ pub enum Placement {
 #[derive(Debug, Clone, Copy)]
 pub struct ChatLayout {
     pub act: bool,
+    pub adventure_headline: bool,
     pub cast: Placement,
     pub facts: Placement,
 }
@@ -41,6 +43,7 @@ pub struct ChatLayout {
 pub fn chat_layout(window_width: f32) -> ChatLayout {
     ChatLayout {
         act: window_width >= CHAT_ACT_HIDDEN_BELOW,
+        adventure_headline: window_width >= ADVENTURE_HEADLINE_HIDDEN_BELOW,
         cast: placement(window_width, CHAT_CAST_HIDDEN_BELOW),
         facts: placement(window_width, CHAT_FACTS_HIDDEN_BELOW),
     }
