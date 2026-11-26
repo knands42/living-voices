@@ -7,8 +7,8 @@ mod meta;
 mod top;
 mod transcript;
 
-use iced::widget::{button, column, container, row, text};
-use iced::{Element, Length, Task};
+use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack, text};
+use iced::{Background, Element, Length, Task};
 use uuid::Uuid;
 
 use crate::backend::application::adventure_manager::{
@@ -36,6 +36,8 @@ pub enum Message {
     InputMessageChanged(String),
     Send,
     Cast(cast::Message),
+    RevealToggled(layout::Rail),
+    RevealClosed,
     Opened(Result<Opened, String>),
     Replied {
         adventure_id: Uuid,
@@ -142,6 +144,7 @@ pub struct State<
     cast: cast::State,
     scene: Option<OngoingAdventure>,
     window_width: f32,
+    revealed: Option<layout::Rail>,
 }
 
 impl<
@@ -164,6 +167,7 @@ impl<
                 cast: cast::State::default(),
                 scene: None,
                 window_width: layout::DEFAULT_WINDOW.width,
+                revealed: None,
             },
             Task::none(),
         )
@@ -171,6 +175,21 @@ impl<
 
     pub fn set_window_width(&mut self, window_width: f32) {
         self.window_width = window_width;
+
+        if self
+            .revealed
+            .is_some_and(|rail| self.rail_placement(rail) == layout::Placement::Docked)
+        {
+            self.revealed = None;
+        }
+    }
+
+    fn rail_placement(&self, rail: layout::Rail) -> layout::Placement {
+        let fit = layout::chat_layout(self.window_width);
+        match rail {
+            layout::Rail::Cast => fit.cast,
+            layout::Rail::Facts => fit.facts,
+        }
     }
 
     pub fn rebind(
@@ -185,6 +204,7 @@ impl<
     pub fn open(&mut self, adventure_id: Uuid) -> Task<Message> {
         self.scene = None;
         self.cast = cast::State::default();
+        self.revealed = None;
 
         let adventure_manager = self.adventure_manager.clone();
         Task::perform(
@@ -277,6 +297,10 @@ impl<
                     return (self.perform(effect), Event::None);
                 }
             }
+            Message::RevealToggled(rail) => {
+                self.revealed = (self.revealed != Some(rail)).then_some(rail);
+            }
+            Message::RevealClosed => self.revealed = None,
             Message::Replied {
                 adventure_id,
                 sent,
@@ -334,29 +358,34 @@ impl<
             return opening();
         };
 
+        let layout = layout::chat_layout(self.window_width);
         let mut columns = row![]
             .spacing(14.0)
             .width(Length::Fill)
             .height(Length::Fill);
 
-        if layout::shows_cast(self.window_width) {
+        if layout.cast == layout::Placement::Docked {
             columns = columns.push(self.cast.view(&scene.adventure).map(Message::Cast));
         }
 
-        columns = columns.push(transcript(scene, layout::shows_act(self.window_width)));
+        columns = columns.push(transcript(scene, layout.act));
 
-        if layout::shows_facts(self.window_width) {
+        if layout.facts == layout::Placement::Docked {
             columns = columns.push(meta_rail(scene));
         }
 
+        let columns: Element<'_, Message> = match self.revealed {
+            Some(rail) if self.rail_placement(rail) == layout::Placement::Drawer => {
+                stack([columns.into(), scrim(), sheet(rail, scene, &self.cast)]).into()
+            }
+            _ => columns.into(),
+        };
+
         container(
-            column![
-                header(scene, layout::shows_cast(self.window_width)),
-                columns
-            ]
-            .spacing(14.0)
-            .width(Length::Fill)
-            .height(Length::Fill),
+            column![header(scene, layout, self.revealed), columns]
+                .spacing(14.0)
+                .width(Length::Fill)
+                .height(Length::Fill),
         )
         .padding([18.0, 22.0])
         .width(Length::Fill)
@@ -364,6 +393,45 @@ impl<
         .style(theme::page)
         .into()
     }
+}
+
+fn scrim<'a>() -> Element<'a, Message> {
+    mouse_area(
+        container(Space::new().width(Length::Fill).height(Length::Fill))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(|_theme| container::Style {
+                background: Some(Background::Color(theme::alpha(theme::BG_DEEPEST, 0.62))),
+                ..container::Style::default()
+            }),
+    )
+    .on_press(Message::RevealClosed)
+    .into()
+}
+
+fn sheet<'a>(
+    rail: layout::Rail,
+    scene: &'a OngoingAdventure,
+    cast: &'a cast::State,
+) -> Element<'a, Message> {
+    let panel: Element<'a, Message> = match rail {
+        layout::Rail::Cast => cast.view(&scene.adventure).map(Message::Cast),
+        layout::Rail::Facts => meta_rail(scene),
+    };
+
+    let shell = opaque(
+        container(panel)
+            .padding(6.0)
+            .height(Length::Fill)
+            .style(theme::page),
+    );
+
+    let row = match rail {
+        layout::Rail::Cast => row![shell, Space::new().width(Length::Fill)],
+        layout::Rail::Facts => row![Space::new().width(Length::Fill), shell],
+    };
+
+    row.width(Length::Fill).height(Length::Fill).into()
 }
 
 fn opening() -> Element<'static, Message> {

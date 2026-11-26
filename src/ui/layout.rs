@@ -7,19 +7,51 @@ const MAX_SCALE: f32 = 1.15;
 pub const DEFAULT_WINDOW: Size = Size::new(1360.0, 900.0);
 
 pub const CHAT_ACT_HIDDEN_BELOW: f32 = 1180.0;
-pub const CHAT_FACTS_HIDDEN_BELOW: f32 = 1100.0;
+pub const CHAT_FACTS_HIDDEN_BELOW: f32 = 1300.0;
 pub const CHAT_CAST_HIDDEN_BELOW: f32 = 900.0;
 
-pub fn shows_act(window_width: f32) -> bool {
-    window_width >= CHAT_ACT_HIDDEN_BELOW
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Rail {
+    Cast,
+    Facts,
 }
 
-pub fn shows_facts(window_width: f32) -> bool {
-    window_width >= CHAT_FACTS_HIDDEN_BELOW
+impl Rail {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Rail::Cast => "Cast",
+            Rail::Facts => "Facts",
+        }
+    }
 }
 
-pub fn shows_cast(window_width: f32) -> bool {
-    window_width >= CHAT_CAST_HIDDEN_BELOW
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Placement {
+    Docked,
+    Drawer,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ChatLayout {
+    pub act: bool,
+    pub cast: Placement,
+    pub facts: Placement,
+}
+
+pub fn chat_layout(window_width: f32) -> ChatLayout {
+    ChatLayout {
+        act: window_width >= CHAT_ACT_HIDDEN_BELOW,
+        cast: placement(window_width, CHAT_CAST_HIDDEN_BELOW),
+        facts: placement(window_width, CHAT_FACTS_HIDDEN_BELOW),
+    }
+}
+
+fn placement(window_width: f32, docked_above: f32) -> Placement {
+    if window_width >= docked_above {
+        Placement::Docked
+    } else {
+        Placement::Drawer
+    }
 }
 
 pub fn scale_for(window_width: f32) -> f32 {
