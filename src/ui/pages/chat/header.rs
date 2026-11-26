@@ -2,83 +2,104 @@ use iced::widget::text::Wrapping;
 use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
-use crate::ui::layout::{self, Placement};
+use crate::backend::domain::adventure::Adventure;
+use crate::ui::layout::{self, ChatLayout, Placement};
+use crate::ui::pages::chat::Message;
 use crate::ui::pages::chat::cast::CAST_LENGTH;
-use crate::ui::pages::chat::{Message, OngoingAdventure};
 use crate::ui::{common, theme};
 
+const RAIL_TOGGLE_ALLOWANCE: f32 = 80.0;
+
 pub fn header(
-    chat_state: &OngoingAdventure,
+    adventure: &Adventure,
     fit: layout::ChatLayout,
     revealed: Option<layout::Rail>,
-    show_adventure_headline: bool,
 ) -> Element<'_, Message> {
-    let button_back = button(text("← Adventures Hub").size(12.5))
+    row![
+        leading(fit, revealed),
+        title_block(adventure, fit.adventure_headline),
+        trailing(fit, revealed),
+    ]
+    .spacing(14.0)
+    .align_y(Alignment::Center)
+    .into()
+}
+
+fn leading<'a>(chat_layout: ChatLayout, revealed: Option<layout::Rail>) -> Element<'a, Message> {
+    let back = back_button(chat_layout.adventure_headline);
+
+    if chat_layout.cast == Placement::Docked {
+        return container(back)
+            .width(Length::Fixed(CAST_LENGTH))
+            .align_x(Alignment::Start)
+            .into();
+    }
+
+    row![back, rail_toggle(layout::Rail::Cast, revealed)]
+        .spacing(8.0)
+        .align_y(Alignment::Center)
+        .into()
+}
+
+fn title_block<'a>(adventure: &'a Adventure, show_headline: bool) -> Element<'a, Message> {
+    let mut block = column![
+        text(adventure.title.as_str())
+            .size(21.0)
+            .color(theme::GOLD)
+            .font(common::brand())
+    ];
+
+    if show_headline {
+        block = block.push(
+            text(adventure.headline.as_str())
+                .size(14.0)
+                .color(theme::TEXT_MUTED)
+                .width(Length::Fill)
+                .align_x(Alignment::Center)
+                .wrapping(Wrapping::Word),
+        );
+    }
+
+    block
+        .spacing(2.0)
+        .align_x(Alignment::Center)
+        .width(Length::Fill)
+        .into()
+}
+
+fn trailing<'a>(chat_layout: ChatLayout, revealed: Option<layout::Rail>) -> Element<'a, Message> {
+    let mirror = if chat_layout.facts == Placement::Drawer {
+        CAST_LENGTH - RAIL_TOGGLE_ALLOWANCE
+    } else {
+        CAST_LENGTH
+    };
+    let mirror = Space::new().width(Length::Fixed(mirror));
+    let facts_toggle = rail_toggle(layout::Rail::Facts, revealed);
+
+    let actions = match (chat_layout.cast, chat_layout.facts) {
+        (Placement::Docked, Placement::Docked) => row![mirror],
+        (Placement::Docked, Placement::Drawer) => row![mirror, facts_toggle],
+        (Placement::Drawer, Placement::Docked) => row![],
+        (Placement::Drawer, Placement::Drawer) => row![facts_toggle],
+    };
+
+    actions.spacing(8.0).align_y(Alignment::Center).into()
+}
+
+fn back_button<'a>(show_headline: bool) -> Element<'a, Message> {
+    if !show_headline {
+        return button(text("←").size(12.5))
+            .padding([7.0, 13.0])
+            .style(theme::back_button)
+            .on_press(Message::BackRequested)
+            .into();
+    }
+
+    button(text("← Adventures Hub").size(12.5))
         .padding([7.0, 13.0])
         .style(theme::back_button)
-        .on_press(Message::BackRequested);
-
-    let adventure_title_column_header = {
-        let mut adventure_column = column![];
-        adventure_column = adventure_column.push(
-            text(title(chat_state))
-                .size(21.0)
-                .color(theme::GOLD)
-                .font(common::brand()),
-        );
-
-        if show_adventure_headline {
-            adventure_column = adventure_column.push(
-                text(headline(chat_state))
-                    .size(14.0)
-                    .color(theme::TEXT_MUTED)
-                    .width(Length::Fill)
-                    .align_x(Alignment::Center)
-                    .wrapping(Wrapping::Word),
-            )
-        }
-
-        adventure_column = adventure_column.spacing(2.0).align_x(Alignment::Center);
-        adventure_column
-    };
-
-    let adventure_row_header = {
-        let mut bar = row![].spacing(14.0).align_y(Alignment::Center);
-
-        if fit.cast == Placement::Docked {
-            bar = bar.push(
-                container(button_back)
-                    .width(Length::Fixed(CAST_LENGTH))
-                    .align_x(Alignment::Start),
-            );
-        } else {
-            bar = bar.push(
-                row![button_back, rail_toggle(layout::Rail::Cast, revealed)]
-                    .spacing(8.0)
-                    .align_y(Alignment::Center),
-            );
-        }
-
-        bar = bar.push(
-            container(adventure_title_column_header)
-                .width(Length::Fill)
-                .align_x(Alignment::Center),
-        );
-
-        bar
-    };
-
-    let mut actions = row![].spacing(8.0).align_y(Alignment::Center);
-
-    if fit.cast == Placement::Docked {
-        actions = actions.push(Space::new().width(Length::Fixed(CAST_LENGTH)));
-    }
-
-    if fit.facts == Placement::Drawer {
-        actions = actions.push(rail_toggle(layout::Rail::Facts, revealed));
-    }
-
-    adventure_row_header.push(actions).into()
+        .on_press(Message::BackRequested)
+        .into()
 }
 
 fn rail_toggle<'a>(rail: layout::Rail, revealed: Option<layout::Rail>) -> Element<'a, Message> {
@@ -87,12 +108,4 @@ fn rail_toggle<'a>(rail: layout::Rail, revealed: Option<layout::Rail>) -> Elemen
         .style(theme::rail_toggle(revealed == Some(rail)))
         .on_press(Message::RevealToggled(rail))
         .into()
-}
-
-fn title(chat_state: &OngoingAdventure) -> &str {
-    chat_state.adventure.title.as_str()
-}
-
-fn headline(chat_state: &OngoingAdventure) -> &str {
-    chat_state.adventure.headline.as_str()
 }

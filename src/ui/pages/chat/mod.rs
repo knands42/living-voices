@@ -358,19 +358,19 @@ impl<
             return opening();
         };
 
-        let layout = layout::chat_layout(self.window_width);
+        let fit = layout::chat_layout(self.window_width);
         let mut columns = row![]
             .spacing(14.0)
             .width(Length::Fill)
             .height(Length::Fill);
 
-        if layout.cast == layout::Placement::Docked {
+        if fit.cast == layout::Placement::Docked {
             columns = columns.push(self.cast.view(&scene.adventure).map(Message::Cast));
         }
 
-        columns = columns.push(transcript(scene, layout.act));
+        columns = columns.push(transcript(scene, fit.act));
 
-        if layout.facts == layout::Placement::Docked {
+        if fit.facts == layout::Placement::Docked {
             columns = columns.push(meta_rail(scene));
         }
 
@@ -382,13 +382,10 @@ impl<
         };
 
         container(
-            column![
-                header(scene, layout, self.revealed, layout.adventure_headline),
-                columns
-            ]
-            .spacing(14.0)
-            .width(Length::Fill)
-            .height(Length::Fill),
+            column![header(&scene.adventure, fit, self.revealed), columns]
+                .spacing(14.0)
+                .width(Length::Fill)
+                .height(Length::Fill),
         )
         .padding([18.0, 22.0])
         .width(Length::Fill)
