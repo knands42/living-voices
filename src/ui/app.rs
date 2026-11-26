@@ -158,8 +158,9 @@ impl<
     }
 
     fn apply_layout(&mut self) {
-        self.main_hub
-            .set_width(self.window_width / self.scale_factor());
+        let width = self.window_width / self.scale_factor();
+        self.main_hub.set_window_width(width);
+        self.chat.set_window_width(width);
     }
 
     pub fn view(&self) -> Element<'_, Message> {

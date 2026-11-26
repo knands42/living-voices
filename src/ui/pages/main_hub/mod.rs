@@ -55,7 +55,7 @@ pub struct State {
     active_tag: Option<String>,
     adventure_draft_open: bool,
     new_adventure_draft: AdventureCreationDraft,
-    width: f32,
+    window_width: f32,
 }
 
 impl State {
@@ -71,14 +71,14 @@ impl State {
             active_tag: None,
             adventure_draft_open: false,
             new_adventure_draft: AdventureCreationDraft::default(),
-            width: layout::DEFAULT_WINDOW.width,
+            window_width: layout::DEFAULT_WINDOW.width,
         };
         let task = state.load();
         (state, task)
     }
 
-    pub fn set_width(&mut self, width: f32) {
-        self.width = width;
+    pub fn set_window_width(&mut self, window_width: f32) {
+        self.window_width = window_width;
     }
 
     pub fn rebind(&mut self, adventure_manager: AdventureManager) {

@@ -20,6 +20,8 @@ const CMAKE_FLAGS: &[&str] = &[
     "-DGGML_NATIVE=ON",
     "-DLLAMA_BUILD_TESTS=OFF",
     "-DLLAMA_BUILD_EXAMPLES=OFF",
+    "-DLLAMA_BUILD_UI=OFF",
+    "-DLLAMA_USE_PREBUILT_UI=OFF",
 ];
 
 pub async fn fetch() -> Result<(), String> {
@@ -84,6 +86,8 @@ pub fn build() -> Result<(), String> {
             source.display()
         ));
     }
+
+    clear_ui_cache()?;
 
     cmd::run(
         Command::new("cmake")
@@ -174,6 +178,20 @@ fn remove_dir_all(dir: &Path) -> Result<(), String> {
         Ok(()) => Ok(()),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(err) => Err(format!("could not remove {}: {err}", dir.display())),
+    }
+}
+
+fn clear_ui_cache() -> Result<(), String> {
+    let ui = build_dir().join("tools").join("ui");
+    remove_dir_all(&ui.join("dist"))?;
+    remove_file(&ui.join(".ui-stamp"))
+}
+
+fn remove_file(path: &Path) -> Result<(), String> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(format!("could not remove {}: {err}", path.display())),
     }
 }
 

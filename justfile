@@ -27,7 +27,7 @@ create-migration name:
     sqlx migrate add -r {{ name }}
 
 # -------------------- database -------------------- #
-db := env_var_or_default("DB", "living_voices.db")
+db := env("DB", "living_voices.db")
 
 db:
     sqlite3 {{ db }}
@@ -58,25 +58,21 @@ coverage-all:
     cargo llvm-cov --ignore-filename-regex '{{ cov_ignore }}' -- --include-ignored
 
 # -------------------- provisioning layout -------------------- #
-# Everything the app installs lives under ./provision, relative to this project:
-# the same layout a release bundle ships, so development and release share one
-# setup. These recipes are the single definition of "install"; the release job
-# runs these same commands and packs the result next to the binary.
+# Everything the app installs lives under ./provision, relative to this project
 provision_dir := "provision"
-provision_archive := provision_dir / "archive"
 
 # What the app itself expects on disk at runtime: {base_dir}/llama, which in a
 # debug build is this project root.
 llama_runtime := "llama"
 llama_runtime_bin := llama_runtime / "llama-server"
 model_dir := llama_runtime / "models"
-model_roleplay_url := env_var_or_default("MODEL_ROLEPLAY_URL", "https://huggingface.co/bartowski/L3-8B-Stheno-v3.2-GGUF/resolve/main/L3-8B-Stheno-v3.2-Q5_K_M.gguf")
+model_roleplay_url := env("MODEL_ROLEPLAY_URL", "https://huggingface.co/bartowski/L3-8B-Stheno-v3.2-GGUF/resolve/main/L3-8B-Stheno-v3.2-Q5_K_M.gguf")
 model_roleplay_name := "L3-8B-Stheno-v3.2-Q5_K_M.gguf"
-model_memory_url := env_var_or_default("MODEL_MEMORY_URL", "https://huggingface.co/sennaLLMLearner/qwen2.5-7b-memory-distiller/resolve/main/qwen2.5-7b-memory-distiller.Q4_K_M.gguf")
+model_memory_url := env("MODEL_MEMORY_URL", "https://huggingface.co/sennaLLMLearner/qwen2.5-7b-memory-distiller/resolve/main/qwen2.5-7b-memory-distiller.Q4_K_M.gguf")
 model_memory_name := "qwen2.5-7b-memory-distiller.Q4_K_M.gguf"
 
-comfy_torch_index := env_var_or_default("COMFY_TORCH_INDEX", "https://download.pytorch.org/whl/cu130")
-comfy_python_minor := env_var_or_default("COMFY_PYTHON_MINOR", "3.12")
+comfy_torch_index := env("COMFY_TORCH_INDEX", "https://download.pytorch.org/whl/cu130")
+comfy_python_minor := env("COMFY_PYTHON_MINOR", "3.12")
 
 comfy_runtime := "comfyui"
 comfy_main := comfy_runtime / "main.py"
@@ -86,8 +82,7 @@ comfy_venv := comfy_runtime / "venv"
 comfy_bin := comfy_venv / "bin" / "comfy"
 # absolute, because comfy-start runs from inside the engine dir
 comfy_venv_python := justfile_directory() / comfy_venv / "bin" / "python"
-# hashed lock: every pin carries the sha256 of the wheel it may install, so a
-# mirrored or hijacked index cannot swap a package under the same version
+# hashed lock: every pin carries the sha256 of the wheel it may install
 comfy_lock := "comfy-requirements.lock"
 comfy_lock_pins := provision_dir / "comfy-pins.txt"
 comfy_runtime_lock := comfy_runtime / comfy_lock

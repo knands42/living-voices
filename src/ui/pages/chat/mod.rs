@@ -26,7 +26,7 @@ use crate::ui::pages::chat::meta::meta_rail;
 use crate::ui::pages::chat::transcript::transcript;
 use crate::ui::pages::{Event, Page};
 use crate::ui::task::on_tokio;
-use crate::ui::theme;
+use crate::ui::{layout, theme};
 
 const HISTORY_LIMIT: usize = 100;
 
@@ -141,6 +141,7 @@ pub struct State<
     message_manager: MessageManager<C, N, M, A>,
     cast: cast::State,
     scene: Option<OngoingAdventure>,
+    window_width: f32,
 }
 
 impl<
@@ -162,9 +163,14 @@ impl<
                 message_manager,
                 cast: cast::State::default(),
                 scene: None,
+                window_width: layout::DEFAULT_WINDOW.width,
             },
             Task::none(),
         )
+    }
+
+    pub fn set_window_width(&mut self, window_width: f32) {
+        self.window_width = window_width;
     }
 
     pub fn rebind(
@@ -328,21 +334,23 @@ impl<
             return opening();
         };
 
+        let mut columns = row![
+            self.cast.view(&scene.adventure).map(Message::Cast),
+            transcript(scene, layout::shows_act(self.window_width)),
+        ]
+        .spacing(14.0)
+        .width(Length::Fill)
+        .height(Length::Fill);
+
+        if layout::shows_facts(self.window_width) {
+            columns = columns.push(meta_rail(scene));
+        }
+
         container(
-            column![
-                header(scene),
-                row![
-                    self.cast.view(&scene.adventure).map(Message::Cast),
-                    transcript(scene),
-                    meta_rail(scene)
-                ]
+            column![header(scene), columns]
                 .spacing(14.0)
                 .width(Length::Fill)
                 .height(Length::Fill),
-            ]
-            .spacing(14.0)
-            .width(Length::Fill)
-            .height(Length::Fill),
         )
         .padding([18.0, 22.0])
         .width(Length::Fill)

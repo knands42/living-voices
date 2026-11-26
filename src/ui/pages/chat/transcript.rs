@@ -14,7 +14,7 @@ const NARRATOR_LENGTH: f32 = 560.0;
 const SPEECH_SIZE: f32 = 13.0;
 const NARRATOR_SIZE: f32 = 12.5;
 
-pub fn transcript(chat_state: &OngoingAdventure) -> Element<'_, Message> {
+pub fn transcript(chat_state: &OngoingAdventure, show_act: bool) -> Element<'_, Message> {
     let mut lines = column![].spacing(16.0).width(Length::Fill);
 
     if chat_state.messages.is_empty() && !chat_state.awaiting_reply {
@@ -33,15 +33,16 @@ pub fn transcript(chat_state: &OngoingAdventure) -> Element<'_, Message> {
         .height(Length::Fill)
         .anchor_bottom();
 
-    common::panel(
-        column![top(chat_state), history, composer(chat_state)]
-            .spacing(12.0)
-            .height(Length::Fill),
-        16.0,
-    )
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .into()
+    let mut thread = column![].spacing(12.0).height(Length::Fill);
+
+    if show_act {
+        thread = thread.push(top(chat_state));
+    }
+
+    common::panel(thread.push(history).push(composer(chat_state)), 16.0)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
 }
 
 fn blank_page() -> Element<'static, Message> {

@@ -277,7 +277,7 @@ fn catalogue(home_state: &State) -> Element<'_, Message> {
     let list = if filtered.is_empty() {
         no_matches()
     } else {
-        grid(&filtered, columns_for(home_state.width))
+        grid(&filtered, columns_for(home_state.window_width))
     };
 
     if tags.is_empty() {

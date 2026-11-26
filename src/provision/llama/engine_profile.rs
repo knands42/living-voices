@@ -18,7 +18,6 @@ impl EngineProfile {
 
     /// Summarization is a background step, so the distiller stays off the GPU and
     /// leaves the VRAM to chat
-    // TODO: benchmark how well this execute on CPU
     pub fn memory() -> Self {
         Self {
             ctx: 8_192,
