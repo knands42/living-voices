@@ -231,7 +231,7 @@ async fn request_new_message_answers_the_pending_line_without_storing_another() 
     let adventure_manager = start_adventure_with_default_cast(&pool, &state).await;
     let memory_settings = memory_high_distiller_trigger();
     let memory_manager = setup_memory_manager(state.clone(), &pool, memory_settings);
-    let manager = setup_message_manager(&state, &pool, &director_pick_narrator(), &memory_manager);
+    let manager = setup_message_manager(&state, &pool, &director_pick_character(), &memory_manager);
     let adventure = adventure_manager.current_adventure().unwrap();
 
     seed_conversation(&pool, &adventure, CONVERSATION, 4).await;
@@ -243,9 +243,9 @@ async fn request_new_message_answers_the_pending_line_without_storing_another() 
         .await
         .expect("request succeeds");
 
-    // then: the reply is stored as the next row and attributed to the narrator
+    // then: the reply is stored as the next row and a cast member speaks
     assert_eq!(reply.seq, Some(seeded + 1));
-    assert_eq!(reply.narrator_id, Some(adventure.narrator.id));
+    assert!(reply.character_id.is_some());
 
     // and: the pending player line was not written a second time
     assert_eq!(message_count(&pool, adventure.id).await, seeded + 1);

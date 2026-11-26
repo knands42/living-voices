@@ -16,14 +16,12 @@ impl EngineProfile {
         }
     }
 
-    /// Summarization is a background step, so the distiller stays off the GPU and
-    /// leaves the VRAM to chat
     pub fn memory() -> Self {
         Self {
             ctx: 8_192,
-            gpu_layers: "0",
-            flash_attn: false,
-            kv_type: "f16",
+            gpu_layers: "2",
+            flash_attn: true,
+            kv_type: "q8_0",
         }
     }
 }

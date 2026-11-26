@@ -12,7 +12,14 @@ lint:
 test:
     cargo test
 
-test-ignored:
+# The ignored tests talk to Ollama on 11434, not to the engines this app spawns
+test-models:
+    ollama list | grep -q '^llama3.1:8b' || ollama pull llama3.1:8b
+    ollama list | grep -q '^hf.co/bartowski/L3-8B-Stheno-v3.2-GGUF:Q5_K_M' || ollama pull hf.co/bartowski/L3-8B-Stheno-v3.2-GGUF:Q5_K_M
+    ollama list | grep -q '^L3-8B-Stheno-v3.2-Q5_K_M' || ollama cp hf.co/bartowski/L3-8B-Stheno-v3.2-GGUF:Q5_K_M L3-8B-Stheno-v3.2-Q5_K_M
+    ollama list | grep -q '^hf.co/sennaLLMLearner/qwen2.5-7b-memory-distiller:Q4_K_M' || ollama pull hf.co/sennaLLMLearner/qwen2.5-7b-memory-distiller:Q4_K_M
+
+test-ignored: test-models
     cargo test --test mod -- --ignored --test-threads=1
 
 run-debug: build

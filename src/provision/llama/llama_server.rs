@@ -305,7 +305,7 @@ mod test {
 
     #[cfg(unix)]
     #[test]
-    fn spawn_runs_the_memory_profile_on_the_cpu() {
+    fn spawn_keeps_the_memory_profile_to_a_small_gpu_slice() {
         // given a binary that reports what it was called with
         let base = scratch("memory-flags");
         let binary = base.join("llama-server");
@@ -322,11 +322,13 @@ mod test {
                 .expect("spawn");
         let recorded = wait_for_argv(&argv);
 
-        // then it stays off the GPU and keeps an f16 cache, since q8_0 needs Flash Attention
-        assert_pair(&recorded, "--gpu-layers", "0");
-        assert_pair(&recorded, "--flash-attn", "off");
-        assert_pair(&recorded, "--cache-type-k", "f16");
-        assert_pair(&recorded, "--cache-type-v", "f16");
+        // then only a couple of layers ride the GPU, so chat keeps the rest
+        assert_pair(&recorded, "--gpu-layers", "2");
+
+        // and the quantised cache comes with Flash Attention on
+        assert_pair(&recorded, "--flash-attn", "on");
+        assert_pair(&recorded, "--cache-type-k", "q8_0");
+        assert_pair(&recorded, "--cache-type-v", "q8_0");
         assert!(recorded.iter().any(|arg| arg == "8192"), "{recorded:?}");
 
         // when
