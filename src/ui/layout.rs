@@ -8,6 +8,7 @@ pub const DEFAULT_WINDOW: Size = Size::new(1360.0, 900.0);
 
 pub const CHAT_ACT_HIDDEN_BELOW: f32 = 1180.0;
 pub const CHAT_FACTS_HIDDEN_BELOW: f32 = 1100.0;
+pub const CHAT_CAST_HIDDEN_BELOW: f32 = 900.0;
 
 pub fn shows_act(window_width: f32) -> bool {
     window_width >= CHAT_ACT_HIDDEN_BELOW
@@ -15,6 +16,10 @@ pub fn shows_act(window_width: f32) -> bool {
 
 pub fn shows_facts(window_width: f32) -> bool {
     window_width >= CHAT_FACTS_HIDDEN_BELOW
+}
+
+pub fn shows_cast(window_width: f32) -> bool {
+    window_width >= CHAT_CAST_HIDDEN_BELOW
 }
 
 pub fn scale_for(window_width: f32) -> f32 {

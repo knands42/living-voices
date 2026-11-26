@@ -6,7 +6,7 @@ use crate::ui::pages::chat::cast::CAST_LENGTH;
 use crate::ui::pages::chat::{Message, OngoingAdventure};
 use crate::ui::{common, theme};
 
-pub fn header(chat_state: &OngoingAdventure) -> Element<'_, Message> {
+pub fn header(chat_state: &OngoingAdventure, show_cast: bool) -> Element<'_, Message> {
     let back = button(text("← Adventures Hub").size(11.5))
         .padding([7.0, 13.0])
         .style(theme::back_button)
@@ -27,18 +27,29 @@ pub fn header(chat_state: &OngoingAdventure) -> Element<'_, Message> {
     .spacing(2.0)
     .align_x(Alignment::Center);
 
-    row![
-        container(back)
-            .width(Length::Fixed(CAST_LENGTH))
-            .align_x(Alignment::Start),
+    let mut bar = row![].spacing(14.0).align_y(Alignment::Center);
+
+    if show_cast {
+        bar = bar.push(
+            container(back)
+                .width(Length::Fixed(CAST_LENGTH))
+                .align_x(Alignment::Start),
+        );
+    } else {
+        bar = bar.push(back);
+    }
+
+    bar = bar.push(
         container(identity)
             .width(Length::Fill)
             .align_x(Alignment::Center),
-        Space::new().width(Length::Fixed(CAST_LENGTH)),
-    ]
-    .spacing(14.0)
-    .align_y(Alignment::Center)
-    .into()
+    );
+
+    if show_cast {
+        bar = bar.push(Space::new().width(Length::Fixed(CAST_LENGTH)));
+    }
+
+    bar.into()
 }
 
 fn title(chat_state: &OngoingAdventure) -> &str {

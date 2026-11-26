@@ -334,23 +334,29 @@ impl<
             return opening();
         };
 
-        let mut columns = row![
-            self.cast.view(&scene.adventure).map(Message::Cast),
-            transcript(scene, layout::shows_act(self.window_width)),
-        ]
-        .spacing(14.0)
-        .width(Length::Fill)
-        .height(Length::Fill);
+        let mut columns = row![]
+            .spacing(14.0)
+            .width(Length::Fill)
+            .height(Length::Fill);
+
+        if layout::shows_cast(self.window_width) {
+            columns = columns.push(self.cast.view(&scene.adventure).map(Message::Cast));
+        }
+
+        columns = columns.push(transcript(scene, layout::shows_act(self.window_width)));
 
         if layout::shows_facts(self.window_width) {
             columns = columns.push(meta_rail(scene));
         }
 
         container(
-            column![header(scene), columns]
-                .spacing(14.0)
-                .width(Length::Fill)
-                .height(Length::Fill),
+            column![
+                header(scene, layout::shows_cast(self.window_width)),
+                columns
+            ]
+            .spacing(14.0)
+            .width(Length::Fill)
+            .height(Length::Fill),
         )
         .padding([18.0, 22.0])
         .width(Length::Fill)
