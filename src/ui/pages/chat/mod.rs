@@ -144,7 +144,7 @@ pub struct State<
     cast: cast::State,
     scene: Option<OngoingAdventure>,
     window_width: f32,
-    revealed: Option<layout::Rail>,
+    toggle_revealed: Option<layout::Rail>,
 }
 
 impl<
@@ -167,7 +167,7 @@ impl<
                 cast: cast::State::default(),
                 scene: None,
                 window_width: layout::DEFAULT_WINDOW.width,
-                revealed: None,
+                toggle_revealed: None,
             },
             Task::none(),
         )
@@ -176,19 +176,13 @@ impl<
     pub fn set_window_width(&mut self, window_width: f32) {
         self.window_width = window_width;
 
-        if self
-            .revealed
-            .is_some_and(|rail| self.rail_placement(rail) == layout::Placement::Docked)
-        {
-            self.revealed = None;
-        }
-    }
+        let laid_out = layout::chat_layout(window_width);
+        let revealed_is_docked = self
+            .toggle_revealed
+            .is_some_and(|rail| laid_out.placement(rail) == layout::Placement::Docked);
 
-    fn rail_placement(&self, rail: layout::Rail) -> layout::Placement {
-        let window_layout = layout::chat_layout(self.window_width);
-        match rail {
-            layout::Rail::Cast => window_layout.cast,
-            layout::Rail::Facts => window_layout.facts,
+        if revealed_is_docked {
+            self.toggle_revealed = None;
         }
     }
 
@@ -204,7 +198,7 @@ impl<
     pub fn open(&mut self, adventure_id: Uuid) -> Task<Message> {
         self.scene = None;
         self.cast = cast::State::default();
-        self.revealed = None;
+        self.toggle_revealed = None;
 
         let adventure_manager = self.adventure_manager.clone();
         Task::perform(
@@ -298,9 +292,9 @@ impl<
                 }
             }
             Message::RevealToggled(rail) => {
-                self.revealed = (self.revealed != Some(rail)).then_some(rail);
+                self.toggle_revealed = (self.toggle_revealed != Some(rail)).then_some(rail);
             }
-            Message::RevealClosed => self.revealed = None,
+            Message::RevealClosed => self.toggle_revealed = None,
             Message::Replied {
                 adventure_id,
                 sent,
@@ -359,14 +353,11 @@ impl<
         };
 
         let layout_fit = layout::chat_layout(self.window_width);
-        let rail_placement = self
-            .revealed
-            .map_or(layout::Placement::Docked, |rail| self.rail_placement(rail));
 
         container(
             column![
-                header(&scene.adventure, layout_fit, self.revealed),
-                chat_columns(layout_fit, scene, self.revealed, &self.cast, rail_placement)
+                header(&scene.adventure, layout_fit, self.toggle_revealed),
+                chat_columns(layout_fit, scene, self.toggle_revealed, &self.cast)
             ]
             .spacing(14.0)
             .width(Length::Fill)
@@ -383,27 +374,26 @@ impl<
 fn chat_columns<'a>(
     layout_fit: layout::ChatLayout,
     scene: &'a OngoingAdventure,
-    rail: Option<layout::Rail>,
+    toggle_revealed: Option<layout::Rail>,
     cast: &'a cast::State,
-    rail_placement: layout::Placement,
 ) -> Element<'a, Message> {
     let mut columns = row![]
         .spacing(14.0)
         .width(Length::Fill)
         .height(Length::Fill);
 
-    if layout_fit.cast == layout::Placement::Docked {
+    if layout_fit.placement(layout::Rail::Cast) == layout::Placement::Docked {
         columns = columns.push(cast.view(&scene.adventure).map(Message::Cast));
     }
 
     columns = columns.push(transcript(scene, layout_fit.act));
 
-    if layout_fit.facts == layout::Placement::Docked {
+    if layout_fit.placement(layout::Rail::Facts) == layout::Placement::Docked {
         columns = columns.push(meta_rail(scene));
     }
 
-    let columns: Element<'_, Message> = match rail {
-        Some(rail) if rail_placement == layout::Placement::Drawer => {
+    let columns: Element<'_, Message> = match toggle_revealed {
+        Some(rail) if layout_fit.placement(rail) == layout::Placement::Drawer => {
             stack([columns.into(), scrim(), sheet(rail, scene, cast)]).into()
         }
         _ => columns.into(),

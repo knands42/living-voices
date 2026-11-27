@@ -32,28 +32,46 @@ pub enum Placement {
     Drawer,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Docked {
+    Both,
+    CastOnly,
+    Neither,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct ChatLayout {
     pub act: bool,
     pub adventure_headline: bool,
-    pub cast: Placement,
-    pub facts: Placement,
+    pub docked: Docked,
+}
+
+impl ChatLayout {
+    pub fn placement(self, rail: Rail) -> Placement {
+        match (self.docked, rail) {
+            (Docked::Both, _) => Placement::Docked,
+            (Docked::CastOnly, Rail::Cast) => Placement::Docked,
+            (Docked::CastOnly, Rail::Facts) | (Docked::Neither, _) => Placement::Drawer,
+        }
+    }
 }
 
 pub fn chat_layout(window_width: f32) -> ChatLayout {
     ChatLayout {
         act: window_width >= CHAT_ACT_HIDDEN_BELOW,
         adventure_headline: window_width >= ADVENTURE_HEADLINE_HIDDEN_BELOW,
-        cast: placement(window_width, CHAT_CAST_HIDDEN_BELOW),
-        facts: placement(window_width, CHAT_FACTS_HIDDEN_BELOW),
+        docked: docked_for(window_width),
     }
 }
 
-fn placement(window_width: f32, docked_above: f32) -> Placement {
-    if window_width >= docked_above {
-        Placement::Docked
+// Narrower never docks more rails, so the fourth combination cannot happen.
+fn docked_for(window_width: f32) -> Docked {
+    if window_width >= CHAT_FACTS_HIDDEN_BELOW {
+        Docked::Both
+    } else if window_width >= CHAT_CAST_HIDDEN_BELOW {
+        Docked::CastOnly
     } else {
-        Placement::Drawer
+        Docked::Neither
     }
 }
 

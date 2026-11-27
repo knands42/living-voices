@@ -3,7 +3,7 @@ use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
 use crate::backend::domain::adventure::Adventure;
-use crate::ui::layout::{self, ChatLayout, Placement};
+use crate::ui::layout::{self, ChatLayout, Docked, Placement};
 use crate::ui::pages::chat::Message;
 use crate::ui::pages::chat::cast::CAST_LENGTH;
 use crate::ui::{common, theme};
@@ -28,7 +28,7 @@ pub fn header(
 fn leading<'a>(chat_layout: ChatLayout, revealed: Option<layout::Rail>) -> Element<'a, Message> {
     let back = back_button(chat_layout.adventure_headline);
 
-    if chat_layout.cast == Placement::Docked {
+    if chat_layout.placement(layout::Rail::Cast) == Placement::Docked {
         return container(back)
             .width(Length::Fixed(CAST_LENGTH))
             .align_x(Alignment::Start)
@@ -68,7 +68,7 @@ fn title_block<'a>(adventure: &'a Adventure, show_headline: bool) -> Element<'a,
 }
 
 fn trailing<'a>(chat_layout: ChatLayout, revealed: Option<layout::Rail>) -> Element<'a, Message> {
-    let mirror = if chat_layout.facts == Placement::Drawer {
+    let mirror = if chat_layout.placement(layout::Rail::Facts) == Placement::Drawer {
         CAST_LENGTH - RAIL_TOGGLE_ALLOWANCE
     } else {
         CAST_LENGTH
@@ -76,11 +76,10 @@ fn trailing<'a>(chat_layout: ChatLayout, revealed: Option<layout::Rail>) -> Elem
     let mirror = Space::new().width(Length::Fixed(mirror));
     let facts_toggle = rail_toggle(layout::Rail::Facts, revealed);
 
-    let actions = match (chat_layout.cast, chat_layout.facts) {
-        (Placement::Docked, Placement::Docked) => row![mirror],
-        (Placement::Docked, Placement::Drawer) => row![mirror, facts_toggle],
-        (Placement::Drawer, Placement::Docked) => row![],
-        (Placement::Drawer, Placement::Drawer) => row![facts_toggle],
+    let actions = match chat_layout.docked {
+        Docked::Both => row![mirror],
+        Docked::CastOnly => row![mirror, facts_toggle],
+        Docked::Neither => row![facts_toggle],
     };
 
     actions.spacing(8.0).align_y(Alignment::Center).into()

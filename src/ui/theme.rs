@@ -20,6 +20,9 @@ pub const TEXT_LIGHT: Color = Color::from_rgb8(0xed, 0xe4, 0xd6);
 pub const TEXT_MUTED: Color = Color::from_rgb8(0x9a, 0x90, 0x82);
 pub const TEXT_DIM: Color = Color::from_rgb8(0x6b, 0x63, 0x58);
 
+/// Header controls share one radius: a pill reads as a tag, 11 reads as a button.
+pub const HEADER_CHIP_ROUNDING: f32 = 11.0;
+
 /// `hsv(hue, saturation, value)`: `hue` in degrees, the other two in `0.0..=1.0`
 pub fn hsv(hue: f32, saturation: f32, value: f32) -> Color {
     let h = hue.rem_euclid(360.0) / 60.0;
@@ -112,6 +115,27 @@ pub fn inset(_theme: &Theme) -> container::Style {
 }
 
 /// The dimmed card the player sits in, at the top of the cast list.
+/// The chat header: a strip raised off the page, because a control on a flat
+/// gradient reads as a label instead of a button.
+pub fn header_bar(_theme: &Theme) -> container::Style {
+    container::Style::default()
+        .background(vertical(&[
+            (0.0, BG_PANEL),
+            (1.0, Color::from_rgb8(0x21, 0x1c, 0x18)),
+        ]))
+        .border(
+            Border::default()
+                .rounded(16.0)
+                .width(1.0)
+                .color(alpha(BRONZE_DIM, 0.95)),
+        )
+        .shadow(Shadow {
+            color: alpha(BG_DEEPEST, 0.55),
+            offset: Vector::new(0.0, 4.0),
+            blur_radius: 16.0,
+        })
+}
+
 pub fn player_card(_theme: &Theme) -> container::Style {
     container::Style::default()
         .background(alpha(BRONZE, 0.07))
@@ -246,20 +270,28 @@ pub fn narrator(a: f32) -> container::Style {
 
 // --- interactive ----------------------------------------------------------
 
+/// The header controls, raised so they read as buttons on the header bar.
+/// Bronze at rest and gold on hover: the gold *surface* stays reserved for the
+/// active rail and the create card.
 pub fn back_button(_theme: &Theme, status: button::Status) -> button::Style {
     let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
 
     button::Style {
         background: Some(Background::Color(if hovered {
-            BG_PANEL_ALT
+            blend(BG_PANEL_ALT, BRONZE, 0.30)
         } else {
-            alpha(BG_PANEL, 0.85)
+            blend(BG_PANEL_ALT, BRONZE, 0.10)
         })),
-        text_color: TEXT_LIGHT,
+        text_color: if hovered { GOLD } else { TEXT_LIGHT },
         border: Border::default()
-            .rounded(999.0)
+            .rounded(HEADER_CHIP_ROUNDING)
             .width(1.0)
-            .color(alpha(BRONZE, if hovered { 0.9 } else { 0.5 })),
+            .color(alpha(BRONZE, if hovered { 1.0 } else { 0.75 })),
+        shadow: Shadow {
+            color: alpha(BG_DEEPEST, if hovered { 0.55 } else { 0.4 }),
+            offset: Vector::new(0.0, 2.0),
+            blur_radius: if hovered { 10.0 } else { 6.0 },
+        },
         ..button::Style::default()
     }
 }
@@ -506,30 +538,40 @@ pub fn chip(selected: bool) -> impl Fn(&Theme, button::Status) -> button::Style 
 }
 
 /// The header's control for opening a rail as a sheet. A real button, unlike
-/// the passive chips: outlined when closed, lit gold while its sheet is open.
+/// the passive chips: raised bronze when closed, lit gold while its sheet is
+/// open, and matching `back_button` so the header reads as one row of controls.
 pub fn rail_toggle(active: bool) -> impl Fn(&Theme, button::Status) -> button::Style {
     move |_theme, status| {
         let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
+        let lit = active || hovered;
+
+        let (background, text_color, border_color) = if active {
+            (
+                alpha(GOLD, if hovered { 0.30 } else { 0.20 }),
+                GOLD,
+                alpha(GOLD, if hovered { 1.0 } else { 0.85 }),
+            )
+        } else if hovered {
+            (blend(BG_PANEL_ALT, BRONZE, 0.30), GOLD, alpha(BRONZE, 1.0))
+        } else {
+            (
+                blend(BG_PANEL_ALT, BRONZE, 0.10),
+                TEXT_LIGHT,
+                alpha(BRONZE, 0.75),
+            )
+        };
 
         button::Style {
-            background: Some(Background::Color(if active {
-                alpha(GOLD, if hovered { 0.28 } else { 0.18 })
-            } else {
-                alpha(BG_PANEL_ALT, if hovered { 1.0 } else { 0.92 })
-            })),
-            text_color: if active { GOLD } else { TEXT_LIGHT },
+            background: Some(Background::Color(background)),
+            text_color,
             border: Border::default()
-                .rounded(999.0)
+                .rounded(HEADER_CHIP_ROUNDING)
                 .width(1.0)
-                .color(if active {
-                    alpha(GOLD, 0.75)
-                } else {
-                    alpha(BRONZE, if hovered { 0.9 } else { 0.55 })
-                }),
+                .color(border_color),
             shadow: Shadow {
-                color: alpha(BG_DEEPEST, 0.35),
-                offset: Vector::new(0.0, 1.0),
-                blur_radius: 4.0,
+                color: alpha(BG_DEEPEST, if lit { 0.55 } else { 0.4 }),
+                offset: Vector::new(0.0, 2.0),
+                blur_radius: if lit { 10.0 } else { 6.0 },
             },
             ..button::Style::default()
         }

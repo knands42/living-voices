@@ -69,9 +69,53 @@ Lands as `CharacterCorpus` (domain), `character_samples` (persistence), `persona
 (application), `persona_port.rs` + `ai/integrations/text/persona.rs`. Generation runs in
 `Task::perform`/`Task::run`, and no DB connection may be held across the model `.await`.
 
-### Features
+### Adventure tooling
 
-**UI**
+Goal: an adventure can carry its own panels — a calendar, an inbox, a ledger — without the app
+knowing about them. Text stays the substrate; a tool is a view over state the turn produced.
+
+Two problems, two machines, never merged:
+
+- **Authored artifacts** — opening frame, newspaper clippings, calendar card. Written or generated
+  once at adventure creation, cached, rendered as a prop instead of chat prose. No state.
+- **Live tools** — state that mutates per turn. Manifest + append-only event log + pure reducers.
+
+Architecture: **the model proposes, the application owns state.** Proposals ride the existing
+structured tail of the reply (`ChatReply::act_closure` is the precedent), so no second model call per
+turn and no reliance on native function-calling, which small local models do not do reliably. The
+reducer rejects illegal commands — advancing three days without an act boundary — and logs the
+rejection instead of dropping it silently. State is a projection replayed from events, so a payload
+change costs a replay, not a migration.
+
+| piece               | where                                              |
+| ------------------- | -------------------------------------------------- |
+| `AdventureTool`     | `domain/tool.rs`, beside `lore.rs`                 |
+| `ToolCommand`       | domain; the only things a model may ask for        |
+| `ToolReducer`       | domain, pure, no I/O                               |
+| `extract_proposals` | `application/managers/message/tool_pass.rs`        |
+| manifest + events   | `persistence/tool_store.rs`                        |
+| panels              | `ui/pages/chat/panels/<kind>.rs`, routed by slot   |
+
+Prompt fragments per tool live in `context/prompts.rs` and are assembled by the context builder; a
+tool with no fragment does not exist to the model, so an adventure with no tools keeps today's
+prompt byte for byte.
+
+- [ ] Phase 1 — the smallest honest slice: `ToolKind::Calendar`, one `AdvanceDays` command, a sidebar
+      panel, and the fragment that lets the narrator advance a day on a scene close. Proves the seam.
+- [ ] Split the pass: `extract_proposals` (parser, degrades to zero proposals on malformed output,
+      never fails the turn) and `apply_proposals` (reducer loop), both pure and testable.
+- [ ] Tables: `adventure_tool`, `tool_event` (carries `message_id`, so the transcript can say when a
+      panel changed), `tool_state` as projection. Rebuild tool state on open; never guess old rows.
+- [ ] Builder step for authoring tools, beside lore and cast, with declarative `enabled_when` over act
+      state — a phone exists from act 1, the calendar appears when act 2 opens. Data, not code.
+- [ ] Second kind — `Inbox`, where a tool needs prose: one `PromptPort` call composed from
+      `context/prompts.rs`, run through `Task::perform` on the same turn's `Task`.
+- [ ] Authored artifacts: one `IntroFrame` type (text blocks + optional generated image), created
+      once, cached, rendered as a card. This is the cheap version of the CraveUai effect and covers
+      most of it.
+- [ ] Explicitly not building: a per-turn stage-manager agent that owns tool state. It cannot hold
+      the day of the week across turns and doubles latency on a card ComfyUI also wants.
+
 
 - Gallery / memory: showcase all media generated per act, like an album.
 - Narrator settings.
