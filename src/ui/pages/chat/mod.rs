@@ -358,34 +358,19 @@ impl<
             return opening();
         };
 
-        let fit = layout::chat_layout(self.window_width);
-        let mut columns = row![]
-            .spacing(14.0)
-            .width(Length::Fill)
-            .height(Length::Fill);
-
-        if fit.cast == layout::Placement::Docked {
-            columns = columns.push(self.cast.view(&scene.adventure).map(Message::Cast));
-        }
-
-        columns = columns.push(transcript(scene, fit.act));
-
-        if fit.facts == layout::Placement::Docked {
-            columns = columns.push(meta_rail(scene));
-        }
-
-        let columns: Element<'_, Message> = match self.revealed {
-            Some(rail) if self.rail_placement(rail) == layout::Placement::Drawer => {
-                stack([columns.into(), scrim(), sheet(rail, scene, &self.cast)]).into()
-            }
-            _ => columns.into(),
-        };
+        let layout_fit = layout::chat_layout(self.window_width);
+        let rail_placement = self
+            .revealed
+            .map_or(layout::Placement::Docked, |rail| self.rail_placement(rail));
 
         container(
-            column![header(&scene.adventure, fit, self.revealed), columns]
-                .spacing(14.0)
-                .width(Length::Fill)
-                .height(Length::Fill),
+            column![
+                header(&scene.adventure, layout_fit, self.revealed),
+                chat_columns(layout_fit, scene, self.revealed, &self.cast, rail_placement)
+            ]
+            .spacing(14.0)
+            .width(Length::Fill)
+            .height(Length::Fill),
         )
         .padding([18.0, 22.0])
         .width(Length::Fill)
@@ -393,6 +378,38 @@ impl<
         .style(theme::page)
         .into()
     }
+}
+
+fn chat_columns<'a>(
+    layout_fit: layout::ChatLayout,
+    scene: &'a OngoingAdventure,
+    rail: Option<layout::Rail>,
+    cast: &'a cast::State,
+    rail_placement: layout::Placement,
+) -> Element<'a, Message> {
+    let mut columns = row![]
+        .spacing(14.0)
+        .width(Length::Fill)
+        .height(Length::Fill);
+
+    if layout_fit.cast == layout::Placement::Docked {
+        columns = columns.push(cast.view(&scene.adventure).map(Message::Cast));
+    }
+
+    columns = columns.push(transcript(scene, layout_fit.act));
+
+    if layout_fit.facts == layout::Placement::Docked {
+        columns = columns.push(meta_rail(scene));
+    }
+
+    let columns: Element<'_, Message> = match rail {
+        Some(rail) if rail_placement == layout::Placement::Drawer => {
+            stack([columns.into(), scrim(), sheet(rail, scene, cast)]).into()
+        }
+        _ => columns.into(),
+    };
+
+    columns
 }
 
 fn scrim<'a>() -> Element<'a, Message> {

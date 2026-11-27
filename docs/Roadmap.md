@@ -1,16 +1,24 @@
 # Roadmap
 
-## Now
+## In flight
 
-### Migrate Slint to iced
+### Load the text engine per adventure
 
-Done at the shell level: `src/ui/main.rs` boots iced, `src/ui/app.rs` routes, pages live in
-`src/ui/pages/` and own their boot/update/view. Native async (`Task`/`Message`) and better text
-support were the deciding factors. Remaining: the pages still living only in `src/ui/slint_bkp/`.
+Today `start_text_engine` spawns `chat` and `memory` at boot. The adapter set is per adventure, so
+the chat server's lifetime should be too — not the whole app's.
 
-### In flight
-
-- [ ] ...
+- [ ] Endpoints move out of `Config` into `SharedState`: ports are searched at spawn, so the base
+      URL cannot be stamped once at boot.
+- [ ] Split the lifetimes: `chat` follows the open adventure, `memory`/distiller stays app-wide.
+- [ ] Characters carry `adapter_path`, `adapter_scale` and a base-model fingerprint (migration).
+      A missing or mismatched adapter degrades to no adapter with a warning, and never blocks
+      opening the adventure.
+- [ ] `spawn` receives the adventure's adapters (`--lora`, `--lora-init-without-apply`); narrator
+      beats post all scales to `0`.
+- [ ] Opening an adventure shows a loading state while `wait_until_ready` polls, and a switch away
+      mid-spawn abandons the pending child instead of racing it.
+- [ ] Deferred until the 60 GB box can be measured: pool keyed by (base model, adapter set), N warm,
+      evict LRU. Not before real load times are known.
 
 ## Later
 
@@ -43,6 +51,8 @@ last step, for protagonists only.
 6. QLoRA on that corpus, ship the adapter as GGUF, serve it as a derived Ollama model, score it on
    held-out scenes before it replaces the prompt. `llama-server` switches adapters server-wide
    (`/lora-adapters`) and resets the prompt cache, so route at scene granularity, never per turn.
+   Train the voice conditioned on the character sheet so live state (body, outfit, pose) stays
+   authoritative, and gate the adapter on reply-format adherence — a strong one breaks the JSON.
 
 | technology                                     | what it does                                                       |
 | ---------------------------------------------- | ------------------------------------------------------------------ |
