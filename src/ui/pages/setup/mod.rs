@@ -31,6 +31,30 @@ pub enum Message {
     Tick,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Stage {
+    Install,
+    Ready,
+}
+
+impl Stage {
+    pub const STEPS: [Stage; 2] = [Self::Install, Self::Ready];
+
+    pub fn label_when_progressing(self) -> &'static str {
+        match self {
+            Self::Install => "Installing",
+            Self::Ready => "Ready",
+        }
+    }
+
+    pub fn label_when_done(self) -> &'static str {
+        match self {
+            Self::Install => "Installed",
+            Self::Ready => "Ready",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Progress {
     InstallingDeps,
@@ -169,11 +193,11 @@ impl State {
         let body = match &self.phase {
             Phase::Installing => working(
                 "Installing the engines",
-                0,
+                Stage::Install,
                 self.progress.as_ref(),
                 self.spinner,
             ),
-            Phase::Provisioned => working("Setup complete", 2, None, self.spinner),
+            Phase::Provisioned => working("Setup complete", Stage::Ready, None, self.spinner),
             Phase::Asking | Phase::Failed(_) => question(self),
         };
 

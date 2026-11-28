@@ -1,11 +1,11 @@
-use crate::ui::pages::setup::{Message, Progress};
+use crate::ui::pages::setup::{Message, Progress, Stage};
 use crate::ui::{common, theme};
 use iced::widget::{Space, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
 pub fn working<'a>(
     title: &'a str,
-    stage: usize,
+    stage: Stage,
     progress: Option<&Progress>,
     spinner: f32,
 ) -> Element<'a, Message> {
@@ -54,26 +54,39 @@ pub fn working<'a>(
         .into()
 }
 
-/// The done stages keep a gold dot, the current one spins.
-fn trail(current: usize, spinner: f32) -> Element<'static, Message> {
-    let stages = ["Installing", "Ready"];
-
+/// Steps already reached keep a gold dot; the one being worked spins.
+fn trail(stage: Stage, spinner: f32) -> Element<'static, Message> {
     let mut line = row![].spacing(18.0).align_y(Alignment::Center);
 
-    for (index, label) in stages.iter().enumerate() {
-        let (marker, text_color) = if index < current {
-            (common::dot(6.0, theme::GOLD), theme::TEXT_LIGHT)
-        } else if index == current {
-            (spinner_widget(spinner), theme::TEXT_LIGHT)
+    for step in Stage::STEPS {
+        let (marker, label, text_color) = if step < stage {
+            (
+                common::dot(6.0, theme::GOLD),
+                step.label_when_done(),
+                theme::TEXT_LIGHT,
+            )
+        } else if step == Stage::Ready {
+            (
+                common::dot(6.0, theme::GOLD),
+                step.label_when_done(),
+                theme::TEXT_LIGHT,
+            )
+        } else if step == stage {
+            (
+                spinner_widget(spinner),
+                step.label_when_progressing(),
+                theme::TEXT_LIGHT,
+            )
         } else {
             (
                 common::dot(6.0, theme::alpha(theme::TEXT_DIM, 0.5)),
+                step.label_when_progressing(),
                 theme::TEXT_DIM,
             )
         };
 
         line = line.push(
-            row![marker, text(*label).size(11.0).color(text_color)]
+            row![marker, text(label).size(11.0).color(text_color)]
                 .spacing(6.0)
                 .align_y(Alignment::Center),
         );

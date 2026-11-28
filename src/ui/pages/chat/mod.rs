@@ -577,7 +577,7 @@ fn opening(spinner: f32) -> Element<'static, Message> {
             theme::alpha(theme::BRONZE_DIM, 0.5),
         ),
         text("Opening the story and warming its text engine.")
-            .size(12.5)
+            .size(14.5)
             .color(theme::TEXT_MUTED)
             .font(common::italic()),
     ]

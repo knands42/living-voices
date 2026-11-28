@@ -157,12 +157,11 @@ mod test {
     use crate::provision::llama::llama_server::{EngineProfile, PORT_SEARCH_LIMIT};
     use crate::provision::util;
     use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicU64, Ordering};
 
     fn scratch(name: &str) -> PathBuf {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock after the epoch")
-            .as_nanos();
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        let stamp = NEXT.fetch_add(1, Ordering::Relaxed);
 
         std::env::temp_dir().join(format!("lv-server-{name}-{}-{stamp}", std::process::id()))
     }
