@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::character::Character;
-use crate::ui::pages::chat::look::AVATAR;
+use crate::ui::pages::chat::look::CAST_AVATAR;
 use crate::ui::{common, theme};
 
 pub const CAST_LENGTH: f32 = 300.0;
@@ -40,7 +40,7 @@ impl State {
     }
 
     pub fn view<'a>(&self, adventure: &'a Adventure) -> Element<'a, Message> {
-        let mut rows = column![].spacing(4.0).width(Length::Fill);
+        let mut rows = column![].spacing(6.0).width(Length::Fill);
 
         for character in &adventure.characters {
             let selected = self.selected == Some(character.id);
@@ -52,7 +52,7 @@ impl State {
                 common::heading("Cast"),
                 scrollable(rows).height(Length::Fill),
             ]
-            .spacing(10.0)
+            .spacing(12.0)
             .height(Length::Fill),
             14.0,
         )
@@ -65,38 +65,38 @@ impl State {
 fn cast_row(character: &Character, selected: bool) -> Element<'_, Message> {
     let hue = common::name_hue(character.name.as_str());
     let initials = common::initials_of(character.name.as_str());
-    let avatar = common::initials(&initials, hue, AVATAR, 0.55);
+    let avatar = common::initials(&initials, hue, CAST_AVATAR, 0.55);
 
     let name = row![
         text(character.name.as_str())
-            .size(14)
+            .size(15.5)
             .color(theme::hsv(hue, 0.45, 0.95))
             .font(common::semibold()),
         text(character.status.as_str())
-            .size(10.7)
+            .size(11.5)
             .color(theme::TEXT_DIM),
     ]
-    .spacing(6.0)
+    .spacing(7.0)
     .align_y(Alignment::Center);
 
     let identity = column![
         name,
         text(character.headline.as_str())
-            .size(12)
+            .size(13)
             .color(theme::TEXT_MUTED)
             .width(Length::Fill)
             .wrapping(Wrapping::Word),
     ]
-    .spacing(2.0)
+    .spacing(3.0)
     .width(Length::Fill);
 
     let body = row![avatar, identity]
-        .spacing(9.0)
+        .spacing(11.0)
         .align_y(Alignment::Start);
 
     let is_player = character.is_player;
     let card = container(body)
-        .padding(9.0)
+        .padding(10.0)
         .width(Length::Fill)
         .style(move |theme| {
             if is_player && !selected {

@@ -170,6 +170,15 @@ pub async fn upsert_act(conn: &mut SqliteConnection, act: &Act) -> Result<Act, P
     Act::try_from(row)
 }
 
+pub async fn delete_act(conn: &mut SqliteConnection, act_id: Uuid) -> Result<(), PersistenceError> {
+    sqlx::query("DELETE FROM act WHERE id = ?1")
+        .bind(act_id.to_string())
+        .execute(conn)
+        .await?;
+
+    Ok(())
+}
+
 pub async fn insert_default_act(
     conn: &mut SqliteConnection,
     id: Uuid,
@@ -187,7 +196,7 @@ pub async fn insert_default_act(
     .bind(ordinal)
     .bind(goal)
     .bind(status.to_string())
-    .fetch_one(&mut *conn)
+    .fetch_one(conn)
     .await?;
 
     Act::try_from(row)
@@ -214,7 +223,7 @@ pub async fn close_act(
     .bind(digest)
     .bind(status)
     .bind(to_seq)
-    .execute(&mut *conn)
+    .execute(conn)
     .await?;
 
     Ok(())

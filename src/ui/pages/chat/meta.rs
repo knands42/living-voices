@@ -20,14 +20,14 @@ pub fn meta_rail(chat_state: &OngoingAdventure) -> Element<'_, Message> {
     let threads = scene.open_threads.clone();
 
     let mut notes = column![common::heading("What's going on")]
-        .spacing(12.0)
+        .spacing(14.0)
         .width(Length::Fill);
 
     notes = notes.push(note_card("Conditions", conditions));
     notes = notes.push(note_card("Open threads", threads));
 
     if !chat_state.facts.is_empty() {
-        let mut facts = column![common::subheading("Facts")].spacing(6.0);
+        let mut facts = column![common::subheading("Facts")].spacing(8.0);
 
         for fact in &chat_state.facts {
             facts = facts.push(fact_row(fact));
@@ -40,7 +40,7 @@ pub fn meta_rail(chat_state: &OngoingAdventure) -> Element<'_, Message> {
         scrollable(notes).height(Length::Fill),
         time_and_place(scene)
     ]
-    .spacing(12.0)
+    .spacing(14.0)
     .width(Length::Fill);
 
     common::panel(rail, 14.0)
@@ -52,22 +52,22 @@ pub fn meta_rail(chat_state: &OngoingAdventure) -> Element<'_, Message> {
 fn time_and_place(scene_state: &SceneState) -> Element<'_, Message> {
     let card = column![
         text(scene_state.place.as_str())
-            .size(13.9)
+            .size(15.5)
             .color(theme::TEXT_LIGHT)
             .wrapping(Wrapping::Word),
         text(scene_state.day.as_str())
-            .size(12.8)
+            .size(13.0)
             .color(theme::TEXT_MUTED)
             .width(Length::Fill)
             .wrapping(Wrapping::Word),
-        Space::new().height(Length::Fixed(2.0)),
-        Space::new().height(Length::Fixed(2.0)),
+        Space::new().height(Length::Fixed(3.0)),
+        Space::new().height(Length::Fixed(3.0)),
     ]
-    .spacing(4.0)
+    .spacing(6.0)
     .width(Length::Fill);
 
     container(card)
-        .padding([8.0, 10.0])
+        .padding([11.0, 13.0])
         .width(Length::Fill)
         .style(theme::inset)
         .into()
@@ -78,12 +78,12 @@ fn note_card(title: &str, items: Vec<String>) -> Element<'_, Message> {
         return Space::new().into();
     }
 
-    let mut rows = column![].spacing(3.0);
+    let mut rows = column![].spacing(4.0);
 
     for item in items {
         rows = rows.push(
             text(format!("· {item}"))
-                .size(12.8)
+                .size(13.5)
                 .color(theme::TEXT_MUTED)
                 .width(Length::Fill)
                 .wrapping(Wrapping::Word),
@@ -91,29 +91,29 @@ fn note_card(title: &str, items: Vec<String>) -> Element<'_, Message> {
     }
 
     let card = container(rows)
-        .padding([6.0, 8.0])
+        .padding([8.0, 10.0])
         .width(Length::Fill)
         .style(theme::inset);
 
-    column![common::subheading(title), card].spacing(6.0).into()
+    column![common::subheading(title), card].spacing(8.0).into()
 }
 
 fn fact_row(fact: &Fact) -> Element<'_, Message> {
     container(
         column![
             text(fact.subject.as_str())
-                .size(12.8)
+                .size(13.5)
                 .color(theme::BRONZE)
                 .font(common::semibold()),
             text(fact.fact.as_str())
-                .size(12.8)
+                .size(13.5)
                 .color(theme::TEXT_MUTED)
                 .width(Length::Fill)
                 .wrapping(Wrapping::Word),
         ]
-        .spacing(2.0),
+        .spacing(3.0),
     )
-    .padding([6.0, 8.0])
+    .padding([8.0, 10.0])
     .width(Length::Fill)
     .style(theme::inset)
     .into()

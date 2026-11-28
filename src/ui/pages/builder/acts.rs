@@ -13,9 +13,11 @@ pub enum Message {
     AddRequested,
     Picked(usize),
     GoalChanged(String),
+    RemoveAct(usize),
     TriggerChanged(String),
     SaveRequested,
     Saved(Result<Act, String>),
+    Removed(Result<(), String>),
 }
 
 pub struct State {
@@ -37,6 +39,11 @@ impl State {
             }
             Message::Picked(index) => self.index = Some(index),
             Message::GoalChanged(goal) => self.edit_open(|act| act.goal = goal),
+            Message::RemoveAct(index) => {
+                if let Some(act_id) = self.take_act(index) {
+                    return Some(Effect::RemoveAct(act_id));
+                }
+            }
             Message::TriggerChanged(trigger) => self.edit_open(|act| {
                 act.trigger = (!trigger.trim().is_empty()).then_some(trigger);
             }),
@@ -48,6 +55,8 @@ impl State {
                 self.index = None;
             }
             Message::Saved(Err(err)) => log::error!("could not save the act: {err}"),
+            Message::Removed(Ok(())) => {}
+            Message::Removed(Err(err)) => log::error!("could not remove the act: {err}"),
         }
 
         None
@@ -102,6 +111,22 @@ impl State {
         self.index.and_then(|index| self.acts.get(index))
     }
 
+    fn take_act(&mut self, index: usize) -> Option<Uuid> {
+        if index >= self.acts.len() {
+            return None;
+        }
+
+        let removed = self.acts.remove(index);
+
+        self.index = match self.index {
+            Some(selected) if selected == index => None,
+            Some(selected) if selected > index => Some(selected - 1),
+            other => other,
+        };
+
+        Some(removed.id)
+    }
+
     fn edit_open(&mut self, change: impl FnOnce(&mut Act)) {
         if let Some(act) = self.index.and_then(|index| self.acts.get_mut(index)) {
             change(act);
@@ -117,7 +142,7 @@ fn act_row(index: usize, act: &Act, editing: bool) -> Element<'_, Message> {
     };
 
     let content: Element<'_, Message> = if editing {
-        fields(act)
+        fields(index, act)
     } else {
         button(read(act))
             .padding(0.0)
@@ -137,7 +162,7 @@ fn act_row(index: usize, act: &Act, editing: bool) -> Element<'_, Message> {
     )
 }
 
-fn fields(act: &Act) -> Element<'_, Message> {
+fn fields(index: usize, act: &Act) -> Element<'_, Message> {
     let goal = if act.is_valid_act() {
         act.goal.as_str()
     } else {
@@ -151,12 +176,20 @@ fn fields(act: &Act) -> Element<'_, Message> {
             "Trigger, or nothing to follow on",
             Message::TriggerChanged
         ),
-        pill(
-            "Save act",
-            110.0,
-            act.is_valid_act(),
-            Message::SaveRequested
-        ),
+        row![
+            pill(
+                "Save act",
+                110.0,
+                act.is_valid_act(),
+                Message::SaveRequested
+            ),
+            button(text("Remove").size(12.5).font(common::semibold()))
+                .padding([8.0, 16.0])
+                .style(theme::back_button)
+                .on_press(Message::RemoveAct(index)),
+        ]
+        .spacing(8.0)
+        .align_y(Alignment::Center),
     ]
     .spacing(8.0)
     .width(Length::Fill)

@@ -11,8 +11,8 @@ use crate::ui::{common, theme};
 
 const BUBBLE_LENGTH: f32 = 460.0;
 const NARRATOR_LENGTH: f32 = 560.0;
-const SPEECH_SIZE: f32 = 13.0;
-const NARRATOR_SIZE: f32 = 12.5;
+const SPEECH_SIZE: f32 = 13.8;
+const NARRATOR_SIZE: f32 = 13.2;
 
 pub fn transcript(chat_state: &OngoingAdventure, show_act: bool) -> Element<'_, Message> {
     let mut lines = column![].spacing(16.0).width(Length::Fill);
@@ -102,7 +102,7 @@ fn speech<'a>(chat_state: &'a OngoingAdventure, message: &'a MessageLine) -> Ele
 
     let mut heading = row![
         text(speaker_name)
-            .size(13.5)
+            .size(14.5)
             .color(theme::hsv(hue, 0.45, 0.95))
             .font(common::semibold()),
         text(message.created_at.format("%H:%M").to_string())
@@ -124,7 +124,7 @@ fn speech<'a>(chat_state: &'a OngoingAdventure, message: &'a MessageLine) -> Ele
     let words = rich::<Message>(message.text.as_str(), &Look::bubble(SPEECH_SIZE));
 
     let bubble = container(words)
-        .padding([9.0, 13.0])
+        .padding([10.0, 14.0])
         .max_width(BUBBLE_LENGTH)
         .style(move |_theme| theme::bubble(hue, is_player, 1.0));
 

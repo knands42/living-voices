@@ -66,6 +66,7 @@ pub enum Message {
 pub(crate) enum Effect {
     AddCharacter,
     RemoveCharacter(Uuid),
+    RemoveAct(Uuid),
     SaveStory,
     SaveCharacter(Uuid),
     SaveAct,
@@ -291,6 +292,7 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
         match effect {
             Effect::AddCharacter => self.add_character(),
             Effect::RemoveCharacter(character_id) => self.remove_character(character_id),
+            Effect::RemoveAct(act_id) => self.remove_act(act_id),
             Effect::SaveStory => self.save_story(),
             Effect::SaveCharacter(character_id) => self.save_character(character_id),
             Effect::SaveAct => self.save_act(),
@@ -450,6 +452,22 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
                 Message::Acts(acts::Message::Saved(resolved(
                     result,
                     "saving the act failed",
+                )))
+            },
+        )
+    }
+
+    fn remove_act(&self, act_id: Uuid) -> Task<Message> {
+        let adventure_manager = self.adventure_manager.clone();
+        Task::perform(
+            on_tokio(self.handle.clone(), async move {
+                adventure_manager.delete_act(act_id).await?;
+                Ok::<_, AdventureManagerError>(())
+            }),
+            |result| {
+                Message::Acts(acts::Message::Removed(resolved(
+                    result,
+                    "removing the act failed",
                 )))
             },
         )

@@ -3,7 +3,7 @@ use crate::backend::domain::character::Character;
 use crate::backend::domain::memory::{Act, ActStatus, Fact, State};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::act_persistence::{
-    activate_first_act, get_active_act, get_acts, insert_default_act, upsert_act,
+    activate_first_act, delete_act, get_active_act, get_acts, insert_default_act, upsert_act,
 };
 use crate::backend::persistence::adventure_persistence::{
     get_adventure_summaries, get_ongoing_adventures, update_adventure, update_adventure_status,
@@ -190,6 +190,14 @@ impl AdventureManager {
             let mut guard = self.state.write()?;
             guard.current_act = Some(upserted_act.clone());
         }
+
+        Ok(())
+    }
+
+    pub async fn delete_act(&self, act_id: Uuid) -> Result<(), AdventureManagerError> {
+        let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
+
+        delete_act(&mut conn, act_id).await?;
 
         Ok(())
     }

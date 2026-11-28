@@ -41,7 +41,7 @@ pub fn name_hue(name: &str) -> f32 {
 /// A panel title, e.g. "Cast".
 pub fn heading<Message: 'static>(label: &str) -> Element<'_, Message> {
     text(label)
-        .size(15.5)
+        .size(17.0)
         .color(theme::GOLD)
         .font(semibold())
         .into()
@@ -50,7 +50,7 @@ pub fn heading<Message: 'static>(label: &str) -> Element<'_, Message> {
 /// A section title inside a panel, e.g. "Conditions".
 pub fn subheading<Message: 'static>(label: &str) -> Element<'_, Message> {
     text(label)
-        .size(12.0)
+        .size(13.0)
         .color(theme::AMBER)
         .font(semibold())
         .into()
