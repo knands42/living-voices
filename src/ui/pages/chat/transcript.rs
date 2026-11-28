@@ -1,4 +1,4 @@
-use iced::widget::{Space, column, container, row, scrollable, text};
+use iced::widget::{Space, button, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
 
 use crate::backend::domain::message::Message as MessageLine;
@@ -39,10 +39,37 @@ pub fn transcript(chat_state: &OngoingAdventure, show_act: bool) -> Element<'_, 
         thread = thread.push(top(chat_state));
     }
 
-    common::panel(thread.push(history).push(composer(chat_state)), 16.0)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+    common::panel(
+        thread
+            .push(history)
+            .push(retry_prompt(chat_state))
+            .push(composer(chat_state)),
+        16.0,
+    )
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
+}
+
+fn retry_prompt(chat_state: &OngoingAdventure) -> Element<'_, Message> {
+    if chat_state.reply_error.is_none() || chat_state.awaiting_reply {
+        return Space::new().into();
+    }
+
+    row![
+        text("The reply did not arrive.")
+            .size(11.5)
+            .color(theme::TEXT_DIM)
+            .font(common::italic()),
+        Space::new().width(Length::Fill),
+        button(text("Ask again").size(11.5).font(common::semibold()))
+            .padding([6.0, 12.0])
+            .style(theme::back_button)
+            .on_press(Message::RequestNewMessage),
+    ]
+    .spacing(10.0)
+    .align_y(Alignment::Center)
+    .into()
 }
 
 fn blank_page() -> Element<'static, Message> {

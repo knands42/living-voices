@@ -7,6 +7,7 @@ mod meta;
 mod top;
 mod transcript;
 
+use std::future::Future;
 use std::sync::Arc;
 
 use iced::futures::SinkExt;
@@ -18,7 +19,9 @@ use uuid::Uuid;
 use crate::backend::application::adventure_manager::{
     AdventureManager, AdventureManagerError, MemorySnapshot,
 };
-use crate::backend::application::managers::message::message_manager::MessageManager;
+use crate::backend::application::managers::message::message_manager::{
+    MessageManager, MessageManagerError,
+};
 use crate::backend::application::port::chat_port::{ChatPort, NarratorPort};
 use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
 use crate::backend::domain::adventure::Adventure;
@@ -56,6 +59,7 @@ pub enum Message {
         messages: Vec<MessageLine>,
         snapshot: MemorySnapshot,
     },
+    RequestNewMessage,
 }
 
 #[derive(Debug, Clone)]
@@ -85,6 +89,7 @@ pub struct OngoingAdventure {
     pub messages: Vec<MessageLine>,
     pub input_message: String,
     pub awaiting_reply: bool,
+    pub reply_error: Option<String>,
 }
 
 impl OngoingAdventure {
@@ -103,6 +108,7 @@ impl OngoingAdventure {
             messages,
             input_message: String::new(),
             awaiting_reply: false,
+            reply_error: None,
         }
     }
 
@@ -123,6 +129,7 @@ impl OngoingAdventure {
             .find(|cast| cast.is_player)?;
         let line = MessageLine::new(self.adventure.id, Some(player.id), None, text, false);
 
+        self.reply_error = None;
         self.messages.push(line.clone());
         self.input_message.clear();
         self.awaiting_reply = true;
@@ -266,17 +273,40 @@ impl<
             return Task::none();
         };
 
-        let adventure_id = line.adventure_id;
         let message_manager = self.message_manager.clone();
+        self.run_turn(line.adventure_id, async move {
+            message_manager.send_message(line).await
+        })
+    }
+
+    fn request_new_message(&mut self) -> Task<Message> {
+        let Some(scene) = self.scene.as_mut() else {
+            return Task::none();
+        };
+        if scene.awaiting_reply {
+            return Task::none();
+        }
+
+        scene.reply_error = None;
+        scene.awaiting_reply = true;
+
+        let adventure_id = scene.adventure_id();
+        let message_manager = self.message_manager.clone();
+        self.run_turn(adventure_id, async move {
+            message_manager.request_new_message().await
+        })
+    }
+
+    fn run_turn(
+        &self,
+        adventure_id: Uuid,
+        turn: impl Future<Output = Result<MessageLine, MessageManagerError>> + Send + 'static,
+    ) -> Task<Message> {
         let adventure_manager = self.adventure_manager.clone();
 
         Task::perform(
             on_tokio(self.handle.clone(), async move {
-                let sent = message_manager
-                    .send_message(line)
-                    .await
-                    .map(|_| ())
-                    .map_err(|err| err.to_string());
+                let sent = turn.await.map(|_| ()).map_err(|err| err.to_string());
                 let messages = adventure_manager
                     .get_messages(adventure_id, HISTORY_LIMIT)
                     .await
@@ -326,6 +356,7 @@ impl<
                 }
             }
             Message::Send => return (self.send(), Event::None),
+            Message::RequestNewMessage => return (self.request_new_message(), Event::None),
             Message::Cast(message) => {
                 if let Some(effect) = self.cast.update(message) {
                     return (self.perform(effect), Event::None);
@@ -348,11 +379,12 @@ impl<
                 if scene.adventure_id() != adventure_id {
                     return (Task::none(), Event::None);
                 }
-                if let Err(err) = sent {
-                    log::error!("could not complete the turn: {err}");
+                if let Err(err) = &sent {
+                    log::warn!("could not complete the turn: {err}");
                 }
                 scene.messages = messages;
                 scene.awaiting_reply = false;
+                scene.reply_error = sent.err();
                 scene.apply_snapshot(snapshot);
             }
             Message::Opened { token, result } => {
