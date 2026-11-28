@@ -2,23 +2,7 @@
 
 ## In flight
 
-### Load the text engine per adventure
-
-Today `start_text_engine` spawns `chat` and `memory` at boot. The adapter set is per adventure, so
-the chat server's lifetime should be too — not the whole app's.
-
-- [ ] Endpoints move out of `Config` into `SharedState`: ports are searched at spawn, so the base
-      URL cannot be stamped once at boot.
-- [ ] Split the lifetimes: `chat` follows the open adventure, `memory`/distiller stays app-wide.
-- [ ] Characters carry `adapter_path`, `adapter_scale` and a base-model fingerprint (migration).
-      A missing or mismatched adapter degrades to no adapter with a warning, and never blocks
-      opening the adventure.
-- [ ] `spawn` receives the adventure's adapters (`--lora`, `--lora-init-without-apply`); narrator
-      beats post all scales to `0`.
-- [ ] Opening an adventure shows a loading state while `wait_until_ready` polls, and a switch away
-      mid-spawn abandons the pending child instead of racing it.
-- [ ] Deferred until the 60 GB box can be measured: pool keyed by (base model, adapter set), N warm,
-      evict LRU. Not before real load times are known.
+- [ ]
 
 ## Later
 

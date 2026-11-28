@@ -75,11 +75,11 @@ and every holder sees them; an adventure supplies only its adapter parameters.
       endpoint in `client()`. (S8, S9, S10)
 - [x] T1c — Thread `ConfigHandle` through `app.rs`, `main.rs`, `ui/main.rs`, `ui/app.rs`,
       `ui/pages/mod.rs`, `ui/pages/setup/mod.rs` and `RunningEngines::stamp`. (S10)
-- [ ] T2 — `start_engines` takes the handle plus the adventure's adapter parameters and writes the
+- [x] T2 — `start_engines` takes the handle plus the adventure's adapter parameters and writes the
       spawned URLs into it. (S1, S10)
-- [ ] T3 — Split boot: `provision_text_engine` (downloads) and ComfyUI stay in setup; the chat spawn
+- [x] T3 — Split boot: `provision_text_engine` (downloads) and ComfyUI stay in setup; the chat spawn
       leaves it. (S3, S4)
-- [ ] T4 — The chat engine spawns when an adventure opens, in `Task::perform`, with a loading state
+- [x] T4 — The chat engine spawns when an adventure opens, in `Task::perform`, with a loading state
       and abandonment of a pending spawn on switch. (S2)
 - [ ] T5 — Adapter columns + migration on characters, with base-model fingerprint and soft failure.
       (S5)
@@ -111,3 +111,11 @@ and every holder sees them; an adventure supplies only its adapter parameters.
 - L9 — OPEN: `MemoryHandler` derives `Deserialize` with `#[serde(skip)]` on its config field, so
       `ConfigHandle: Default` had to be implemented. It fabricates a code-default config that is
       never used for I/O. The real fix is separating the deserialize target from the handler.
+- L10 — T2/T3/T4 shipped. `start_engines(config, loras)` stamps the handle. The chat page spawns
+      `start_chat_engine(&adventure.loras)` inside its `open` task and keeps the child in page state;
+      a bumped token discards a late result, dropping it kills the child. Memory spawns once on the
+      first chat open and lives in `App`. Spawned URLs go through `set_chat_endpoint` /
+      `set_memory_endpoint`, which do not persist, and are published only when the result is adopted.
+- L11 — OPEN: leaving chat kills the engine but the live config keeps its port, so a failed respawn
+      falls back to a dead port instead of Ollama. Ends when endpoints leave `Config` for
+      `SharedState` (the roadmap's first unchecked item).

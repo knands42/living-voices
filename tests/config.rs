@@ -160,3 +160,31 @@ fn a_published_endpoint_reaches_every_holder() {
     assert_eq!(chat_handler.memory().base_url, "http://127.0.0.1:11436/v1");
     assert_eq!(narrator.chat().base_url, "http://127.0.0.1:11435/v1");
 }
+
+#[test]
+fn a_spawned_endpoint_is_published_without_touching_the_file() {
+    // given a handle backed by a config file, and a holder taken before the spawn
+    let dir = std::env::temp_dir().join(format!("lv_config_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).expect("create dir");
+    let mut config = blank_config();
+    config.config_dir = dir.clone();
+    config.config_file = dir.join("config.toml");
+    std::fs::write(&config.config_file, "").expect("write");
+    let handle = ConfigHandle::new(config);
+    let holder = handle.clone();
+
+    // when a spawned server publishes the ports it bound
+    handle.set_chat_endpoint("http://127.0.0.1:11437/");
+    handle.set_memory_endpoint("http://127.0.0.1:11438/");
+
+    // then every holder sees them, and the file keeps the fallback: the port is
+    // searched again on the next launch, so persisting it would point at a dead one
+    assert_eq!(holder.chat().base_url, "http://127.0.0.1:11437/v1");
+    assert_eq!(holder.memory().base_url, "http://127.0.0.1:11438/v1");
+    assert_eq!(
+        std::fs::read_to_string(&handle.config_file()).expect("read"),
+        ""
+    );
+
+    std::fs::remove_dir_all(&dir).ok();
+}

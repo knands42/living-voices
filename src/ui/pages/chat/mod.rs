@@ -7,6 +7,8 @@ mod meta;
 mod top;
 mod transcript;
 
+use std::sync::Arc;
+
 use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack, text};
 use iced::{Background, Element, Length, Task};
 use uuid::Uuid;
@@ -20,6 +22,9 @@ use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistil
 use crate::backend::domain::adventure::Adventure;
 use crate::backend::domain::memory::{Act, Fact, State as SceneState};
 use crate::backend::domain::message::Message as MessageLine;
+use crate::config::ConfigHandle;
+use crate::provision::llama::llama_server::LlamaServer;
+use crate::provision::{configure_chat_engine, start_chat_engine};
 use crate::ui::common;
 use crate::ui::pages::chat::header::header;
 use crate::ui::pages::chat::meta::meta_rail;
@@ -38,7 +43,10 @@ pub enum Message {
     Cast(cast::Message),
     RevealToggled(layout::Rail),
     RevealClosed,
-    Opened(Result<Opened, String>),
+    Opened {
+        token: u64,
+        result: Result<Opened, String>,
+    },
     Replied {
         adventure_id: Uuid,
         sent: Result<(), String>,
@@ -51,6 +59,7 @@ pub enum Message {
 pub struct Opened {
     snapshot: MemorySnapshot,
     messages: Vec<MessageLine>,
+    engine: Option<Arc<LlamaServer>>,
 }
 
 impl Opened {
@@ -141,8 +150,12 @@ pub struct State<
     handle: tokio::runtime::Handle,
     adventure_manager: AdventureManager,
     message_manager: MessageManager<C, N, M, A>,
+    config: ConfigHandle,
     cast: cast::State,
     scene: Option<OngoingAdventure>,
+    // Dropping the engine kills the process, so it lives as long as the open adventure.
+    _engine: Option<Arc<LlamaServer>>,
+    open_token: u64,
     window_width: f32,
     toggle_revealed: Option<layout::Rail>,
 }
@@ -157,6 +170,7 @@ impl<
     pub fn boot(
         adventure_manager: AdventureManager,
         message_manager: MessageManager<C, N, M, A>,
+        config: ConfigHandle,
         handle: tokio::runtime::Handle,
     ) -> (Self, Task<Message>) {
         (
@@ -164,8 +178,11 @@ impl<
                 handle,
                 adventure_manager,
                 message_manager,
+                config,
                 cast: cast::State::default(),
                 scene: None,
+                _engine: None,
+                open_token: 0,
                 window_width: layout::DEFAULT_WINDOW.width,
                 toggle_revealed: None,
             },
@@ -187,9 +204,12 @@ impl<
     }
 
     pub fn open(&mut self, adventure_id: Uuid) -> Task<Message> {
+        self.open_token += 1;
+        let token = self.open_token;
         self.scene = None;
         self.cast = cast::State::default();
         self.toggle_revealed = None;
+        self._engine = None;
 
         let adventure_manager = self.adventure_manager.clone();
         Task::perform(
@@ -199,15 +219,28 @@ impl<
                 let messages = adventure_manager
                     .get_messages(adventure_id, HISTORY_LIMIT)
                     .await?;
+                let engine = match snapshot.current_adventure.as_ref() {
+                    Some(adventure) => start_chat_engine(&adventure.loras)
+                        .await
+                        .inspect_err(|err| log::warn!("chat engine unavailable: {err}"))
+                        .ok()
+                        .map(Arc::new),
+                    None => None,
+                };
 
-                Ok::<_, AdventureManagerError>(Opened { snapshot, messages })
+                Ok::<_, AdventureManagerError>(Opened {
+                    snapshot,
+                    messages,
+                    engine,
+                })
             }),
-            |result| {
-                Message::Opened(match result {
+            move |result| Message::Opened {
+                token,
+                result: match result {
                     Some(Ok(opened)) => Ok(opened),
                     Some(Err(err)) => Err(err.to_string()),
                     None => Err("opening the adventure failed".to_string()),
-                })
+                },
             },
         )
     }
@@ -270,7 +303,11 @@ impl<
 
     pub fn update(&mut self, message: Message) -> (Task<Message>, Event) {
         match message {
-            Message::BackRequested => return (Task::none(), Event::Show(Page::MainHub)),
+            Message::BackRequested => {
+                self.open_token += 1;
+                self._engine = None;
+                return (Task::none(), Event::Show(Page::MainHub));
+            }
             Message::InputMessageChanged(value) => {
                 if let Some(scene) = self.scene.as_mut() {
                     scene.input_message = value;
@@ -305,34 +342,52 @@ impl<
                 scene.awaiting_reply = false;
                 scene.apply_snapshot(snapshot);
             }
-            Message::Opened(Ok(opened)) => match opened.into_scene() {
-                Some(scene) => {
-                    let companion = {
-                        let mut companions = scene
-                            .adventure
-                            .characters
-                            .iter()
-                            .filter(|character| !character.is_player);
-                        match (companions.next(), companions.next()) {
-                            (Some(companion), None) => Some(companion.id),
-                            _ => None,
-                        }
-                    };
-
-                    let task = match companion {
-                        Some(character_id) => self
-                            .cast
-                            .update(cast::Message::Picked(character_id))
-                            .map_or_else(Task::none, |effect| self.perform(effect)),
-                        None => Task::none(),
-                    };
-
-                    self.scene = Some(scene);
-                    return (task, Event::None);
+            Message::Opened { token, result } => {
+                if token != self.open_token {
+                    return (Task::none(), Event::None);
                 }
-                None => log::error!("the adventure opened without an act or scene state"),
-            },
-            Message::Opened(Err(err)) => log::error!("could not open adventure: {err}"),
+
+                let mut opened = match result {
+                    Ok(opened) => opened,
+                    Err(err) => {
+                        log::error!("could not open adventure: {err}");
+                        return (Task::none(), Event::None);
+                    }
+                };
+                let engine = opened.engine.take();
+
+                match opened.into_scene() {
+                    Some(scene) => {
+                        let companion = {
+                            let mut companions = scene
+                                .adventure
+                                .characters
+                                .iter()
+                                .filter(|character| !character.is_player);
+                            match (companions.next(), companions.next()) {
+                                (Some(companion), None) => Some(companion.id),
+                                _ => None,
+                            }
+                        };
+
+                        let task = match companion {
+                            Some(character_id) => self
+                                .cast
+                                .update(cast::Message::Picked(character_id))
+                                .map_or_else(Task::none, |effect| self.perform(effect)),
+                            None => Task::none(),
+                        };
+
+                        self._engine = engine.map(|engine| {
+                            configure_chat_engine(&self.config, &engine);
+                            engine
+                        });
+                        self.scene = Some(scene);
+                        return (task, Event::None);
+                    }
+                    None => log::error!("the adventure opened without an act or scene state"),
+                }
+            }
         }
 
         (Task::none(), Event::None)
@@ -439,7 +494,7 @@ fn opening() -> Element<'static, Message> {
                 .padding([7.0, 13.0])
                 .style(theme::back_button)
                 .on_press(Message::BackRequested),
-            text("The story is opening.")
+            text("Opening the story and warming its text engine.")
                 .size(12.5)
                 .color(theme::TEXT_MUTED)
                 .font(common::italic()),

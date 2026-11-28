@@ -1,2 +1,0 @@
-ALTER TABLE adventure
-    ADD COLUMN loras TEXT NOT NULL DEFAULT '[]';

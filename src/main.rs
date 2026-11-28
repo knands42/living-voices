@@ -91,11 +91,10 @@ async fn run_cli(app: &App, config: ConfigHandle) -> Result<(), StartupError> {
     )
     .await
     .map_err(StartupError::StartEngines)?;
-    let engines = start_engines(&settings)
+    let _engines = start_engines(&config, &[])
         .await
         .map_err(StartupError::StartEngines)?;
 
-    engines.stamp(&config);
     let ctx = app.context_for(config).map_err(StartupError::Compose)?;
     tokio::task::block_in_place(|| cli::run(&ctx)).map_err(StartupError::Cli)
 }

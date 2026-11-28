@@ -8,7 +8,8 @@ mod util;
 
 pub use comfy::ComfyEvent;
 pub use entrypoint::{
-    RunningEngines, default_media_progress_logger, default_text_progress_logger, start_engines,
+    RunningEngines, configure_chat_engine, configure_memory_engine, default_media_progress_logger,
+    default_text_progress_logger, start_chat_engine, start_engines, start_memory_engine,
     start_provisioning,
 };
 pub use system_check::{Gpu, MediaRecommendation};

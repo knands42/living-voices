@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use iced::{Element, Event as InputEvent, Size, Task, keyboard, mouse, window};
 
 use crate::app::AppContext;
@@ -5,9 +7,11 @@ use crate::backend::application::port::chat_port::{ChatPort, NarratorPort, Promp
 use crate::backend::application::port::image_port::ImagePort;
 use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
 use crate::config::ConfigHandle;
-use crate::provision::Gpu;
+use crate::provision::llama::llama_server::LlamaServer;
+use crate::provision::{Gpu, configure_memory_engine, start_memory_engine};
 use crate::ui::layout;
 use crate::ui::pages::{Event, Page, builder, chat, main_hub, setup};
+use crate::ui::task::on_tokio;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -15,6 +19,7 @@ pub enum Message {
     Builder(builder::Message),
     Chat(chat::Message),
     Setup(setup::Message),
+    MemoryEngine(Option<Result<Arc<LlamaServer>, String>>),
     WindowResized(Size),
     ModifiersChanged(keyboard::Modifiers),
     Wheel(mouse::ScrollDelta),
@@ -33,6 +38,10 @@ pub struct App<
     builder: builder::State<P, I>,
     chat: chat::State<C, N, M, A>,
     setup: setup::State,
+    config: ConfigHandle,
+    handle: tokio::runtime::Handle,
+    memory_engine: Option<Arc<LlamaServer>>,
+    memory_starting: bool,
     auto_scale: f32,
     zoom: f32,
     window_width: f32,
@@ -59,6 +68,7 @@ impl<
         let (chat, _chat_task) = chat::State::boot(
             ctx.adventure_manager.clone(),
             ctx.message_manager.clone(),
+            config.clone(),
             handle.clone(),
         );
         let (main_hub, hub_task) =
@@ -68,7 +78,7 @@ impl<
             ctx.character_manager.clone(),
             handle.clone(),
         );
-        let (setup, setup_task) = setup::State::boot(config, gpu, handle.clone());
+        let (setup, setup_task) = setup::State::boot(config.clone(), gpu, handle.clone());
 
         let page = if open_setup || setup.needs_answer() {
             Page::Setup
@@ -82,6 +92,10 @@ impl<
             builder,
             chat,
             setup,
+            config,
+            handle,
+            memory_engine: None,
+            memory_starting: false,
             auto_scale: 1.0,
             zoom: 1.0,
             window_width: layout::DEFAULT_WINDOW.width,
@@ -117,6 +131,18 @@ impl<
             Message::Setup(message) => {
                 let outcome = self.setup.update(message);
                 self.route(outcome, Message::Setup)
+            }
+            Message::MemoryEngine(outcome) => {
+                self.memory_starting = false;
+                match outcome {
+                    Some(Ok(engine)) => {
+                        configure_memory_engine(&self.config, &engine);
+                        self.memory_engine = Some(engine);
+                    }
+                    Some(Err(err)) => log::warn!("memory engine unavailable: {err}"),
+                    None => log::warn!("the memory engine task was cancelled"),
+                }
+                Task::none()
             }
             Message::WindowResized(size) => {
                 self.resized(size);
@@ -191,9 +217,26 @@ impl<
             }
             Event::OpenChat(adventure_id) => {
                 self.page = Page::Chat;
-                self.chat.open(adventure_id).map(Message::Chat)
+                Task::batch([
+                    self.chat.open(adventure_id).map(Message::Chat),
+                    self.ensure_memory_engine(),
+                ])
             }
         }
+    }
+
+    fn ensure_memory_engine(&mut self) -> Task<Message> {
+        if self.memory_engine.is_some() || self.memory_starting {
+            return Task::none();
+        }
+
+        self.memory_starting = true;
+        Task::perform(
+            on_tokio(self.handle.clone(), async move {
+                start_memory_engine().await.map(Arc::new)
+            }),
+            Message::MemoryEngine,
+        )
     }
 
     fn show(&mut self, page: Page) -> Task<Message> {

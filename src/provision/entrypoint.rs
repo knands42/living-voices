@@ -2,7 +2,8 @@ use super::comfy::layout::{comfy_bundle, comfy_dir, comfy_main};
 use super::llama::layout::{
     MEMORY_MODEL_ALIAS, MEMORY_MODEL_FILE, MODEL_ALIAS, TEXT_MODEL_FILE, llama_models_dir,
 };
-use crate::config::Settings;
+use crate::backend::domain::lora::Lora;
+use crate::config::{ConfigHandle, Settings};
 use crate::provision::comfy::comfy_server::ComfyServer;
 use crate::provision::comfy::setup;
 use crate::provision::llama::llama_server::{CHAT_PORT, EngineProfile, LlamaServer, MEMORY_PORT};
@@ -144,25 +145,54 @@ where
     Ok(())
 }
 
-async fn start_text_engine() -> Result<TextEngine, String> {
-    let chat_model = llama_models_dir().join(TEXT_MODEL_FILE);
-    let memory_model = llama_models_dir().join(MEMORY_MODEL_FILE);
+async fn start_text_engine(loras: &[Lora]) -> Result<TextEngine, String> {
+    let chat = start_chat_engine(loras).await?;
+    let memory = start_memory_engine().await?;
 
-    let chat = LlamaServer::spawn(&chat_model, MODEL_ALIAS, CHAT_PORT, &EngineProfile::chat())?;
+    Ok(TextEngine { chat, memory })
+}
+
+/// The engine that follows the open adventure, so its adapter set can change with it.
+pub async fn start_chat_engine(loras: &[Lora]) -> Result<LlamaServer, String> {
+    let chat_model = llama_models_dir().join(TEXT_MODEL_FILE);
+    let chat = LlamaServer::spawn(
+        &chat_model,
+        MODEL_ALIAS,
+        CHAT_PORT,
+        &EngineProfile::chat(),
+        loras,
+    )?;
+
+    chat.wait_until_ready().await?;
+    log::info!("chat engine answering on {}", chat.base_url());
+
+    Ok(chat)
+}
+
+/// The distiller is app-wide, so it is spawned once and outlives every adventure.
+pub async fn start_memory_engine() -> Result<LlamaServer, String> {
+    let memory_model = llama_models_dir().join(MEMORY_MODEL_FILE);
     let memory = LlamaServer::spawn(
         &memory_model,
         MEMORY_MODEL_ALIAS,
         MEMORY_PORT,
         &EngineProfile::memory(),
+        &[],
     )?;
 
-    chat.wait_until_ready().await?;
     memory.wait_until_ready().await?;
-
-    log::info!("chat engine answering on {}", chat.base_url());
     log::info!("memory engine answering on {}", memory.base_url());
 
-    Ok(TextEngine { chat, memory })
+    Ok(memory)
+}
+
+/// Publish only a server the caller keeps alive: a discarded child must not leave its port behind.
+pub fn configure_chat_engine(config: &ConfigHandle, chat: &LlamaServer) {
+    config.set_chat_endpoint(chat.base_url());
+}
+
+pub fn configure_memory_engine(config: &ConfigHandle, memory: &LlamaServer) {
+    config.set_memory_endpoint(memory.base_url());
 }
 
 async fn start_media_engine() -> Result<MediaEngine, String> {
@@ -202,10 +232,14 @@ impl std::fmt::Debug for RunningEngines {
     }
 }
 
-pub async fn start_engines(settings: &Settings) -> Result<RunningEngines, String> {
-    let text = start_text_engine().await?;
+pub async fn start_engines(
+    config: &ConfigHandle,
+    loras: &[Lora],
+) -> Result<RunningEngines, String> {
+    let text = start_text_engine(loras).await?;
 
-    let media = if settings.models.image.enabled {
+    let image_enabled = config.settings().models.image.enabled && !config.needs_setup();
+    let media = if image_enabled {
         start_media_engine()
             .await
             .inspect_err(|err| log::warn!("media engine unavailable: {err}"))
@@ -214,5 +248,8 @@ pub async fn start_engines(settings: &Settings) -> Result<RunningEngines, String
         None
     };
 
-    Ok(RunningEngines { text, media })
+    let engines = RunningEngines { text, media };
+    engines.stamp(config);
+
+    Ok(engines)
 }

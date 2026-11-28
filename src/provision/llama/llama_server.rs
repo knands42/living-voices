@@ -1,6 +1,7 @@
 //! Supervises the `llama-server` child process.
 
 use super::layout::llama_server_binary;
+use crate::backend::domain::lora::Lora;
 pub(crate) use crate::provision::llama::engine_profile::EngineProfile;
 use crate::provision::util;
 use crate::provision::util::log_file;
@@ -30,9 +31,10 @@ impl LlamaServer {
         alias: &str,
         preferred_port: u16,
         profile: &EngineProfile,
+        loras: &[Lora],
     ) -> Result<Self, String> {
         let port = util::get_available_port(preferred_port, PORT_SEARCH_LIMIT)?;
-        Self::spawn_at(&llama_server_binary(), model, alias, port, profile)
+        Self::spawn_at(&llama_server_binary(), model, alias, port, profile, loras)
     }
 
     fn spawn_at(
@@ -41,6 +43,7 @@ impl LlamaServer {
         alias: &str,
         port: u16,
         profile: &EngineProfile,
+        loras: &[Lora],
     ) -> Result<Self, String> {
         if !binary.is_file() {
             return Err(format!("no llama-server at {}", binary.display()));
@@ -73,6 +76,7 @@ impl LlamaServer {
             .args(["--cache-type-k", profile.kv_type])
             .args(["--cache-type-v", profile.kv_type])
             .arg("--jinja")
+            .args(lora_args(loras))
             .stdin(Stdio::null())
             .stdout(stdout)
             .stderr(stderr)
@@ -116,6 +120,27 @@ impl Drop for LlamaServer {
     }
 }
 
+impl std::fmt::Debug for LlamaServer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LlamaServer")
+            .field("port", &self.exposed_port)
+            .finish_non_exhaustive()
+    }
+}
+
+fn lora_args(loras: &[Lora]) -> Vec<String> {
+    let mut args: Vec<String> = loras
+        .iter()
+        .flat_map(|lora| ["--lora".to_string(), lora.path.clone()])
+        .collect();
+
+    if !args.is_empty() {
+        args.push("--lora-init-without-apply".to_string());
+    }
+
+    args
+}
+
 /// The log belongs next to the binary, so a test run with a fake server never
 /// writes into the real installation.
 fn log_path(binary: &Path) -> PathBuf {
@@ -128,6 +153,7 @@ fn log_path(binary: &Path) -> PathBuf {
 #[cfg(test)]
 mod test {
     use super::{CHAT_PORT, LlamaServer};
+    use crate::backend::domain::lora::Lora;
     use crate::provision::llama::llama_server::{EngineProfile, PORT_SEARCH_LIMIT};
     use crate::provision::util;
     use std::path::{Path, PathBuf};
@@ -196,6 +222,7 @@ mod test {
             "test-model",
             port,
             &EngineProfile::chat(),
+            &[],
         );
 
         // then
@@ -221,6 +248,7 @@ mod test {
             "test-model",
             port,
             &EngineProfile::chat(),
+            &[],
         );
 
         // then
@@ -243,9 +271,15 @@ mod test {
         std::fs::write(&model, b"GGUF").expect("write");
 
         // when
-        let mut server =
-            LlamaServer::spawn_at(&binary, &model, "test-model", port, &EngineProfile::chat())
-                .expect("spawn");
+        let mut server = LlamaServer::spawn_at(
+            &binary,
+            &model,
+            "test-model",
+            port,
+            &EngineProfile::chat(),
+            &[],
+        )
+        .expect("spawn");
 
         // then it is up, on a port of its own
         assert!(server.is_running(), "child should be alive");
@@ -278,9 +312,15 @@ mod test {
         std::fs::write(&model, b"GGUF").expect("write");
 
         // when
-        let mut server =
-            LlamaServer::spawn_at(&binary, &model, "test-model", port, &EngineProfile::chat())
-                .expect("spawn");
+        let mut server = LlamaServer::spawn_at(
+            &binary,
+            &model,
+            "test-model",
+            port,
+            &EngineProfile::chat(),
+            &[],
+        )
+        .expect("spawn");
         let recorded = wait_for_argv(&argv);
 
         // then the model, context and alias survive the refactor
@@ -317,9 +357,15 @@ mod test {
         std::fs::write(&model, b"GGUF").expect("write");
 
         // when the distiller profile is used
-        let mut server =
-            LlamaServer::spawn_at(&binary, &model, "distiller", port, &EngineProfile::memory())
-                .expect("spawn");
+        let mut server = LlamaServer::spawn_at(
+            &binary,
+            &model,
+            "distiller",
+            port,
+            &EngineProfile::memory(),
+            &[],
+        )
+        .expect("spawn");
         let recorded = wait_for_argv(&argv);
 
         // then only a couple of layers ride the GPU, so chat keeps the rest
@@ -330,6 +376,47 @@ mod test {
         assert_pair(&recorded, "--cache-type-k", "q8_0");
         assert_pair(&recorded, "--cache-type-v", "q8_0");
         assert!(recorded.iter().any(|arg| arg == "8192"), "{recorded:?}");
+
+        // when
+        server.stop();
+
+        std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn spawn_loads_each_adapter_without_applying_it() {
+        // given a binary that reports what it was called with
+        let base = scratch("loras");
+        let binary = base.join("llama-server");
+        let argv = base.join("argv.txt");
+        let port = util::get_available_port(CHAT_PORT, PORT_SEARCH_LIMIT).expect("free port");
+        recording_server(&binary, &argv);
+
+        let model = base.join("model.gguf");
+        std::fs::write(&model, b"GGUF").expect("write");
+        let loras = [Lora::new("/models/tide-voice.gguf", 0.8)];
+
+        // when
+        let mut server = LlamaServer::spawn_at(
+            &binary,
+            &model,
+            "test-model",
+            port,
+            &EngineProfile::chat(),
+            &loras,
+        )
+        .expect("spawn");
+        let recorded = wait_for_argv(&argv);
+
+        // then the adapter is loaded, and a scene decides when it speaks
+        assert_pair(&recorded, "--lora", "/models/tide-voice.gguf");
+        assert!(
+            recorded
+                .iter()
+                .any(|arg| arg == "--lora-init-without-apply"),
+            "{recorded:?}"
+        );
 
         // when
         server.stop();

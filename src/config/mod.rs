@@ -117,6 +117,28 @@ impl ConfigHandle {
         let _ = config.persist_to_file();
     }
 
+    /// A spawned server searches for a free port, so its URL lives only as long as the process
+    /// that bound it: publishing it to disk would leave the next launch pointing at a dead port.
+    pub fn set_chat_endpoint(&self, chat_base_url: &str) {
+        let mut config = self.write();
+        config.settings.models.chat = config
+            .settings
+            .models
+            .chat
+            .clone()
+            .with_endpoint(chat_base_url);
+    }
+
+    pub fn set_memory_endpoint(&self, memory_base_url: &str) {
+        let mut config = self.write();
+        config.settings.models.memory = config
+            .settings
+            .models
+            .memory
+            .clone()
+            .with_endpoint(memory_base_url);
+    }
+
     /// Publish the endpoint the media engine actually bound.
     pub fn set_media_endpoint(&self, media_url: &str) {
         let mut config = self.write();
