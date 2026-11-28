@@ -4,10 +4,11 @@ use iced::{Alignment, Background, Border, Element, Length};
 use uuid::Uuid;
 
 use crate::backend::domain::character::{Character, CharacterStatus};
+use crate::backend::domain::lora::LoraKind;
 use crate::ui::pages::builder::widgets::{
     caption, editor, empty_state, field, hinted, labelled, pill, section_header, surface, tag,
 };
-use crate::ui::pages::builder::{AdapterChoice, Effect};
+use crate::ui::pages::builder::{AdapterChoice, Adapters, Effect};
 use crate::ui::{common, theme};
 
 const CARD_WIDTH: f32 = 260.0;
@@ -18,7 +19,7 @@ pub enum Message {
     Added(Result<Character, String>),
     Picked(usize),
     Changed(Character),
-    AdapterEdited(String),
+    AdapterEdited { kind: LoraKind, source: String },
     BackstoryEdited(text_editor::Action),
     EditClosed,
     RemoveRequested,
@@ -29,7 +30,7 @@ pub enum Message {
 pub struct State {
     index: Option<usize>,
     backstory: text_editor::Content,
-    adapter: AdapterChoice,
+    adapters: Adapters,
 }
 
 impl Default for State {
@@ -37,7 +38,7 @@ impl Default for State {
         Self {
             index: None,
             backstory: text_editor::Content::new(),
-            adapter: AdapterChoice::Untouched,
+            adapters: Adapters::default(),
         }
     }
 }
@@ -48,7 +49,7 @@ impl State {
             Message::AddRequested => return Some(Effect::AddCharacter),
             Message::Added(Ok(character)) => {
                 self.backstory = text_editor::Content::with_text(&character.backstory);
-                self.adapter = AdapterChoice::Untouched;
+                self.adapters = Adapters::default();
                 characters.push(character);
                 self.index = Some(characters.len() - 1);
             }
@@ -57,7 +58,7 @@ impl State {
                 if let Some(character) = characters.get(index) {
                     self.backstory = text_editor::Content::with_text(&character.backstory);
                 }
-                self.adapter = AdapterChoice::Untouched;
+                self.adapters = Adapters::default();
                 self.index = Some(index);
             }
             Message::Changed(character) => {
@@ -68,12 +69,17 @@ impl State {
                     *existing = character;
                 }
             }
-            Message::AdapterEdited(source) => {
-                self.adapter = if source.trim().is_empty() {
+            Message::AdapterEdited { kind, source } => {
+                let choice = if source.trim().is_empty() {
                     AdapterChoice::Cleared
                 } else {
                     AdapterChoice::Picked(source)
                 };
+
+                match kind {
+                    LoraKind::Text => self.adapters.text = choice,
+                    LoraKind::Image => self.adapters.image = choice,
+                }
             }
             Message::BackstoryEdited(action) => {
                 self.backstory.perform(action);
@@ -83,9 +89,9 @@ impl State {
             }
             Message::EditClosed => {
                 let character_id = self.edited(characters).map(|character| character.id);
-                let adapter = std::mem::take(&mut self.adapter);
+                let adapters = std::mem::take(&mut self.adapters);
                 self.index = None;
-                return character_id.map(|id| Effect::SaveCharacter { id, adapter });
+                return character_id.map(|id| Effect::SaveCharacter { id, adapters });
             }
             Message::RemoveRequested => {
                 let character = self.index.and_then(|index| characters.get(index))?;
@@ -129,7 +135,7 @@ impl State {
         .align_y(Alignment::Center);
 
         let body: Element<'a, Message> = match self.edited(characters) {
-            Some(character) => character_editor(character, &self.backstory, &self.adapter),
+            Some(character) => character_editor(character, &self.backstory, &self.adapters),
             None => grid(characters),
         };
 
@@ -250,7 +256,7 @@ fn card_style(_theme: &iced::Theme, status: button::Status) -> button::Style {
 fn character_editor<'a>(
     character: &'a Character,
     backstory: &'a text_editor::Content,
-    adapter: &'a AdapterChoice,
+    adapters: &'a Adapters,
 ) -> Element<'a, Message> {
     let mut heading = row![
         text(character.name.as_str())
@@ -319,7 +325,7 @@ fn character_editor<'a>(
             )
         ),
         look_fields(character),
-        adapter_field(character, adapter),
+        adapter_fields(character, adapters),
     ]
     .spacing(18.0)
     .width(Length::Fill);
@@ -368,25 +374,55 @@ fn look_fields(character: &Character) -> Element<'_, Message> {
     .into()
 }
 
-fn adapter_field<'a>(character: &'a Character, adapter: &'a AdapterChoice) -> Element<'a, Message> {
-    let value = match adapter {
+fn adapter_fields<'a>(character: &'a Character, adapters: &'a Adapters) -> Element<'a, Message> {
+    row![
+        adapter_field(
+            character,
+            LoraKind::Text,
+            &adapters.text,
+            "TEXT ADAPTER",
+            "GGUF LoRA for the chat engine: pick one and it is copied into llama/loras when you save.",
+            "/path/to/voice.gguf",
+        ),
+        adapter_field(
+            character,
+            LoraKind::Image,
+            &adapters.image,
+            "IMAGE ADAPTER",
+            "LoRA for the image model: pick one and it is copied into ComfyUI's loras directory when you save. With one, body and outfit are saved verbatim.",
+            "/path/to/character.safetensors",
+        ),
+    ]
+    .spacing(24.0)
+    .into()
+}
+
+fn adapter_field<'a>(
+    character: &'a Character,
+    kind: LoraKind,
+    choice: &'a AdapterChoice,
+    label: &'a str,
+    hint: &'a str,
+    placeholder: &'a str,
+) -> Element<'a, Message> {
+    let value = match choice {
         AdapterChoice::Picked(source) => source.as_str(),
         AdapterChoice::Cleared => "",
         AdapterChoice::Untouched => character
             .loras
-            .first()
+            .iter()
+            .find(|lora| lora.kind == kind)
             .map(|lora| lora.name.as_str())
             .unwrap_or_default(),
     };
 
     hinted(
-        "ADAPTER",
-        "LoRA file for the image model: pick one and the manager copies it into ComfyUI's loras directory when you save. With an adapter the body and outfit are saved verbatim.",
-        field(
-            value,
-            "/path/to/character.safetensors",
-            Message::AdapterEdited,
-        ),
+        label,
+        hint,
+        field(value, placeholder, move |source| Message::AdapterEdited {
+            kind,
+            source,
+        }),
     )
 }
 

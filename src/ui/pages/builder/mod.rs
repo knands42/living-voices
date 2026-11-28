@@ -71,13 +71,19 @@ pub(crate) enum AdapterChoice {
     Picked(String),
 }
 
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Adapters {
+    pub text: AdapterChoice,
+    pub image: AdapterChoice,
+}
+
 /// What a section asks the page to do, because only the page holds the managers.
 pub(crate) enum Effect {
     AddCharacter,
     RemoveCharacter(Uuid),
     RemoveAct(Uuid),
     SaveStory,
-    SaveCharacter { id: Uuid, adapter: AdapterChoice },
+    SaveCharacter { id: Uuid, adapters: Adapters },
     SaveAct,
     SaveOpening,
     SaveFacts,
@@ -295,7 +301,7 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
             Effect::RemoveCharacter(character_id) => self.remove_character(character_id),
             Effect::RemoveAct(act_id) => self.remove_act(act_id),
             Effect::SaveStory => self.save_story(),
-            Effect::SaveCharacter { id, adapter } => self.save_character(id, adapter),
+            Effect::SaveCharacter { id, adapters } => self.save_character(id, adapters),
             Effect::SaveAct => self.save_act(),
             Effect::SaveOpening => self.save_opening(),
             Effect::SaveFacts => self.save_facts(),
@@ -377,7 +383,7 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
         )
     }
 
-    fn save_character(&self, character_id: Uuid, adapter: AdapterChoice) -> Task<Message> {
+    fn save_character(&self, character_id: Uuid, adapters: Adapters) -> Task<Message> {
         let Some(draft) = &self.draft else {
             return Task::none();
         };
@@ -405,20 +411,27 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
                 let outfit = needs_outfit_prompt(previous.as_ref(), &character);
                 let mut character = character;
 
-                match adapter {
-                    AdapterChoice::Untouched => {}
-                    AdapterChoice::Cleared => character.loras.clear(),
-                    AdapterChoice::Picked(source) => {
-                        let scale = character
-                            .loras
-                            .first()
-                            .map_or(Lora::DEFAULT_SCALE, |lora| lora.scale);
+                for (kind, choice) in [
+                    (LoraKind::Text, adapters.text),
+                    (LoraKind::Image, adapters.image),
+                ] {
+                    match choice {
+                        AdapterChoice::Untouched => {}
+                        AdapterChoice::Cleared => character.loras.retain(|lora| lora.kind != kind),
+                        AdapterChoice::Picked(source) => {
+                            let scale = character
+                                .loras
+                                .iter()
+                                .find(|lora| lora.kind == kind)
+                                .map_or(Lora::DEFAULT_SCALE, |lora| lora.scale);
 
-                        if let Some(lora) = character_manager
-                            .stage_lora_adapter(&source, scale, LoraKind::Image)
-                            .await
-                        {
-                            character.loras = vec![lora];
+                            if let Some(lora) = character_manager
+                                .stage_lora_adapter(&source, scale, kind)
+                                .await
+                            {
+                                character.loras.retain(|lora| lora.kind != kind);
+                                character.loras.push(lora);
+                            }
                         }
                     }
                 }
