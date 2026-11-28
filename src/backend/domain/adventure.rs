@@ -4,7 +4,11 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::backend::domain::{
-    character::Character, lora::Lora, lore::Lore, message::Message, narrator::Narrator,
+    character::Character,
+    lora::{Lora, LoraKind},
+    lore::Lore,
+    message::Message,
+    narrator::Narrator,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -165,8 +169,9 @@ impl Adventure {
             .characters
             .iter()
             .flat_map(|character| character.loras.iter())
+            .filter(|lora| lora.kind == LoraKind::Text)
         {
-            if !loras.iter().any(|known| known.path == lora.path) {
+            if !loras.iter().any(|known| known.name == lora.name) {
                 loras.push(lora.clone());
             }
         }

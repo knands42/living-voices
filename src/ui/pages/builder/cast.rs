@@ -4,6 +4,7 @@ use iced::{Alignment, Background, Border, Element, Length};
 use uuid::Uuid;
 
 use crate::backend::domain::character::{Character, CharacterStatus};
+use crate::backend::domain::lora::{Lora, LoraKind};
 use crate::ui::pages::builder::Effect;
 use crate::ui::pages::builder::widgets::{
     caption, editor, empty_state, field, hinted, labelled, pill, section_header, surface, tag,
@@ -304,6 +305,7 @@ fn character_editor<'a>(
             )
         ),
         look_fields(character),
+        adapter_field(character),
     ]
     .spacing(18.0)
     .width(Length::Fill);
@@ -312,7 +314,7 @@ fn character_editor<'a>(
 }
 
 fn look_fields(character: &Character) -> Element<'_, Message> {
-    let (look_hint, outfit_hint) = if character.has_loras() {
+    let (look_hint, outfit_hint) = if character.has_image_loras() {
         (
             "Kept verbatim: the adapter already knows this identity.",
             "Kept verbatim: the adapter gets the outfit exactly as written.",
@@ -350,6 +352,44 @@ fn look_fields(character: &Character) -> Element<'_, Message> {
     ]
     .spacing(24.0)
     .into()
+}
+
+fn adapter_field(character: &Character) -> Element<'_, Message> {
+    let value = character
+        .loras
+        .first()
+        .map(|lora| {
+            lora.source
+                .as_deref()
+                .and_then(|source| source.to_str())
+                .unwrap_or(&lora.name)
+        })
+        .unwrap_or_default();
+
+    hinted(
+        "ADAPTER",
+        "LoRA file for the image model: pick one and the manager copies it into ComfyUI's loras directory. With an adapter the body and outfit are saved verbatim.",
+        edit_field(
+            value,
+            "/path/to/character.safetensors",
+            character,
+            set_lora_path,
+        ),
+    )
+}
+
+fn set_lora_path(character: &mut Character, value: String) {
+    let value = value.trim();
+    let scale = character
+        .loras
+        .first()
+        .map_or(Lora::DEFAULT_SCALE, |lora| lora.scale);
+
+    character.loras = if value.is_empty() {
+        Vec::new()
+    } else {
+        vec![Lora::from_source(value, scale, LoraKind::Image)]
+    };
 }
 
 fn status_field(character: &Character) -> Element<'_, Message> {

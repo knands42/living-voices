@@ -9,22 +9,26 @@ const FULL_BODY_SIZE: u32 = 1024;
 pub struct Workflow {
     prompt: String,
     destination: String,
+    loras: Vec<(String, f32)>,
 }
 
 impl Workflow {
-    pub fn new(prompt: &str, destination: &str) -> Self {
+    pub fn new(prompt: &str, destination: &str, loras: Vec<(String, f32)>) -> Self {
         Self {
             prompt: prompt.to_string(),
             destination: destination.to_string(),
+            loras,
         }
     }
 
     pub fn get_workflow_prompt(&self, model: SupportedModel) -> Result<Value, ImageError> {
-        match model {
-            SupportedModel::FluxQ8 => Ok(self.flux_q8()),
-            SupportedModel::FluxQ4 => Ok(self.flux_q4()),
-            SupportedModel::Qwen => Ok(self.qwen()),
-        }
+        let graph = match model {
+            SupportedModel::FluxQ8 => self.flux_q8(),
+            SupportedModel::FluxQ4 => self.flux_q4(),
+            SupportedModel::Qwen => self.qwen(),
+        };
+
+        Ok(with_loras(graph, &self.loras))
     }
 
     fn qwen(&self) -> Value {
@@ -125,6 +129,47 @@ impl Workflow {
     }
 }
 
+/// Adapters are chained onto the unet before the sampler, and skipped when the graph has
+fn with_loras(mut graph: Value, loras: &[(String, f32)]) -> Value {
+    if loras.is_empty() {
+        return graph;
+    }
+
+    let Some(unet) = node_id(&graph, "UnetLoaderGGUF") else {
+        return graph;
+    };
+    let Some(sampler) = node_id(&graph, "KSampler") else {
+        return graph;
+    };
+
+    let mut source = unet;
+    for (index, (name, scale)) in loras.iter().enumerate() {
+        let id = format!("9{index}");
+        graph[id.as_str()] = json!({
+            "class_type": "LoraLoaderModelOnly",
+            "inputs": {
+                "model": [source, 0],
+                "lora_name": name,
+                "strength_model": scale
+            }
+        });
+        source = id;
+    }
+
+    graph[sampler.as_str()]["inputs"]["model"] = json!([source, 0]);
+
+    graph
+}
+
+/// Nodes are found by what they do, not by the id a template happened to give them.
+fn node_id(graph: &Value, class_type: &str) -> Option<String> {
+    graph.as_object().and_then(|nodes| {
+        nodes
+            .iter()
+            .find_map(|(id, node)| (node["class_type"] == class_type).then(|| id.to_string()))
+    })
+}
+
 #[cfg(test)]
 mod test {
     use super::{SupportedModel, Workflow};
@@ -136,6 +181,7 @@ mod test {
         let workflow = Workflow::new(
             "full body of a lamplighter",
             "salt_ash/wren/wren_full_body_0",
+            Vec::new(),
         );
 
         // when
@@ -154,5 +200,30 @@ mod test {
             graph["9"]["inputs"]["filename_prefix"],
             json!("salt_ash/wren/wren_full_body_0")
         );
+    }
+
+    #[test]
+    fn adapters_are_chained_onto_the_unet() {
+        // given an adapter the builder registered for the character
+        let workflow = Workflow::new(
+            "full body of a lamplighter",
+            "salt_ash/wren/wren_full_body_0",
+            vec![("wren.safetensors".to_string(), 0.5)],
+        );
+
+        // when
+        let graph = workflow
+            .get_workflow_prompt(SupportedModel::FluxQ8)
+            .expect("a flux graph");
+
+        // then the sampler reads the adapter, and the adapter reads the unet
+        assert_eq!(graph["90"]["class_type"], json!("LoraLoaderModelOnly"));
+        assert_eq!(graph["90"]["inputs"]["model"], json!(["10", 0]));
+        assert_eq!(
+            graph["90"]["inputs"]["lora_name"],
+            json!("wren.safetensors")
+        );
+        assert_eq!(graph["90"]["inputs"]["strength_model"], json!(0.5));
+        assert_eq!(graph["3"]["inputs"]["model"], json!(["90", 0]));
     }
 }

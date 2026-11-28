@@ -8,6 +8,7 @@ use crate::backend::application::context::{ContextBuilder, ContextBuilderError};
 use crate::backend::application::port::chat_port::{ChatResponseError, PromptPort};
 use crate::backend::application::port::image_port::{ImageError, ImagePort};
 use crate::backend::domain::character::ImageFraming;
+use crate::backend::domain::lora::LoraKind;
 use crate::backend::persistence::state_persistence::update_character_presence;
 use crate::backend::{
     PersistenceError,
@@ -22,6 +23,7 @@ use crate::backend::{
     persistence::message_persistence::fetch_last_n,
     persistence::state_persistence::get_state,
 };
+use crate::config::ConfigHandle;
 
 #[derive(Error, Debug)]
 pub enum CharacterManagerError {
@@ -63,6 +65,7 @@ pub struct CharacterManager<PROMPT: PromptPort, IMAGE: ImagePort> {
     prompt_handler: PROMPT,
     image_handler: IMAGE,
     gallery: CharacterGallery,
+    config: ConfigHandle,
 }
 
 impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
@@ -72,6 +75,7 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         prompt_handler: PROMPT,
         image_handler: IMAGE,
         gallery: CharacterGallery,
+        config: ConfigHandle,
     ) -> Self {
         CharacterManager {
             state,
@@ -79,6 +83,7 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
             prompt_handler,
             image_handler,
             gallery,
+            config,
         }
     }
 
@@ -88,8 +93,10 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
 
     pub async fn create_character(
         &self,
-        character: Character,
+        mut character: Character,
     ) -> Result<(), CharacterManagerError> {
+        self.stage_image_loras(&mut character).await;
+
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         insert_character(&mut conn, character.adventure_id, &character).await?;
 
@@ -166,8 +173,10 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
 
     pub async fn update_character(
         &self,
-        character: Character,
+        mut character: Character,
     ) -> Result<(), CharacterManagerError> {
+        self.stage_image_loras(&mut character).await;
+
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         update_character(&mut conn, &character).await?;
 
@@ -190,6 +199,43 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
 
         log::debug!("character updated: {} ({})", character.name, character.id);
         Ok(())
+    }
+
+    /// Copies each picked adapter into the engine's directory before the row is written, then
+    /// drops the pick so only the file name is persisted.
+    async fn stage_image_loras(&self, character: &mut Character) {
+        let dir = self.config.settings().models.image.loras_dir();
+
+        for lora in character
+            .loras
+            .iter_mut()
+            .filter(|lora| lora.kind == LoraKind::Image)
+        {
+            let Some(source) = lora.source.take() else {
+                continue;
+            };
+
+            if let Some(name) = source.file_name() {
+                lora.name = name.to_string_lossy().into_owned();
+            }
+            if lora.name.trim().is_empty() {
+                continue;
+            }
+
+            let target = dir.join(&lora.name);
+            if source == target || !source.is_file() {
+                continue;
+            }
+
+            if let Err(err) = tokio::fs::create_dir_all(&dir).await {
+                log::warn!("could not prepare {}: {err}", dir.display());
+                continue;
+            }
+
+            if let Err(err) = tokio::fs::copy(&source, &target).await {
+                log::warn!("could not stage {}: {err}", source.display());
+            }
+        }
     }
 
     pub async fn create_character_body_prompt(
@@ -265,7 +311,7 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         };
 
         self.image_handler
-            .generate_character_image(&prompt, &destination)
+            .generate_character_image(&prompt, &destination, &character.loras)
             .await?;
 
         log::info!("generated an image of {} at {destination}", character.name);
@@ -277,7 +323,8 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         character: &Character,
         kind: ImagePromptKind,
     ) -> Result<Character, CharacterManagerError> {
-        if character.has_loras() && matches!(kind, ImagePromptKind::Body | ImagePromptKind::Outfit)
+        if character.has_image_loras()
+            && matches!(kind, ImagePromptKind::Body | ImagePromptKind::Outfit)
         {
             return Ok(character.clone());
         }

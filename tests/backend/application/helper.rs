@@ -6,10 +6,11 @@ use living_voices::backend::application::port::image_port::{ImageError, ImagePor
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::{Character, CharacterStatus};
+use living_voices::backend::domain::lora::Lora;
 use living_voices::backend::domain::memory::{Act, ActStatus};
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::{open_pool, run_migrations};
-use living_voices::config::Config;
+use living_voices::config::{Config, ConfigHandle};
 use sqlx::SqlitePool;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
@@ -40,6 +41,7 @@ impl ImagePort for StubImage {
         &self,
         _prompt: &str,
         _destination: &str,
+        _loras: &[Lora],
     ) -> Result<(), ImageError> {
         Ok(())
     }
@@ -48,6 +50,7 @@ impl ImagePort for StubImage {
         &self,
         _prompt: &str,
         _destination: &str,
+        _loras: &[Lora],
     ) -> Result<(), ImageError> {
         Ok(())
     }
@@ -92,6 +95,7 @@ pub async fn start_adventure_with_default_cast(
         chat_handler,
         StubImage,
         CharacterGallery::new(std::env::temp_dir()),
+        ConfigHandle::default(),
     );
     let npcs = vec![DEFAULT_CAST_MIRA, DEFAULT_CAST_KAEL];
     for npc in npcs {

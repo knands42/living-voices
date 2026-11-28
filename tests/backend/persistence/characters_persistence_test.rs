@@ -313,7 +313,7 @@ async fn lore_and_loras_round_trip_through_insert_and_update() {
         false,
     );
     character.lore = "Owes the harbour a debt.".to_string();
-    character.loras = vec![Lora::new("mara-voice.gguf", 0.8)];
+    character.loras = vec![Lora::image("mara.safetensors", 0.8)];
 
     // when
     insert_character(&mut conn, adventure_id, &character)
@@ -330,7 +330,7 @@ async fn lore_and_loras_round_trip_through_insert_and_update() {
     assert_eq!(lore, "Owes the harbour a debt.");
     assert_eq!(
         serde_json::from_str::<Vec<Lora>>(&loras).expect("loras json"),
-        vec![Lora::new("mara-voice.gguf", 0.8)]
+        vec![Lora::image("mara.safetensors", 0.8)]
     );
 
     // when: the story rewrites both

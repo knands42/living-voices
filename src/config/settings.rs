@@ -184,7 +184,7 @@ impl MessageThresholdRange {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct ImageModel {
     pub enabled: bool,
@@ -192,6 +192,15 @@ pub struct ImageModel {
     pub base_url: String,
     pub workflow: SupportedModel,
     pub output_dir: PathBuf,
+}
+
+impl ImageModel {
+    pub fn loras_dir(&self) -> PathBuf {
+        self.output_dir
+            .parent()
+            .map(|workspace| workspace.join("models").join("loras"))
+            .unwrap_or_else(|| PathBuf::from("models/loras"))
+    }
 }
 
 impl Default for ImageModel {

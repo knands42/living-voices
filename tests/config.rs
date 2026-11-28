@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use living_voices::config::{Config, ConfigHandle, Settings};
+use living_voices::config::{Config, ConfigHandle, ImageModel, Settings};
 
 fn blank_config() -> Config {
     Config {
@@ -25,21 +25,14 @@ fn text_endpoints_route_chat_and_memory_separately() {
     );
 
     // when pointed at two engines, trailing slashes included
-    let config = config.with_text_endpoints("http://127.0.0.1:11435/", "http://127.0.0.1:11436/");
+    let handle = ConfigHandle::new(config);
+    handle.set_text_endpoints("http://127.0.0.1:11435/", "http://127.0.0.1:11436/");
+    let settings = handle.settings();
 
     // then chat and memory keep their own OpenAI surface
-    assert_eq!(
-        config.settings.models.chat.base_url,
-        "http://127.0.0.1:11435/v1"
-    );
-    assert_eq!(
-        config.settings.models.memory.base_url,
-        "http://127.0.0.1:11436/v1"
-    );
-    assert_eq!(
-        config.settings.models.image.base_url,
-        "http://localhost:8188"
-    );
+    assert_eq!(settings.models.chat.base_url, "http://127.0.0.1:11435/v1");
+    assert_eq!(settings.models.memory.base_url, "http://127.0.0.1:11436/v1");
+    assert_eq!(settings.models.image.base_url, "http://localhost:8188");
 }
 
 #[test]
@@ -50,11 +43,13 @@ fn text_endpoints_keep_every_other_text_setting() {
     config.settings.models.memory.temperature = 0.1;
 
     // when
-    let config = config.with_text_endpoints("http://127.0.0.1:11435", "http://127.0.0.1:11436");
+    let handle = ConfigHandle::new(config);
+    handle.set_text_endpoints("http://127.0.0.1:11435", "http://127.0.0.1:11436");
+    let settings = handle.settings();
 
     // then only the endpoint moved
-    assert_eq!(config.settings.models.memory.model, "distiller");
-    assert_eq!(config.settings.models.memory.temperature, 0.1);
+    assert_eq!(settings.models.memory.model, "distiller");
+    assert_eq!(settings.models.memory.temperature, 0.1);
 }
 
 #[test]
@@ -187,4 +182,17 @@ fn a_spawned_endpoint_is_published_without_touching_the_file() {
     );
 
     std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn image_adapters_live_in_the_comfy_workspace_loras_dir() {
+    // given a ComfyUI workspace whose output dir sits under it
+    let mut image = ImageModel::default();
+    image.output_dir = PathBuf::from("/opt/comfyui/output");
+
+    // then adapters land beside the models the engine loads
+    assert_eq!(
+        image.loras_dir(),
+        PathBuf::from("/opt/comfyui/models/loras")
+    );
 }

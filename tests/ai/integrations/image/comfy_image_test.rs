@@ -8,13 +8,14 @@ const COMFYUI_URL: &str = "http://localhost:8188";
 const OUTPUT_DIR: &str = "comfyui/output";
 
 fn comfy() -> ComfyImage {
-    ComfyImage::new(ImageModel {
+    ComfyImage::new(crate::support::image_config(ImageModel {
         enabled: true,
         backend: "comfyui".to_string(),
         base_url: COMFYUI_URL.to_string(),
         workflow: SupportedModel::Qwen,
         output_dir: PathBuf::from(OUTPUT_DIR),
-    })
+        ..ImageModel::default()
+    }))
     .expect("build ComfyUI image handler")
 }
 
@@ -39,6 +40,7 @@ async fn generate_character_image_queues_a_character_prompt() {
             "Full-body character reference of a young lamplighter in an oversized \
              oilskin coat and tarred sou'wester, neutral pose, plain background.",
             "living_voices-tests/mira/portrait",
+            &[],
         )
         .await
         .expect("generate_character_image");

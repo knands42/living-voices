@@ -1,6 +1,6 @@
 //! Supervises the `llama-server` child process.
 
-use super::layout::llama_server_binary;
+use super::layout::{llama_models_dir, llama_server_binary};
 use crate::backend::domain::lora::Lora;
 pub(crate) use crate::provision::llama::engine_profile::EngineProfile;
 use crate::provision::util;
@@ -129,9 +129,13 @@ impl std::fmt::Debug for LlamaServer {
 }
 
 fn lora_args(loras: &[Lora]) -> Vec<String> {
+    let dir = llama_models_dir().join("loras");
     let mut args: Vec<String> = loras
         .iter()
-        .flat_map(|lora| ["--lora".to_string(), lora.path.clone()])
+        .flat_map(|lora| {
+            let path = dir.join(&lora.name);
+            ["--lora".to_string(), path.display().to_string()]
+        })
         .collect();
 
     if !args.is_empty() {
@@ -154,6 +158,7 @@ fn log_path(binary: &Path) -> PathBuf {
 mod test {
     use super::{CHAT_PORT, LlamaServer};
     use crate::backend::domain::lora::Lora;
+    use crate::provision::llama::layout::llama_models_dir;
     use crate::provision::llama::llama_server::{EngineProfile, PORT_SEARCH_LIMIT};
     use crate::provision::util;
     use std::path::{Path, PathBuf};
@@ -167,6 +172,28 @@ mod test {
     }
 
     /// Written beside the target and renamed, so an exec never sees an inode still open for write.
+
+    /// Spawning a script can hit ETXTBSY on a busy filesystem; retry instead of failing the test.
+    fn spawn_for_test(
+        binary: &Path,
+        model: &Path,
+        alias: &str,
+        port: u16,
+        profile: &EngineProfile,
+        loras: &[Lora],
+    ) -> Result<LlamaServer, String> {
+        for attempt in 0..5 {
+            match LlamaServer::spawn_at(binary, model, alias, port, profile, loras) {
+                Err(err) if err.contains("Text file busy") && attempt < 4 => {
+                    std::thread::sleep(std::time::Duration::from_millis(20));
+                }
+                result => return result,
+            }
+        }
+
+        unreachable!("the loop returns on the last attempt")
+    }
+
     #[cfg(unix)]
     fn install_script(path: &Path, script: &[u8]) {
         use std::os::unix::fs::PermissionsExt;
@@ -219,7 +246,7 @@ mod test {
         let port = util::get_available_port(CHAT_PORT, PORT_SEARCH_LIMIT).expect("free port");
 
         // when
-        let result = LlamaServer::spawn_at(
+        let result = spawn_for_test(
             &base.join("llama-server"),
             &model,
             "test-model",
@@ -245,7 +272,7 @@ mod test {
         fake_server(&binary);
 
         // when
-        let result = LlamaServer::spawn_at(
+        let result = spawn_for_test(
             &binary,
             &base.join("model.gguf"),
             "test-model",
@@ -274,7 +301,7 @@ mod test {
         std::fs::write(&model, b"GGUF").expect("write");
 
         // when
-        let mut server = LlamaServer::spawn_at(
+        let mut server = spawn_for_test(
             &binary,
             &model,
             "test-model",
@@ -315,7 +342,7 @@ mod test {
         std::fs::write(&model, b"GGUF").expect("write");
 
         // when
-        let mut server = LlamaServer::spawn_at(
+        let mut server = spawn_for_test(
             &binary,
             &model,
             "test-model",
@@ -360,7 +387,7 @@ mod test {
         std::fs::write(&model, b"GGUF").expect("write");
 
         // when the distiller profile is used
-        let mut server = LlamaServer::spawn_at(
+        let mut server = spawn_for_test(
             &binary,
             &model,
             "distiller",
@@ -398,10 +425,10 @@ mod test {
 
         let model = base.join("model.gguf");
         std::fs::write(&model, b"GGUF").expect("write");
-        let loras = [Lora::new("/models/tide-voice.gguf", 0.8)];
+        let loras = [Lora::text("tide-voice.gguf", 0.8)];
 
         // when
-        let mut server = LlamaServer::spawn_at(
+        let mut server = spawn_for_test(
             &binary,
             &model,
             "test-model",
@@ -413,7 +440,15 @@ mod test {
         let recorded = wait_for_argv(&argv);
 
         // then the adapter is loaded, and a scene decides when it speaks
-        assert_pair(&recorded, "--lora", "/models/tide-voice.gguf");
+        assert_pair(
+            &recorded,
+            "--lora",
+            &llama_models_dir()
+                .join("loras")
+                .join("tide-voice.gguf")
+                .display()
+                .to_string(),
+        );
         assert!(
             recorded
                 .iter()

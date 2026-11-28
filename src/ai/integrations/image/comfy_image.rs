@@ -4,7 +4,8 @@ use serde_json::Value;
 
 use crate::ai::integrations::image::workflow::Workflow;
 use crate::backend::application::port::image_port::{ImageError, ImagePort};
-use crate::config::ImageModel;
+use crate::backend::domain::lora::{Lora, LoraKind};
+use crate::config::ConfigHandle;
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const WAIT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -12,12 +13,12 @@ const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
 #[derive(Debug, Clone)]
 pub struct ComfyImage {
-    config: ImageModel,
+    config: ConfigHandle,
     http: reqwest::Client,
 }
 
 impl ComfyImage {
-    pub fn new(config: ImageModel) -> Result<Self, ImageError> {
+    pub fn new(config: ConfigHandle) -> Result<Self, ImageError> {
         let http = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .build()
@@ -25,8 +26,12 @@ impl ComfyImage {
         Ok(Self { config, http })
     }
 
-    fn base_url(&self) -> &str {
-        self.config.base_url.trim_end_matches('/')
+    fn image(&self) -> crate::config::ImageModel {
+        self.config.settings().models.image
+    }
+
+    fn base_url(&self) -> String {
+        self.image().base_url.trim_end_matches('/').to_string()
     }
 
     async fn queue(&self, workflow: &Workflow) -> Result<(), ImageError> {
@@ -40,7 +45,7 @@ impl ComfyImage {
     }
 
     async fn submit(&self, workflow: &Workflow) -> Result<String, ImageError> {
-        let graph = workflow.get_workflow_prompt(self.config.workflow)?;
+        let graph = workflow.get_workflow_prompt(self.image().workflow)?;
 
         let url = format!("{}/prompt", self.base_url());
         let response = self
@@ -96,25 +101,54 @@ impl ImagePort for ComfyImage {
         prompt: &str,
         destination: &str,
     ) -> Result<(), ImageError> {
-        self.queue(&Workflow::new(prompt, destination)).await
+        self.queue(&Workflow::new(prompt, destination, Vec::new()))
+            .await
     }
 
     async fn queue_generate_character_image(
         &self,
         prompt: &str,
         destination: &str,
+        loras: &[Lora],
     ) -> Result<(), ImageError> {
-        self.queue(&Workflow::new(prompt, destination)).await
+        let loras = self.staged_loras(loras);
+        self.queue(&Workflow::new(prompt, destination, loras)).await
     }
 
     async fn generate_character_image(
         &self,
         prompt: &str,
         destination: &str,
+        loras: &[Lora],
     ) -> Result<(), ImageError> {
-        self.submit(&Workflow::new(prompt, destination)).await?;
+        let loras = self.staged_loras(loras);
+        self.submit(&Workflow::new(prompt, destination, loras))
+            .await?;
 
         Ok(())
+    }
+}
+
+impl ComfyImage {
+    /// Adapters are already in ComfyUI's `models/loras`; a missing file degrades to no adapter.
+    fn staged_loras(&self, loras: &[Lora]) -> Vec<(String, f32)> {
+        let dir = self.image().loras_dir();
+        let mut staged = Vec::new();
+
+        for lora in loras.iter().filter(|lora| lora.kind == LoraKind::Image) {
+            if lora.name.trim().is_empty() {
+                continue;
+            }
+
+            if !dir.join(&lora.name).is_file() {
+                log::warn!("adapter {} is missing; drawing without it", lora.name);
+                continue;
+            }
+
+            staged.push((lora.name.clone(), lora.scale));
+        }
+
+        staged
     }
 }
 

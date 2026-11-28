@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use uuid::Uuid;
 
-use crate::backend::domain::lora::Lora;
+use crate::backend::domain::lora::{Lora, LoraKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum CharacterStatus {
@@ -204,8 +204,8 @@ impl Character {
         self.appearance.as_deref()
     }
 
-    pub fn has_loras(&self) -> bool {
-        !self.loras.is_empty()
+    pub fn has_image_loras(&self) -> bool {
+        self.loras.iter().any(|lora| lora.kind == LoraKind::Image)
     }
 
     pub fn current_body_or_default(&self) -> Option<&str> {

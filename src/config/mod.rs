@@ -102,40 +102,20 @@ impl ConfigHandle {
 
     pub fn set_text_endpoints(&self, chat_base_url: &str, memory_base_url: &str) {
         let mut config = self.write();
-        let patched = config
-            .clone()
-            .with_text_endpoints(chat_base_url, memory_base_url);
-        *config = patched;
-        let _ = config.persist_to_file();
+        retarget(&mut config.settings.models.chat, chat_base_url);
+        retarget(&mut config.settings.models.memory, memory_base_url);
     }
 
-    /// A spawned server searches for a free port, so its URL lives only as long as the process
-    /// that bound it: publishing it to disk would leave the next launch pointing at a dead port.
     pub fn set_chat_endpoint(&self, chat_base_url: &str) {
-        let mut config = self.write();
-        config.settings.models.chat = config
-            .settings
-            .models
-            .chat
-            .clone()
-            .with_endpoint(chat_base_url);
+        retarget(&mut self.write().settings.models.chat, chat_base_url);
     }
 
     pub fn set_memory_endpoint(&self, memory_base_url: &str) {
-        let mut config = self.write();
-        config.settings.models.memory = config
-            .settings
-            .models
-            .memory
-            .clone()
-            .with_endpoint(memory_base_url);
+        retarget(&mut self.write().settings.models.memory, memory_base_url);
     }
 
-    /// Publish the endpoint the media engine actually bound.
     pub fn set_media_endpoint(&self, media_url: &str) {
-        let mut config = self.write();
-        let patched = config.clone().with_media_engine(media_url);
-        *config = patched;
+        self.write().settings.models.image.base_url = media_url.trim_end_matches('/').to_string();
     }
 
     fn read(&self) -> std::sync::RwLockReadGuard<'_, Config> {
@@ -204,24 +184,10 @@ impl Config {
 
         builder.init();
     }
+}
 
-    /// Route chat and memory at their own endpoints, one engine each.
-    pub fn with_text_endpoints(mut self, chat_base_url: &str, memory_base_url: &str) -> Self {
-        self.settings.models.chat = self.settings.models.chat.with_endpoint(chat_base_url);
-        self.settings.models.memory = self.settings.models.memory.with_endpoint(memory_base_url);
-        self
-    }
-
-    /// Route the image backend at the provisioned ComfyUI `base_url`.
-    pub fn with_media_engine(mut self, base_url: &str) -> Self {
-        self.settings.models.image.base_url = base_url.trim_end_matches('/').to_string();
-        self
-    }
-
-    pub fn persist_to_file(&self) -> Result<(), std::io::Error> {
-        self.settings.update_file(self.config_file.as_path())?;
-        Ok(())
-    }
+fn retarget(model: &mut TextModel, base_url: &str) {
+    *model = model.clone().with_endpoint(base_url);
 }
 
 #[cfg_attr(not(debug_assertions), allow(unused_variables))]

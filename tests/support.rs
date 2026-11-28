@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use living_voices::config::{Config, ConfigHandle, Settings, TextModel};
+use living_voices::config::{Config, ConfigHandle, ImageModel, Settings, TextModel};
 
 pub fn chat_config(chat: TextModel) -> ConfigHandle {
     text_config(chat, TextModel::default())
@@ -14,6 +14,18 @@ pub fn text_config(chat: TextModel, memory: TextModel) -> ConfigHandle {
     let mut settings = Settings::default();
     settings.models.chat = chat;
     settings.models.memory = memory;
+
+    ConfigHandle::new(Config {
+        settings,
+        config_dir: PathBuf::new(),
+        config_file: PathBuf::new(),
+        db_path: PathBuf::new(),
+    })
+}
+
+pub fn image_config(image: ImageModel) -> ConfigHandle {
+    let mut settings = Settings::default();
+    settings.models.image = image;
 
     ConfigHandle::new(Config {
         settings,

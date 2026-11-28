@@ -10,7 +10,7 @@ use living_voices::backend::application::{
 use living_voices::backend::domain::character::{Character, CharacterStatus};
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::message_persistence::insert_messages;
-use living_voices::config::{Config, TextModel};
+use living_voices::config::{Config, ConfigHandle, TextModel};
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
@@ -361,6 +361,7 @@ async fn new_integration_manager() -> (
         chat(),
         StubImage,
         CharacterGallery::new(std::env::temp_dir()),
+        ConfigHandle::default(),
     );
     (manager, state, db, pool)
 }
@@ -377,6 +378,7 @@ fn setup_character_manager(
         chat_handler,
         StubImage,
         CharacterGallery::new(std::env::temp_dir()),
+        ConfigHandle::default(),
     )
 }
 

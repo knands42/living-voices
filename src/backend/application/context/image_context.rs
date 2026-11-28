@@ -80,14 +80,12 @@ impl ContextBuilder {
         )
     }
 
-    /// The finished prompt for an image model + the framing the caller asked for. The
-    /// original shot is drawn from the identity; every derived shot is drawn from the
-    /// body the story left, so a wound earned in act two survives into the pose.
+    /// The finished prompt for an image model + the framing the caller asked for.
     pub fn compose_character_image_prompt(
         character: &Character,
         framing: ImageFraming,
     ) -> Option<String> {
-        let look = if character.has_loras() {
+        let look = if character.has_image_loras() {
             match framing {
                 ImageFraming::FullBody => None,
                 ImageFraming::Portrait | ImageFraming::FullBodyPose => {
@@ -103,7 +101,7 @@ impl ContextBuilder {
             }
         };
 
-        if look.is_none() && !character.has_loras() {
+        if look.is_none() && !character.has_image_loras() {
             return None;
         }
 

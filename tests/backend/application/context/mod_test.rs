@@ -802,7 +802,7 @@ fn composed_prompt_falls_back_to_the_author_identity_when_the_body_is_unchanged(
 #[test]
 fn composed_prompt_skips_the_identity_when_the_character_ships_a_lora() {
     let mut character = mara(Uuid::new_v4());
-    character.loras = vec![Lora::new("mara.gguf", 0.8)];
+    character.loras = vec![Lora::image("mara.gguf", 0.8)];
 
     let prompt = ContextBuilder::compose_character_image_prompt(&character, ImageFraming::FullBody)
         .expect("composed prompt");

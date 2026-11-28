@@ -2,6 +2,8 @@ use std::future::Future;
 
 use thiserror::Error;
 
+use crate::backend::domain::lora::Lora;
+
 #[derive(Error, Debug)]
 pub enum ImageError {
     #[error("the image provider failed: {0}")]
@@ -23,11 +25,13 @@ pub trait ImagePort: Send + Sync {
         &self,
         prompt: &str,
         destination: &str,
+        loras: &[Lora],
     ) -> impl Future<Output = Result<(), ImageError>> + Send;
 
     fn generate_character_image(
         &self,
         prompt: &str,
         destination: &str,
+        loras: &[Lora],
     ) -> impl Future<Output = Result<(), ImageError>> + Send;
 }

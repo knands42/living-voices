@@ -73,8 +73,8 @@ fn build_context(
     let distiller = MemoryHandler::new(config.clone());
     let closer = ActClose::new(config.clone());
     let narrator_handler = NarratorHandler::new(config.clone());
-    let chat_handler = ChatHandler::new(config);
-    let image_handler = ComfyImage::new(image_model.clone())?;
+    let image_handler = ComfyImage::new(config.clone())?;
+    let chat_handler = ChatHandler::new(config.clone());
 
     let director = Director::new(settings.director.clone());
 
@@ -85,6 +85,7 @@ fn build_context(
         chat_handler.clone(),
         image_handler,
         CharacterGallery::new(image_model.output_dir),
+        config,
     );
     let memory_manager = MemoryManager::new(
         state.clone(),
