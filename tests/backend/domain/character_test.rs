@@ -21,6 +21,8 @@ fn new_sets_name_description_and_empty_fields() {
     assert_eq!(character.name, "Maren");
     assert_eq!(character.headline, "A lighthouse keeper");
     assert_eq!(character.backstory, "");
+    assert_eq!(character.lore, "");
+    assert!(character.loras.is_empty());
     assert_eq!(character.appearance, None);
     assert_eq!(character.appearance_current_body, None);
     assert_eq!(character.appearance_current_outfit, "");
@@ -249,9 +251,23 @@ fn render_omits_empty_sections() {
         "{rendered}"
     );
     assert!(!rendered.contains("*Backstory*"), "{rendered}");
+    assert!(!rendered.contains("*Lore*"), "{rendered}");
     assert!(!rendered.contains("*Traits*"), "{rendered}");
     assert!(!rendered.contains("*Relations*"), "{rendered}");
     assert!(!rendered.contains("*Appearance*"), "{rendered}");
+}
+
+#[test]
+fn render_includes_lore_when_present() {
+    let mut character = new_character();
+    character.lore = "Owes the harbour a debt.".to_string();
+
+    let rendered = character.render();
+
+    assert!(
+        rendered.contains("*Lore*: Owes the harbour a debt."),
+        "{rendered}"
+    );
 }
 
 #[test]

@@ -3,6 +3,7 @@ use sqlx::{FromRow, Row, SqliteConnection};
 use uuid::Uuid;
 
 use crate::backend::domain::character::CharacterStatus;
+use crate::backend::domain::lora::Lora;
 use crate::backend::persistence::db::{from_str_to_uuid, parse_json_array};
 use crate::backend::{
     domain::character::Character,
@@ -19,11 +20,13 @@ struct CharacterRow {
     genre: String,
     headline: String,
     backstory: String,
+    lore: String,
     appearance: Option<String>,
     appearance_current_body: Option<String>,
     appearance_current_outfit: String,
     appearance_current_pose: Option<String>,
     relations: String,
+    loras: String,
     message_example: Option<String>,
     status: String,
     is_player: bool,
@@ -38,11 +41,13 @@ impl FromRow<'_, SqliteRow> for CharacterRow {
             genre: row.get("genre"),
             headline: row.get("headline"),
             backstory: row.get("backstory"),
+            lore: row.get("lore"),
             appearance: row.get("appearance"),
             appearance_current_body: row.get("appearance_current_body"),
             appearance_current_outfit: row.get("appearance_current_outfit"),
             appearance_current_pose: row.get("appearance_current_pose"),
             relations: row.get("relations"),
+            loras: row.get("loras"),
             message_example: row.get("message_example"),
             status: row.get("status"),
             is_player: row.get("is_player"),
@@ -66,6 +71,8 @@ impl TryFrom<CharacterRow> for Character {
             value.is_player,
         );
         character.appearance = value.appearance;
+        character.lore = value.lore;
+        character.loras = parse_loras(&value.loras);
         character.appearance_current_body = value.appearance_current_body;
         character.appearance_current_outfit = value.appearance_current_outfit;
         character.appearance_current_pose = value.appearance_current_pose;
@@ -75,14 +82,21 @@ impl TryFrom<CharacterRow> for Character {
     }
 }
 
+fn parse_loras(value: &str) -> Vec<Lora> {
+    serde_json::from_str(value).unwrap_or_else(|err| {
+        log::warn!("could not read the character's loras: {err}");
+        Vec::new()
+    })
+}
+
 pub async fn insert_character(
     conn: &mut SqliteConnection,
     adventure_id: Uuid,
     character: &Character,
 ) -> Result<(), PersistenceError> {
     sqlx::query(
-        "INSERT INTO character (id, adventure_id, name, genre, headline, backstory, appearance, appearance_current_body, appearance_current_outfit, appearance_current_pose, relations, message_example, status, is_player)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+        "INSERT INTO character (id, adventure_id, name, genre, headline, backstory, lore, appearance, appearance_current_body, appearance_current_outfit, appearance_current_pose, relations, loras, message_example, status, is_player)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
     )
     .bind(character.id.to_string())
     .bind(adventure_id.to_string())
@@ -90,11 +104,13 @@ pub async fn insert_character(
     .bind(&character.genre)
     .bind(&character.headline)
     .bind(&character.backstory)
+    .bind(&character.lore)
     .bind(&character.appearance)
     .bind(&character.appearance_current_body)
     .bind(&character.appearance_current_outfit)
     .bind(&character.appearance_current_pose)
     .bind(serde_json::to_string(&character.relations)?)
+    .bind(serde_json::to_string(&character.loras)?)
     .bind(character.message_example.as_deref())
     .bind(character.status.as_str())
     .bind(character.is_player)
@@ -226,21 +242,23 @@ pub async fn update_character(
 ) -> Result<(), PersistenceError> {
     sqlx::query(
         "UPDATE character
-         SET name = ?1, genre = ?2, headline = ?3, backstory = ?4, appearance = ?5,
-             appearance_current_body = ?6, appearance_current_outfit = ?7,
-             appearance_current_pose = ?8, relations = ?9, message_example = ?10,
-             status = ?11, is_player = ?12
-         WHERE id = ?13",
+         SET name = ?1, genre = ?2, headline = ?3, backstory = ?4, lore = ?5, appearance = ?6,
+             appearance_current_body = ?7, appearance_current_outfit = ?8,
+             appearance_current_pose = ?9, relations = ?10, loras = ?11, message_example = ?12,
+             status = ?13, is_player = ?14
+         WHERE id = ?15",
     )
     .bind(&character.name)
     .bind(&character.genre)
     .bind(&character.headline)
     .bind(&character.backstory)
+    .bind(&character.lore)
     .bind(&character.appearance)
     .bind(&character.appearance_current_body)
     .bind(&character.appearance_current_outfit)
     .bind(&character.appearance_current_pose)
     .bind(serde_json::to_string(&character.relations)?)
+    .bind(serde_json::to_string(&character.loras)?)
     .bind(character.message_example.as_deref())
     .bind(character.status.as_str())
     .bind(character.is_player)

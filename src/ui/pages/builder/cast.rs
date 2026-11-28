@@ -294,6 +294,15 @@ fn character_editor<'a>(
             "BACKSTORY",
             editor(backstory, 96.0, Message::BackstoryEdited)
         ),
+        labelled(
+            "LORE",
+            edit_field(
+                character.lore.as_str(),
+                "What only the story knows about them…",
+                character,
+                |character, value| character.lore = value
+            )
+        ),
         look_fields(character),
     ]
     .spacing(18.0)
@@ -303,9 +312,21 @@ fn character_editor<'a>(
 }
 
 fn look_fields(character: &Character) -> Element<'_, Message> {
+    let (look_hint, outfit_hint) = if character.has_loras() {
+        (
+            "Kept verbatim: the adapter already knows this identity.",
+            "Kept verbatim: the adapter gets the outfit exactly as written.",
+        )
+    } else {
+        (
+            "Seed for the body image prompt. On Save the model rewrites it into the body description the pictures use.",
+            "Seed for the outfit image prompt. On Save the model rewrites it into the outfit description the pictures use.",
+        )
+    };
+
     let look = hinted(
         "LOOK",
-        "Seed for the body image prompt. On Save the model rewrites it into the body description the pictures use.",
+        look_hint,
         edit_field(
             character.appearance.as_deref().unwrap_or_default(),
             "Face, hair, build and marks…",
@@ -318,7 +339,7 @@ fn look_fields(character: &Character) -> Element<'_, Message> {
         look,
         hinted(
             "OUTFIT",
-            "Seed for the outfit image prompt. On Save the model rewrites it into the outfit description the pictures use.",
+            outfit_hint,
             edit_field(
                 character.appearance_current_outfit.as_str(),
                 "Cloak, boots, the token at your throat…",

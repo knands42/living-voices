@@ -13,7 +13,6 @@ fn comfy() -> ComfyImage {
         backend: "comfyui".to_string(),
         base_url: COMFYUI_URL.to_string(),
         workflow: SupportedModel::Qwen,
-        reference_workflow: SupportedModel::Qwen,
         output_dir: PathBuf::from(OUTPUT_DIR),
     })
     .expect("build ComfyUI image handler")
@@ -40,7 +39,6 @@ async fn generate_character_image_queues_a_character_prompt() {
             "Full-body character reference of a young lamplighter in an oversized \
              oilskin coat and tarred sou'wester, neutral pose, plain background.",
             "living_voices-tests/mira/portrait",
-            None,
         )
         .await
         .expect("generate_character_image");

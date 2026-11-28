@@ -3,6 +3,7 @@ use uuid::Uuid;
 
 use crate::backend::application::helper::setup_db;
 use living_voices::backend::domain::character::{Character, CharacterStatus};
+use living_voices::backend::domain::lora::Lora;
 use living_voices::backend::persistence::adventure_persistence::insert_adventure;
 use living_voices::backend::persistence::characters_persistence::{
     insert_character, update_appearance_current_body, update_appearance_current_outfit,
@@ -292,4 +293,60 @@ async fn update_appearance_prompts_writes_each_column() {
     assert_eq!(body.as_deref(), Some("current body"));
     assert_eq!(outfit, "outfit prompt");
     assert_eq!(pose.as_deref(), Some("pose prompt"));
+}
+
+#[tokio::test]
+async fn lore_and_loras_round_trip_through_insert_and_update() {
+    // given: a character carrying private lore and its adapters
+    let (pool, _db) = setup_db().await;
+    let adventure_id = setup_adventure(&pool).await;
+    let mut conn = pool.acquire().await.expect("acquire");
+
+    let mut character = Character::new(
+        Uuid::new_v4(),
+        "Mara".into(),
+        "female".to_string(),
+        adventure_id,
+        "A tide-singer",
+        "",
+        CharacterStatus::Present,
+        false,
+    );
+    character.lore = "Owes the harbour a debt.".to_string();
+    character.loras = vec![Lora::new("mara-voice.gguf", 0.8)];
+
+    // when
+    insert_character(&mut conn, adventure_id, &character)
+        .await
+        .expect("insert");
+
+    // then: both columns carry the authored values
+    let (lore, loras): (String, String) =
+        sqlx::query_as("SELECT lore, loras FROM character WHERE id = ?1")
+            .bind(character.id.to_string())
+            .fetch_one(&pool)
+            .await
+            .expect("read character");
+    assert_eq!(lore, "Owes the harbour a debt.");
+    assert_eq!(
+        serde_json::from_str::<Vec<Lora>>(&loras).expect("loras json"),
+        vec![Lora::new("mara-voice.gguf", 0.8)]
+    );
+
+    // when: the story rewrites both
+    character.lore = "Paid in full.".to_string();
+    character.loras.clear();
+    update_character(&mut conn, &character)
+        .await
+        .expect("update character");
+
+    // then
+    let (lore, loras): (String, String) =
+        sqlx::query_as("SELECT lore, loras FROM character WHERE id = ?1")
+            .bind(character.id.to_string())
+            .fetch_one(&pool)
+            .await
+            .expect("read character");
+    assert_eq!(lore, "Paid in full.");
+    assert_eq!(loras, "[]");
 }

@@ -87,12 +87,25 @@ impl ContextBuilder {
         character: &Character,
         framing: ImageFraming,
     ) -> Option<String> {
-        let look = match framing {
-            ImageFraming::FullBody => character.identity(),
-            ImageFraming::Portrait | ImageFraming::FullBodyPose => {
-                character.current_body_or_default()
+        let look = if character.has_loras() {
+            match framing {
+                ImageFraming::FullBody => None,
+                ImageFraming::Portrait | ImageFraming::FullBodyPose => {
+                    character.appearance_current_body.as_deref()
+                }
             }
-        }?;
+        } else {
+            match framing {
+                ImageFraming::FullBody => character.identity(),
+                ImageFraming::Portrait | ImageFraming::FullBodyPose => {
+                    character.current_body_or_default()
+                }
+            }
+        };
+
+        if look.is_none() && !character.has_loras() {
+            return None;
+        }
 
         let mut layers = Vec::with_capacity(4);
         match framing {
@@ -100,7 +113,9 @@ impl ContextBuilder {
             ImageFraming::FullBody => layers.push(CHAR_FULL_BODY_FRAMING),
             ImageFraming::FullBodyPose => {}
         }
-        layers.push(look);
+        if let Some(look) = look {
+            layers.push(look);
+        }
 
         let outfit = character.appearance_current_outfit.trim();
         if !outfit.is_empty() {

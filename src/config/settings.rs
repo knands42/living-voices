@@ -191,7 +191,6 @@ pub struct ImageModel {
     pub backend: String,
     pub base_url: String,
     pub workflow: SupportedModel,
-    pub reference_workflow: SupportedModel,
     pub output_dir: PathBuf,
 }
 
@@ -202,7 +201,6 @@ impl Default for ImageModel {
             backend: "comfyui".to_string(),
             base_url: DEFAULT_IMAGE_MODEL_URL.to_string(),
             workflow: SupportedModel::FluxQ8,
-            reference_workflow: SupportedModel::FluxKontextQ4,
             output_dir: base_dir().join(DEFAULT_IMAGE_OUTPUT_DIR),
         }
     }

@@ -122,7 +122,6 @@ pub struct Adventure {
     pub tone: String,
     pub status: AdventureStatus,
     pub characters: Vec<Character>,
-    pub loras: Vec<Lora>,
     pub tags: Vec<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -147,7 +146,6 @@ impl Adventure {
             narrator,
             lore,
             characters: Vec::new(),
-            loras: Vec::new(),
             tone: tone.into(),
             status,
             tags: Vec::new(),
@@ -160,9 +158,20 @@ impl Adventure {
         self.characters.push(character);
     }
 
-    pub fn with_loras(mut self, loras: Vec<Lora>) -> Self {
-        self.loras = loras;
-        self
+    pub fn loras(&self) -> Vec<Lora> {
+        let mut loras: Vec<Lora> = Vec::new();
+
+        for lora in self
+            .characters
+            .iter()
+            .flat_map(|character| character.loras.iter())
+        {
+            if !loras.iter().any(|known| known.path == lora.path) {
+                loras.push(lora.clone());
+            }
+        }
+
+        loras
     }
 
     pub fn add_tags(&mut self, tags: Vec<String>) {

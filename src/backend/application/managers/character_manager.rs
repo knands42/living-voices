@@ -1,6 +1,4 @@
 //! Creates a draft character, persists it, updates local adventure state,
-use std::path::{Path, PathBuf};
-
 use sqlx::SqlitePool;
 use thiserror::Error;
 use uuid::Uuid;
@@ -8,7 +6,7 @@ use uuid::Uuid;
 use crate::backend::application::character_gallery::CharacterGallery;
 use crate::backend::application::context::{ContextBuilder, ContextBuilderError};
 use crate::backend::application::port::chat_port::{ChatResponseError, PromptPort};
-use crate::backend::application::port::image_port::{ImageError, ImagePort, ShotReference};
+use crate::backend::application::port::image_port::{ImageError, ImagePort};
 use crate::backend::domain::character::ImageFraming;
 use crate::backend::persistence::state_persistence::update_character_presence;
 use crate::backend::{
@@ -222,8 +220,7 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         &self,
         character: &Character,
     ) -> Result<(), CharacterManagerError> {
-        let reference = self.get_latest_full_body_image(character).await?;
-        self.create_character_image(character, ImageFraming::Portrait, reference.as_deref())
+        self.create_character_image(character, ImageFraming::Portrait)
             .await
     }
 
@@ -231,7 +228,7 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         &self,
         character: &Character,
     ) -> Result<(), CharacterManagerError> {
-        self.create_character_image(character, ImageFraming::FullBody, None)
+        self.create_character_image(character, ImageFraming::FullBody)
             .await
     }
 
@@ -239,43 +236,14 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         &self,
         character: &Character,
     ) -> Result<(), CharacterManagerError> {
-        let reference = self.get_latest_full_body_image(character).await?;
-        self.create_character_image(character, ImageFraming::FullBodyPose, reference.as_deref())
+        self.create_character_image(character, ImageFraming::FullBodyPose)
             .await
-    }
-
-    async fn get_latest_full_body_image(
-        &self,
-        character: &Character,
-    ) -> Result<Option<PathBuf>, CharacterManagerError> {
-        let title = {
-            let guard = self.state.read()?;
-            let Some(adventure) = guard.current_adventure.as_ref() else {
-                log::warn!(
-                    "no loaded adventure; skipping the image of {}",
-                    character.name
-                );
-                return Ok(None);
-            };
-
-            adventure.title.clone()
-        };
-
-        if let Some(path) = self
-            .gallery
-            .latest(&title, character, ImageFraming::FullBody)
-        {
-            return Ok(Some(path));
-        }
-
-        Ok(None)
     }
 
     async fn create_character_image(
         &self,
         character: &Character,
         framing: ImageFraming,
-        reference: Option<&Path>,
     ) -> Result<(), CharacterManagerError> {
         let Some(prompt) = ContextBuilder::compose_character_image_prompt(character, framing)
         else {
@@ -297,11 +265,7 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         };
 
         self.image_handler
-            .generate_character_image(
-                &prompt,
-                &destination,
-                reference.map(|path| ShotReference { path, framing }),
-            )
+            .generate_character_image(&prompt, &destination)
             .await?;
 
         log::info!("generated an image of {} at {destination}", character.name);
@@ -313,6 +277,11 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         character: &Character,
         kind: ImagePromptKind,
     ) -> Result<Character, CharacterManagerError> {
+        if character.has_loras() && matches!(kind, ImagePromptKind::Body | ImagePromptKind::Outfit)
+        {
+            return Ok(character.clone());
+        }
+
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
 
         let adventure = get_adventure(&mut conn, character.adventure_id).await?;

@@ -1,10 +1,9 @@
-use std::path::PathBuf;
 use std::time::Duration;
 
 use serde_json::Value;
 
 use crate::ai::integrations::image::workflow::Workflow;
-use crate::backend::application::port::image_port::{ImageError, ImagePort, ShotReference};
+use crate::backend::application::port::image_port::{ImageError, ImagePort};
 use crate::config::ImageModel;
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -40,52 +39,8 @@ impl ComfyImage {
             })?
     }
 
-    /// The shot the new one is drawn against has to be in ComfyUI's workspace first.
-    async fn shot_workflow(
-        &self,
-        prompt: &str,
-        destination: &str,
-        reference: Option<ShotReference<'_>>,
-    ) -> Result<Workflow, ImageError> {
-        let workflow = Workflow::new(prompt, destination);
-
-        let Some(reference) = reference else {
-            return Ok(workflow);
-        };
-
-        let staged = self.stage_reference(reference).await?;
-
-        Ok(workflow.with_shot_reference(&staged, reference.framing))
-    }
-
-    /// ComfyUI's `LoadImage` only reads its workspace `input` dir, so a shot needs to be copied there.
-    async fn stage_reference(&self, reference: ShotReference<'_>) -> Result<String, ImageError> {
-        let name = reference.path.file_name().ok_or_else(|| {
-            ImageError::Provider(format!("{} is not a file", reference.path.display()))
-        })?;
-        let input_dir = self.input_dir();
-
-        tokio::fs::create_dir_all(&input_dir)
-            .await
-            .map_err(|e| ImageError::Provider(format!("{}: {e}", input_dir.display())))?;
-        tokio::fs::copy(reference.path, input_dir.join(name))
-            .await
-            .map_err(|e| ImageError::Provider(format!("{}: {e}", reference.path.display())))?;
-
-        Ok(name.to_string_lossy().into_owned())
-    }
-
-    fn input_dir(&self) -> PathBuf {
-        self.config
-            .output_dir
-            .parent()
-            .map(|workspace| workspace.join("input"))
-            .unwrap_or_else(|| PathBuf::from("input"))
-    }
-
     async fn submit(&self, workflow: &Workflow) -> Result<String, ImageError> {
-        let graph =
-            workflow.get_workflow_prompt(self.config.workflow, self.config.reference_workflow)?;
+        let graph = workflow.get_workflow_prompt(self.config.workflow)?;
 
         let url = format!("{}/prompt", self.base_url());
         let response = self
@@ -148,20 +103,16 @@ impl ImagePort for ComfyImage {
         &self,
         prompt: &str,
         destination: &str,
-        reference: Option<ShotReference<'_>>,
     ) -> Result<(), ImageError> {
-        let workflow = self.shot_workflow(prompt, destination, reference).await?;
-        self.queue(&workflow).await
+        self.queue(&Workflow::new(prompt, destination)).await
     }
 
     async fn generate_character_image(
         &self,
         prompt: &str,
         destination: &str,
-        reference: Option<ShotReference<'_>>,
     ) -> Result<(), ImageError> {
-        let workflow = self.shot_workflow(prompt, destination, reference).await?;
-        self.submit(&workflow).await?;
+        self.submit(&Workflow::new(prompt, destination)).await?;
 
         Ok(())
     }

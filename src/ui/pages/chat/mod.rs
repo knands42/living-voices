@@ -238,7 +238,7 @@ impl<
                     .get_messages(adventure_id, HISTORY_LIMIT)
                     .await?;
                 let engine = match snapshot.current_adventure.as_ref() {
-                    Some(adventure) => start_chat_engine(&adventure.loras)
+                    Some(adventure) => start_chat_engine(&adventure.loras())
                         .await
                         .inspect_err(|err| log::warn!("chat engine unavailable: {err}"))
                         .ok()

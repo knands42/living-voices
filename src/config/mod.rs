@@ -21,14 +21,6 @@ pub enum SupportedModel {
     Qwen,
     FluxQ4,
     FluxQ8,
-    FluxKontextQ4,
-    FluxKontextQ8,
-}
-
-impl SupportedModel {
-    pub fn is_reference_model(self) -> bool {
-        matches!(self, Self::FluxKontextQ4 | Self::FluxKontextQ8)
-    }
 }
 
 #[derive(Debug, Clone)]

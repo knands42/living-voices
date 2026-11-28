@@ -107,7 +107,6 @@ struct CompleteAdventureRow {
     adventure_created_at: String,
     adventure_updated_at: String,
     adventure_tags: String,
-    adventure_loras: String,
     adventure_lore: String,
     lore_id: String,
     character_id: String,
@@ -115,6 +114,7 @@ struct CompleteAdventureRow {
     character_genre: String,
     character_description: String,
     character_backstory: String,
+    character_lore: String,
     character_appearance: Option<String>,
     character_appearance_current_body: Option<String>,
     character_appearance_current_outfit: String,
@@ -124,6 +124,7 @@ struct CompleteAdventureRow {
     character_tags: String,
     character_traits: String,
     character_relations: String,
+    character_loras: String,
     character_message_example: Option<String>,
     narrator_id: String,
     narrator_name: String,
@@ -141,7 +142,6 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
             adventure_created_at: row.get("adventure_created_at"),
             adventure_updated_at: row.get("adventure_updated_at"),
             adventure_tags: row.get("adventure_tags"),
-            adventure_loras: row.get("adventure_loras"),
             adventure_lore: row.get("adventure_lore"),
             lore_id: row.get("lore_id"),
             character_id: row.get("character_id"),
@@ -149,6 +149,7 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
             character_genre: row.get("character_genre"),
             character_description: row.get("character_description"),
             character_backstory: row.get("character_backstory"),
+            character_lore: row.get("character_lore"),
             character_appearance: row.get("character_appearance"),
             character_appearance_current_body: row.get("character_appearance_current_body"),
             character_appearance_current_outfit: row.get("character_appearance_current_outfit"),
@@ -158,6 +159,7 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
             character_tags: row.get("character_tags"),
             character_traits: row.get("character_traits"),
             character_relations: row.get("character_relations"),
+            character_loras: row.get("character_loras"),
             character_message_example: row.get("character_message_example"),
             narrator_id: row.get("narrator_id"),
             narrator_name: row.get("narrator_name"),
@@ -168,7 +170,7 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
 
 fn parse_loras(value: &str) -> Vec<Lora> {
     serde_json::from_str(value).unwrap_or_else(|err| {
-        log::warn!("could not read the adventure's loras: {err}");
+        log::warn!("could not read the character's loras: {err}");
         Vec::new()
     })
 }
@@ -191,6 +193,8 @@ fn character_from_row(value: &CompleteAdventureRow) -> Result<Character, Persist
         value.character_is_player,
     );
     character.appearance = value.character_appearance.clone();
+    character.lore = value.character_lore.clone();
+    character.loras = parse_loras(&value.character_loras);
     character.appearance_current_body = value.character_appearance_current_body.clone();
     character.appearance_current_outfit = value.character_appearance_current_outfit.clone();
     character.appearance_current_pose = value.character_appearance_current_pose.clone();
@@ -240,8 +244,7 @@ impl TryFrom<CompleteAdventureRow> for Adventure {
             AdventureStatus::from_str(&value.adventure_status),
             adventure_created_at_utc,
             adventure_updated_at_utc,
-        )
-        .with_loras(parse_loras(&value.adventure_loras));
+        );
 
         let adventure_tags = parse_json_array(Some(value.adventure_tags.as_str()))?;
 
@@ -296,7 +299,6 @@ SELECT a.id                      AS adventure_id,
        a.created_at             AS adventure_created_at,
        a.updated_at             AS adventure_updated_at,
        COALESCE(at.tags, '[]')   AS adventure_tags,
-       a.loras                   AS adventure_loras,
        COALESCE(l.lore, '[]')    AS adventure_lore,
        l.lore_id                  AS lore_id,
        c.id                      AS character_id,
@@ -304,6 +306,7 @@ SELECT a.id                      AS adventure_id,
        c.genre                  AS character_genre,
        c.headline                AS character_description,
        c.backstory                AS character_backstory,
+       c.lore                     AS character_lore,
        c.appearance               AS character_appearance,
        c.appearance_current_body AS character_appearance_current_body,
        c.appearance_current_outfit AS character_appearance_current_outfit,
@@ -313,6 +316,7 @@ SELECT a.id                      AS adventure_id,
        COALESCE(ctag.tags, '[]') AS character_tags,
        COALESCE(ct.trait, '[]')  AS character_traits,
        c.relations AS character_relations,
+       c.loras AS character_loras,
        c.message_example AS character_message_example,
        n.id AS narrator_id, n.name AS narrator_name, n.instructions AS narrator_instructions
 FROM adventure AS a
@@ -454,13 +458,12 @@ pub async fn update_adventure(
     adventure: &Adventure,
 ) -> Result<(), PersistenceError> {
     sqlx::query(
-        "UPDATE adventure SET title = ?1, headline = ?2, tone = ?3, status = ?4, loras = ?5 WHERE id = ?6",
+        "UPDATE adventure SET title = ?1, headline = ?2, tone = ?3, status = ?4 WHERE id = ?5",
     )
     .bind(&adventure.title)
     .bind(&adventure.headline)
     .bind(&adventure.tone)
     .bind(adventure.status.as_str())
-    .bind(serde_json::to_string(&adventure.loras)?)
     .bind(adventure.id.to_string())
     .execute(&mut *conn)
     .await?;

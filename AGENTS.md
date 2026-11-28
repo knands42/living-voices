@@ -131,18 +131,19 @@ Testing).
   model blends the contradiction. A pose shot carries **no** framing clause: the pose decides the
   frame.
 - **Image backend**: the graphs live in `ai/integrations/image/workflow.rs` and `Workflow` builds
-  them, so `comfy_image.rs` only posts what it is given. Two config slots decide which:
-  `workflow` draws originals (text-to-image), `reference_workflow` draws every shot that starts from
-  a reference. With a Kontext model in the second slot the reference is injected as `ReferenceLatent`
-  conditioning and the framing sizes an empty latent, so the prompt decides the crop; with anything
-  else it falls back to img2img, where the reference *is* the latent and its framing survives. Node
-  ids are found by `class_type`, never assumed. Prompt wording is applied by
-  `ContextBuilder::compose_character_image_prompt`; only the shot's dimensions belong to the graph.
-- **Every shot after the first is drawn against the newest full body.** `latest_full_body` generates
-  the full body when the character has none, which is why a character's first image is always one.
-  A reference reaches the adapter as `ShotReference { path, framing }`; ComfyUI's `LoadImage` only
-  reads its workspace `input` dir, so the adapter copies the shot there first.
-  Denoise belongs to the workflow (`Workflow::denoise`): Flux 0.6, Qwen 0.75, Kontext 1.0.
+  them, so `comfy_image.rs` only posts what it is given. `workflow` picks the text-to-image graph;
+  every shot is standalone, and a character with `loras` drops its identity text from the prompt
+  (the weights own the face) while keeping outfit/pose. Node ids are found by `class_type`, never
+  assumed. Prompt wording is applied by `ContextBuilder::compose_character_image_prompt`; only the
+  shot's dimensions belong to the graph.
+- **There is no reference chain.** Every shot is text-to-image at a square 1024; no `ShotReference`,
+  no img2img, no `LoadImage` staging. The identity anchor only matters when a character has no
+  adapter.
+- **Adapters live on the character**, not the adventure: `Character.loras` feeds the chat spawn
+  (`Adventure::loras()` dedupes by path). A character with an adapter keeps `appearance` and outfit
+  verbatim — the manager skips the body/outfit LLM rewrite — and its identity text is left out of the
+  image prompt, because the weights own it. `lore` is private character text for chat, never an image
+  layer.
 - **Shots are numbered, never overwritten**: `{adventure}/{character}/{character}_{shot}_{n}`, the
   first of a framing `_0`. ComfyUI appends its own `_00001_` counter after that, so the number is the
   one `CharacterGallery` wrote — parse it, don't compare filenames as text.

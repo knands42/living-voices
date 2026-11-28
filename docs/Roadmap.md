@@ -67,6 +67,23 @@ Lands as `CharacterCorpus` (domain), `character_samples` (persistence), `persona
 (application), `persona_port.rs` + `ai/integrations/text/persona.rs`. Generation runs in
 `Task::perform`/`Task::run`, and no DB connection may be held across the model `.await`.
 
+### Character image identity (LoRA + references)
+
+Goal: identity lives in the weights, state lives in the prompt. V1 stays deterministic: one prompt
+mode and one reference rule per mode, no dynamic reference selection.
+
+- [ ] Character carries an image adapter (`path`, `scale`, base-model fingerprint); a missing or
+      mismatched adapter degrades to reference-only with a warning.
+- [ ] Dataset contract: 5 captioned blocks (4 outfits + nude, 20 each), the same poses across every
+      block, plus expression shots; caption pose, outfit, expression and setting, and caption the
+      nude state so it is not the identity default.
+- [ ] Prompt: adapter present → describe only the delta (pose, outfit, scene); adapter absent →
+      the full appearance description the builder already sends.
+- [ ] Reference: adapter present → text-to-image, no reference; adapter absent → the newest full
+      body, today's chain. Exact outfits opt into an outfit reference later.
+- [ ] Validate on a held-out outfit, pose and expression before an adapter is accepted.
+- [ ] Not in V1: pose control, dynamic reference picking, per-scene references.
+
 ### Adventure tooling
 
 Goal: an adventure can carry its own panels — a calendar, an inbox, a ledger — without the app

@@ -12,8 +12,6 @@ pub const FLUX_T5_URL: &str = "https://huggingface.co/city96/t5-v1_1-xxl-encoder
 pub const FLUX_CLIP_URL: &str =
     "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors";
 pub const FLUX_VAE_URL: &str = "https://huggingface.co/Comfy-Org/Lumina_Image_2.0_Repackaged/resolve/main/split_files/vae/ae.safetensors";
-pub const FLUX_KONTEXT_Q4_URL: &str = "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q4_K_S.gguf";
-pub const FLUX_KONTEXT_Q8_URL: &str = "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q8_0.gguf";
 pub const QWEN_URL: &str =
     "https://huggingface.co/city96/Qwen-Image-gguf/resolve/main/qwen-image-Q4_K_S.gguf";
 pub const QWEN_VAE_URL: &str = "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors";
@@ -52,8 +50,6 @@ impl Asset {
         match model {
             SupportedModel::FluxQ4 => Asset::flux_assets(FLUX_Q4_URL),
             SupportedModel::FluxQ8 => Asset::flux_assets(FLUX_Q8_URL),
-            SupportedModel::FluxKontextQ4 => Asset::flux_assets(FLUX_KONTEXT_Q4_URL),
-            SupportedModel::FluxKontextQ8 => Asset::flux_assets(FLUX_KONTEXT_Q8_URL),
             SupportedModel::Qwen => Asset::qwen_assets(),
         }
     }
@@ -66,7 +62,7 @@ impl Asset {
         layout::comfy_models_dir().join(self.subdir).join(name)
     }
 
-    /// Flux Q4/Q8 and Kontext Q4/Q8 share the T5 + CLIP-L + VAE support trio
+    /// Flux Q4 and Q8 share the T5 + CLIP-L + VAE support trio
     /// and differ only in the unet weights.
     fn flux_assets(unet_url: &'static str) -> Vec<Self> {
         vec![
@@ -128,22 +124,6 @@ mod test {
             .find(|a| a.url == FLUX_Q4_URL)
             .expect("unet present");
         assert_eq!(unet.filename, None);
-    }
-
-    #[test]
-    fn kontext_reuses_flux_support_with_its_own_unet() {
-        // given the q4 kontext weights
-        let assets = Asset::assets(SupportedModel::FluxKontextQ4);
-
-        // then it is the flux trio plus the kontext unet, nothing else
-        assert_eq!(assets.len(), 4);
-        assert!(
-            assets
-                .iter()
-                .any(|a| a.url == FLUX_KONTEXT_Q4_URL && a.subdir == "unet")
-        );
-        assert!(assets.iter().any(|a| a.url == FLUX_T5_URL));
-        assert!(assets.iter().any(|a| a.url == FLUX_VAE_URL));
     }
 
     #[test]

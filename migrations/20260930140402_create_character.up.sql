@@ -7,11 +7,13 @@ CREATE TABLE character
     genre                       TEXT    NOT NULL,
     headline                    TEXT    NOT NULL DEFAULT '',
     backstory                   TEXT    NOT NULL DEFAULT '',
+    lore                        TEXT    NOT NULL DEFAULT '', -- private notes the story may know but the cast list does not
     appearance                  TEXT    NULL, -- the authored identity, prompt-shaped: the image model's ground truth
     appearance_current_body     TEXT    NULL, -- NULL until the story changes the body; falls back to appearance
     appearance_current_outfit   TEXT    NOT NULL DEFAULT '',
     appearance_current_pose     TEXT    NULL,
     relations                   TEXT    NOT NULL DEFAULT '[]', -- json: ["Brother of Otho"]
+    loras                       TEXT    NOT NULL DEFAULT '[]', -- json: [{path, scale}] adapters this character ships
     message_example             TEXT    NULL,                  -- few-shot voice samples, prose
     status                      TEXT    NOT NULL DEFAULT 'present',
     is_player                   INTEGER NOT NULL DEFAULT 0,

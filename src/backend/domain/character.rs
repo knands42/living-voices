@@ -2,6 +2,8 @@ use std::fmt::Display;
 
 use uuid::Uuid;
 
+use crate::backend::domain::lora::Lora;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum CharacterStatus {
     #[default]
@@ -71,6 +73,8 @@ pub struct Character {
     pub status: CharacterStatus,
     pub backstory: String,
     pub is_player: bool,
+    pub lore: String,
+    pub loras: Vec<Lora>,
     pub traits: Vec<String>,    // Speaks only in tidal registers, ...
     pub tags: Vec<String>,      // Protagonist, Brave ...
     pub relations: Vec<String>, // Son of Dragoon
@@ -109,6 +113,8 @@ impl Character {
             genre,
             headline: headline.into(),
             backstory: backstory.into(),
+            lore: String::new(),
+            loras: Vec::new(),
             appearance: None,
             appearance_current_body: None,
             appearance_current_outfit: String::new(),
@@ -198,6 +204,10 @@ impl Character {
         self.appearance.as_deref()
     }
 
+    pub fn has_loras(&self) -> bool {
+        !self.loras.is_empty()
+    }
+
     pub fn current_body_or_default(&self) -> Option<&str> {
         self.appearance_current_body.as_deref().or(self.identity())
     }
@@ -215,6 +225,9 @@ impl Character {
                 "*Backstory*: {}.",
                 self.backstory.trim_end_matches(".")
             ));
+        }
+        if !self.lore.trim().is_empty() {
+            lines.push(format!("*Lore*: {}.", self.lore.trim_end_matches(".")));
         }
         if let Some(section) = render_list("*Traits*", &self.traits) {
             lines.push(section);

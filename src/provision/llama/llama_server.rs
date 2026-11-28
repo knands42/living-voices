@@ -166,27 +166,31 @@ mod test {
         std::env::temp_dir().join(format!("lv-server-{name}-{}-{stamp}", std::process::id()))
     }
 
+    /// Written beside the target and renamed, so an exec never sees an inode still open for write.
     #[cfg(unix)]
-    fn fake_server(path: &Path) {
+    fn install_script(path: &Path, script: &[u8]) {
         use std::os::unix::fs::PermissionsExt;
 
+        let staging = path.with_extension("staged");
         std::fs::create_dir_all(path.parent().expect("parent")).expect("dirs");
-        std::fs::write(path, b"#!/bin/sh\nexec sleep 30\n").expect("write");
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        std::fs::write(&staging, script).expect("write");
+        std::fs::set_permissions(&staging, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        std::fs::rename(&staging, path).expect("install");
+    }
+
+    #[cfg(unix)]
+    fn fake_server(path: &Path) {
+        install_script(path, b"#!/bin/sh\nexec sleep 30\n");
     }
 
     /// Same stand-in, but it spills the arguments it was given into `argv`.
     #[cfg(unix)]
     fn recording_server(path: &Path, argv: &Path) {
-        use std::os::unix::fs::PermissionsExt;
-
-        std::fs::create_dir_all(path.parent().expect("parent")).expect("dirs");
         let script = format!(
             "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}'\nexec sleep 30\n",
             argv.display()
         );
-        std::fs::write(path, script).expect("write");
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        install_script(path, script.as_bytes());
     }
 
     /// The child writes the file itself, so reading it needs to wait for the shell.

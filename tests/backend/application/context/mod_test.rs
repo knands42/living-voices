@@ -7,6 +7,7 @@ use living_voices::backend::application::port::chat_port::{PromptTurn, Speaker};
 use living_voices::backend::application::state::SharedState;
 use living_voices::backend::domain::adventure::Adventure;
 use living_voices::backend::domain::character::{Character, CharacterStatus, ImageFraming};
+use living_voices::backend::domain::lora::Lora;
 use living_voices::backend::domain::memory::Fact;
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::fact_persistence::upsert_facts;
@@ -796,6 +797,19 @@ fn composed_prompt_falls_back_to_the_author_identity_when_the_body_is_unchanged(
         .expect("composed prompt");
 
     assert!(prompt.contains("Copper hair, grey eyes, a salt-stained coat"));
+}
+
+#[test]
+fn composed_prompt_skips_the_identity_when_the_character_ships_a_lora() {
+    let mut character = mara(Uuid::new_v4());
+    character.loras = vec![Lora::new("mara.gguf", 0.8)];
+
+    let prompt = ContextBuilder::compose_character_image_prompt(&character, ImageFraming::FullBody)
+        .expect("composed prompt");
+
+    assert!(prompt.starts_with("full body"));
+    assert!(!prompt.contains("Copper hair"));
+    assert!(prompt.contains("grease-stained apron over a linen shirt"));
 }
 
 #[test]

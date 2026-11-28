@@ -17,7 +17,6 @@ enabled = false
 backend = "comfyui"
 base_url = "http://localhost:8188"
 workflow = "fluxq4"
-reference_workflow = "fluxkontextq4"
 output_dir = "/home/foxu/Proyectos/living-voices/comfyui/output"
 
 [memory]

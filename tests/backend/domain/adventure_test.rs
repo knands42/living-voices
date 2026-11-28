@@ -44,7 +44,6 @@ fn new_sets_title_description_and_empty_collections() {
     assert_eq!(adventure.title, "Tides of Glass");
     assert_eq!(adventure.headline, "A drowned city");
     assert!(adventure.characters.is_empty());
-    assert!(adventure.loras.is_empty());
     assert!(adventure.tags.is_empty());
     assert_eq!(adventure.lore.text, "");
 }
@@ -57,14 +56,22 @@ fn new_defaults_tone_to_empty() {
 }
 
 #[test]
-fn with_loras_replaces_the_default_empty_list() {
-    let adventure =
-        new_adventure().with_loras(vec![Lora::new("tide-voice.gguf", Lora::DEFAULT_SCALE)]);
+fn loras_collects_one_adapter_per_path_from_the_cast() {
+    let mut adventure = new_adventure();
 
-    assert_eq!(
-        adventure.loras,
-        vec![Lora::new("tide-voice.gguf", Lora::DEFAULT_SCALE)]
-    );
+    let mut wren = Character::draft(adventure.id);
+    wren.loras = vec![Lora::new("wren.gguf", 0.8)];
+    let mut kael = Character::draft(adventure.id);
+    kael.loras = vec![Lora::new("wren.gguf", 0.5), Lora::new("kael.gguf", 1.0)];
+
+    adventure.add_character(wren);
+    adventure.add_character(kael);
+
+    let loras = adventure.loras();
+
+    assert_eq!(loras.len(), 2);
+    assert_eq!(loras[0].path, "wren.gguf");
+    assert_eq!(loras[1].path, "kael.gguf");
 }
 
 #[test]
