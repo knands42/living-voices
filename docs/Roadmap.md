@@ -2,9 +2,23 @@
 
 ## In flight
 
-- [ ] Distribute an adventure (private repo?)
+- [ ] Distribute an adventure — see [Adventure catalog](#adventure-catalog-sharing)
 
 ## Later
+
+### Adventure catalog (sharing)
+
+Goal: a catalog is data, not infrastructure. One document format and one manifest; the app reads any
+base URL, so hosting is swappable and self-hosting later is just another URL.
+
+- [ ] Export/import one adventure as a document: `schema_version`, cast, lore, acts, narrator,
+      `art { full, thumb, sha256 }`, license.
+- [ ] Hub reads `index.json` once (ETag kept in memory); Start clones that adventure's document + art.
+- [ ] Static hosting only: public bucket, content-addressed immutable URLs, no accounts, no tracking,
+- [ ] If possible, add a tyni woker in front of the CDN to reject requests without the header parameter `LivingVoices: <token>`
+- [ ] On the CDN side, add cache-control to avoid request abusing (and rate limit)
+- [ ] Sign index and documents (Ed25519); the app rejects unsigned or altered entries.
+- [ ] Host-agnostic: R2, B2 + Cloudflare, Scaleway, Hetzner, Bunny, or a self-hosted bucket.
 
 ### Media generation (ComfyUI)
 
@@ -71,14 +85,14 @@ reducer rejects illegal commands — advancing three days without an act boundar
 rejection instead of dropping it silently. State is a projection replayed from events, so a payload
 change costs a replay, not a migration.
 
-| piece               | where                                              |
-| ------------------- | -------------------------------------------------- |
-| `AdventureTool`     | `domain/tool.rs`, beside `lore.rs`                 |
-| `ToolCommand`       | domain; the only things a model may ask for        |
-| `ToolReducer`       | domain, pure, no I/O                               |
-| `extract_proposals` | `application/managers/message/tool_pass.rs`        |
-| manifest + events   | `persistence/tool_store.rs`                        |
-| panels              | `ui/pages/chat/panels/<kind>.rs`, routed by slot   |
+| piece               | where                                            |
+| ------------------- | ------------------------------------------------ |
+| `AdventureTool`     | `domain/tool.rs`, beside `lore.rs`               |
+| `ToolCommand`       | domain; the only things a model may ask for      |
+| `ToolReducer`       | domain, pure, no I/O                             |
+| `extract_proposals` | `application/managers/message/tool_pass.rs`      |
+| manifest + events   | `persistence/tool_store.rs`                      |
+| panels              | `ui/pages/chat/panels/<kind>.rs`, routed by slot |
 
 Prompt fragments per tool live in `context/prompts.rs` and are assembled by the context builder; a
 tool with no fragment does not exist to the model, so an adventure with no tools keeps today's
@@ -99,7 +113,6 @@ prompt byte for byte.
       most of it.
 - [ ] Explicitly not building: a per-turn stage-manager agent that owns tool state. It cannot hold
       the day of the week across turns and doubles latency on a card ComfyUI also wants.
-
 
 - Gallery / memory: showcase all media generated per act, like an album.
 - Narrator settings.
