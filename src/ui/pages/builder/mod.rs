@@ -71,6 +71,7 @@ pub(crate) enum Effect {
     SaveCharacter(Uuid),
     SaveAct,
     SaveOpening,
+    SaveFacts,
 }
 
 #[derive(Debug, Clone)]
@@ -297,6 +298,7 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
             Effect::SaveCharacter(character_id) => self.save_character(character_id),
             Effect::SaveAct => self.save_act(),
             Effect::SaveOpening => self.save_opening(),
+            Effect::SaveFacts => self.save_facts(),
         }
     }
 
@@ -468,6 +470,29 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
                 Message::Acts(acts::Message::Removed(resolved(
                     result,
                     "removing the act failed",
+                )))
+            },
+        )
+    }
+
+    fn save_facts(&self) -> Task<Message> {
+        let Some(draft) = &self.draft else {
+            return Task::none();
+        };
+
+        let adventure_id = draft.adventure.id;
+        let facts = draft.opening.facts_snapshot();
+        let adventure_manager = self.adventure_manager.clone();
+
+        Task::perform(
+            on_tokio(self.handle.clone(), async move {
+                adventure_manager.upsert_facts(adventure_id, &facts).await?;
+                Ok::<_, AdventureManagerError>(())
+            }),
+            |result| {
+                Message::Opening(opening::Message::FactsSaved(resolved(
+                    result,
+                    "saving the facts failed",
                 )))
             },
         )

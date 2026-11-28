@@ -33,6 +33,7 @@ pub enum Message {
     RemoveBeat(usize),
     SaveRequested,
     Saved(Result<(), String>),
+    FactsSaved(Result<(), String>),
 }
 
 #[derive(Default)]
@@ -94,7 +95,11 @@ impl State {
             }
             Message::FactTextChanged(index, text) => self.edit_fact(index, |fact| fact.fact = text),
             Message::AddFact => self.facts.push(FactDraft::default()),
-            Message::RemoveFact(index) => self.remove_fact(index),
+            Message::RemoveFact(index) => {
+                if self.remove_fact(index) {
+                    return Some(Effect::SaveFacts);
+                }
+            }
             Message::BeatEdited(index, action) => {
                 if let Some(beat) = self.beats.get_mut(index) {
                     beat.content.perform(action);
@@ -106,6 +111,8 @@ impl State {
             Message::SaveRequested => return Some(Effect::SaveOpening),
             Message::Saved(Err(err)) => log::error!("could not save the opening: {err}"),
             Message::Saved(Ok(())) => {}
+            Message::FactsSaved(Err(err)) => log::error!("could not save the facts: {err}"),
+            Message::FactsSaved(Ok(())) => {}
         }
 
         None
@@ -192,10 +199,14 @@ impl State {
         }
     }
 
-    fn remove_fact(&mut self, index: usize) {
-        if index < self.facts.len() {
-            self.facts.remove(index);
+    fn remove_fact(&mut self, index: usize) -> bool {
+        if index >= self.facts.len() {
+            return false;
         }
+
+        self.facts.remove(index);
+
+        true
     }
 
     fn pick_speaker(&mut self, index: usize, speaker: Speaker) {
