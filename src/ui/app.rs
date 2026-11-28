@@ -194,7 +194,10 @@ impl<
             Page::Setup => {
                 iced::Subscription::batch([self.setup.subscription().map(Message::Setup), resizes])
             }
-            Page::MainHub | Page::Builder | Page::Chat => resizes,
+            Page::Chat => {
+                iced::Subscription::batch([self.chat.subscription().map(Message::Chat), resizes])
+            }
+            Page::MainHub | Page::Builder => resizes,
         }
     }
 

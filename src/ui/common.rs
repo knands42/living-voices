@@ -2,7 +2,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 use crate::ui::{assets, theme};
-use iced::widget::{Container, Space, container, image, progress_bar, text};
+use iced::widget::{Container, Space, canvas, container, image, progress_bar, text};
 use iced::{Alignment, ContentFit, Element, Font, Length};
 
 // Typography
@@ -171,4 +171,59 @@ pub fn dot<'a, Message: 'static>(size: f32, color: iced::Color) -> Element<'a, M
             .border(iced::Border::default().rounded(999.0))
     })
     .into()
+}
+
+/// A ring with one bead riding it, `angle` radians around.
+pub fn spinner<'a, Message: 'static>(
+    angle: f32,
+    size: f32,
+    color: iced::Color,
+    track: iced::Color,
+) -> Element<'a, Message> {
+    canvas(Spinner {
+        angle,
+        color,
+        track,
+    })
+    .width(Length::Fixed(size))
+    .height(Length::Fixed(size))
+    .into()
+}
+
+struct Spinner {
+    angle: f32,
+    color: iced::Color,
+    track: iced::Color,
+}
+
+impl<Message> canvas::Program<Message> for Spinner {
+    type State = ();
+
+    fn draw(
+        &self,
+        _state: &(),
+        renderer: &iced::Renderer,
+        _theme: &iced::Theme,
+        bounds: iced::Rectangle,
+        _cursor: iced::mouse::Cursor,
+    ) -> Vec<canvas::Geometry> {
+        let mut frame = canvas::Frame::new(renderer, bounds.size());
+        let center = frame.center();
+        let radius = bounds.size().width.min(bounds.size().height) / 2.0 - 1.5;
+
+        frame.stroke(
+            &canvas::Path::circle(center, radius),
+            canvas::Stroke::default()
+                .with_color(self.track)
+                .with_width(1.5),
+        );
+
+        let bead = iced::Point::new(
+            center.x + radius * self.angle.cos(),
+            center.y + radius * self.angle.sin(),
+        );
+        frame.fill(&canvas::Path::circle(bead, 1.2), self.color);
+
+        vec![frame.into_geometry()]
+    }
 }

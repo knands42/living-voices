@@ -1,8 +1,7 @@
 use crate::ui::pages::setup::{Message, Progress};
 use crate::ui::{common, theme};
-use iced::widget::canvas;
 use iced::widget::{Space, column, container, row, text};
-use iced::{Alignment, Color, Element, Length, Point};
+use iced::{Alignment, Element, Length};
 
 pub fn working<'a>(
     title: &'a str,
@@ -84,50 +83,10 @@ fn trail(current: usize, spinner: f32) -> Element<'static, Message> {
 }
 
 fn spinner_widget(angle: f32) -> Element<'static, Message> {
-    canvas(Spinner {
+    common::spinner(
         angle,
-        color: theme::AMBER,
-        track: theme::alpha(theme::BRONZE_DIM, 0.5),
-    })
-    .width(Length::Fixed(10.0))
-    .height(Length::Fixed(10.0))
-    .into()
-}
-
-struct Spinner {
-    angle: f32,
-    color: Color,
-    track: Color,
-}
-
-impl<Message> canvas::Program<Message> for Spinner {
-    type State = ();
-
-    fn draw(
-        &self,
-        _state: &(),
-        renderer: &iced::Renderer,
-        _theme: &iced::Theme,
-        bounds: iced::Rectangle,
-        _cursor: iced::mouse::Cursor,
-    ) -> Vec<canvas::Geometry> {
-        let mut frame = canvas::Frame::new(renderer, bounds.size());
-        let center = frame.center();
-        let radius = bounds.size().width.min(bounds.size().height) / 2.0 - 1.5;
-
-        frame.stroke(
-            &canvas::Path::circle(center, radius),
-            canvas::Stroke::default()
-                .with_color(self.track)
-                .with_width(1.5),
-        );
-
-        let dot = Point::new(
-            center.x + radius * self.angle.cos(),
-            center.y + radius * self.angle.sin(),
-        );
-        frame.fill(&canvas::Path::circle(dot, 1.2), self.color);
-
-        vec![frame.into_geometry()]
-    }
+        10.0,
+        theme::AMBER,
+        theme::alpha(theme::BRONZE_DIM, 0.5),
+    )
 }

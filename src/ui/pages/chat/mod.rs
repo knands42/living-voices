@@ -9,8 +9,10 @@ mod transcript;
 
 use std::sync::Arc;
 
+use iced::futures::SinkExt;
+use iced::futures::channel::mpsc::Sender;
 use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack, text};
-use iced::{Background, Element, Length, Task};
+use iced::{Alignment, Background, Element, Length, Task};
 use uuid::Uuid;
 
 use crate::backend::application::adventure_manager::{
@@ -47,6 +49,7 @@ pub enum Message {
         token: u64,
         result: Result<Opened, String>,
     },
+    Tick,
     Replied {
         adventure_id: Uuid,
         sent: Result<(), String>,
@@ -156,6 +159,7 @@ pub struct State<
     // Dropping the engine kills the process, so it lives as long as the open adventure.
     _engine: Option<Arc<LlamaServer>>,
     open_token: u64,
+    spinner: f32,
     window_width: f32,
     toggle_revealed: Option<layout::Rail>,
 }
@@ -183,6 +187,7 @@ impl<
                 scene: None,
                 _engine: None,
                 open_token: 0,
+                spinner: 0.0,
                 window_width: layout::DEFAULT_WINDOW.width,
                 toggle_revealed: None,
             },
@@ -243,6 +248,13 @@ impl<
                 },
             },
         )
+    }
+
+    pub fn subscription(&self) -> iced::Subscription<Message> {
+        match self.scene {
+            None => iced::Subscription::run(ticker_stream),
+            Some(_) => iced::Subscription::none(),
+        }
     }
 
     fn send(&mut self) -> Task<Message> {
@@ -323,6 +335,7 @@ impl<
                 self.toggle_revealed = (self.toggle_revealed != Some(rail)).then_some(rail);
             }
             Message::RevealClosed => self.toggle_revealed = None,
+            Message::Tick => self.spinner = (self.spinner + 0.12) % std::f32::consts::TAU,
             Message::Replied {
                 adventure_id,
                 sent,
@@ -395,7 +408,7 @@ impl<
 
     pub fn view(&self) -> Element<'_, Message> {
         let Some(scene) = self.scene.as_ref() else {
-            return opening();
+            return opening(self.spinner);
         };
 
         let layout_fit = layout::chat_layout(self.window_width);
@@ -487,23 +500,52 @@ fn sheet<'a>(
     row.width(Length::Fill).height(Length::Fill).into()
 }
 
-fn opening() -> Element<'static, Message> {
+fn opening(spinner: f32) -> Element<'static, Message> {
+    let centre = column![
+        common::spinner(
+            spinner,
+            34.0,
+            theme::AMBER,
+            theme::alpha(theme::BRONZE_DIM, 0.5),
+        ),
+        text("Opening the story and warming its text engine.")
+            .size(12.5)
+            .color(theme::TEXT_MUTED)
+            .font(common::italic()),
+    ]
+    .spacing(14.0)
+    .align_x(Alignment::Center);
+
     container(
         column![
             button(text("← Adventures Hub").size(11.5))
                 .padding([7.0, 13.0])
                 .style(theme::back_button)
                 .on_press(Message::BackRequested),
-            text("Opening the story and warming its text engine.")
-                .size(12.5)
-                .color(theme::TEXT_MUTED)
-                .font(common::italic()),
+            container(centre)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .align_x(Alignment::Center)
+                .align_y(Alignment::Center),
         ]
-        .spacing(16.0),
+        .spacing(16.0)
+        .width(Length::Fill)
+        .height(Length::Fill),
     )
     .padding([18.0, 22.0])
     .width(Length::Fill)
     .height(Length::Fill)
     .style(theme::page)
     .into()
+}
+
+fn ticker_stream() -> impl iced::futures::Stream<Item = Message> {
+    iced::stream::channel(1, move |mut output: Sender<Message>| async move {
+        loop {
+            futures_timer::Delay::new(std::time::Duration::from_millis(16)).await;
+            if output.send(Message::Tick).await.is_err() {
+                break;
+            }
+        }
+    })
 }

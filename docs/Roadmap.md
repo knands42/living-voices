@@ -2,7 +2,7 @@
 
 ## In flight
 
-- [ ]
+- [ ] Distribute an adventure (private repo?)
 
 ## Later
 
