@@ -16,7 +16,7 @@ use crate::backend::application::port::chat_port::PromptPort;
 use crate::backend::application::port::image_port::ImagePort;
 use crate::backend::domain::adventure::{Adventure, AdventureStatus};
 use crate::backend::domain::character::Character;
-use crate::backend::domain::lora::Lora;
+use crate::backend::domain::lora::{Lora, LoraKind};
 use crate::backend::domain::memory::{Act, Fact, State as SceneState};
 use crate::backend::domain::message::Message as MessageLine;
 use crate::ui::pages::builder::sidebar::sidebar;
@@ -414,8 +414,9 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
                             .first()
                             .map_or(Lora::DEFAULT_SCALE, |lora| lora.scale);
 
-                        if let Some(lora) =
-                            character_manager.stage_image_adapter(&source, scale).await
+                        if let Some(lora) = character_manager
+                            .stage_lora_adapter(&source, scale, LoraKind::Image)
+                            .await
                         {
                             character.loras = vec![lora];
                         }

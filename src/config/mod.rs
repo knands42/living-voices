@@ -102,20 +102,20 @@ impl ConfigHandle {
 
     pub fn set_text_endpoints(&self, chat_base_url: &str, memory_base_url: &str) {
         let mut config = self.write();
-        retarget(&mut config.settings.models.chat, chat_base_url);
-        retarget(&mut config.settings.models.memory, memory_base_url);
+        retarget_text_endpoint(&mut config.settings.models.chat, chat_base_url);
+        retarget_text_endpoint(&mut config.settings.models.memory, memory_base_url);
     }
 
     pub fn set_chat_endpoint(&self, chat_base_url: &str) {
-        retarget(&mut self.write().settings.models.chat, chat_base_url);
+        retarget_text_endpoint(&mut self.write().settings.models.chat, chat_base_url);
     }
 
     pub fn set_memory_endpoint(&self, memory_base_url: &str) {
-        retarget(&mut self.write().settings.models.memory, memory_base_url);
+        retarget_text_endpoint(&mut self.write().settings.models.memory, memory_base_url);
     }
 
     pub fn set_media_endpoint(&self, media_url: &str) {
-        self.write().settings.models.image.base_url = media_url.trim_end_matches('/').to_string();
+        retarget_image_endpoint(&mut self.write().settings.models.image, media_url);
     }
 
     fn read(&self) -> std::sync::RwLockReadGuard<'_, Config> {
@@ -186,7 +186,11 @@ impl Config {
     }
 }
 
-fn retarget(model: &mut TextModel, base_url: &str) {
+fn retarget_text_endpoint(model: &mut TextModel, base_url: &str) {
+    *model = model.clone().with_endpoint(base_url);
+}
+
+fn retarget_image_endpoint(model: &mut ImageModel, base_url: &str) {
     *model = model.clone().with_endpoint(base_url);
 }
 

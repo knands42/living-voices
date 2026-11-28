@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use living_voices::config::{Config, ConfigHandle, ImageModel, Settings};
+use living_voices::config::{Config, ConfigHandle, ImageModel, Settings, TextModel};
 
 fn blank_config() -> Config {
     Config {
@@ -185,14 +185,14 @@ fn a_spawned_endpoint_is_published_without_touching_the_file() {
 }
 
 #[test]
-fn image_adapters_live_in_the_comfy_workspace_loras_dir() {
-    // given a ComfyUI workspace whose output dir sits under it
-    let mut image = ImageModel::default();
-    image.output_dir = PathBuf::from("/opt/comfyui/output");
+fn adapters_live_in_their_engine_loras_dir_and_the_dir_is_created() {
+    // when each model resolves its adapter directory
+    let image = ImageModel::default().loras_dir();
+    let text = TextModel::default().loras_dir();
 
-    // then adapters land beside the models the engine loads
-    assert_eq!(
-        image.loras_dir(),
-        PathBuf::from("/opt/comfyui/models/loras")
-    );
+    // then each lands beside its engine's models, and exists for the next copy
+    assert!(image.ends_with("comfyui/models/loras"), "{image:?}");
+    assert!(image.is_dir(), "{image:?}");
+    assert!(text.ends_with("llama/loras"), "{text:?}");
+    assert!(text.is_dir(), "{text:?}");
 }

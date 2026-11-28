@@ -1,6 +1,6 @@
 //! Supervises the `llama-server` child process.
 
-use super::layout::{llama_models_dir, llama_server_binary};
+use super::layout::{llama_dir, llama_server_binary};
 use crate::backend::domain::lora::Lora;
 pub(crate) use crate::provision::llama::engine_profile::EngineProfile;
 use crate::provision::util;
@@ -129,7 +129,7 @@ impl std::fmt::Debug for LlamaServer {
 }
 
 fn lora_args(loras: &[Lora]) -> Vec<String> {
-    let dir = llama_models_dir().join("loras");
+    let dir = llama_dir().join("loras");
     let mut args: Vec<String> = loras
         .iter()
         .flat_map(|lora| {
@@ -158,7 +158,7 @@ fn log_path(binary: &Path) -> PathBuf {
 mod test {
     use super::{CHAT_PORT, LlamaServer};
     use crate::backend::domain::lora::Lora;
-    use crate::provision::llama::layout::llama_models_dir;
+    use crate::provision::llama::layout::llama_dir;
     use crate::provision::llama::llama_server::{EngineProfile, PORT_SEARCH_LIMIT};
     use crate::provision::util;
     use std::path::{Path, PathBuf};
@@ -443,7 +443,7 @@ mod test {
         assert_pair(
             &recorded,
             "--lora",
-            &llama_models_dir()
+            &llama_dir()
                 .join("loras")
                 .join("tide-voice.gguf")
                 .display()

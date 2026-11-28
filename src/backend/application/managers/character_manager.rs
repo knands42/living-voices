@@ -8,7 +8,7 @@ use crate::backend::application::context::{ContextBuilder, ContextBuilderError};
 use crate::backend::application::port::chat_port::{ChatResponseError, PromptPort};
 use crate::backend::application::port::image_port::{ImageError, ImagePort};
 use crate::backend::domain::character::ImageFraming;
-use crate::backend::domain::lora::Lora;
+use crate::backend::domain::lora::{Lora, LoraKind};
 use crate::backend::persistence::state_persistence::update_character_presence;
 use crate::backend::{
     PersistenceError,
@@ -197,26 +197,56 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         Ok(())
     }
 
-    /// Copies the file the author picked into ComfyUI's loras directory and returns the adapter the domain persists
-    pub async fn stage_image_adapter(&self, source: &str, scale: f32) -> Option<Lora> {
+    /// Copies the lora file the author picked into the engine's lora directory
+    pub async fn stage_lora_adapter(
+        &self,
+        source: &str,
+        scale: f32,
+        kind: LoraKind,
+    ) -> Option<Lora> {
         let source = std::path::Path::new(source.trim());
-        let name = source.file_name()?.to_string_lossy().into_owned();
-        if name.trim().is_empty() {
+        if source.as_os_str().is_empty() {
             return None;
         }
 
-        let dir = self.config.settings().models.image.loras_dir();
-        let target = dir.join(&name);
+        let dir = self.adapter_dir(kind);
+        let candidate = if source.is_absolute() {
+            source.to_path_buf()
+        } else {
+            dir.join(source)
+        };
 
-        if source != target && source.is_file() {
-            if let Err(err) = tokio::fs::create_dir_all(&dir).await {
-                log::warn!("could not prepare {}: {err}", dir.display());
-            } else if let Err(err) = tokio::fs::copy(source, &target).await {
-                log::warn!("could not stage {}: {err}", source.display());
-            }
+        if candidate.is_file()
+            && candidate.parent() == Some(dir.as_path())
+            && let Some(name) = candidate.file_name()
+        {
+            return Some(Lora {
+                name: name.to_string_lossy().into_owned(),
+                scale,
+                kind,
+            });
         }
 
-        Some(Lora::image(name, scale))
+        if !source.is_file() {
+            log::warn!("adapter {} is missing; nothing to stage", source.display());
+            return None;
+        }
+
+        let name = adapter_name(source, &dir);
+        let target = dir.join(&name);
+        if let Err(err) = tokio::fs::copy(source, &target).await {
+            log::warn!("could not stage {}: {err}", source.display());
+            return None;
+        }
+
+        Some(Lora { name, scale, kind })
+    }
+
+    fn adapter_dir(&self, kind: LoraKind) -> std::path::PathBuf {
+        match kind {
+            LoraKind::Image => self.config.settings().models.image.loras_dir(),
+            LoraKind::Text => self.config.settings().models.chat.loras_dir(),
+        }
     }
 
     pub async fn create_character_body_prompt(
@@ -448,4 +478,23 @@ fn set_image_prompt(character: &mut Character, kind: ImagePromptKind, prompt: &s
         ImagePromptKind::Outfit => character.appearance_current_outfit = prompt.to_string(),
         ImagePromptKind::Pose => character.appearance_current_pose = Some(prompt.to_string()),
     }
+}
+
+/// A six-character hex stem keeps adapter names short and free of the author's file layout.
+fn adapter_name(source: &std::path::Path, dir: &std::path::Path) -> String {
+    let extension = source
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| format!(".{extension}"))
+        .unwrap_or_default();
+
+    for _ in 0..16 {
+        let stem = &uuid::Uuid::new_v4().simple().to_string()[..6];
+        let name = format!("{stem}{extension}");
+        if !dir.join(&name).exists() {
+            return name;
+        }
+    }
+
+    format!("{}{extension}", uuid::Uuid::new_v4().simple())
 }

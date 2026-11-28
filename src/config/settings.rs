@@ -1,8 +1,9 @@
+use super::{SupportedModel, base_dir};
+use crate::provision::comfy::layout::comfy_dir;
+use crate::provision::llama::layout::llama_dir;
 use serde::{Deserialize, Serialize};
 use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
-
-use super::{SupportedModel, base_dir};
 
 const DEFAULT_CHAT_MODEL_URL: &str = "http://localhost:11434/v1";
 const DEFAULT_CHAT_MEMORY_URL: &str = "http://localhost:11434/v1";
@@ -102,6 +103,14 @@ impl TextModel {
         self.base_url = format!("{}/v1", base_url.trim_end_matches('/'));
         self
     }
+
+    pub fn loras_dir(&self) -> PathBuf {
+        let dir = llama_dir().join("loras");
+        if let Err(err) = std::fs::create_dir_all(&dir) {
+            log::warn!("could not create {}: {err}", dir.display());
+        }
+        dir
+    }
 }
 
 impl Default for TextModel {
@@ -195,11 +204,17 @@ pub struct ImageModel {
 }
 
 impl ImageModel {
+    pub fn with_endpoint(mut self, base_url: &str) -> Self {
+        self.base_url = base_url.trim_end_matches('/').to_string();
+        self
+    }
+
     pub fn loras_dir(&self) -> PathBuf {
-        self.output_dir
-            .parent()
-            .map(|workspace| workspace.join("models").join("loras"))
-            .unwrap_or_else(|| PathBuf::from("models/loras"))
+        let dir = comfy_dir().join("models").join("loras");
+        if let Err(err) = std::fs::create_dir_all(&dir) {
+            log::warn!("could not create {}: {err}", dir.display());
+        }
+        dir
     }
 }
 
