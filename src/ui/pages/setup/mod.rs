@@ -3,13 +3,8 @@ mod question;
 mod view;
 mod working;
 
-use std::sync::Arc;
-
 use crate::config::{ConfigHandle, Settings};
-use crate::provision::{
-    ComfyEvent, Gpu, MediaRecommendation, RunningEngines, human_bytes, start_engines,
-    start_provisioning,
-};
+use crate::provision::{ComfyEvent, Gpu, MediaRecommendation, human_bytes, start_provisioning};
 use crate::ui::pages::setup::header::header;
 use crate::ui::pages::setup::question::question;
 use crate::ui::pages::setup::view::{specs, verdict};
@@ -32,8 +27,6 @@ pub enum Message {
     BackRequested,
     Progress(Progress),
     Provisioned,
-    // `Arc` because a message must be `Clone` and the server handles are not.
-    EnginesStarted(Arc<RunningEngines>),
     Failed(String),
     Tick,
 }
@@ -90,8 +83,7 @@ impl Progress {
 pub(crate) enum Phase {
     Asking,
     Installing,
-    Starting,
-    Running,
+    Provisioned,
     Failed(String),
 }
 
@@ -153,29 +145,13 @@ impl State {
                     log::warn!("could not write the answer into config.toml: {err}");
                 }
 
-                if self.phase == Phase::Running {
-                    self.notice = Some("Saved. The change applies on the next launch.");
-                    return (Task::none(), Event::None);
-                }
-
                 return (self.start(), Event::None);
             }
             Message::BackRequested => return (Task::none(), Event::Show(Page::MainHub)),
             Message::Progress(progress) => self.progress = Some(progress),
             Message::Provisioned => {
-                self.phase = Phase::Starting;
+                self.phase = Phase::Provisioned;
                 self.progress = None;
-            }
-            Message::EnginesStarted(engines) => {
-                self.phase = Phase::Running;
-                engines.stamp(&self.config);
-                return (
-                    Task::none(),
-                    Event::EnginesReady {
-                        engines,
-                        config: self.config.clone(),
-                    },
-                );
             }
             Message::Failed(err) => {
                 log::warn!("engines could not start: {err}");
@@ -197,8 +173,8 @@ impl State {
                 self.progress.as_ref(),
                 self.spinner,
             ),
-            Phase::Starting => working("Starting the engines", 1, None, self.spinner),
-            Phase::Asking | Phase::Running | Phase::Failed(_) => question(self),
+            Phase::Provisioned => working("Setup complete", 2, None, self.spinner),
+            Phase::Asking | Phase::Failed(_) => question(self),
         };
 
         let centre = iced::widget::column![
@@ -237,7 +213,7 @@ impl State {
 
     pub fn subscription(&self) -> iced::Subscription<Message> {
         match self.phase {
-            Phase::Installing | Phase::Starting => iced::Subscription::run(ticker_stream),
+            Phase::Installing => iced::Subscription::run(ticker_stream),
             _ => iced::Subscription::none(),
         }
     }
@@ -319,15 +295,6 @@ fn bring_up(handle: tokio::runtime::Handle, settings: Settings) -> Task<Message>
                 return;
             }
             let _ = done_output.try_send(Message::Provisioned);
-
-            let started = on_tokio(handle, async move { start_engines(&settings).await })
-                .await
-                .unwrap_or_else(|| Err("engine start was cancelled".to_string()));
-
-            let _ = done_output.try_send(match started {
-                Ok(engines) => Message::EnginesStarted(Arc::new(engines)),
-                Err(err) => Message::Failed(err),
-            });
         }),
         |message| message,
     )

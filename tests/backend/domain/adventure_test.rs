@@ -1,6 +1,7 @@
 use chrono::Utc;
 use living_voices::backend::domain::adventure::{Adventure, AdventureStatus};
 use living_voices::backend::domain::character::{Character, CharacterStatus};
+use living_voices::backend::domain::lora::Lora;
 use living_voices::backend::domain::lore::Lore;
 use living_voices::backend::domain::narrator::Narrator;
 use uuid::Uuid;
@@ -43,6 +44,7 @@ fn new_sets_title_description_and_empty_collections() {
     assert_eq!(adventure.title, "Tides of Glass");
     assert_eq!(adventure.headline, "A drowned city");
     assert!(adventure.characters.is_empty());
+    assert!(adventure.loras.is_empty());
     assert!(adventure.tags.is_empty());
     assert_eq!(adventure.lore.text, "");
 }
@@ -52,6 +54,17 @@ fn new_defaults_tone_to_empty() {
     let adventure = new_adventure();
 
     assert!(adventure.tone.is_empty());
+}
+
+#[test]
+fn with_loras_replaces_the_default_empty_list() {
+    let adventure =
+        new_adventure().with_loras(vec![Lora::new("tide-voice.gguf", Lora::DEFAULT_SCALE)]);
+
+    assert_eq!(
+        adventure.loras,
+        vec![Lora::new("tide-voice.gguf", Lora::DEFAULT_SCALE)]
+    );
 }
 
 #[test]

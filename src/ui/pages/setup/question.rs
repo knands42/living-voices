@@ -84,7 +84,6 @@ fn footer_text(setup_state: &State) -> String {
     match (&setup_state.phase, setup_state.notice) {
         (_, Some(notice)) => notice.to_string(),
         (Phase::Failed(err), None) => format!("The engines could not start: {err}"),
-        (Phase::Running, None) => "The engines are running.".to_string(),
         _ => "You can come back to this page any time.".to_string(),
     }
 }

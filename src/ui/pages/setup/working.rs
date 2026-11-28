@@ -55,9 +55,9 @@ pub fn working<'a>(
         .into()
 }
 
-/// Install, start, run: the done steps keep a gold dot, the current one spins.
+/// The done stages keep a gold dot, the current one spins.
 fn trail(current: usize, spinner: f32) -> Element<'static, Message> {
-    let stages = ["Installing", "Starting", "Running"];
+    let stages = ["Installing", "Ready"];
 
     let mut line = row![].spacing(18.0).align_y(Alignment::Center);
 

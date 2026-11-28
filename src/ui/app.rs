@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use iced::{Element, Event as InputEvent, Size, Task, keyboard, mouse, window};
 
 use crate::app::AppContext;
@@ -7,12 +5,9 @@ use crate::backend::application::port::chat_port::{ChatPort, NarratorPort, Promp
 use crate::backend::application::port::image_port::ImagePort;
 use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
 use crate::config::ConfigHandle;
-use crate::provision::{Gpu, RunningEngines};
+use crate::provision::Gpu;
 use crate::ui::layout;
 use crate::ui::pages::{Event, Page, builder, chat, main_hub, setup};
-
-pub type Rebuild<C, N, M, A, P, I> =
-    Arc<dyn Fn(ConfigHandle) -> Result<AppContext<C, N, M, A, P, I>, String> + Send + Sync>;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -38,13 +33,10 @@ pub struct App<
     builder: builder::State<P, I>,
     chat: chat::State<C, N, M, A>,
     setup: setup::State,
-    rebuild: Rebuild<C, N, M, A, P, I>,
     auto_scale: f32,
     zoom: f32,
     window_width: f32,
     ctrl_held: bool,
-    // Dropping this kills the engine processes, so it lives exactly as long as the window.
-    _engines: Option<Arc<RunningEngines>>,
 }
 
 impl<
@@ -58,7 +50,6 @@ impl<
 {
     pub fn boot(
         ctx: AppContext<C, N, M, A, P, I>,
-        rebuild: Rebuild<C, N, M, A, P, I>,
         config: ConfigHandle,
         gpu: Gpu,
         open_setup: bool,
@@ -91,12 +82,10 @@ impl<
             builder,
             chat,
             setup,
-            rebuild,
             auto_scale: 1.0,
             zoom: 1.0,
             window_width: layout::DEFAULT_WINDOW.width,
             ctrl_held: false,
-            _engines: None,
         };
 
         (
@@ -204,7 +193,6 @@ impl<
                 self.page = Page::Chat;
                 self.chat.open(adventure_id).map(Message::Chat)
             }
-            Event::EnginesReady { engines, config } => self.engines_ready(engines, config),
         }
     }
 
@@ -218,31 +206,6 @@ impl<
             }
             Page::Builder | Page::Chat | Page::Setup => Task::none(),
         }
-    }
-
-    fn engines_ready(
-        &mut self,
-        engines: Arc<RunningEngines>,
-        config: ConfigHandle,
-    ) -> Task<Message> {
-        log::info!("engines ready: {engines:?}");
-        self._engines = Some(engines);
-
-        match (self.rebuild)(config) {
-            Ok(ctx) => {
-                self.chat
-                    .rebind(ctx.adventure_manager.clone(), ctx.message_manager.clone());
-                self.builder
-                    .rebind(ctx.adventure_manager.clone(), ctx.character_manager.clone());
-                self.main_hub.rebind(ctx.adventure_manager);
-            }
-            Err(err) => log::error!("could not point the app at the new engines: {err}"),
-        }
-
-        if self.page == Page::Setup {
-            return self.show(Page::MainHub);
-        }
-        Task::none()
     }
 }
 

@@ -46,8 +46,7 @@ fn status(setup_state: &State) -> Element<'_, Message> {
     let (tint, label, stage) = match &setup_state.phase {
         Phase::Asking => (theme::AMBER, "waiting for you", "step 1 of 2 · install"),
         Phase::Installing => (theme::GOLD, "downloading", "step 1 of 2 · install"),
-        Phase::Starting => (theme::GOLD, "starting up", "step 2 of 2 · start"),
-        Phase::Running => (theme::SEA, "the engines are running", "ready"),
+        Phase::Provisioned => (theme::SEA, "ready", "step 2 of 2 · installed"),
         Phase::Failed(_) => (theme::ROSE, "stopped", "step 1 of 2 · install"),
     };
 

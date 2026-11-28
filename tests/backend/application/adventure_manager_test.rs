@@ -4,6 +4,7 @@ use living_voices::backend::application::{
     state::SharedState,
 };
 use living_voices::backend::domain::adventure::AdventureStatus;
+use living_voices::backend::domain::lora::Lora;
 use living_voices::backend::domain::memory::{Act, ActStatus, Fact};
 use living_voices::backend::domain::message::Message;
 use living_voices::backend::persistence::act_persistence::get_acts;
@@ -220,6 +221,7 @@ async fn update_adventure_overwrites_fields_narrator_and_lore() {
     adventure.narrator.name = "The Tide".to_string();
     adventure.narrator.instructions = "ominous".to_string();
     adventure.lore.text = "The city drowned in a single night.".to_string();
+    adventure.loras = vec![Lora::new("tide-voice.gguf", 0.8)];
 
     let updated = adventure_manager
         .update_adventure(&adventure)
@@ -234,6 +236,7 @@ async fn update_adventure_overwrites_fields_narrator_and_lore() {
     assert_eq!(updated.narrator.name, "The Tide");
     assert_eq!(updated.narrator.instructions, "ominous");
     assert_eq!(updated.lore.text, "The city drowned in a single night.");
+    assert_eq!(updated.loras, vec![Lora::new("tide-voice.gguf", 0.8)]);
 
     // and: a fresh read from the database agrees
     let mut conn = pool.acquire().await.expect("acquire");
@@ -243,6 +246,7 @@ async fn update_adventure_overwrites_fields_narrator_and_lore() {
     assert_eq!(reloaded.title, "New title");
     assert_eq!(reloaded.narrator.name, "The Tide");
     assert_eq!(reloaded.lore.text, "The city drowned in a single night.");
+    assert_eq!(reloaded.loras, vec![Lora::new("tide-voice.gguf", 0.8)]);
 }
 
 #[tokio::test]

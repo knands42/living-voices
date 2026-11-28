@@ -43,8 +43,6 @@ pub struct Config {
 #[derive(Clone)]
 pub struct ConfigHandle(Arc<RwLock<Config>>);
 
-// Identity, not value: two handles are the same config only when they wrap the same
-// allocation, which is what `Arc::ptr_eq` answers.
 impl PartialEq for ConfigHandle {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
@@ -57,8 +55,6 @@ impl std::fmt::Debug for ConfigHandle {
     }
 }
 
-// serde requires a skipped field to be `Default`. This handle is never used for I/O;
-// it only stands in for the config while a distiller reply is deserialised.
 impl Default for ConfigHandle {
     fn default() -> Self {
         Self::new(Config {

@@ -6,7 +6,7 @@ use crate::backend::application::port::image_port::ImagePort;
 use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
 use crate::config::ConfigHandle;
 use crate::provision::Gpu;
-use crate::ui::app::{App, Rebuild};
+use crate::ui::app::App;
 use crate::ui::layout;
 
 pub fn run<
@@ -18,26 +18,12 @@ pub fn run<
     I: ImagePort + Clone + 'static,
 >(
     ctx: AppContext<C, N, M, A, P, I>,
-    rebuild: impl Fn(ConfigHandle) -> Result<AppContext<C, N, M, A, P, I>, String>
-    + Send
-    + Sync
-    + 'static,
     config: ConfigHandle,
     gpu: Gpu,
     open_setup: bool,
 ) -> iced::Result {
-    let rebuild: Rebuild<C, N, M, A, P, I> = std::sync::Arc::new(rebuild);
-
     iced::application(
-        move || {
-            App::boot(
-                ctx.clone(),
-                rebuild.clone(),
-                config.clone(),
-                gpu,
-                open_setup,
-            )
-        },
+        move || App::boot(ctx.clone(), config.clone(), gpu, open_setup),
         App::update,
         App::view,
     )

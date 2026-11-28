@@ -81,10 +81,6 @@ impl State {
         self.window_width = window_width;
     }
 
-    pub fn rebind(&mut self, adventure_manager: AdventureManager) {
-        self.adventure_manager = adventure_manager;
-    }
-
     pub fn update(&mut self, message: Message) -> (Task<Message>, Event) {
         match message {
             Message::Refresh => return (self.load(), Event::None),

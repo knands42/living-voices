@@ -163,15 +163,6 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
         )
     }
 
-    pub fn rebind(
-        &mut self,
-        adventure_manager: AdventureManager,
-        character_manager: CharacterManager<P, I>,
-    ) {
-        self.adventure_manager = adventure_manager;
-        self.character_manager = character_manager;
-    }
-
     pub fn open(&mut self, adventure_id: Uuid) -> Task<Message> {
         self.draft = None;
         self.section = Section::Story;

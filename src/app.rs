@@ -57,13 +57,7 @@ impl App {
     }
 
     pub fn run(&self, config: ConfigHandle, gpu: Gpu, open_setup: bool) -> iced::Result {
-        let pool = self.pool.clone();
-        let state = self.state.clone();
-        let rebuild = move |config: ConfigHandle| {
-            build_context(pool.clone(), state.clone(), config).map_err(|err| err.to_string())
-        };
-
-        ui::run(self.ctx.clone(), rebuild, config, gpu, open_setup)
+        ui::run(self.ctx.clone(), config, gpu, open_setup)
     }
 }
 

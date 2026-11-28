@@ -186,15 +186,6 @@ impl<
         }
     }
 
-    pub fn rebind(
-        &mut self,
-        adventure_manager: AdventureManager,
-        message_manager: MessageManager<C, N, M, A>,
-    ) {
-        self.adventure_manager = adventure_manager;
-        self.message_manager = message_manager;
-    }
-
     pub fn open(&mut self, adventure_id: Uuid) -> Task<Message> {
         self.scene = None;
         self.cast = cast::State::default();

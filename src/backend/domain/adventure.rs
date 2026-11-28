@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::backend::domain::{
-    character::Character, lore::Lore, message::Message, narrator::Narrator,
+    character::Character, lora::Lora, lore::Lore, message::Message, narrator::Narrator,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -122,6 +122,7 @@ pub struct Adventure {
     pub tone: String,
     pub status: AdventureStatus,
     pub characters: Vec<Character>,
+    pub loras: Vec<Lora>,
     pub tags: Vec<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -146,6 +147,7 @@ impl Adventure {
             narrator,
             lore,
             characters: Vec::new(),
+            loras: Vec::new(),
             tone: tone.into(),
             status,
             tags: Vec::new(),
@@ -156,6 +158,11 @@ impl Adventure {
 
     pub fn add_character(&mut self, character: Character) {
         self.characters.push(character);
+    }
+
+    pub fn with_loras(mut self, loras: Vec<Lora>) -> Self {
+        self.loras = loras;
+        self
     }
 
     pub fn add_tags(&mut self, tags: Vec<String>) {

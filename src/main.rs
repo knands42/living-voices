@@ -1,6 +1,4 @@
 use living_voices::backend::PersistenceError;
-#[cfg(debug_assertions)]
-use living_voices::backend::application::adventure_manager::AdventureManagerError;
 use living_voices::backend::application::port::image_port::ImageError;
 use living_voices::provision::{
     Gpu, default_media_progress_logger, default_text_progress_logger, start_engines,

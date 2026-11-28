@@ -1,5 +1,6 @@
 use crate::backend::domain::adventure::{AdventureStatus, AdventureSummary, OngoingAdventure};
 use crate::backend::domain::character::{Character, CharacterStatus};
+use crate::backend::domain::lora::Lora;
 use crate::backend::domain::lore::Lore;
 use crate::backend::domain::narrator::Narrator;
 use crate::backend::persistence::db::{from_str_to_timestamp, from_str_to_uuid, parse_json_array};
@@ -106,6 +107,7 @@ struct CompleteAdventureRow {
     adventure_created_at: String,
     adventure_updated_at: String,
     adventure_tags: String,
+    adventure_loras: String,
     adventure_lore: String,
     lore_id: String,
     character_id: String,
@@ -139,6 +141,7 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
             adventure_created_at: row.get("adventure_created_at"),
             adventure_updated_at: row.get("adventure_updated_at"),
             adventure_tags: row.get("adventure_tags"),
+            adventure_loras: row.get("adventure_loras"),
             adventure_lore: row.get("adventure_lore"),
             lore_id: row.get("lore_id"),
             character_id: row.get("character_id"),
@@ -161,6 +164,13 @@ impl FromRow<'_, SqliteRow> for CompleteAdventureRow {
             narrator_instructions: row.get("narrator_instructions"),
         })
     }
+}
+
+fn parse_loras(value: &str) -> Vec<Lora> {
+    serde_json::from_str(value).unwrap_or_else(|err| {
+        log::warn!("could not read the adventure's loras: {err}");
+        Vec::new()
+    })
 }
 
 fn character_from_row(value: &CompleteAdventureRow) -> Result<Character, PersistenceError> {
@@ -230,7 +240,8 @@ impl TryFrom<CompleteAdventureRow> for Adventure {
             AdventureStatus::from_str(&value.adventure_status),
             adventure_created_at_utc,
             adventure_updated_at_utc,
-        );
+        )
+        .with_loras(parse_loras(&value.adventure_loras));
 
         let adventure_tags = parse_json_array(Some(value.adventure_tags.as_str()))?;
 
@@ -285,6 +296,7 @@ SELECT a.id                      AS adventure_id,
        a.created_at             AS adventure_created_at,
        a.updated_at             AS adventure_updated_at,
        COALESCE(at.tags, '[]')   AS adventure_tags,
+       a.loras                   AS adventure_loras,
        COALESCE(l.lore, '[]')    AS adventure_lore,
        l.lore_id                  AS lore_id,
        c.id                      AS character_id,
@@ -442,12 +454,13 @@ pub async fn update_adventure(
     adventure: &Adventure,
 ) -> Result<(), PersistenceError> {
     sqlx::query(
-        "UPDATE adventure SET title = ?1, headline = ?2, tone = ?3, status = ?4 WHERE id = ?5",
+        "UPDATE adventure SET title = ?1, headline = ?2, tone = ?3, status = ?4, loras = ?5 WHERE id = ?6",
     )
     .bind(&adventure.title)
     .bind(&adventure.headline)
     .bind(&adventure.tone)
     .bind(adventure.status.as_str())
+    .bind(serde_json::to_string(&adventure.loras)?)
     .bind(adventure.id.to_string())
     .execute(&mut *conn)
     .await?;
