@@ -10,7 +10,7 @@ use crate::backend::application::port::memory_port::{
     DistilledMemory, DistilledState, MemoryDistillerPort,
 };
 use crate::backend::domain::memory::CharacterCondition;
-use crate::config::TextModel;
+use crate::config::{ConfigHandle, TextModel};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Fact {
@@ -63,11 +63,15 @@ pub struct MemoryHandler {
     #[serde(default)]
     pub running_digest: String,
     #[serde(skip)]
-    config: TextModel,
+    config: ConfigHandle,
 }
 
 impl MemoryHandler {
-    pub fn new(config: TextModel) -> Self {
+    fn config(&self) -> TextModel {
+        self.config.memory()
+    }
+
+    pub fn new(config: ConfigHandle) -> Self {
         Self {
             facts: vec![],
             state: StateSnapshot::default(),
@@ -113,16 +117,16 @@ impl MemoryDistillerPort for MemoryHandler {
             .collect::<Vec<ChatMessage>>();
 
         let client = OpenAiCompatibleClient::with_timeout(
-            &self.config.base_url,
-            std::time::Duration::from_secs(self.config.request_timeout_secs as u64),
+            &self.config().base_url,
+            std::time::Duration::from_secs(self.config().request_timeout_secs as u64),
         )
         .map_err(|e| DistillError::Provider(e.to_string()))?;
         let update = MemoryHandler::distill(
             &client,
-            &self.config.model,
-            self.config.temperature,
+            &self.config().model,
+            self.config().temperature,
             &prompt,
-            super::keep_alive(&self.config),
+            super::keep_alive(&self.config()),
         )
         .await
         .map_err(|e| DistillError::Provider(e.to_string()))?;
@@ -269,11 +273,15 @@ impl ActCloseReply {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ActClose {
     #[serde(skip)]
-    config: TextModel,
+    config: ConfigHandle,
 }
 
 impl ActClose {
-    pub fn new(config: TextModel) -> Self {
+    fn config(&self) -> TextModel {
+        self.config.memory()
+    }
+
+    pub fn new(config: ConfigHandle) -> Self {
         Self { config }
     }
 }
@@ -287,8 +295,8 @@ impl ActCloserPort for ActClose {
             .collect::<Vec<ChatMessage>>();
 
         let client = OpenAiCompatibleClient::with_timeout(
-            &self.config.base_url,
-            std::time::Duration::from_secs(self.config.request_timeout_secs as u64),
+            &self.config().base_url,
+            std::time::Duration::from_secs(self.config().request_timeout_secs as u64),
         )
         .map_err(|e| ClosedActError::Provider(e.to_string()))?;
 
@@ -298,11 +306,11 @@ impl ActCloserPort for ActClose {
 
         let reply = client
             .send(
-                &self.config.model,
+                &self.config().model,
                 &prompt,
-                self.config.temperature,
+                self.config().temperature,
                 Some(format),
-                super::keep_alive(&self.config),
+                super::keep_alive(&self.config()),
             )
             .await
             .map_err(|e| ClosedActError::Provider(e.to_string()))?;

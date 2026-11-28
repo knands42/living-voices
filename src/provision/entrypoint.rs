@@ -144,7 +144,7 @@ where
     Ok(())
 }
 
-pub async fn start_text_engine() -> Result<TextEngine, String> {
+async fn start_text_engine() -> Result<TextEngine, String> {
     let chat_model = llama_models_dir().join(TEXT_MODEL_FILE);
     let memory_model = llama_models_dir().join(MEMORY_MODEL_FILE);
 
@@ -165,7 +165,7 @@ pub async fn start_text_engine() -> Result<TextEngine, String> {
     Ok(TextEngine { chat, memory })
 }
 
-pub async fn start_media_engine() -> Result<MediaEngine, String> {
+async fn start_media_engine() -> Result<MediaEngine, String> {
     let server = ComfyServer::spawn()?;
     server.wait_until_ready().await?;
 
@@ -183,11 +183,11 @@ pub struct RunningEngines {
 
 impl RunningEngines {
     // Both servers search for a free port, so the real endpoints only exist after spawn.
-    pub fn stamp(&self, config: crate::config::Config) -> crate::config::Config {
-        let config = config.with_text_endpoints(self.text.chat_url(), self.text.memory_url());
-        match &self.media {
-            Some(media) => config.with_media_engine(media.media_url()),
-            None => config,
+    pub fn stamp(&self, config: &crate::config::ConfigHandle) {
+        config.set_text_endpoints(self.text.chat_url(), self.text.memory_url());
+
+        if let Some(media) = &self.media {
+            config.set_media_endpoint(media.media_url());
         }
     }
 }

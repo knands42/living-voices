@@ -4,7 +4,7 @@ use crate::app::AppContext;
 use crate::backend::application::port::chat_port::{ChatPort, NarratorPort, PromptPort};
 use crate::backend::application::port::image_port::ImagePort;
 use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
-use crate::config::Config;
+use crate::config::ConfigHandle;
 use crate::provision::Gpu;
 use crate::ui::app::{App, Rebuild};
 use crate::ui::layout;
@@ -18,8 +18,11 @@ pub fn run<
     I: ImagePort + Clone + 'static,
 >(
     ctx: AppContext<C, N, M, A, P, I>,
-    rebuild: impl Fn(&Config) -> Result<AppContext<C, N, M, A, P, I>, String> + Send + Sync + 'static,
-    config: Config,
+    rebuild: impl Fn(ConfigHandle) -> Result<AppContext<C, N, M, A, P, I>, String>
+    + Send
+    + Sync
+    + 'static,
+    config: ConfigHandle,
     gpu: Gpu,
     open_setup: bool,
 ) -> iced::Result {

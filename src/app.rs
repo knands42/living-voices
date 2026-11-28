@@ -12,7 +12,7 @@ use crate::{
         adventure_manager::AdventureManager, character_manager::CharacterManager,
         memory_manager::MemoryManager, state::SharedState,
     },
-    config::{Config, Settings},
+    config::ConfigHandle,
     provision::Gpu,
     ui,
 };
@@ -41,27 +41,26 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(pool: SqlitePool, config: &Config) -> Result<Self, ImageError> {
+    pub fn new(pool: SqlitePool, config: ConfigHandle) -> Result<Self, ImageError> {
         let state = SharedState::new();
-        let ctx = build_context(pool.clone(), state.clone(), &config.settings)?;
+        let ctx = build_context(pool.clone(), state.clone(), config)?;
 
         Ok(Self { pool, state, ctx })
     }
 
-    pub fn context_for(&self, config: &Config) -> Result<DefaultContext, ImageError> {
-        build_context(self.pool.clone(), self.state.clone(), &config.settings)
+    pub fn context_for(&self, config: ConfigHandle) -> Result<DefaultContext, ImageError> {
+        build_context(self.pool.clone(), self.state.clone(), config)
     }
 
     pub fn ctx(&self) -> &DefaultContext {
         &self.ctx
     }
 
-    pub fn run(&self, config: Config, gpu: Gpu, open_setup: bool) -> iced::Result {
+    pub fn run(&self, config: ConfigHandle, gpu: Gpu, open_setup: bool) -> iced::Result {
         let pool = self.pool.clone();
         let state = self.state.clone();
-        let rebuild = move |config: &Config| {
-            build_context(pool.clone(), state.clone(), &config.settings)
-                .map_err(|err| err.to_string())
+        let rebuild = move |config: ConfigHandle| {
+            build_context(pool.clone(), state.clone(), config).map_err(|err| err.to_string())
         };
 
         ui::run(self.ctx.clone(), rebuild, config, gpu, open_setup)
@@ -71,17 +70,16 @@ impl App {
 fn build_context(
     pool: SqlitePool,
     state: SharedState,
-    settings: &Settings,
+    config: ConfigHandle,
 ) -> Result<DefaultContext, ImageError> {
-    let chat_model = settings.models.chat.clone();
-    let memory_model = settings.models.memory.clone();
+    let settings = config.settings();
     let image_model = settings.models.image.clone();
 
     // the narrator shares the chat text endpoint/config.
-    let distiller = MemoryHandler::new(memory_model.clone());
-    let closer = ActClose::new(memory_model);
-    let narrator_handler = NarratorHandler::new(chat_model.clone());
-    let chat_handler = ChatHandler::new(chat_model);
+    let distiller = MemoryHandler::new(config.clone());
+    let closer = ActClose::new(config.clone());
+    let narrator_handler = NarratorHandler::new(config.clone());
+    let chat_handler = ChatHandler::new(config);
     let image_handler = ComfyImage::new(image_model.clone())?;
 
     let director = Director::new(settings.director.clone());

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use living_voices::config::{Config, Settings};
+use living_voices::config::{Config, ConfigHandle, Settings};
 
 fn blank_config() -> Config {
     Config {
@@ -138,4 +138,25 @@ fn an_invalid_local_config_leaves_the_base_config_untouched() {
     // then the broken layer is dropped and the base still holds
     assert_eq!(settings.models.chat.temperature, 0.5);
     assert_eq!(settings.models.chat.model, "base-model");
+}
+
+#[test]
+fn a_published_endpoint_reaches_every_holder() {
+    // given a handle that more than one holder cloned while the fallback still stood
+    let handle = ConfigHandle::new(blank_config());
+    let chat_handler = handle.clone();
+    let narrator = handle.clone();
+    assert_eq!(
+        narrator.chat().base_url,
+        "http://localhost:11434/v1",
+        "a holder starts on the fallback endpoint"
+    );
+
+    // when the spawned engine publishes the ports it actually bound
+    handle.set_text_endpoints("http://127.0.0.1:11435/", "http://127.0.0.1:11436/");
+
+    // then every holder reads the new endpoint on its next call, not its next rebuild
+    assert_eq!(chat_handler.chat().base_url, "http://127.0.0.1:11435/v1");
+    assert_eq!(chat_handler.memory().base_url, "http://127.0.0.1:11436/v1");
+    assert_eq!(narrator.chat().base_url, "http://127.0.0.1:11435/v1");
 }

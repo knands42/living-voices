@@ -10,7 +10,7 @@ use living_voices::{
     app::App,
     backend::{open_pool, run_migrations},
     cli,
-    config::Config,
+    config::{Config, ConfigHandle},
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -82,8 +82,8 @@ async fn seed_and_load(config: &Config, _app: &App) -> Result<(), StartupError> 
 }
 
 // The terminal has no setup page, so it brings the engines up before drawing
-async fn run_cli(app: &App, config: Config) -> Result<(), StartupError> {
-    let mut settings = config.settings.clone();
+async fn run_cli(app: &App, config: ConfigHandle) -> Result<(), StartupError> {
+    let mut settings = config.settings();
     settings.models.image.enabled &= !config.needs_setup();
 
     start_provisioning(
@@ -97,9 +97,8 @@ async fn run_cli(app: &App, config: Config) -> Result<(), StartupError> {
         .await
         .map_err(StartupError::StartEngines)?;
 
-    let ctx = app
-        .context_for(&engines.stamp(config))
-        .map_err(StartupError::Compose)?;
+    engines.stamp(&config);
+    let ctx = app.context_for(config).map_err(StartupError::Compose)?;
     tokio::task::block_in_place(|| cli::run(&ctx)).map_err(StartupError::Cli)
 }
 
@@ -112,7 +111,8 @@ async fn run() -> Result<(), StartupError> {
     log::info!("graphics: {} {}", gpu.card_label(), gpu.vram_label());
 
     let pool = prepare_database(&config).await?;
-    let app = App::new(pool, &config).map_err(StartupError::Compose)?;
+    let handle = ConfigHandle::new(config.clone());
+    let app = App::new(pool, handle.clone()).map_err(StartupError::Compose)?;
 
     #[cfg(debug_assertions)]
     seed_and_load(&config, &app).await?;
@@ -121,9 +121,9 @@ async fn run() -> Result<(), StartupError> {
     match frontend {
         Frontend::Ui => {
             let open_setup = Frontend::setup() || config.needs_setup();
-            app.run(config, gpu, open_setup).map_err(StartupError::Ui)
+            app.run(handle, gpu, open_setup).map_err(StartupError::Ui)
         }
-        Frontend::Cli => run_cli(&app, config).await,
+        Frontend::Cli => run_cli(&app, handle).await,
     }
 }
 

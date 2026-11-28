@@ -85,7 +85,9 @@ pub async fn start_adventure_with_default_cast(
         .await
         .expect("create adventure");
 
-    let chat_handler = ChatHandler::new(Config::new().expect("load config").settings.models.chat);
+    let chat_handler = ChatHandler::new(crate::support::chat_config(
+        Config::new().expect("load config").settings.models.chat,
+    ));
     let character_mgr = CharacterManager::new(
         state.clone(),
         pool.clone(),

@@ -338,13 +338,13 @@ async fn create_character_pose_prompt_uses_messages_and_persists_the_prompt() {
 // ---------------------------------------------------------------- fixtures
 
 fn chat() -> ChatHandler {
-    ChatHandler::new(TextModel {
+    ChatHandler::new(crate::support::chat_config(TextModel {
         base_url: OLLAMA_URL.to_string(),
         model: CHAT_MODEL.to_string(),
         temperature: 0.5,
         request_timeout_secs: 120,
         keep_alive: "5m".to_string(),
-    })
+    }))
 }
 
 async fn new_integration_manager() -> (
@@ -370,7 +370,7 @@ fn setup_character_manager(
     state: SharedState,
 ) -> CharacterManager<ChatHandler, StubImage> {
     let text_model_config = Config::new().expect("load config").settings.models.chat;
-    let chat_handler = ChatHandler::new(text_model_config);
+    let chat_handler = ChatHandler::new(crate::support::chat_config(text_model_config));
     CharacterManager::new(
         state,
         pool,

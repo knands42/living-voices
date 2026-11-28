@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
-use crate::config::Config;
+use crate::config::ConfigHandle;
 use crate::provision::RunningEngines;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,6 +25,6 @@ pub enum Event {
     OpenChat(Uuid),
     EnginesReady {
         engines: Arc<RunningEngines>,
-        config: Arc<Config>,
+        config: ConfigHandle,
     },
 }

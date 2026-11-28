@@ -6,13 +6,13 @@ const OLLAMA_URL: &str = "http://localhost:11434/v1";
 const CHAT_MODEL: &str = "llama3.1:8b";
 
 fn chat() -> ChatHandler {
-    ChatHandler::new(TextModel {
+    ChatHandler::new(crate::support::chat_config(TextModel {
         base_url: OLLAMA_URL.to_string(),
         model: CHAT_MODEL.to_string(),
         temperature: 0.5,
         request_timeout_secs: 120,
         keep_alive: "5m".to_string(),
-    })
+    }))
 }
 
 /// A minimal roleplay prompt that ends on the player's turn, so the model has

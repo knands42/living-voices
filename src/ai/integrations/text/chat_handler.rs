@@ -8,12 +8,12 @@ use crate::ai::types::ChatMessage;
 use crate::backend::application::port::chat_port::{
     ChatPort, ChatReply, ChatResponseError, PromptPort, PromptTurn,
 };
-use crate::config::TextModel;
+use crate::config::{ConfigHandle, TextModel};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ChatHandler {
     #[serde(skip)]
-    config: TextModel,
+    config: ConfigHandle,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -62,14 +62,18 @@ pub fn character_reply_schema() -> JsonSchema {
 }
 
 impl ChatHandler {
-    pub fn new(config: TextModel) -> Self {
+    fn config(&self) -> TextModel {
+        self.config.chat()
+    }
+
+    pub fn new(config: ConfigHandle) -> Self {
         Self { config }
     }
 
     fn client(&self) -> Result<OpenAiCompatibleClient, ChatResponseError> {
         OpenAiCompatibleClient::with_timeout(
-            &self.config.base_url,
-            std::time::Duration::from_secs(self.config.request_timeout_secs as u64),
+            &self.config().base_url,
+            std::time::Duration::from_secs(self.config().request_timeout_secs as u64),
         )
         .map_err(|e| ChatResponseError::Provider(e.to_string()))
     }
@@ -93,11 +97,11 @@ impl ChatPort for ChatHandler {
 
         let raw = client
             .send(
-                self.config.model.as_str(),
+                self.config().model.as_str(),
                 &prompt,
-                self.config.temperature,
+                self.config().temperature,
                 Some(format),
-                super::keep_alive(&self.config),
+                super::keep_alive(&self.config()),
             )
             .await
             .map_err(|e| ChatResponseError::Provider(e.to_string()))?;
@@ -128,11 +132,11 @@ impl ChatPort for ChatHandler {
 
         let raw = client
             .send(
-                self.config.model.as_str(),
+                self.config().model.as_str(),
                 &prompt,
-                self.config.temperature,
+                self.config().temperature,
                 Some(format),
-                super::keep_alive(&self.config),
+                super::keep_alive(&self.config()),
             )
             .await
             .map_err(|e| ChatResponseError::Provider(e.to_string()))?;
@@ -163,11 +167,11 @@ impl ChatPort for ChatHandler {
 
         let raw = client
             .send(
-                self.config.model.as_str(),
+                self.config().model.as_str(),
                 &prompt,
-                self.config.temperature,
+                self.config().temperature,
                 Some(format),
-                super::keep_alive(&self.config),
+                super::keep_alive(&self.config()),
             )
             .await
             .map_err(|e| ChatResponseError::Provider(e.to_string()))?;
@@ -193,11 +197,11 @@ impl PromptPort for ChatHandler {
 
         client
             .send(
-                self.config.model.as_str(),
+                self.config().model.as_str(),
                 &prompt,
-                self.config.temperature,
+                self.config().temperature,
                 None,
-                super::keep_alive(&self.config),
+                super::keep_alive(&self.config()),
             )
             .await
             .map_err(|e| ChatResponseError::Provider(e.to_string()))

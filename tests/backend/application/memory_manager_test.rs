@@ -269,11 +269,11 @@ fn memory_model() -> TextModel {
 }
 
 fn distiller() -> MemoryHandler {
-    MemoryHandler::new(memory_model())
+    MemoryHandler::new(crate::support::memory_config(memory_model()))
 }
 
 fn closer() -> ActClose {
-    ActClose::new(memory_model())
+    ActClose::new(crate::support::memory_config(memory_model()))
 }
 
 fn setup_memory_manager(

@@ -6,13 +6,13 @@ use crate::app::AppContext;
 use crate::backend::application::port::chat_port::{ChatPort, NarratorPort, PromptPort};
 use crate::backend::application::port::image_port::ImagePort;
 use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
-use crate::config::Config;
+use crate::config::ConfigHandle;
 use crate::provision::{Gpu, RunningEngines};
 use crate::ui::layout;
 use crate::ui::pages::{Event, Page, builder, chat, main_hub, setup};
 
 pub type Rebuild<C, N, M, A, P, I> =
-    Arc<dyn Fn(&Config) -> Result<AppContext<C, N, M, A, P, I>, String> + Send + Sync>;
+    Arc<dyn Fn(ConfigHandle) -> Result<AppContext<C, N, M, A, P, I>, String> + Send + Sync>;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -59,7 +59,7 @@ impl<
     pub fn boot(
         ctx: AppContext<C, N, M, A, P, I>,
         rebuild: Rebuild<C, N, M, A, P, I>,
-        config: Config,
+        config: ConfigHandle,
         gpu: Gpu,
         open_setup: bool,
     ) -> (Self, Task<Message>) {
@@ -204,7 +204,7 @@ impl<
                 self.page = Page::Chat;
                 self.chat.open(adventure_id).map(Message::Chat)
             }
-            Event::EnginesReady { engines, config } => self.engines_ready(engines, &config),
+            Event::EnginesReady { engines, config } => self.engines_ready(engines, config),
         }
     }
 
@@ -220,7 +220,11 @@ impl<
         }
     }
 
-    fn engines_ready(&mut self, engines: Arc<RunningEngines>, config: &Config) -> Task<Message> {
+    fn engines_ready(
+        &mut self,
+        engines: Arc<RunningEngines>,
+        config: ConfigHandle,
+    ) -> Task<Message> {
         log::info!("engines ready: {engines:?}");
         self._engines = Some(engines);
 

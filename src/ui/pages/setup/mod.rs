@@ -5,7 +5,7 @@ mod working;
 
 use std::sync::Arc;
 
-use crate::config::{Config, Settings};
+use crate::config::{ConfigHandle, Settings};
 use crate::provision::{
     ComfyEvent, Gpu, MediaRecommendation, RunningEngines, human_bytes, start_engines,
     start_provisioning,
@@ -96,7 +96,7 @@ pub(crate) enum Phase {
 }
 
 pub struct State {
-    config: Config,
+    config: ConfigHandle,
     gpu: Gpu,
     handle: tokio::runtime::Handle,
     recommendation: MediaRecommendation,
@@ -108,12 +108,16 @@ pub struct State {
 }
 
 impl State {
-    pub fn boot(config: Config, gpu: Gpu, handle: tokio::runtime::Handle) -> (Self, Task<Message>) {
+    pub fn boot(
+        config: ConfigHandle,
+        gpu: Gpu,
+        handle: tokio::runtime::Handle,
+    ) -> (Self, Task<Message>) {
         let recommendation = gpu.media_recommendation();
         let media_engine = if config.needs_setup() {
             recommendation.suggests_midia_engine()
         } else {
-            config.settings.models.image.enabled
+            config.settings().models.image.enabled
         };
 
         let mut state = Self {
@@ -164,12 +168,12 @@ impl State {
             }
             Message::EnginesStarted(engines) => {
                 self.phase = Phase::Running;
-                let config = engines.stamp(self.config.clone());
+                engines.stamp(&self.config);
                 return (
                     Task::none(),
                     Event::EnginesReady {
                         engines,
-                        config: Arc::new(config),
+                        config: self.config.clone(),
                     },
                 );
             }
@@ -241,7 +245,7 @@ impl State {
     fn start(&mut self) -> Task<Message> {
         self.phase = Phase::Installing;
         self.progress = None;
-        bring_up(self.handle.clone(), self.config.settings.clone())
+        bring_up(self.handle.clone(), self.config.settings())
     }
 }
 

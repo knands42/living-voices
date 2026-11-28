@@ -258,11 +258,11 @@ fn chat_model() -> TextModel {
 }
 
 fn chat_handler() -> ChatHandler {
-    ChatHandler::new(chat_model())
+    ChatHandler::new(crate::support::chat_config(chat_model()))
 }
 
 fn narrator_handler() -> NarratorHandler {
-    NarratorHandler::new(chat_model())
+    NarratorHandler::new(crate::support::chat_config(chat_model()))
 }
 
 fn memory_high_distiller_trigger() -> MemorySettings {
@@ -351,8 +351,8 @@ fn setup_memory_manager(
     memory_settings: MemorySettings,
 ) -> MemoryManager<MemoryHandler, ActClose> {
     let memory_model = Config::new().expect("load config").settings.models.memory;
-    let distiller = MemoryHandler::new(memory_model.clone());
-    let closer = ActClose::new(memory_model.clone());
+    let distiller = MemoryHandler::new(crate::support::memory_config(memory_model.clone()));
+    let closer = ActClose::new(crate::support::memory_config(memory_model.clone()));
     MemoryManager::new(state, pool.clone(), distiller, closer, memory_settings)
 }
 
