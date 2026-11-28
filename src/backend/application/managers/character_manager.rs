@@ -8,7 +8,7 @@ use crate::backend::application::context::{ContextBuilder, ContextBuilderError};
 use crate::backend::application::port::chat_port::{ChatResponseError, PromptPort};
 use crate::backend::application::port::image_port::{ImageError, ImagePort};
 use crate::backend::domain::character::ImageFraming;
-use crate::backend::domain::lora::LoraKind;
+use crate::backend::domain::lora::Lora;
 use crate::backend::persistence::state_persistence::update_character_presence;
 use crate::backend::{
     PersistenceError,
@@ -93,10 +93,8 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
 
     pub async fn create_character(
         &self,
-        mut character: Character,
+        character: Character,
     ) -> Result<(), CharacterManagerError> {
-        self.stage_image_loras(&mut character).await;
-
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         insert_character(&mut conn, character.adventure_id, &character).await?;
 
@@ -173,10 +171,8 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
 
     pub async fn update_character(
         &self,
-        mut character: Character,
+        character: Character,
     ) -> Result<(), CharacterManagerError> {
-        self.stage_image_loras(&mut character).await;
-
         let mut conn = self.pool.acquire().await.map_err(PersistenceError::from)?;
         update_character(&mut conn, &character).await?;
 
@@ -201,41 +197,26 @@ impl<PROMPT: PromptPort, IMAGE: ImagePort> CharacterManager<PROMPT, IMAGE> {
         Ok(())
     }
 
-    /// Copies each picked adapter into the engine's directory before the row is written, then
-    /// drops the pick so only the file name is persisted.
-    async fn stage_image_loras(&self, character: &mut Character) {
+    /// Copies the file the author picked into ComfyUI's loras directory and returns the adapter the domain persists
+    pub async fn stage_image_adapter(&self, source: &str, scale: f32) -> Option<Lora> {
+        let source = std::path::Path::new(source.trim());
+        let name = source.file_name()?.to_string_lossy().into_owned();
+        if name.trim().is_empty() {
+            return None;
+        }
+
         let dir = self.config.settings().models.image.loras_dir();
+        let target = dir.join(&name);
 
-        for lora in character
-            .loras
-            .iter_mut()
-            .filter(|lora| lora.kind == LoraKind::Image)
-        {
-            let Some(source) = lora.source.take() else {
-                continue;
-            };
-
-            if let Some(name) = source.file_name() {
-                lora.name = name.to_string_lossy().into_owned();
-            }
-            if lora.name.trim().is_empty() {
-                continue;
-            }
-
-            let target = dir.join(&lora.name);
-            if source == target || !source.is_file() {
-                continue;
-            }
-
+        if source != target && source.is_file() {
             if let Err(err) = tokio::fs::create_dir_all(&dir).await {
                 log::warn!("could not prepare {}: {err}", dir.display());
-                continue;
-            }
-
-            if let Err(err) = tokio::fs::copy(&source, &target).await {
+            } else if let Err(err) = tokio::fs::copy(source, &target).await {
                 log::warn!("could not stage {}: {err}", source.display());
             }
         }
+
+        Some(Lora::image(name, scale))
     }
 
     pub async fn create_character_body_prompt(

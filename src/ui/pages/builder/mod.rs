@@ -16,6 +16,7 @@ use crate::backend::application::port::chat_port::PromptPort;
 use crate::backend::application::port::image_port::ImagePort;
 use crate::backend::domain::adventure::{Adventure, AdventureStatus};
 use crate::backend::domain::character::Character;
+use crate::backend::domain::lora::Lora;
 use crate::backend::domain::memory::{Act, Fact, State as SceneState};
 use crate::backend::domain::message::Message as MessageLine;
 use crate::ui::pages::builder::sidebar::sidebar;
@@ -62,13 +63,21 @@ pub enum Message {
     Published(Result<(), String>),
 }
 
+#[derive(Debug, Clone, Default)]
+pub(crate) enum AdapterChoice {
+    #[default]
+    Untouched,
+    Cleared,
+    Picked(String),
+}
+
 /// What a section asks the page to do, because only the page holds the managers.
 pub(crate) enum Effect {
     AddCharacter,
     RemoveCharacter(Uuid),
     RemoveAct(Uuid),
     SaveStory,
-    SaveCharacter(Uuid),
+    SaveCharacter { id: Uuid, adapter: AdapterChoice },
     SaveAct,
     SaveOpening,
     SaveFacts,
@@ -286,7 +295,7 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
             Effect::RemoveCharacter(character_id) => self.remove_character(character_id),
             Effect::RemoveAct(act_id) => self.remove_act(act_id),
             Effect::SaveStory => self.save_story(),
-            Effect::SaveCharacter(character_id) => self.save_character(character_id),
+            Effect::SaveCharacter { id, adapter } => self.save_character(id, adapter),
             Effect::SaveAct => self.save_act(),
             Effect::SaveOpening => self.save_opening(),
             Effect::SaveFacts => self.save_facts(),
@@ -368,7 +377,7 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
         )
     }
 
-    fn save_character(&self, character_id: Uuid) -> Task<Message> {
+    fn save_character(&self, character_id: Uuid, adapter: AdapterChoice) -> Task<Message> {
         let Some(draft) = &self.draft else {
             return Task::none();
         };
@@ -395,6 +404,23 @@ impl<P: PromptPort + Clone + 'static, I: ImagePort + Clone + 'static> State<P, I
                 let body = needs_body_prompt(previous.as_ref(), &character);
                 let outfit = needs_outfit_prompt(previous.as_ref(), &character);
                 let mut character = character;
+
+                match adapter {
+                    AdapterChoice::Untouched => {}
+                    AdapterChoice::Cleared => character.loras.clear(),
+                    AdapterChoice::Picked(source) => {
+                        let scale = character
+                            .loras
+                            .first()
+                            .map_or(Lora::DEFAULT_SCALE, |lora| lora.scale);
+
+                        if let Some(lora) =
+                            character_manager.stage_image_adapter(&source, scale).await
+                        {
+                            character.loras = vec![lora];
+                        }
+                    }
+                }
 
                 character_manager
                     .update_character(character.clone())
