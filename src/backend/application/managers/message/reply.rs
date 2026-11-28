@@ -1,4 +1,5 @@
 use crate::backend::application::context::{ContextBuilder, ContextData};
+use crate::backend::application::message_manager::{TurnEvent, TurnSink};
 use crate::backend::application::port::chat_port::{ChatPort, ChatReply, NarratorPort};
 use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
 use crate::backend::domain::adventure::Adventure;
@@ -114,19 +115,21 @@ impl<
         &self,
         chat_reply: ChatReply,
         message_context: &mut MessageContext,
+        sink: &TurnSink,
     ) -> Result<(Message, bool), MessageManagerError> {
         let reply_message = message_context
             .adventure
             .message_from_reply(&chat_reply.replier, &chat_reply.reply)
             .ok_or(MessageManagerError::EmptyReply)?;
         let stored_reply = self.create_message(reply_message).await?;
+        sink(TurnEvent::Beat(stored_reply.clone()));
 
         message_context
             .uncovered_messages
             .push(stored_reply.clone());
 
         let act_closed = self
-            .check_and_update_current_act(chat_reply, message_context)
+            .check_and_update_current_act(chat_reply, message_context, sink)
             .await?;
 
         Ok((stored_reply, act_closed))

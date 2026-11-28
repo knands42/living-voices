@@ -1,5 +1,6 @@
 use crate::backend::PersistenceError;
 use crate::backend::application::context::ContextBuilder;
+use crate::backend::application::message_manager::{TurnEvent, TurnSink};
 use crate::backend::application::port::chat_port::{ChatPort, ChatReply, NarratorPort};
 use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
 use crate::backend::domain::memory::Act;
@@ -20,6 +21,7 @@ impl<
         &self,
         chat_reply: ChatReply,
         message_context: &mut MessageContext,
+        sink: &TurnSink,
     ) -> Result<bool, MessageManagerError> {
         let score = chat_reply.act_closure.unwrap_or(0);
         if chat_reply.act_closure.is_none() && chat_reply.replier != Message::NARRATOR_SPEAKER_NAME
@@ -45,7 +47,7 @@ impl<
             return Ok(false);
         };
         if should_close_act(score, last_message, self.director.get_max_act_messages()) {
-            self.close_current_act(message_context).await?;
+            self.close_current_act(message_context, sink).await?;
             return Ok(true);
         }
 
@@ -85,6 +87,7 @@ impl<
     async fn close_current_act(
         &self,
         input: &mut MessageContext,
+        sink: &TurnSink,
     ) -> Result<(), MessageManagerError> {
         let Some(act) = input.active_act.as_ref() else {
             log::error!("No active act found for adventure {}", input.adventure.id);
@@ -106,14 +109,15 @@ impl<
                 &input.uncovered_messages,
             );
 
-            let narration = self.narrator_handler.narrator_respond(&prompt).await?;
+            let narration_reply = self.narrator_handler.narrator_respond(&prompt).await?;
             match input
                 .adventure
-                .message_from_reply(Message::NARRATOR_SPEAKER_NAME, &narration)
+                .message_from_reply(Message::NARRATOR_SPEAKER_NAME, &narration_reply)
             {
                 Some(narration_message) => {
-                    let stored = self.create_message(narration_message).await?;
-                    input.uncovered_messages.push(stored);
+                    let stored_message = self.create_message(narration_message).await?;
+                    input.uncovered_messages.push(stored_message.clone());
+                    sink(TurnEvent::Beat(stored_message));
                 }
                 None => {
                     log::warn!("the act transition narration had no body; closing act without one")

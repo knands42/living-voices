@@ -1,6 +1,7 @@
 use tokio::runtime::Handle;
 
 use crate::app::DefaultContext;
+use crate::backend::application::message_manager::TurnEvent;
 use crate::backend::domain::message::Message;
 use crate::cli::events::event_handler::Flow;
 use crate::cli::state::{ChatEvent, CliState, Page};
@@ -123,15 +124,19 @@ fn send_current_input(state: &mut CliState, ctx: &DefaultContext, runtime: &Hand
     state.messages.push(outgoing.clone());
     state.status = Some("the voices are thinking…".into());
 
-    // Fire-and-forget the send; report the result back over the channel.
+    // Fire-and-forget the send; every beat and the outcome go back over the channel.
     let messages = ctx.message_manager.clone();
     let tx = state.reply_tx.clone();
     runtime.spawn(async move {
-        let event = match messages.send_message(outgoing).await {
-            Ok(reply) => ChatEvent::Reply(reply),
-            Err(err) => ChatEvent::Failed(err.to_string()),
+        let beats = tx.clone();
+        let sink = move |event: TurnEvent| {
+            let TurnEvent::Beat(message) = event;
+            let _ = beats.send(ChatEvent::Reply(message));
         };
-        let _ = tx.send(event);
+
+        if let Err(err) = messages.send_message(outgoing, &sink).await {
+            let _ = tx.send(ChatEvent::Failed(err.to_string()));
+        }
     });
 }
 

@@ -7,7 +7,6 @@ mod meta;
 mod top;
 mod transcript;
 
-use std::future::Future;
 use std::sync::Arc;
 
 use iced::futures::SinkExt;
@@ -19,9 +18,7 @@ use uuid::Uuid;
 use crate::backend::application::adventure_manager::{
     AdventureManager, AdventureManagerError, MemorySnapshot,
 };
-use crate::backend::application::managers::message::message_manager::{
-    MessageManager, MessageManagerError,
-};
+use crate::backend::application::managers::message::message_manager::{MessageManager, TurnEvent};
 use crate::backend::application::port::chat_port::{ChatPort, NarratorPort};
 use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
 use crate::backend::domain::adventure::Adventure;
@@ -60,6 +57,15 @@ pub enum Message {
         snapshot: MemorySnapshot,
     },
     RequestNewMessage,
+    Beat {
+        adventure_id: Uuid,
+        message: MessageLine,
+    },
+}
+
+enum Turn {
+    Send(MessageLine),
+    Request,
 }
 
 #[derive(Debug, Clone)]
@@ -274,9 +280,7 @@ impl<
         };
 
         let message_manager = self.message_manager.clone();
-        self.run_turn(line.adventure_id, async move {
-            message_manager.send_message(line).await
-        })
+        self.run_turn(line.adventure_id, Turn::Send(line), message_manager)
     }
 
     fn request_new_message(&mut self) -> Task<Message> {
@@ -292,31 +296,50 @@ impl<
 
         let adventure_id = scene.adventure_id();
         let message_manager = self.message_manager.clone();
-        self.run_turn(adventure_id, async move {
-            message_manager.request_new_message().await
-        })
+        self.run_turn(adventure_id, Turn::Request, message_manager)
     }
 
     fn run_turn(
         &self,
         adventure_id: Uuid,
-        turn: impl Future<Output = Result<MessageLine, MessageManagerError>> + Send + 'static,
+        turn: Turn,
+        message_manager: MessageManager<C, N, M, A>,
     ) -> Task<Message> {
+        let handle = self.handle.clone();
         let adventure_manager = self.adventure_manager.clone();
 
-        Task::perform(
-            on_tokio(self.handle.clone(), async move {
-                let sent = turn.await.map(|_| ()).map_err(|err| err.to_string());
-                let messages = adventure_manager
-                    .get_messages(adventure_id, HISTORY_LIMIT)
-                    .await
-                    .unwrap_or_default();
-                let snapshot = adventure_manager.current_snapshot();
+        Task::run(
+            iced::stream::channel(64, move |output: Sender<Message>| async move {
+                let mut send_message_caller_output = output.clone();
+                let sink = {
+                    move |event: TurnEvent| {
+                        let TurnEvent::Beat(message) = event;
+                        let mut output = output.clone();
+                        let _ = output.try_send(Message::Beat {
+                            adventure_id,
+                            message,
+                        });
+                    }
+                };
 
-                (sent, messages, snapshot)
-            }),
-            move |outcome| {
-                let (sent, messages, snapshot) = outcome.unwrap_or_else(|| {
+                let (sent, messages, snapshot) = on_tokio(handle, async move {
+                    let sent = match turn {
+                        Turn::Send(line) => message_manager.send_message(line, &sink).await,
+                        Turn::Request => message_manager.request_new_message(&sink).await,
+                    }
+                    .map(|_| ())
+                    .map_err(|err| err.to_string());
+
+                    let messages = adventure_manager
+                        .get_messages(adventure_id, HISTORY_LIMIT)
+                        .await
+                        .unwrap_or_default();
+                    let snapshot = adventure_manager.current_snapshot();
+
+                    (sent, messages, snapshot)
+                })
+                .await
+                .unwrap_or_else(|| {
                     (
                         Err("the turn task failed".to_string()),
                         Vec::new(),
@@ -324,13 +347,14 @@ impl<
                     )
                 });
 
-                Message::Replied {
+                let _ = send_message_caller_output.try_send(Message::Replied {
                     adventure_id,
                     sent,
                     messages,
                     snapshot,
-                }
-            },
+                });
+            }),
+            |message| message,
         )
     }
 
@@ -367,6 +391,18 @@ impl<
             }
             Message::RevealClosed => self.toggle_revealed = None,
             Message::Tick => self.spinner = (self.spinner + 0.12) % std::f32::consts::TAU,
+            Message::Beat {
+                adventure_id,
+                message,
+            } => {
+                let Some(scene) = self.scene.as_mut() else {
+                    return (Task::none(), Event::None);
+                };
+                if scene.adventure_id() != adventure_id {
+                    return (Task::none(), Event::None);
+                }
+                scene.messages.push(message);
+            }
             Message::Replied {
                 adventure_id,
                 sent,

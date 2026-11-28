@@ -10,6 +10,12 @@ use crate::backend::application::state::{SharedState, StateError};
 use crate::backend::domain::message::Message;
 use crate::backend::persistence::message_persistence::insert_messages;
 
+pub enum TurnEvent {
+    Beat(Message),
+}
+
+pub type TurnSink = dyn Fn(TurnEvent) + Send + Sync;
+
 #[derive(Error, Debug)]
 pub enum MessageManagerError {
     #[error(transparent)]
@@ -66,7 +72,11 @@ impl<
         }
     }
 
-    pub async fn send_message(&self, incoming: Message) -> Result<Message, MessageManagerError> {
+    pub async fn send_message(
+        &self,
+        incoming: Message,
+        sink: &TurnSink,
+    ) -> Result<Message, MessageManagerError> {
         log::info!(
             "turn start: adventure={} character={:?} narrator={:?}",
             incoming.adventure_id,
@@ -77,22 +87,29 @@ impl<
 
         let mut input_data = self.gather_data().await?;
         let chat_reply = self.respond(&input_data).await?;
-        let (stored_reply, act_closed) = self.process_respond(chat_reply, &mut input_data).await?;
-        if !act_closed {
-            self.run_follow_ups(stored_reply.clone()).await?;
+        let (stored_reply, act_closed) = self
+            .process_respond(chat_reply, &mut input_data, sink)
+            .await?;
+        if !act_closed && let Err(err) = self.run_follow_ups(stored_reply.clone(), sink).await {
+            log::warn!("follow-ups stopped: {err}");
         }
 
         Ok(stored_reply)
     }
 
-    pub async fn request_new_message(&self) -> Result<Message, MessageManagerError> {
+    pub async fn request_new_message(
+        &self,
+        sink: &TurnSink,
+    ) -> Result<Message, MessageManagerError> {
         log::info!("requesting a new message");
 
         let mut input_data = self.gather_data().await?;
         let chat_reply = self.respond(&input_data).await?;
-        let (stored_reply, act_closed) = self.process_respond(chat_reply, &mut input_data).await?;
-        if !act_closed {
-            self.run_follow_ups(stored_reply.clone()).await?;
+        let (stored_reply, act_closed) = self
+            .process_respond(chat_reply, &mut input_data, sink)
+            .await?;
+        if !act_closed && let Err(err) = self.run_follow_ups(stored_reply.clone(), sink).await {
+            log::warn!("follow-ups stopped: {err}");
         }
 
         Ok(stored_reply)

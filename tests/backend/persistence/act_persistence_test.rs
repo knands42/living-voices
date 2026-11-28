@@ -2,7 +2,7 @@ use crate::backend::application::helper::setup_db;
 use crate::backend::persistence::helper::{seed_act, seed_adventure, seed_message};
 use living_voices::backend::domain::memory::{Act, ActStatus};
 use living_voices::backend::persistence::act_persistence::{
-    activate_next_act, close_act, count_messages_per_act, get_active_act, get_acts,
+    activate_next_act, close_act, count_messages_per_act, delete_act, get_active_act, get_acts,
     update_act_running_digest, update_active_act_last_closure_score, upsert_act,
 };
 
@@ -181,4 +181,30 @@ async fn activate_next_act_promotes_the_act_after_the_closed_one() {
     assert_eq!(active.id, next_id);
     assert_eq!(active.ordinal, 2);
     assert_eq!(active.from_seq, 10);
+}
+
+#[tokio::test]
+async fn delete_act_removes_only_the_named_row_and_tolerates_a_missing_one() {
+    // given: an adventure with two acts
+    let (pool, _db) = setup_db().await;
+    let adventure = seed_adventure(&pool).await;
+    let doomed = seed_act(&pool, adventure.id, 1, "unstarted", None, None).await;
+    let kept = seed_act(&pool, adventure.id, 2, "unstarted", None, None).await;
+    let mut conn = pool.acquire().await.expect("acquire");
+
+    // when: one of them is deleted
+    delete_act(&mut conn, doomed).await.expect("delete act");
+
+    // then: only the other one remains, untouched
+    let acts = get_acts(&mut conn, adventure.id).await.expect("get acts");
+    assert_eq!(acts.len(), 1);
+    assert_eq!(acts[0].id, kept);
+
+    // and: deleting it again is a no-op rather than an error
+    delete_act(&mut conn, doomed)
+        .await
+        .expect("deleting a missing act succeeds");
+    let acts = get_acts(&mut conn, adventure.id).await.expect("get acts");
+    assert_eq!(acts.len(), 1);
+    assert_eq!(acts[0].id, kept);
 }

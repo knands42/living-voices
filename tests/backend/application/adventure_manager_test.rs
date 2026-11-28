@@ -506,3 +506,51 @@ async fn multiline_lore_reopens_without_breaking_the_cast_query() {
     // then: the lore comes back intact
     assert_eq!(reopened.lore.text, adventure.lore.text);
 }
+
+#[tokio::test]
+async fn delete_act_removes_the_saved_act_and_leaves_the_rest_of_the_draft_alone() {
+    // given: a draft with its initial act and a second one the builder added
+    let (pool, _db) = setup_db().await;
+    let adventure_manager = AdventureManager::new(SharedState::new(), pool.clone());
+    let adventure = adventure_manager
+        .create_adventure("Draft".into(), "A new tale".into(), "tense".into())
+        .await
+        .expect("create adventure");
+    let second = Act::new(adventure.id, 1, "Bargain with the still crowd");
+    adventure_manager
+        .upsert_act(&second)
+        .await
+        .expect("save second act");
+
+    // when: the builder removes it
+    adventure_manager
+        .delete_act(second.id)
+        .await
+        .expect("delete act");
+
+    // then: only the initial act is still there, through the manager and the database
+    let acts = adventure_manager
+        .get_acts(adventure.id)
+        .await
+        .expect("acts");
+    assert_eq!(acts.len(), 1);
+    assert_eq!(acts[0].ordinal, 0);
+    assert_ne!(acts[0].id, second.id);
+
+    let mut conn = pool.acquire().await.expect("acquire");
+    let persisted = get_acts(&mut conn, adventure.id).await.expect("get acts");
+    assert_eq!(persisted.len(), 1);
+    assert_eq!(persisted[0].id, acts[0].id);
+
+    // and: the draft still starts once its remaining act has a goal
+    let mut remaining = acts[0].clone();
+    remaining.goal = "Reach the frozen tavern".to_string();
+    adventure_manager
+        .upsert_act(&remaining)
+        .await
+        .expect("save remaining act");
+    adventure_manager
+        .start_adventure(adventure.id)
+        .await
+        .expect("a draft without the removed act is still startable");
+}

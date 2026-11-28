@@ -1,5 +1,6 @@
 use crate::backend::PersistenceError;
 use crate::backend::application::context::{ContextBuilder, ContextData};
+use crate::backend::application::message_manager::{TurnEvent, TurnSink};
 use crate::backend::application::port::chat_port::{ChatPort, NarratorPort};
 use crate::backend::application::port::memory_port::{ActCloserPort, MemoryDistillerPort};
 use crate::backend::domain::message::Message;
@@ -16,6 +17,7 @@ impl<
     pub(super) async fn run_follow_ups(
         &self,
         mut last_message: Message,
+        sink: &TurnSink,
     ) -> Result<(), MessageManagerError> {
         let mut steps_taken = 0;
 
@@ -57,10 +59,14 @@ impl<
                 );
                 return Ok(());
             };
-            let stored = self.create_message(message).await?;
-            log::info!("follow-up from {}", input.adventure.speaker_name(&stored));
+            let stored_message = self.create_message(message).await?;
+            log::info!(
+                "follow-up from {}",
+                input.adventure.speaker_name(&stored_message)
+            );
+            sink(TurnEvent::Beat(stored_message.clone()));
 
-            last_message = stored;
+            last_message = stored_message;
             steps_taken += 1;
         }
     }

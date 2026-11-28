@@ -42,7 +42,7 @@ async fn full_pipeline_sends_a_turn_and_triggers_an_act_closure() {
     // when: the player sends the turn that crosses the act cap
     let message_to_send = player_line(&adventure, "What now?");
     let reply = manager
-        .send_message(message_to_send)
+        .send_message(message_to_send, &|_| {})
         .await
         .expect("send succeeds");
 
@@ -108,7 +108,10 @@ async fn full_pipeline_sends_a_turn_and_triggers_background_distillation() {
 
     // when: the player sends the turn that crosses the threshold
     let incoming = player_line(&adventure, "What now?");
-    let reply = manager.send_message(incoming).await.expect("send succeeds");
+    let reply = manager
+        .send_message(incoming, &|_| {})
+        .await
+        .expect("send succeeds");
 
     // then: the reply is persisted
     assert!(reply.seq.is_some());
@@ -145,7 +148,7 @@ async fn send_message_routes_to_the_narrator() {
 
     // when: the player speaks
     let reply = manager
-        .send_message(player_line(&adventure, "Is anyone there?"))
+        .send_message(player_line(&adventure, "Is anyone there?"), &|_| {})
         .await
         .expect("send succeeds");
 
@@ -177,7 +180,7 @@ async fn send_message_routes_to_a_random_cast_member() {
 
     // when: the player invites anyone to speak
     let reply = manager
-        .send_message(player_line(&adventure, "Someone say something."))
+        .send_message(player_line(&adventure, "Someone say something."), &|_| {})
         .await
         .expect("send succeeds");
 
@@ -212,7 +215,7 @@ async fn send_message_routes_to_a_specific_targeted_character() {
 
     // when: the player aims the line at Kael
     let reply = manager
-        .send_message(player_line(&adventure, "Kael, what do you see?"))
+        .send_message(player_line(&adventure, "Kael, what do you see?"), &|_| {})
         .await
         .expect("send succeeds");
 
@@ -239,7 +242,7 @@ async fn request_new_message_answers_the_pending_line_without_storing_another() 
 
     // when: the player asks for the reply again
     let reply = manager
-        .request_new_message()
+        .request_new_message(&|_| {})
         .await
         .expect("request succeeds");
 
