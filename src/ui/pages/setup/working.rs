@@ -6,6 +6,7 @@ use iced::{Alignment, Element, Length};
 pub fn working<'a>(
     title: &'a str,
     stage: Stage,
+    steps: &[Stage],
     progress: Option<&Progress>,
     spinner: f32,
 ) -> Element<'a, Message> {
@@ -45,7 +46,7 @@ pub fn working<'a>(
     }
 
     body = body.push(common::divider());
-    body = body.push(trail(stage, spinner));
+    body = body.push(trail(steps, stage, spinner));
 
     container(body)
         .padding(18.0)
@@ -55,26 +56,20 @@ pub fn working<'a>(
 }
 
 /// Steps already reached keep a gold dot; the one being worked spins.
-fn trail(stage: Stage, spinner: f32) -> Element<'static, Message> {
+fn trail(steps: &[Stage], stage: Stage, spinner: f32) -> Element<'static, Message> {
     let mut line = row![].spacing(18.0).align_y(Alignment::Center);
 
-    for step in Stage::STEPS {
-        let (marker, label, text_color) = if step < stage {
-            (
-                common::dot(6.0, theme::GOLD),
-                step.label_when_done(),
-                theme::TEXT_LIGHT,
-            )
-        } else if step == Stage::Ready {
-            (
-                common::dot(6.0, theme::GOLD),
-                step.label_when_done(),
-                theme::TEXT_LIGHT,
-            )
-        } else if step == stage {
+    for &step in steps {
+        let (marker, label, text_color) = if step == stage && step != Stage::Ready {
             (
                 spinner_widget(spinner),
                 step.label_when_progressing(),
+                theme::TEXT_LIGHT,
+            )
+        } else if step <= stage {
+            (
+                common::dot(6.0, theme::GOLD),
+                step.label_when_done(),
                 theme::TEXT_LIGHT,
             )
         } else {
@@ -86,7 +81,7 @@ fn trail(stage: Stage, spinner: f32) -> Element<'static, Message> {
         };
 
         line = line.push(
-            row![marker, text(label).size(11.0).color(text_color)]
+            row![marker, text(label).size(14.0).color(text_color)]
                 .spacing(6.0)
                 .align_y(Alignment::Center),
         );

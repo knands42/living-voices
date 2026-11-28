@@ -25,31 +25,43 @@ pub enum Message {
     MediaToggled(bool),
     Confirmed,
     BackRequested,
-    Progress(Progress),
+    Progress { stage: Stage, progress: Progress },
     Provisioned,
     Failed(String),
     Tick,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
-    Install,
+    Text,
+    Media,
     Ready,
 }
 
 impl Stage {
-    pub const STEPS: [Stage; 2] = [Self::Install, Self::Ready];
+    const TEXT_ONLY: [Stage; 2] = [Self::Text, Self::Ready];
+    const WITH_MEDIA: [Stage; 3] = [Self::Text, Self::Media, Self::Ready];
+
+    pub fn steps(media_engine: bool) -> &'static [Stage] {
+        if media_engine {
+            &Self::WITH_MEDIA
+        } else {
+            &Self::TEXT_ONLY
+        }
+    }
 
     pub fn label_when_progressing(self) -> &'static str {
         match self {
-            Self::Install => "Installing",
+            Self::Text => "Installing models",
+            Self::Media => "Setting up images",
             Self::Ready => "Ready",
         }
     }
 
     pub fn label_when_done(self) -> &'static str {
         match self {
-            Self::Install => "Installed",
+            Self::Text => "Models installed",
+            Self::Media => "Images ready",
             Self::Ready => "Ready",
         }
     }
@@ -118,6 +130,7 @@ pub struct State {
     recommendation: MediaRecommendation,
     media_engine: bool,
     phase: Phase,
+    stage: Stage,
     progress: Option<Progress>,
     notice: Option<&'static str>,
     spinner: f32,
@@ -143,6 +156,7 @@ impl State {
             recommendation,
             media_engine,
             phase: Phase::Asking,
+            stage: Stage::Text,
             progress: None,
             notice: None,
             spinner: 0.0,
@@ -172,9 +186,13 @@ impl State {
                 return (self.start(), Event::None);
             }
             Message::BackRequested => return (Task::none(), Event::Show(Page::MainHub)),
-            Message::Progress(progress) => self.progress = Some(progress),
+            Message::Progress { stage, progress } => {
+                self.stage = stage;
+                self.progress = Some(progress);
+            }
             Message::Provisioned => {
                 self.phase = Phase::Provisioned;
+                self.stage = Stage::Ready;
                 self.progress = None;
             }
             Message::Failed(err) => {
@@ -190,14 +208,16 @@ impl State {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
+        let steps = Stage::steps(self.media_engine);
         let body = match &self.phase {
             Phase::Installing => working(
                 "Installing the engines",
-                Stage::Install,
+                self.stage,
+                steps,
                 self.progress.as_ref(),
                 self.spinner,
             ),
-            Phase::Provisioned => working("Setup complete", Stage::Ready, None, self.spinner),
+            Phase::Provisioned => working("Setup complete", self.stage, steps, None, self.spinner),
             Phase::Asking | Phase::Failed(_) => question(self),
         };
 
@@ -244,6 +264,7 @@ impl State {
 
     fn start(&mut self) -> Task<Message> {
         self.phase = Phase::Installing;
+        self.stage = Stage::Text;
         self.progress = None;
         bring_up(self.handle.clone(), self.config.settings())
     }
@@ -275,11 +296,14 @@ fn bring_up(handle: tokio::runtime::Handle, settings: Settings) -> Task<Message>
                     return;
                 }
                 last_text = written;
-                let _ = text_output.try_send(Message::Progress(Progress::Model {
-                    file,
-                    written,
-                    total,
-                }));
+                let _ = text_output.try_send(Message::Progress {
+                    stage: Stage::Text,
+                    progress: Progress::Model {
+                        file,
+                        written,
+                        total,
+                    },
+                });
             };
 
             let mut last_media = 0;
@@ -304,7 +328,10 @@ fn bring_up(handle: tokio::runtime::Handle, settings: Settings) -> Task<Message>
                         }
                     }
                 };
-                let _ = media_output.try_send(Message::Progress(progress));
+                let _ = media_output.try_send(Message::Progress {
+                    stage: Stage::Media,
+                    progress,
+                });
             };
 
             let provision_settings = settings.clone();
